@@ -1,0 +1,19 @@
+# Render Blueprint Specification
+# See https://render.com/docs/blueprints for more information
+services:
+  - type: web
+    name: cv-matcher-ai
+    env: node
+    plan: free # Optional: specify plan
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: RECAPTCHA_SECRET_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
+
