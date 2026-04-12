@@ -3974,7 +3974,12 @@ function AppContent() {
               <div className="py-12 text-center w-full bg-slate-50 border-y border-slate-100">
                 <p className="text-slate-500 mb-8 font-medium">{t.trustedBy}</p>
                 <div className="flex flex-wrap gap-12 justify-center text-slate-400 font-bold text-xl sm:text-2xl opacity-60">
-                  <span>VietnamWorks</span><span>ITviec</span><span>TopCV</span><span>CareerBuilder</span><span>JobsGO</span><span>LinkedIn</span>
+                  <a href="https://www.vietnamworks.com/" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer">VietnamWorks</a>
+                  <a href="https://itviec.com/" target="_blank" rel="noopener noreferrer" className="hover:text-amber-500 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer">ITviec</a>
+                  <a href="https://www.topcv.vn/" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer">TopCV</a>
+                  <a href="https://careerviet.vn/" target="_blank" rel="noopener noreferrer" className="hover:text-blue-700 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer">CareerViet</a>
+                  <a href="https://jobsgo.vn/" target="_blank" rel="noopener noreferrer" className="hover:text-orange-500 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer">JobsGO</a>
+                  <a href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer">LinkedIn</a>
                 </div>
               </div>
             )}
