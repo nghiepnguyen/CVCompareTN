@@ -350,6 +350,33 @@ const UI_LABELS = {
     inAppBrowserAction: "Vui lòng nhấn vào dấu ba chấm (...) hoặc biểu tượng trình duyệt trên màn hình và chọn 'Mở bằng trình duyệt' (Chrome hoặc Safari) để tiếp tục.",
     openInExternalBrowser: "Mở bằng trình duyệt bên ngoài",
     loginErrorInApp: "Lỗi đăng nhập: Trình duyệt này không được Google hỗ trợ. Vui lòng mở trang web bằng Chrome hoặc Safari.",
+    analysisHistory: "Lịch sử phân tích",
+    historyDesc: "Xem lại và quản lý các kết quả phân tích CV của bạn",
+    clearHistory: "Xóa toàn bộ lịch sử",
+    backToList: "Quay lại danh sách",
+    back: "Quay lại",
+    detailedAnalysis: "Phân tích chi tiết:",
+    comparisonJD: "Thông tin JD so sánh:",
+    reportLanguageLabel: "Ngôn ngữ báo cáo",
+    vietnamese: "Tiếng Việt",
+    english: "Tiếng Anh",
+    analysisProgress: "Tiến trình phân tích",
+    aiThinking: "AI đang suy nghĩ...",
+    analysisTime: "Thời gian phân tích",
+    sectionOther: "Khác",
+    printOptimized: "In CV",
+    premiumOptimizedBadge: "Tối ưu bởi AI Premium",
+    processingFile: "Đang xử lý File...",
+    readyToAnalyze: "Sẵn sàng phân tích",
+    readyToAnalyzeDesc: "Tải lên CV của bạn và cung cấp mô tả công việc để xem thông tin chi tiết về mức độ phù hợp.",
+    rateResults: "Đánh giá kết quả phân tích",
+    rateResultsDesc: "Phản hồi của bạn giúp chúng tôi cải thiện độ chính xác của AI.",
+    thankYouRating: "Cảm ơn bạn đã đánh giá!",
+    submitRating: "Gửi đánh giá",
+    feedbackPlaceholder: "Bạn có góp ý gì để kết quả chính xác hơn không? (Tùy chọn)",
+    atsCompatibilityScore: "Điểm tương thích ATS",
+    scoreDistribution: "Phân bổ điểm thành phần",
+    skillDistribution: "Phân bổ kỹ năng",
   },
   en: {
     atsScore: "ATS Compatibility Score",
@@ -500,8 +527,35 @@ const UI_LABELS = {
     ],
     inAppBrowserWarning: "You are opening the app from an in-app browser (Zalo, Facebook, Messenger...). Google blocks login from these browsers.",
     inAppBrowserAction: "Please tap the three dots (...) or the browser icon on your screen and select 'Open in browser' (Chrome or Safari) to continue.",
-    openInExternalBrowser: "Open in external browser",
+    openInExternalBrowser: "Open in External Browser",
     loginErrorInApp: "Login Error: This browser is not supported by Google. Please open the website in Chrome or Safari.",
+    analysisHistory: "Analysis History",
+    historyDesc: "Review and manage your CV analysis history results",
+    clearHistory: "Clear All History",
+    backToList: "Back to List",
+    back: "Back",
+    detailedAnalysis: "Detailed Analysis:",
+    comparisonJD: "Comparison JD Info:",
+    reportLanguageLabel: "Report Language",
+    vietnamese: "Vietnamese",
+    english: "English",
+    analysisProgress: "Analysis Progress",
+    aiThinking: "AI is thinking...",
+    analysisTime: "Analysis Time",
+    sectionOther: "Other",
+    printOptimized: "Print CV",
+    premiumOptimizedBadge: "Premium AI Optimized",
+    processingFile: "Processing file...",
+    readyToAnalyze: "Ready to analyze",
+    readyToAnalyzeDesc: "Upload your CV and provide a job description to see detailed matching insights.",
+    rateResults: "Rate Analysis Results",
+    rateResultsDesc: "Your feedback helps us improve AI accuracy.",
+    thankYouRating: "Thank you for your rating!",
+    submitRating: "Submit Rating",
+    feedbackPlaceholder: "Do you have any suggestions to make the results more accurate? (Optional)",
+    atsCompatibilityScore: "ATS Compatibility Score",
+    scoreDistribution: "Component Score Breakdown",
+    skillDistribution: "Skill Distribution",
   }
 };
 
@@ -641,10 +695,10 @@ function AppContent() {
 
   // Initialize Google Analytics
   useEffect(() => {
-    const GA_ID = 'G-ZHBDC5N1M3';
+    const GA_ID = import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-89Y51J2MS7';
     
-    // Check if script already exists
-    if (document.querySelector(`script[src*="${GA_ID}"]`)) return;
+    // Check if script already exists OR if GA_ID is missing
+    if (!GA_ID || document.querySelector(`script[src*="${GA_ID}"]`)) return;
 
     const script = document.createElement('script');
     script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
@@ -662,8 +716,11 @@ function AppContent() {
       window.dataLayer.push(arguments);
     };
     window.gtag('js', new Date());
-    window.gtag('config', GA_ID);
-  }, []);
+    window.gtag('config', GA_ID, {
+      page_path: window.location.pathname + window.location.search,
+      page_title: reportLanguage === 'en' ? 'CV Matcher & Optimizer' : 'Phân tích CV - thanhnghiep.top'
+    });
+  }, [reportLanguage]);
 
   // Detect In-App Browser
   useEffect(() => {
@@ -723,7 +780,7 @@ function AppContent() {
     let unsubscribe: (() => void) | undefined;
     
     // Always subscribe if admin, to show notification dots even when not on admin tab
-    if (userProfile?.role === 'admin' || user?.email?.toLowerCase() === 'thanhnghiep@gmail.com') {
+    if (userProfile?.role === 'admin' || user?.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase()) {
       unsubscribe = subscribeToAllUsers(setAllUsers);
     }
     
@@ -771,6 +828,9 @@ function AppContent() {
   const handleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
+      if (window.gtag) {
+        window.gtag('event', 'login', { method: 'Google' });
+      }
     } catch (err: any) {
       console.error("Login Error:", err);
       const isIframe = window.self !== window.top;
@@ -810,13 +870,13 @@ function AppContent() {
       if (err.code === 'auth/popup-blocked') {
         setError(
           <div className="flex flex-col gap-2">
-            <p>Popup đăng nhập bị chặn bởi trình duyệt.</p>
+            <p>{reportLanguage === 'vi' ? 'Popup đăng nhập bị chặn bởi trình duyệt.' : 'Login popup blocked by browser.'}</p>
             {isIframe && (
               <button 
                 onClick={() => window.open(window.location.href, '_blank')}
                 className="text-indigo-600 underline font-bold"
               >
-                Mở ứng dụng trong tab mới để đăng nhập
+                {reportLanguage === 'vi' ? 'Mở ứng dụng trong tab mới để đăng nhập' : 'Open app in new tab to login'}
               </button>
             )}
           </div>
@@ -824,15 +884,15 @@ function AppContent() {
       } else if (err.code === 'auth/unauthorized-domain') {
         setError(
           <div className="flex flex-col gap-2">
-            <p>Tên miền này chưa được cấp phép trong Firebase Console.</p>
+            <p>{reportLanguage === 'vi' ? 'Tên miền này chưa được cấp phép trong Firebase Console.' : 'This domain is not authorized in Firebase Console.'}</p>
             <p className="text-[10px] bg-slate-100 p-2 rounded border border-slate-200 font-mono break-all">
               {window.location.hostname}
             </p>
-            <p className="text-xs">Vui lòng thêm tên miền trên vào danh sách <b>Authorized Domains</b> trong Firebase Auth Settings.</p>
+            <p className="text-xs">{reportLanguage === 'vi' ? 'Vui lòng thêm tên miền trên vào danh sách Authorized Domains trong Firebase Auth Settings.' : 'Please add this domain to the Authorized Domains list in Firebase Auth Settings.'}</p>
           </div>
         );
       } else {
-        setError("Không thể đăng nhập bằng Google: " + (err.message || "Lỗi không xác định"));
+        setError((reportLanguage === 'vi' ? "Không thể đăng nhập bằng Google: " : "Cannot login with Google: ") + (err.message || (reportLanguage === 'vi' ? "Lỗi không xác định" : "Unknown error")));
       }
     }
   };
@@ -840,6 +900,9 @@ function AppContent() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      if (window.gtag) {
+        window.gtag('event', 'logout');
+      }
       // Clear all input states
       setJd('');
       setJdUrl('');
@@ -892,7 +955,7 @@ function AppContent() {
   useEffect(() => {
     if (window.gtag) {
       window.gtag('event', 'page_view', {
-        page_title: activeTab === 'analyze' ? 'Phân tích CV' : 'Lịch sử phân tích',
+        page_title: activeTab === 'analyze' ? t.analyze : t.analysisHistory,
         page_path: `/${activeTab}`,
       });
     }
@@ -931,11 +994,16 @@ function AppContent() {
         setTimeout(() => {
           setFiles(prev => [...prev, ...validFiles]);
           setUploadProgress(null);
+          if (window.gtag) {
+            window.gtag('event', 'cv_file_upload', {
+              file_count: validFiles.length
+            });
+          }
         }, 1100);
       }
 
       if (validFiles.length !== selectedFiles.length) {
-        setError('Một số file đã bị bỏ qua. Vui lòng chỉ tải lên tài liệu PDF, DOCX, TXT hoặc Hình ảnh.');
+        setError(reportLanguage === 'vi' ? 'Một số file đã bị bỏ qua. Vui lòng chỉ tải lên tài liệu PDF, DOCX, TXT hoặc Hình ảnh.' : 'Some files were ignored. Please only upload PDF, DOCX, TXT or Image files.');
       } else {
         setError(null);
       }
@@ -1034,12 +1102,12 @@ function AppContent() {
       const isImage = file.type.startsWith('image/');
       
       if (!isPdf && !isDocx && !isDoc && !isTxt && !isImage) {
-        setError('Vui lòng chỉ tải lên tài liệu PDF, DOCX, TXT hoặc Hình ảnh cho JD.');
+        setError(reportLanguage === 'vi' ? 'Vui lòng chỉ tải lên tài liệu PDF, DOCX, TXT hoặc Hình ảnh cho JD.' : 'Please only upload PDF, DOCX, TXT or Image files for JD.');
         return;
       }
 
       if (isDoc && !isDocx) {
-        setError('Định dạng .doc cũ không được hỗ trợ tốt. Vui lòng chuyển sang .docx hoặc .pdf.');
+        setError(reportLanguage === 'vi' ? 'Định dạng .doc cũ không được hỗ trợ tốt. Vui lòng chuyển sang .docx hoặc .pdf.' : 'Old .doc format is not well supported. Please convert to .docx or .pdf.');
         return;
       }
 
@@ -1051,12 +1119,17 @@ function AppContent() {
         if (data && data.trim()) {
           setJd(data.trim());
           setError(null);
+          if (window.gtag) {
+            window.gtag('event', 'jd_file_upload', {
+              file_name: file.name
+            });
+          }
         } else {
-          setError('Không thể trích xuất văn bản từ file JD này. Vui lòng thử dán trực tiếp.');
+          setError(reportLanguage === 'vi' ? 'Không thể trích xuất văn bản từ file JD này. Vui lòng thử dán trực tiếp.' : 'Could not extract text from this JD file. Please try pasting directly.');
         }
       } catch (err: any) {
         console.error('Lỗi xử lý file JD:', err);
-        setError(`Lỗi khi xử lý file JD: ${err.message || 'Không xác định'}. Vui lòng thử dán trực tiếp.`);
+        setError((reportLanguage === 'vi' ? 'Lỗi khi xử lý file JD: ' : 'Error processing JD file: ') + (err.message || (reportLanguage === 'vi' ? 'Không xác định' : 'Unknown')) + (reportLanguage === 'vi' ? '. Vui lòng thử dán trực tiếp.' : '. Please try pasting directly.'));
       } finally {
         setIsAnalyzing(false);
         // Reset the input value so the same file can be uploaded again if needed
@@ -1106,7 +1179,7 @@ function AppContent() {
       }
 
       if (validFiles.length !== selectedFiles.length) {
-        setError('Một số file đã bị bỏ qua. Vui lòng chỉ tải lên tài liệu PDF, DOCX, TXT hoặc Hình ảnh.');
+        setError(reportLanguage === 'vi' ? 'Một số file đã bị bỏ qua. Vui lòng chỉ tải lên tài liệu PDF, DOCX, TXT hoặc Hình ảnh.' : 'Some files were ignored. Please only upload PDF, DOCX, TXT or Image files.');
       } else {
         setError(null);
       }
@@ -1133,15 +1206,15 @@ function AppContent() {
 
   const handleSaveJD = () => {
     if (!user) {
-      setError("Bạn cần đăng nhập để lưu JD.");
+      setError(reportLanguage === 'vi' ? "Bạn cần đăng nhập để lưu JD." : "You need to login to save JD.");
       return;
     }
     if (!jd.trim()) {
-      setError("Vui lòng nhập nội dung JD trước khi lưu.");
+      setError(reportLanguage === 'vi' ? "Vui lòng nhập nội dung JD trước khi lưu." : "Please enter JD content before saving.");
       return;
     }
 
-    const defaultTitle = jd.split('\n')[0].substring(0, 50) || 'JD đã lưu';
+    const defaultTitle = jd.split('\n')[0].substring(0, 50) || (reportLanguage === 'vi' ? 'JD đã lưu' : 'Saved JD');
     setJdSaveTitle(defaultTitle);
     setIsSaveJDNameModalOpen(true);
   };
@@ -1155,6 +1228,9 @@ function AppContent() {
       await loadSavedJDs();
       setIsSaveJDNameModalOpen(false);
       setJdSaveTitle('');
+      if (window.gtag) {
+        window.gtag('event', 'jd_create', { method: 'manual' });
+      }
     } catch (err: any) {
       setError("Lỗi khi lưu JD: " + err.message);
     } finally {
@@ -1202,6 +1278,9 @@ function AppContent() {
       const extractedText = await extractJDFromUrl(jdUrl);
       setJd(extractedText);
       setJdInputMode('text'); // Switch to text mode to show the extracted content
+      if (window.gtag) {
+        window.gtag('event', 'jd_create', { method: 'extract_url', url: jdUrl });
+      }
     } catch (err: any) {
       setError(err.message || "Không thể trích xuất nội dung từ liên kết này.");
     } finally {
@@ -1301,6 +1380,14 @@ function AppContent() {
             userId: user?.uid
           });
           
+          if (window.gtag) {
+            window.gtag('event', 'analysis_success', {
+              cv_name: file.name,
+              match_score: analysis.matchScore,
+              jd_type: jdInputMode
+            });
+          }
+          
           setAnalysisProgress(fileBaseProgress + (1 / totalFiles) * 75);
           
           // Increment usage count for each CV analyzed
@@ -1320,6 +1407,14 @@ function AppContent() {
           ...analysis,
           userId: user?.uid
         });
+        
+        if (window.gtag) {
+          window.gtag('event', 'analysis_success', {
+            cv_name: 'Pasted Text',
+            match_score: analysis.matchScore,
+            jd_type: jdInputMode
+          });
+        }
         setAnalysisProgress(90);
         
         // Increment usage count
@@ -1459,7 +1554,11 @@ function AppContent() {
                       <span className="hidden md:inline">{t.analyze}</span>
                     </button>
                     <button 
-                      onClick={() => { setActiveTab('history'); setSelectedResult(null); }}
+                      onClick={() => { 
+                        setActiveTab('history'); 
+                        setSelectedResult(null); 
+                        if (window.gtag) window.gtag('event', 'view_history');
+                      }}
                       className={cn(
                         "flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95",
                         activeTab === 'history' && !selectedResult ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
@@ -1470,7 +1569,7 @@ function AppContent() {
                     </button>
                   </>
                 )}
-                { (userProfile?.role === 'admin' || user?.email?.toLowerCase() === 'thanhnghiep@gmail.com') && (
+                { (userProfile?.role === 'admin' || user?.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase()) && (
                   <button 
                     onClick={() => { setActiveTab('admin'); setSelectedResult(null); }}
                     className={cn(
@@ -1834,17 +1933,17 @@ function AppContent() {
               </div>
             </section>
           </div>
-        ) : user && userProfile?.hasPermission === false && userProfile?.role !== 'admin' && user.email?.toLowerCase() !== 'thanhnghiep@gmail.com' ? (
+        ) : user && userProfile?.hasPermission === false && userProfile?.role !== 'admin' && user.email?.toLowerCase() !== (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase() ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-20 h-20 bg-red-100 rounded-3xl flex items-center justify-center mb-6">
               <UserX className="w-10 h-10 text-red-600" />
             </div>
             <h2 className="text-3xl font-black text-slate-900 mb-4">Tài khoản bị khóa</h2>
             <p className="text-slate-600 max-w-md mb-8">
-              Tài khoản của bạn đã bị quản trị viên tạm khóa. Vui lòng liên hệ <a href="mailto:thanhnghiep.top@gmail.com" className="text-indigo-600 font-bold hover:underline">thanhnghiep.top@gmail.com</a> để được hỗ trợ.
+              Tài khoản của bạn đã bị quản trị viên tạm khóa. Vui lòng liên hệ <a href={`mailto:${import.meta.env.VITE_FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'}`} className="text-indigo-600 font-bold hover:underline">{import.meta.env.VITE_FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'}</a> để được hỗ trợ.
             </p>
           </div>
-        ) : activeTab === 'admin' && (userProfile?.role === 'admin' || user?.email?.toLowerCase() === 'thanhnghiep@gmail.com') ? (
+        ) : activeTab === 'admin' && (userProfile?.role === 'admin' || user?.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase()) ? (
           <div className="space-y-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -2329,7 +2428,7 @@ function AppContent() {
                     {uploadProgress !== null && (
                       <div className="mt-4">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-bold text-indigo-600 uppercase">{reportLanguage === 'vi' ? 'Đang xử lý File...' : 'Processing file...'}</span>
+                          <span className="text-[10px] font-bold text-indigo-600 uppercase">{t.processingFile}</span>
                           <span className="text-[10px] font-bold text-indigo-600">{uploadProgress}%</span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -2386,8 +2485,8 @@ function AppContent() {
                     <Globe className="w-4 h-4 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{reportLanguage === 'vi' ? 'Ngôn ngữ báo cáo' : 'Report Language'}</p>
-                    <p className="text-xs font-bold text-slate-700">{reportLanguage === 'vi' ? 'Tiếng Việt' : 'English'}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t.reportLanguageLabel}</p>
+                    <p className="text-xs font-bold text-slate-700">{reportLanguage === 'vi' ? t.vietnamese : t.english}</p>
                   </div>
                 </div>
                 <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
@@ -2422,12 +2521,12 @@ function AppContent() {
                 {isAnalyzing ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    {cvInputMode === 'file' ? (reportLanguage === 'vi' ? `Đang phân tích ${files.length} CV...` : `Analyzing ${files.length} CVs...`) : (reportLanguage === 'vi' ? 'Đang phân tích CV...' : 'Analyzing CV...')}
+                    {cvInputMode === 'file' ? (reportLanguage === 'vi' ? `Đang phân tích ${files.length} CV...` : `Analyzing ${files.length} CVs...`) : t.analyzingBtn}
                   </>
                 ) : (
                   <>
                     <TrendingUp className="w-5 h-5" />
-                    {reportLanguage === 'vi' ? 'So sánh & Phân tích' : 'Compare & Analyze'}
+                    {t.analyze}
                   </>
                 )}
               </button>
@@ -2438,12 +2537,6 @@ function AppContent() {
                 <a href="https://policies.google.com/terms" target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline mx-1">Terms of Service</a> apply.
               </p>
 
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 shrink-0" />
-                  <p className="text-sm font-medium">{error}</p>
-                </div>
-              )}
             </div>
 
             {/* Right Column: Results (7 cols) */}
@@ -2470,9 +2563,9 @@ function AppContent() {
                     <div className="w-full max-w-md mb-8">
                       <div className="flex justify-between items-end mb-2">
                         <div className="text-left">
-                          <h3 className="text-xl font-bold text-slate-800">{analysisStatus || (reportLanguage === 'vi' ? 'AI đang suy nghĩ...' : 'AI is thinking...')}</h3>
+                          <h3 className="text-xl font-bold text-slate-800">{analysisStatus || t.aiThinking}</h3>
                           <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">
-                            {reportLanguage === 'vi' ? 'Tiến trình phân tích' : 'Analysis Progress'}
+                            {t.analysisProgress}
                           </p>
                         </div>
                         <div className="text-right">
@@ -2532,7 +2625,7 @@ function AppContent() {
                       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                         <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
                           <Layers className="w-5 h-5 text-indigo-600" />
-                          {reportLanguage === 'vi' ? 'Tổng quan so sánh' : 'Comparison Overview'}
+                          {t.detailedComparison}
                         </h3>
                         <div className="overflow-x-auto">
                           <table className="w-full text-left">
@@ -2600,12 +2693,12 @@ function AppContent() {
                             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-indigo-50 transition-colors">
                               <ChevronRight className="w-4 h-4 rotate-180" />
                             </div>
-                            {results.length > 1 ? (reportLanguage === 'vi' ? 'Quay lại danh sách' : 'Back to list') : (reportLanguage === 'vi' ? 'Quay lại' : 'Back')}
+                            {results.length > 1 ? t.backToList : t.back}
                           </button>
                           
                           <div className="flex items-center gap-3">
                             <div className="text-right hidden sm:block">
-                              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{reportLanguage === 'vi' ? 'Thời gian phân tích' : 'Analysis Time'}</div>
+                              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.analysisTime}</div>
                               <div className="text-sm font-bold text-slate-700">{new Date(selectedResult.timestamp).toLocaleString(reportLanguage === 'vi' ? 'vi-VN' : 'en-US')}</div>
                             </div>
                           </div>
@@ -2615,14 +2708,14 @@ function AppContent() {
                           <div className="flex items-center gap-2 mb-1">
                             <Target className="w-5 h-5 text-indigo-600" />
                             <h3 className="text-xl font-bold text-slate-800">
-                              {reportLanguage === 'vi' ? 'Phân tích chi tiết:' : 'Detailed Analysis:'} <span className="text-indigo-600">{selectedResult.jobTitle || selectedResult.cvName}</span>
+                              {t.detailedAnalysis} <span className="text-indigo-600">{selectedResult.jobTitle || selectedResult.cvName}</span>
                             </h3>
                           </div>
                           {selectedResult.jdTitle && (
                             <div className="flex items-start gap-2 ml-7 mt-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
                               <FileSearch className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
                               <div className="flex flex-col gap-1">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{reportLanguage === 'vi' ? 'Thông tin JD so sánh:' : 'Comparison JD Info:'}</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{t.comparisonJD}</span>
                                 <p className="text-xs text-slate-600 leading-relaxed italic whitespace-pre-line line-clamp-5 break-all">
                                   {selectedResult.jdTitle}
                                 </p>
@@ -2632,53 +2725,30 @@ function AppContent() {
                         </div>
 
                         {/* Tab Navigation - Sticky Header */}
-                        <div id="tab-navigation" className="sticky top-16 z-40 bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 mb-8 border-b border-slate-100 flex items-center justify-between shadow-sm overflow-hidden">
-                          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl w-full sm:w-fit shadow-inner overflow-x-auto scrollbar-hide no-scrollbar">
-                            <button
-                              onClick={() => {
-                                setResultTab('analysis');
-                                setTimeout(() => document.getElementById('analysis-content')?.scrollIntoView({ behavior: 'smooth' }), 0);
-                              }}
-                              className={cn(
-                                "px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0",
-                                resultTab === 'analysis' 
-                                  ? "bg-white text-indigo-600 shadow-md scale-[1.02]" 
-                                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                              )}
-                            >
-                              <Activity className="w-3.5 h-3.5 sm:w-4 h-4" />
-                              {reportLanguage === 'vi' ? 'Phân tích' : 'Analysis'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setResultTab('comparison');
-                                setTimeout(() => document.getElementById('comparison-content')?.scrollIntoView({ behavior: 'smooth' }), 0);
-                              }}
-                              className={cn(
-                                "px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0",
-                                resultTab === 'comparison' 
-                                  ? "bg-white text-indigo-600 shadow-md scale-[1.02]" 
-                                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                              )}
-                            >
-                              <FileSearch className="w-3.5 h-3.5 sm:w-4 h-4" />
-                              {reportLanguage === 'vi' ? 'So sánh' : 'Comparison'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setResultTab('optimization');
-                                setTimeout(() => document.getElementById('optimization-content')?.scrollIntoView({ behavior: 'smooth' }), 0);
-                              }}
-                              className={cn(
-                                "px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0",
-                                resultTab === 'optimization' 
-                                  ? "bg-white text-indigo-600 shadow-md scale-[1.02]" 
-                                  : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                              )}
-                            >
-                              <Zap className="w-3.5 h-3.5 sm:w-4 h-4" />
-                              {reportLanguage === 'vi' ? 'Tối ưu' : 'Optimization'}
-                            </button>
+                        <div id="tab-navigation" className="sticky top-16 z-40 bg-white/80 backdrop-blur-xl py-4 -mx-4 px-4 mb-8 border-b border-slate-200/50 flex items-center justify-between shadow-sm overflow-hidden transition-all duration-300">
+                          <div className="flex items-center gap-1.5 p-1.5 bg-slate-200/50 backdrop-blur-md rounded-[2rem] w-full sm:w-fit shadow-inner overflow-x-auto scrollbar-hide no-scrollbar border border-white/50">
+                            {[
+                              { id: 'analysis', icon: Activity, label: t.analyze },
+                              { id: 'comparison', icon: FileSearch, label: reportLanguage === 'vi' ? 'So sánh' : 'Comparison' },
+                              { id: 'optimization', icon: Zap, label: t.optimized }
+                            ].map((tab) => (
+                              <button
+                                key={tab.id}
+                                onClick={() => {
+                                  setResultTab(tab.id as any);
+                                  setTimeout(() => document.getElementById(`${tab.id}-content`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                                }}
+                                className={cn(
+                                  "px-5 sm:px-10 py-3 sm:py-3.5 rounded-[1.5rem] text-[10px] sm:text-xs font-black uppercase tracking-[0.1em] transition-all flex items-center gap-2.5 shrink-0 cursor-pointer hover:scale-105 active:scale-95",
+                                  resultTab === tab.id 
+                                    ? "bg-white text-indigo-600 shadow-xl shadow-indigo-100/50 ring-1 ring-slate-200" 
+                                    : "text-slate-500 hover:text-indigo-600 hover:bg-white/60"
+                                )}
+                              >
+                                <tab.icon className={cn("w-4 h-4", resultTab === tab.id ? "animate-pulse" : "")} />
+                                {tab.label}
+                              </button>
+                            ))}
                           </div>
                         </div>
 
@@ -2722,7 +2792,7 @@ function AppContent() {
                           <div className="text-center md:text-left">
                             <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-2">
                               <Sparkles className="w-3 h-3" />
-                              {reportLanguage === 'vi' ? 'Điểm tương thích ATS' : 'ATS Compatibility Score'}
+                              {t.atsCompatibilityScore}
                             </div>
                             <h3 className="text-2xl font-black text-slate-800 mb-2">{t.atsScore}</h3>
                             <p className="text-sm text-slate-500 max-w-md leading-relaxed mb-4">
@@ -2744,7 +2814,7 @@ function AppContent() {
                         {/* Score Breakdown */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                            <h4 className="text-sm font-bold text-slate-800 mb-6">{reportLanguage === 'vi' ? 'Phân bổ điểm thành phần' : 'Component Score Breakdown'}</h4>
+                            <h4 className="text-sm font-bold text-slate-800 mb-6">{t.scoreDistribution}</h4>
                             <div className="h-64">
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={[
@@ -2764,7 +2834,7 @@ function AppContent() {
                           </div>
                           
                           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                            <h4 className="text-sm font-bold text-slate-800 mb-6">{reportLanguage === 'vi' ? 'Phân bổ kỹ năng' : 'Skill Distribution'}</h4>
+                            <h4 className="text-sm font-bold text-slate-800 mb-6">{t.skillDistribution}</h4>
                             <div className="h-64">
                               <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
@@ -3088,26 +3158,30 @@ function AppContent() {
                       {resultTab === 'optimization' && (
                         <div id="optimization-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
                           {/* ATS & Rewriting */}
-                          <div className="bg-slate-900 rounded-3xl p-8 text-white">
+                          <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm">
                           <div className="flex flex-col gap-10">
                             <div>
-                              <h4 className="font-bold mb-4 flex items-center gap-2 text-indigo-400">
+                              <h4 className="font-bold mb-4 flex items-center gap-2 text-indigo-600">
                                 <Sparkles className="w-5 h-5" />
                                 {t.atsKeywords}
                               </h4>
-                              <div className="flex flex-wrap gap-2">
+                              <div className="flex flex-wrap gap-2.5">
                                 {selectedResult.atsKeywords.map((kw, i) => (
-                                  <span key={i} className="px-3 py-1 bg-white/10 rounded-full text-xs font-medium hover:bg-white/20 transition-colors cursor-default">
+                                  <motion.span 
+                                    key={i} 
+                                    whileHover={{ scale: 1.05, y: -2 }}
+                                    className="px-4 py-1.5 bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-600 border border-indigo-100/50 rounded-full text-xs font-bold shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-default"
+                                  >
                                     {kw}
-                                  </span>
+                                  </motion.span>
                                 ))}
                               </div>
                             </div>
                             
-                            <div className="h-px bg-white/10 w-full" />
+                            <div className="h-px bg-slate-100 w-full" />
 
                             <div>
-                              <h4 className="font-bold mb-6 flex items-center gap-2 text-emerald-400 text-lg">
+                              <h4 className="font-bold mb-6 flex items-center gap-2 text-emerald-600 text-lg">
                                 <RefreshCcw className="w-6 h-6" />
                                 {t.rewriteSuggestions}
                               </h4>
@@ -3121,39 +3195,37 @@ function AppContent() {
                                   }, {} as Record<string, typeof selectedResult.rewriteSuggestions>)
                                 ).map(([section, suggestions]) => (
                                   <div key={section} className="space-y-4">
-                                    <div className="flex items-center gap-3 mb-2">
-                                      <div className="h-px bg-emerald-500/30 flex-1" />
-                                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-full">
+                                    <div className="flex items-center gap-3 mb-4">
+                                      <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent flex-1" />
+                                      <span className="text-[11px] font-black uppercase tracking-[0.4em] text-emerald-600 bg-emerald-50/50 backdrop-blur-sm px-6 py-1.5 rounded-full border border-emerald-100/50 shadow-sm">
                                         {section}
                                       </span>
-                                      <div className="h-px bg-emerald-500/30 flex-1" />
+                                      <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent flex-1" />
                                     </div>
                                     
                                     <div className="grid grid-cols-1 gap-6">
                                       {suggestions.map((s, i) => (
-                                        <div key={i} className="bg-white/5 p-6 rounded-3xl border border-white/10 hover:border-white/20 transition-all group relative overflow-hidden">
-                                          {/* Background Accent */}
-                                          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl -mr-16 -mt-16 group-hover:bg-emerald-500/10 transition-all" />
+                                        <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-100 hover:border-indigo-200 transition-all group relative overflow-hidden shadow-sm hover:shadow-md">
                                           
                                           <div className="relative space-y-6">
                                             {s.original && (
-                                              <div className="space-y-2">
+                                              <div className="space-y-3">
                                                 <div className="flex items-center justify-between">
-                                                  <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest flex items-center gap-1.5">
-                                                    <div className="w-1 h-1 bg-slate-500 rounded-full" />
+                                                  <div className="text-[10px] text-slate-400 uppercase font-black tracking-widest flex items-center gap-2">
+                                                    <div className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
                                                     {t.original}
                                                   </div>
                                                 </div>
-                                                <div className="text-xs text-slate-400 italic line-through opacity-60 bg-white/5 p-4 rounded-2xl border border-white/5 leading-relaxed">
+                                                <div className="text-xs text-slate-400 font-medium italic opacity-80 bg-slate-50/50 p-4 rounded-2xl border border-slate-100/50 leading-relaxed">
                                                   {s.original}
                                                 </div>
                                               </div>
                                             )}
                                             
-                                            <div className="space-y-2">
+                                            <div className="space-y-3">
                                               <div className="flex items-center justify-between">
-                                                <div className="text-[10px] text-emerald-400 uppercase font-black tracking-widest flex items-center gap-1.5">
-                                                  <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
+                                                <div className="text-[10px] text-emerald-600 uppercase font-black tracking-widest flex items-center gap-2">
+                                                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                                                   {t.optimized}
                                                 </div>
                                                 <button 
@@ -3162,24 +3234,24 @@ function AppContent() {
                                                     setCopiedId(`suggestion-${i}`);
                                                     setTimeout(() => setCopiedId(null), 2000);
                                                   }}
-                                                  className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all border border-emerald-500/20"
+                                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all border border-slate-200 hover:border-emerald-200 shadow-sm"
                                                 >
-                                                  {copiedId === `suggestion-${i}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                                  {copiedId === `suggestion-${i}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                                                   {copiedId === `suggestion-${i}` ? t.copied : t.copy}
                                                 </button>
                                               </div>
-                                              <div className="text-sm text-slate-100 font-bold leading-relaxed bg-emerald-500/10 p-5 rounded-2xl border border-emerald-500/30 group-hover:border-emerald-500/50 transition-all shadow-lg shadow-emerald-500/5">
+                                              <div className="text-sm text-slate-800 font-bold leading-relaxed bg-emerald-50 p-6 rounded-2xl border border-emerald-100 group-hover:border-emerald-300 transition-all shadow-sm ring-4 ring-emerald-50/20">
                                                 {s.optimized}
                                               </div>
                                             </div>
                                             
-                                            <div className="pt-5 border-t border-white/10 flex items-start gap-4">
-                                              <div className="w-8 h-8 bg-indigo-500/20 rounded-xl flex items-center justify-center shrink-0 border border-indigo-500/20">
-                                                <Sparkles className="w-4 h-4 text-indigo-400" />
+                                            <div className="pt-5 border-t border-slate-100 flex items-start gap-4">
+                                              <div className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0 border border-indigo-100">
+                                                <Sparkles className="w-4 h-4 text-indigo-600" />
                                               </div>
                                               <div className="space-y-1">
-                                                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{t.reason}</div>
-                                                <p className="text-xs text-slate-400 leading-relaxed">
+                                                <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{t.reason}</div>
+                                                <p className="text-xs text-slate-600 leading-relaxed font-medium">
                                                   {s.explanation}
                                                 </p>
                                               </div>
@@ -3195,14 +3267,16 @@ function AppContent() {
 
                             {selectedResult.fullRewrittenCV && (
                               <>
-                                <div className="h-px bg-white/10 w-full" />
+                                <div className="h-px bg-slate-100 w-full" />
                                 <div>
-                                  <h4 className="font-bold mb-6 flex items-center justify-between text-indigo-400 text-lg">
-                                    <div className="flex items-center gap-2">
-                                      <FileText className="w-6 h-6" />
-                                      {t.fullRewrittenCV}
-                                    </div>
+                                  <h4 className="font-bold mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-indigo-600 text-lg">
                                     <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 bg-indigo-100 rounded-2xl flex items-center justify-center shadow-sm">
+                                        <FileText className="w-5 h-5" />
+                                      </div>
+                                      <span className="font-black tracking-tight">{t.fullRewrittenCV}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
                                       <button 
                                         onClick={() => {
                                           if (selectedResult.fullRewrittenCV) {
@@ -3211,11 +3285,20 @@ function AppContent() {
                                             setTimeout(() => setCopiedId(null), 2000);
                                           }
                                         }}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition-all"
+                                        className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm hover:shadow-md cursor-pointer hover:scale-105 active:scale-95"
                                       >
-                                        {copiedId === 'full-cv' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                        {copiedId === 'full-cv' ? t.copied : t.copy}
+                                        {copiedId === 'full-cv' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                                        {copiedId === 'full-cv' ? t.copied : reportLanguage === 'vi' ? 'Copy MD' : 'Copy MD'}
                                       </button>
+                                      
+                                      <button 
+                                        onClick={() => window.print()}
+                                        className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm hover:shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                                      >
+                                        <Printer className="w-4 h-4" />
+                                        {t.printOptimized}
+                                      </button>
+
                                       <button 
                                         onClick={() => {
                                           const blob = new Blob([selectedResult.fullRewrittenCV || ''], { type: 'text/markdown' });
@@ -3225,32 +3308,60 @@ function AppContent() {
                                           a.download = `Optimized_CV_${selectedResult.cvName}.md`;
                                           a.click();
                                         }}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-indigo-500/20 cursor-pointer hover:scale-105 active:scale-95"
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-indigo-500/20 cursor-pointer hover:scale-105 active:scale-95"
                                       >
-                                        <Download className="w-3.5 h-3.5" />
+                                        <Download className="w-4 h-4" />
                                         {t.download}
                                       </button>
                                     </div>
                                   </h4>
-                                  <div className="bg-white/5 p-8 rounded-3xl border border-white/10 max-w-none overflow-hidden">
-                                    <div className="markdown-body break-words">
-                                      <Markdown 
-                                        key={selectedResult.id}
-                                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                                        rehypePlugins={[rehypeRaw, rehypeSanitize]}
-                                        components={{
-                                          h1: ({node, ...props}) => <h1 className="text-3xl font-extrabold mt-8 mb-4 border-b-2 border-white/10 pb-2 text-white" {...props} />,
-                                          h2: ({node, ...props}) => <h2 className="text-2xl font-bold mt-8 mb-3 text-indigo-400 flex items-center gap-2" {...props} />,
-                                          h3: ({node, ...props}) => <h3 className="text-xl font-semibold mt-6 mb-2 text-white" {...props} />,
-                                          p: ({node, ...props}) => <p className="mb-4 text-slate-300 leading-relaxed" {...props} />,
-                                          ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-2 text-slate-300" {...props} />,
-                                          li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                                          strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
-                                          hr: ({node, ...props}) => <hr className="my-8 border-white/10" {...props} />,
-                                        }}
+                                  
+                                  <div className="relative bg-slate-100/50 p-4 md:p-12 rounded-[3.5rem] border border-slate-200/50 max-w-none overflow-hidden mt-6 group/paper">
+                                    {/* Paper decorative background elements */}
+                                    <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px] opacity-0 group-hover/paper:opacity-100 transition-opacity duration-700" />
+                                    
+                                    {/* Premium Badge */}
+                                    <div className="absolute top-8 right-8 z-20 pointer-events-none">
+                                      <motion.div 
+                                        initial={{ rotate: -12, scale: 0.8, opacity: 0 }}
+                                        animate={{ rotate: -12, scale: 1, opacity: 1 }}
+                                        className="px-6 py-2.5 bg-gradient-to-br from-amber-400 to-amber-600 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-lg shadow-xl border-2 border-amber-300 flex items-center gap-2"
                                       >
-                                        {selectedResult.fullRewrittenCV.replace(/^(#+)([^#\s])/gm, '$1 $2')}
-                                      </Markdown>
+                                        <Sparkles className="w-4 h-4 fill-white" />
+                                        {t.premiumOptimizedBadge}
+                                      </motion.div>
+                                    </div>
+
+                                    <div className="relative bg-white p-12 md:p-24 rounded-sm shadow-[0_30px_60px_-12px_rgba(0,0,0,0.15),0_18px_36px_-18px_rgba(0,0,0,0.3)] border-t-[8px] border-indigo-600 mx-auto max-w-[850px] min-h-[1100px] transform transition-transform duration-500 group-hover/paper:scale-[1.01] hover:shadow-[0_40px_80px_-15px_rgba(0,0,0,0.2)]">
+                                      {/* Watermark effect */}
+                                      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-[0.03] select-none flex items-center justify-center rotate-[-35deg]">
+                                        <span className="text-8xl font-black whitespace-nowrap tracking-[1em]">PREMIUM OPTIMIZED CV</span>
+                                      </div>
+
+                                      <div className="markdown-body break-words relative z-10">
+                                        <Markdown 
+                                          key={selectedResult.id}
+                                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                                          rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                                          components={{
+                                            h1: ({node, ...props}) => <h1 className="text-5xl font-black mt-2 mb-10 border-b-2 border-slate-100 pb-8 text-slate-900 text-center uppercase tracking-tight" {...props} />,
+                                            h2: ({node, ...props}) => <h2 className="text-lg font-black mt-14 mb-6 text-indigo-700 flex items-center gap-3 uppercase tracking-[0.2em] bg-slate-50 -mx-6 px-6 py-2.5 rounded-r-lg border-l-4 border-indigo-600" {...props} />,
+                                            h3: ({node, ...props}) => <h3 className="text-md font-bold mt-8 mb-4 text-slate-800 border-b border-slate-100 pb-2" {...props} />,
+                                            p: ({node, ...props}) => <p className="mb-5 text-slate-700 leading-[1.8] text-[15px] font-medium" {...props} />,
+                                            ul: ({node, ...props}) => <ul className="list-none pl-0 mb-8 space-y-3.5 text-slate-700 text-[15px] font-medium" {...props} />,
+                                            li: ({node, ...props}) => (
+                                              <li className="flex items-start gap-3 group/li" {...props}>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-[10px] shrink-0 group-hover/li:scale-150 transition-transform bg-indigo-500 shadow-[0_0_4px_rgba(79,70,229,0.3)]" />
+                                                <span>{props.children}</span>
+                                              </li>
+                                            ),
+                                            strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
+                                            hr: ({node, ...props}) => <hr className="my-12 border-slate-100" {...props} />,
+                                          }}
+                                        >
+                                          {selectedResult.fullRewrittenCV.replace(/^(#+)([^#\s])/gm, '$1 $2')}
+                                        </Markdown>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -3268,10 +3379,10 @@ function AppContent() {
                                       <div>
                                         <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
                                           <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                                          {reportLanguage === 'vi' ? 'Đánh giá kết quả phân tích' : 'Rate Analysis Results'}
+                                          {t.rateResults}
                                         </h3>
                                         <p className="text-sm text-slate-500">
-                                          {reportLanguage === 'vi' ? 'Phản hồi của bạn giúp chúng tôi cải thiện độ chính xác của AI.' : 'Your feedback helps us improve AI accuracy.'}
+                                          {t.rateResultsDesc}
                                         </p>
                                       </div>
                                       
@@ -3297,7 +3408,7 @@ function AppContent() {
                                       ) : (
                                         <div className="flex items-center gap-2 text-emerald-600 font-bold">
                                           <CheckCircle2 className="w-5 h-5" />
-                                          {reportLanguage === 'vi' ? 'Cảm ơn bạn đã đánh giá!' : 'Thank you for your rating!'}
+                                          {t.thankYouRating}
                                           <div className="flex items-center gap-1 ml-2">
                                             {[1, 2, 3, 4, 5].map((star) => (
                                               <Star 
@@ -3346,7 +3457,7 @@ function AppContent() {
                                           }}
                                           className="w-full py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95"
                                         >
-                                          {isSubmittingRating ? <Loader2 className="w-5 h-5 animate-spin" /> : (reportLanguage === 'vi' ? "Gửi đánh giá" : "Submit Rating")}
+                                          {isSubmittingRating ? <Loader2 className="w-5 h-5 animate-spin" /> : t.submitRating}
                                         </button>
                                       </motion.div>
                                     )}
@@ -3371,9 +3482,9 @@ function AppContent() {
                     <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6">
                       <TrendingUp className="w-10 h-10 text-slate-300" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-2">{reportLanguage === 'vi' ? 'Sẵn sàng phân tích' : 'Ready to analyze'}</h3>
+                    <h3 className="text-lg font-bold text-slate-800 mb-2">{t.readyToAnalyze}</h3>
                     <p className="text-sm text-slate-500 max-w-xs">
-                      {reportLanguage === 'vi' ? 'Tải lên CV của bạn và cung cấp mô tả công việc để xem thông tin chi tiết về mức độ phù hợp.' : 'Upload your CV and provide a job description to see detailed matching insights.'}
+                      {t.readyToAnalyzeDesc}
                     </p>
                   </motion.div>
                 )}
@@ -3386,8 +3497,8 @@ function AppContent() {
           <section className="max-w-5xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
               <div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Lịch sử phân tích</h2>
-                <p className="text-sm text-slate-500">Xem lại và quản lý các kết quả phân tích CV của bạn</p>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">{t.analysisHistory}</h2>
+                <p className="text-sm text-slate-500">{t.historyDesc}</p>
               </div>
               {history.length > 0 && (
                 <button 
@@ -3395,7 +3506,7 @@ function AppContent() {
                   className="flex items-center gap-2 text-sm font-bold text-red-500 hover:text-red-600 transition-colors px-4 py-2 bg-red-50 rounded-xl border border-red-100 cursor-pointer hover:scale-105 active:scale-95"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Xóa toàn bộ lịch sử
+                  {t.clearHistory}
                 </button>
               )}
             </div>
@@ -3886,7 +3997,7 @@ function AppContent() {
             <div>
               <h4 className="font-bold text-slate-800 mb-4">Liên hệ</h4>
               <p className="text-sm text-slate-500">
-                Email: <a href="mailto:thanhnghiep.top@gmail.com" className="hover:text-indigo-600 transition-colors">thanhnghiep.top@gmail.com</a><br />
+                Email: <a href={`mailto:${import.meta.env.VITE_FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'}`} className="hover:text-indigo-600 transition-colors">{import.meta.env.VITE_FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'}</a><br />
                 Website: thanhnghiep.top<br />
                 <button 
   onClick={() => { 
@@ -3912,6 +4023,41 @@ function AppContent() {
           </div>
         </div>
       </footer>
+
+      {/* Error Toast UI */}
+      <AnimatePresence>
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, x: -20, y: 0, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -20, scale: 0.9 }}
+            className="fixed bottom-6 left-6 z-[200] max-w-[calc(100vw-3rem)] sm:max-w-md w-full sm:w-auto"
+          >
+            <div className="bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200 overflow-hidden flex items-stretch ring-1 ring-black/5">
+              <div className="w-1.5 bg-rose-500 shrink-0" />
+              <div className="flex-1 p-4 flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center shrink-0 mt-0.5">
+                  <AlertCircle className="w-5 h-5 text-rose-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">
+                    {reportLanguage === 'vi' ? 'Thông báo lỗi' : 'Error Message'}
+                  </h4>
+                  <div className="text-sm font-bold text-slate-700 leading-relaxed pr-8">
+                    {error}
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setError(null)}
+                  className="absolute top-3 right-3 w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

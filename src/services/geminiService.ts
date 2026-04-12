@@ -240,7 +240,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
       }
       
       // Auto-fix admin role if email matches
-      if (data.email.toLowerCase() === "thanhnghiep@gmail.com" && (data.role !== 'admin' || !data.hasPermission)) {
+      if (data.email.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase() && (data.role !== 'admin' || !data.hasPermission)) {
         data.role = 'admin' as const;
         data.hasPermission = true;
         needsUpdate = true;
@@ -258,7 +258,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 }
 
 export async function createUserProfile(user: any): Promise<UserProfile> {
-  const isAdmin = user.email?.toLowerCase() === "thanhnghiep@gmail.com";
+  const isAdmin = user.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
   const profile: UserProfile = {
     uid: user.uid,
     email: user.email || '',
@@ -469,16 +469,26 @@ export async function analyzeCV(jd: string, cvData: string, cvMimeType: string, 
        - Phần 'optimized' phải dùng ĐÚNG NGÔN NGỮ của phần đó trong CV gốc.
        - Phần 'explanation' phải giải thích rõ ràng tại sao thay đổi này giúp vượt qua bộ lọc ATS hoặc gây ấn tượng với nhà tuyển dụng (ví dụ: "Thêm từ khóa 'Cloud Architecture' giúp tăng điểm ATS", "Định lượng kết quả giúp tăng tính thuyết phục").
     7. VIẾT LẠI TOÀN BỘ CV (Full Rewritten CV): Dựa trên thông tin từ CV gốc và yêu cầu của JD, hãy tạo ra một bản CV hoàn chỉnh, chuyên nghiệp, tối ưu hóa 100% cho hệ thống ATS và JD này. 
-       - QUAN TRỌNG: Phải sử dụng ĐÚNG NGÔN NGỮ GỐC của CV (Nếu CV gốc là tiếng Anh thì viết lại bằng tiếng Anh, nếu là tiếng Việt thì viết lại bằng tiếng Việt).
-       - TUYỆT ĐỐI KHÔNG sử dụng các thẻ HTML như <h1>, <h2>, <p>, <ul>, <li>... CHỈ sử dụng định dạng Markdown (dấu # cho tiêu đề, dấu * hoặc - cho danh sách).
-       - Giữ nguyên các thông tin thực tế (tên, công ty, thời gian) nhưng diễn đạt lại phần mô tả công việc, kỹ năng và giới thiệu sao cho khớp nhất với JD.
-       - Sử dụng định dạng Markdown để trình bày CV này một cách đẹp mắt.
-       - Cấu trúc CV rõ ràng với các tiêu đề lớn (Sử dụng # cho tên, ## cho các mục lớn như "Kinh nghiệm", "Kỹ năng").
-       - QUAN TRỌNG: Mỗi tiêu đề (# hoặc ##) phải nằm trên một dòng riêng biệt và theo sau bởi ít nhất một dòng trống. Không bao giờ viết nội dung ngay sau tiêu đề trên cùng một dòng.
-       - Đảm bảo sử dụng đúng số lượng dấu # cho tiêu đề (1 cho tên, 2 cho các mục lớn).
-       - Nếu một dòng không phải là tiêu đề, KHÔNG bắt đầu dòng đó bằng dấu #.
-       - Thêm 2 dòng trống giữa các mục lớn để tạo không gian thoáng đãng, dễ đọc.
-       - Sử dụng danh sách có dấu đầu dòng (bullet points) cho các thành tựu và kỹ năng.
+       - QUAN TRỌNG: Phải sử dụng ĐÚNG NGÔN NGỮ GỐC của CV.
+       - TUYỆT ĐỐI KHÔNG sử dụng các thẻ HTML hoặc bao bọc nội dung trong các khối mã Markdown (KHÔNG dùng \` \` \` hoặc \` \` \`markdown ở đầu và cuối). Trả về văn bản thuần túy theo định dạng Markdown.
+       - Cấu trúc bắt buộc: 
+         # [Họ và Tên]
+         [Thông tin liên hệ: Email | Số điện thoại | LinkedIn | Địa chỉ]
+         
+         ## Tóm tắt chuyên môn (Professional Summary)
+         [Đoạn văn ngắn gọn, ấn tượng]
+         
+         ## Kinh nghiệm làm việc (Work Experience)
+         [Liệt kê theo thứ tự thời gian đảo ngược. Sử dụng công thức XYZ cho các thành tựu]
+         
+         ## Kỹ năng (Skills)
+         [Phân loại rõ ràng: Kỹ năng kỹ thuật, Kỹ năng mềm...]
+         
+         ## Học vấn (Education)
+         [Trường học, Chuyên ngành, Năm tốt nghiệp]
+       - QUAN TRỌNG: Mỗi tiêu đề (# hoặc ##) phải nằm trên một dòng riêng biệt và theo sau bởi một dòng trống.
+       - Sử dụng danh sách có dấu đầu dòng (-) cho các nhiệm vụ và thành tựu.
+       - Đảm bảo có 2 dòng trống giữa các mục lớn (##) để tạo không gian thoáng.
     8. Ước tính xác suất thành công khi phỏng vấn.
     9. Ước lượng khả năng vượt qua vòng lọc CV (Thấp, Trung bình, Cao).
     10. Giải thích ngắn gọn lý do tại sao khả năng vượt qua vòng lọc CV lại ở mức đó.
@@ -517,16 +527,26 @@ export async function analyzeCV(jd: string, cvData: string, cvMimeType: string, 
        - The 'optimized' part must use the EXACT ORIGINAL LANGUAGE of that section in the CV.
        - The 'explanation' part must clearly explain why this change helps pass ATS filters or impress recruiters (e.g., "Adding 'Cloud Architecture' keyword increases ATS score", "Quantifying results increases persuasiveness").
     8. FULL REWRITTEN CV: Based on information from the original CV and JD requirements, create a complete, professional CV, 100% optimized for ATS and this JD.
-       - IMPORTANT: Must use the EXACT ORIGINAL LANGUAGE of the CV (If the original CV is in English, rewrite in English; if in Vietnamese, rewrite in Vietnamese).
-       - ABSOLUTELY DO NOT use HTML tags like <h1>, <h2>, <p>, <ul>, <li>... ONLY use Markdown formatting (# for titles, * or - for lists).
-       - Keep factual information (name, company, time) but rephrase job descriptions, skills, and introduction to best match the JD.
-       - Use Markdown formatting to present this CV beautifully.
-       - Clear CV structure with large headings (Use # for name, ## for major sections like "Experience", "Skills").
-       - IMPORTANT: Each heading (# or ##) must be on its own line and followed by at least one blank line. Never write content immediately after a heading on the same line.
-       - Ensure correct number of # for headings (1 for name, 2 for major sections).
-       - If a line is not a heading, DO NOT start it with #.
-       - Add 2 blank lines between major sections for readability.
-       - Use bullet points for achievements and skills.
+       - IMPORTANT: Must use the EXACT ORIGINAL LANGUAGE of the CV.
+       - ABSOLUTELY DO NOT use HTML tags or wrap the content in Markdown code blocks (NO \` \` \` or \` \` \`markdown at the beginning and end). Return pure Markdown text.
+       - Mandatory Structure:
+         # [Full Name]
+         [Contact Info: Email | Phone | LinkedIn | Location]
+         
+         ## Professional Summary
+         [Short, impactful paragraph]
+         
+         ## Work Experience
+         [Reverse chronological order. Use XYZ formula for achievements]
+         
+         ## Skills
+         [Categorized clearly: Technical, Soft Skills...]
+         
+         ## Education
+         [School, Degree, Years]
+       - IMPORTANT: Each heading (# or ##) must be on its own line followed by a blank line.
+       - Use bullet points (-) for responsibilities and achievements.
+       - Ensure 2 blank lines between major sections (##) for readability.
     9. Estimate the probability of success in an interview.
     10. Estimate the probability of passing the CV screening (Low, Medium, High).
     11. Briefly explain why the probability of passing the CV screening is at that level.

@@ -92,7 +92,7 @@ async function startServer() {
         const resendClient = new Resend(apiKey);
         const { data, error } = await resendClient.emails.send({
           from: 'Feedback <onboarding@resend.dev>',
-          to: ['thanhnghiep.top@gmail.com'],
+          to: [process.env.FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'],
           subject: `Feedback: ${title}`,
           html: `
             <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">

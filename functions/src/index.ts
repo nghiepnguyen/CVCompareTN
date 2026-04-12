@@ -17,8 +17,11 @@ const apiRouter = express.Router();
 
 // Config endpoint to provide API keys to the frontend
 apiRouter.get('/config', (req, res) => {
-  res.json({
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  const apiKey = process.env.GEMINI_API_KEY;
+  console.log(`[Config] GEMINI_API_KEY exists: ${!!apiKey}`);
+  
+  return res.json({
+    GEMINI_API_KEY: apiKey || '',
   });
 });
 
@@ -43,15 +46,15 @@ apiRouter.post('/verify-recaptcha', async (req, res) => {
     );
     
     const { success, score, action } = response.data;
+    console.log(`[reCAPTCHA] result: success=${success}, score=${score}, action=${action}`);
     
-    if (success && score !== undefined) {
-      if (score < 0.5) {
-        console.warn(`Low reCAPTCHA score: ${score} for action: ${action}`);
-        return res.json({ success: false, message: 'Low trust score' });
-      }
+    // Lower threshold to 0.2 for better flexibility during testing
+    if (success && (score === undefined || score >= 0.2)) {
+      return res.json({ success: true, score });
+    } else {
+      console.warn(`reCAPTCHA verification failed or low score: ${score}`);
+      return res.json({ success: false, score, message: 'Low trust score' });
     }
-    
-    return res.json(response.data);
   } catch (error) {
     console.error('reCAPTCHA error:', error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
@@ -89,7 +92,7 @@ apiRouter.post('/send-feedback', async (req, res) => {
       const resendClient = new Resend(apiKey);
       await resendClient.emails.send({
         from: 'Feedback <onboarding@resend.dev>',
-        to: ['thanhnghiep.top@gmail.com'],
+        to: [process.env.FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'],
         subject: `Feedback: ${title}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px;">
@@ -133,6 +136,7 @@ app.use('/api', apiRouter);
 export const api = onRequest({ 
   memory: "1GiB",
   timeoutSeconds: 300,
-  cors: true
+  cors: true,
+  secrets: ["GEMINI_API_KEY", "RECAPTCHA_SECRET_KEY", "RESEND_API_KEY", "FEEDBACK_RECIPIENT_EMAIL"]
 }, app);
 

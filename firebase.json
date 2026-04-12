@@ -19,10 +19,7 @@
     "rewrites": [
       {
         "source": "/api/**",
-        "function": {
-          "runServiceId": "api",
-          "region": "us-central1"
-        }
+        "function": "api"
       },
       {
         "source": "**",

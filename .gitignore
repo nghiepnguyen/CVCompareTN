@@ -6,8 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+.env.local
 functions/node_modules/
 functions/lib/
 .firebase/
 firebase-debug.log*
 .firebaserc
+firebase-applet-config.json
