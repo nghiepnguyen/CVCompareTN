@@ -58,7 +58,7 @@ let GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // Function to fetch config from backend if build-time key is missing or invalid
 async function ensureApiKey() {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'undefined') {
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'undefined' || GEMINI_API_KEY.startsWith('your_')) {
     try {
       const response = await fetch('/api/config');
       const config = await response.json();

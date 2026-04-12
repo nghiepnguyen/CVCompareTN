@@ -63,6 +63,7 @@ import {
   GraduationCap,
   FileCheck,
   Heart,
+  Printer,
 } from 'lucide-react';
 import { 
   AnalysisResult, 
@@ -1488,6 +1489,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100">
+      <div id="dashboard-root" className="h-full">
       <h1 className="sr-only">{t.atsOptimization}</h1>
 
       {/* In-App Browser Warning Banner */}
@@ -3276,7 +3278,7 @@ function AppContent() {
                                       </div>
                                       <span className="font-black tracking-tight">{t.fullRewrittenCV}</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 no-print">
                                       <button 
                                         onClick={() => {
                                           if (selectedResult.fullRewrittenCV) {
@@ -3321,7 +3323,7 @@ function AppContent() {
                                     <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px] opacity-0 group-hover/paper:opacity-100 transition-opacity duration-700" />
                                     
                                     {/* Premium Badge */}
-                                    <div className="absolute top-8 right-8 z-20 pointer-events-none">
+                                    <div className="absolute top-8 right-8 z-20 pointer-events-none no-print">
                                       <motion.div 
                                         initial={{ rotate: -12, scale: 0.8, opacity: 0 }}
                                         animate={{ rotate: -12, scale: 1, opacity: 1 }}
@@ -3332,9 +3334,9 @@ function AppContent() {
                                       </motion.div>
                                     </div>
 
-                                    <div className="relative bg-white p-12 md:p-24 rounded-sm shadow-[0_30px_60px_-12px_rgba(0,0,0,0.15),0_18px_36px_-18px_rgba(0,0,0,0.3)] border-t-[8px] border-indigo-600 mx-auto max-w-[850px] min-h-[1100px] transform transition-transform duration-500 group-hover/paper:scale-[1.01] hover:shadow-[0_40px_80px_-15px_rgba(0,0,0,0.2)]">
+                                    <div id="printable-cv" className="relative bg-white p-12 md:p-24 rounded-sm shadow-[0_30px_60px_-12px_rgba(0,0,0,0.15),0_18px_36px_-18px_rgba(0,0,0,0.3)] border-t-[8px] border-indigo-600 mx-auto max-w-[850px] min-h-[1100px] transform transition-transform duration-500 group-hover/paper:scale-[1.01] hover:shadow-[0_40px_80px_-15px_rgba(0,0,0,0.2)]">
                                       {/* Watermark effect */}
-                                      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-[0.03] select-none flex items-center justify-center rotate-[-35deg]">
+                                      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-[0.03] select-none flex items-center justify-center rotate-[-35deg] no-print">
                                         <span className="text-8xl font-black whitespace-nowrap tracking-[1em]">PREMIUM OPTIMIZED CV</span>
                                       </div>
 
@@ -3361,6 +3363,9 @@ function AppContent() {
                                         >
                                           {selectedResult.fullRewrittenCV.replace(/^(#+)([^#\s])/gm, '$1 $2')}
                                         </Markdown>
+                                        <div className="hidden print:block mt-12 pt-8 border-t border-slate-200 text-center text-[10px] text-slate-400 font-medium italic">
+                                          cv.thanhnghiep.top - Công cụ phân tích CV thông minh giúp bạn tối ưu hóa hồ sơ.
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -4058,6 +4063,37 @@ function AppContent() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
+
+      {/* 🚀 DEDICATED PRINT VIEW - Isolated from Dashboard UI */}
+      {selectedResult && (
+        <div id="cv-print-root" className="min-h-screen bg-white">
+          <div className="max-w-[210mm] mx-auto bg-white p-[20mm]">
+            <div className="markdown-body">
+              <Markdown 
+                key={`print-${selectedResult.id}`}
+                remarkPlugins={[remarkGfm, remarkBreaks]}
+                rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                components={{
+                  h1: ({node, ...props}) => <h1 className="text-3xl font-bold mb-8 text-center border-b-2 border-slate-100 pb-6" {...props} />,
+                  h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-10 mb-4 pb-1 border-b border-indigo-100 text-indigo-700" {...props} />,
+                  p: ({node, ...props}) => <p className="mb-4 text-slate-800 leading-relaxed" {...props} />,
+                  ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-6 space-y-2" {...props} />,
+                  li: ({node, ...props}) => <li className="text-slate-700" {...props} />,
+                  strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
+                }}
+              >
+                {selectedResult.fullRewrittenCV.replace(/^(#+)([^#\s])/gm, '$1 $2')}
+              </Markdown>
+            </div>
+            
+            {/* Professional Footer for Print */}
+            <div className="mt-20 pt-8 border-t border-slate-200 text-center text-[10px] text-slate-400 italic">
+              cv.thanhnghiep.top - Công cụ phân tích CV thông minh giúp bạn tối ưu hóa hồ sơ.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
