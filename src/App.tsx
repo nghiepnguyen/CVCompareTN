@@ -191,6 +191,36 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
+// Animation Variants for Scroll Effects
+const fadeInUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.6, ease: "easeOut" }
+  }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.12,
+      delayChildren: 0.1
+    }
+  }
+};
+
+const scaleIn = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: { 
+    opacity: 1, 
+    scale: 1,
+    transition: { duration: 0.8, ease: "easeOut" }
+  }
+};
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -768,7 +798,7 @@ function AppContent() {
         setError(null);
         setUploadProgress(null);
         setIsAnalyzing(false);
-        setActiveTab('analyze');
+        setActiveTab(prev => (prev === 'history' || prev === 'admin') ? 'analyze' : prev);
         setIsUserMenuOpen(false);
         setIsLoadingProfile(false);
       }
@@ -917,7 +947,7 @@ function AppContent() {
       setError(null);
       setUploadProgress(null);
       setIsAnalyzing(false);
-      setActiveTab('analyze');
+      setActiveTab(prev => (prev === 'history' || prev === 'admin') ? 'analyze' : prev);
       setIsUserMenuOpen(false);
     } catch (err: any) {
       console.error("Logout Error:", err);
@@ -1697,14 +1727,29 @@ function AppContent() {
         ) : !user ? (
           <div className="flex flex-col items-center w-full">
             {/* Hero Section */}
-            <div className="text-center py-20 px-4 w-full">
-              <h1 className="text-5xl sm:text-7xl font-black tracking-tighter mb-6 text-slate-900">
+            <motion.div 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              variants={staggerContainer}
+              className="text-center py-20 px-4 w-full"
+            >
+              <motion.h1 
+                variants={fadeInUp}
+                className="text-5xl sm:text-7xl font-black tracking-tighter mb-6 text-slate-900"
+              >
                 {t.heroTitle} <span className="text-indigo-600">Smart Insights</span>
-              </h1>
-              <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+              </motion.h1>
+              <motion.p 
+                variants={fadeInUp}
+                className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed"
+              >
                 {t.heroDesc}
-              </p>
-              <div className="flex flex-col items-center gap-4 mb-16">
+              </motion.p>
+              <motion.div 
+                variants={fadeInUp}
+                className="flex flex-col items-center gap-4 mb-16"
+              >
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <button onClick={handleLogin} className="px-8 py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 cursor-pointer hover:scale-105 active:scale-95">{t.startNow}</button>
                   <a href="https://hr.thanhnghiep.top" target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-white text-slate-900 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer hover:scale-105 active:scale-95">
@@ -1712,18 +1757,35 @@ function AppContent() {
                   </a>
                 </div>
                 <p className="text-sm font-medium text-slate-500">{t.heroSub}</p>
-              </div>
+              </motion.div>
               {/* Dashboard Preview */}
-              <div className="max-w-5xl mx-auto bg-white p-4 rounded-2xl shadow-2xl border border-slate-100">
+              <motion.div 
+                variants={scaleIn}
+                className="max-w-5xl mx-auto bg-white p-4 rounded-2xl shadow-2xl border border-slate-100"
+              >
                 <img src="https://thanhnghiep.top/CVMatcher/cv-dash.jpg" alt="Dashboard Preview" className="rounded-xl w-full h-auto" referrerPolicy="no-referrer" />
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
 
             {/* Problem Section */}
-            <div className="py-20 max-w-6xl w-full px-4">
-              <h2 className="text-4xl font-black text-center mb-16 tracking-tight text-slate-900">{t.problemTitle}</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
+            <motion.div 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              variants={staggerContainer}
+              className="py-20 max-w-6xl w-full px-4"
+            >
+              <motion.h2 
+                variants={fadeInUp}
+                className="text-4xl font-black text-center mb-16 tracking-tight text-slate-900"
+              >
+                {t.problemTitle}
+              </motion.h2>
+              <motion.div 
+                variants={staggerContainer}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 mb-12"
+              >
                 {[
                   { icon: FileText, text: t.problemItem1 },
                   { icon: Search, text: t.problemItem2 },
@@ -1731,23 +1793,44 @@ function AppContent() {
                   { icon: Clock, text: t.problemItem4 },
                   { icon: AlertCircle, text: t.problemItem5 }
                 ].map((item, i) => (
-                  <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all text-center flex flex-col items-center">
+                  <motion.div 
+                    key={i} 
+                    variants={fadeInUp}
+                    className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all text-center flex flex-col items-center"
+                  >
                     <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6">
                       <item.icon className="w-8 h-8" />
                     </div>
                     <div className="text-sm font-bold text-slate-900 leading-snug">{item.text}</div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
-              <div className="max-w-4xl mx-auto p-6 bg-slate-50 rounded-2xl text-slate-900 font-bold text-center border border-slate-200">
+              </motion.div>
+              <motion.div 
+                variants={fadeInUp}
+                className="max-w-4xl mx-auto p-6 bg-slate-50 rounded-2xl text-slate-900 font-bold text-center border border-slate-200"
+              >
                 {t.problemResult}
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
             {/* Why Choose */}
-            <div className="py-20 max-w-6xl w-full px-4">
-              <h2 className="text-4xl font-black text-center mb-16 tracking-tight">{t.whyTitle}</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <motion.div 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              variants={staggerContainer}
+              className="py-20 max-w-6xl w-full px-4"
+            >
+              <motion.h2 
+                variants={fadeInUp}
+                className="text-4xl font-black text-center mb-16 tracking-tight"
+              >
+                {t.whyTitle}
+              </motion.h2>
+              <motion.div 
+                variants={staggerContainer}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
+              >
                 {[
                   { icon: Target, title: t.feature1Title, desc: t.feature1Desc },
                   { icon: CheckCircle2, title: t.feature2Title, desc: t.feature2Desc },
@@ -1758,29 +1841,50 @@ function AppContent() {
                   { icon: FileText, title: t.feature7Title, desc: t.feature7Desc },
                   { icon: Download, title: t.feature8Title, desc: t.feature8Desc }
                 ].map((item, i) => (
-                  <div key={i} className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all text-center flex flex-col items-center">
+                  <motion.div 
+                    key={i} 
+                    variants={fadeInUp}
+                    className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all text-center flex flex-col items-center"
+                  >
                     <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6">
                       <item.icon className="w-8 h-8" />
                     </div>
                     <div className="text-lg font-black text-slate-900 mb-4">{item.title}</div>
                     <div className="text-sm text-slate-500 leading-relaxed">{item.desc}</div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
             {/* How It Works */}
-            <div className="py-20 w-full bg-slate-50">
+            <motion.div 
+              initial="initial"
+              whileInView="whileInView"
+              viewport={{ once: true, margin: "-100px" }}
+              className="py-20 w-full bg-slate-50"
+            >
               <div className="max-w-6xl mx-auto px-4">
-                <h2 className="text-4xl font-black text-center mb-16 tracking-tight text-slate-900">{t.howItWorksTitle}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
+                <motion.h2 
+                  variants={fadeInUp}
+                  className="text-4xl font-black text-center mb-16 tracking-tight text-slate-900"
+                >
+                  {t.howItWorksTitle}
+                </motion.h2>
+                <motion.div 
+                  variants={staggerContainer}
+                  className="grid grid-cols-1 md:grid-cols-4 gap-8 relative"
+                >
                   {[
                     { title: t.howItWorksStep1Title, desc: t.howItWorksStep1Desc },
                     { title: t.howItWorksStep2Title, desc: t.howItWorksStep2Desc },
                     { title: t.howItWorksStep3Title, desc: t.howItWorksStep3Desc },
                     { title: t.howItWorksStep4Title, desc: t.howItWorksStep4Desc }
                   ].map((step, i) => (
-                    <div key={i} className="relative flex flex-col items-center text-center">
+                    <motion.div 
+                      key={i} 
+                      variants={fadeInUp}
+                      className="relative flex flex-col items-center text-center"
+                    >
                       <div className="w-20 h-20 bg-white text-indigo-600 rounded-full flex items-center justify-center font-black text-3xl mb-6 shadow-sm border border-slate-100">
                         {i + 1}
                       </div>
@@ -1791,15 +1895,26 @@ function AppContent() {
                           <ChevronRight className="w-8 h-8" />
                         </div>
                       )}
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
-                <p className="text-center text-slate-500 mt-16 font-medium">{t.howItWorksFooter}</p>
+                </motion.div>
+                <motion.p 
+                  variants={fadeInUp}
+                  className="text-center text-slate-500 mt-16 font-medium"
+                >
+                  {t.howItWorksFooter}
+                </motion.p>
               </div>
-            </div>
+            </motion.div>
 
             {/* Demo Result Section */}
-            <div className="py-20 w-full bg-white rounded-t-3xl">
+            <motion.div 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              variants={fadeInUp}
+              className="py-20 w-full bg-white rounded-t-3xl"
+            >
               <div className="max-w-4xl mx-auto px-4">
                 <h2 className="text-4xl font-black text-center mb-16 tracking-tight text-slate-900">{t.resultTitle}</h2>
                 <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 shadow-sm">
@@ -1835,22 +1950,42 @@ function AppContent() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Stats */}
-            <div className="py-20 w-full bg-slate-900 text-white text-center">
+            <motion.div 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              variants={fadeInUp}
+              className="py-20 w-full bg-slate-900 text-white text-center"
+            >
               <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-12">
                 <div><div className="text-5xl font-black mb-2"><Counter from={0} to={35} suffix="+" /></div><div className="text-slate-400 font-medium">{t.stats1}</div></div>
                 <div><div className="text-5xl font-black mb-2"><Counter from={0} to={98} suffix="%" /></div><div className="text-slate-400 font-medium">{t.stats2}</div></div>
                 <div><div className="text-5xl font-black mb-2"><Counter from={0} to={2} suffix="M+" /></div><div className="text-slate-400 font-medium">{t.stats3}</div></div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Target Users Section */}
-            <section className="w-full py-20 bg-white rounded-b-3xl">
+            <motion.section 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              variants={staggerContainer}
+              className="w-full py-20 bg-white rounded-b-3xl"
+            >
               <div className="container mx-auto px-4 text-center">
-                <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-12">{t.targetUsersTitle}</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                <motion.h2 
+                  variants={fadeInUp}
+                  className="text-3xl md:text-4xl font-bold text-slate-900 mb-12"
+                >
+                  {t.targetUsersTitle}
+                </motion.h2>
+                <motion.div 
+                  variants={staggerContainer}
+                  className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6"
+                >
                   {[
                     { label: t.targetUsersItem1, icon: GraduationCap },
                     { label: t.targetUsersItem2, icon: Search },
@@ -1858,46 +1993,75 @@ function AppContent() {
                     { label: t.targetUsersItem4, icon: Globe },
                     { label: t.targetUsersItem5, icon: FileCheck },
                   ].map((item, index) => (
-                    <div key={index} className="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-md transition-shadow flex flex-col items-center gap-4">
+                    <motion.div 
+                      key={index} 
+                      variants={fadeInUp}
+                      className="p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-md transition-shadow flex flex-col items-center gap-4"
+                    >
                       <item.icon className="w-8 h-8 text-indigo-600" />
                       <p className="font-semibold text-slate-800">{item.label}</p>
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               </div>
-            </section>
+            </motion.section>
 
             {/* CTA Section */}
-            <section className="w-full py-12 px-4">
+            <motion.section 
+              variants={scaleIn}
+              initial="initial"
+              whileInView="whileInView"
+              viewport={{ once: true, margin: "-100px" }}
+              className="w-full py-12 px-4"
+            >
               <div className="container mx-auto max-w-5xl bg-indigo-600 rounded-3xl p-8 md:p-16 text-center shadow-xl">
-                <h2 className="text-2xl md:text-4xl font-bold text-white mb-8 tracking-tight">{t.ctaTitle}</h2>
+                <motion.h2 
+                  variants={fadeInUp}
+                  className="text-2xl md:text-4xl font-bold text-white mb-8 tracking-tight"
+                >
+                  {t.ctaTitle}
+                </motion.h2>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
-                  <button 
+                  <motion.button 
+                    variants={fadeInUp}
                     onClick={handleLogin}
                     className="px-8 py-4 bg-white text-indigo-600 font-bold rounded-full text-lg hover:bg-slate-100 transition-all shadow-lg hover:shadow-indigo-300/50 cursor-pointer hover:scale-105 active:scale-95"
                   >
                     {t.ctaBtn}
-                  </button>
-                  <a 
+                  </motion.button>
+                  <motion.a 
+                    variants={fadeInUp}
                     href="https://hr.thanhnghiep.top" 
                     target="_blank" 
                     rel="noopener noreferrer" 
                     className="px-8 py-4 bg-indigo-500 text-white font-bold rounded-full text-lg hover:bg-indigo-400 transition-all shadow-lg hover:shadow-indigo-400/50 flex items-center justify-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
                   >
                     Dành cho nhà tuyển dụng <ArrowRight className="w-4 h-4" />
-                  </a>
+                  </motion.a>
                 </div>
-                <p className="text-indigo-100 font-medium text-sm">{t.ctaSub}</p>
+                <motion.p 
+                  variants={fadeInUp}
+                  className="text-indigo-100 font-medium text-sm"
+                >
+                  {t.ctaSub}
+                </motion.p>
               </div>
-            </section>
+            </motion.section>
 
             {/* FAQ Section */}
-            <section className="w-full py-20 bg-slate-50">
+            <motion.section 
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-50px" }}
+              variants={fadeInUp}
+              className="w-full py-20 bg-slate-50"
+            >
               <div className="w-full max-w-3xl mx-auto px-4">
                 <h2 className="text-3xl md:text-4xl font-black text-center mb-12 tracking-tight text-slate-900">{t.faqTitle}</h2>
                 <div className="space-y-4">
                   {t.faqItems.map((item: any, index: number) => (
-                    <div 
+                    <motion.div 
+                      layout
                       key={index} 
                       className="w-full bg-white rounded-2xl border border-slate-200 overflow-hidden transition-all hover:border-indigo-200"
                     >
@@ -1929,11 +2093,11 @@ function AppContent() {
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               </div>
-            </section>
+            </motion.section>
           </div>
         ) : user && userProfile?.hasPermission === false && userProfile?.role !== 'admin' && user.email?.toLowerCase() !== (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase() ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
