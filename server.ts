@@ -81,17 +81,26 @@ async function startServer() {
         params
       );
       
-      const { success, score } = recaptchaResponse.data;
-      
-      if (!success || (score !== undefined && score < 0.5)) {
-        return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed' });
+      const { success, score, 'error-codes': errorCodes } = recaptchaResponse.data;
+      console.log(`reCAPTCHA Result: success=${success}, score=${score}${errorCodes ? `, codes=${errorCodes}` : ''}`);
+
+      const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');
+
+      if (!success && !isLocal) {
+        return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed', details: errorCodes });
+      } else if (success && score !== undefined && score < 0.2 && !isLocal) {
+        return res.status(400).json({ success: false, message: 'reCAPTCHA score too low' });
+      }
+
+      if (!success && isLocal) {
+        console.warn('reCAPTCHA failed, but on localhost, allowing bypass.');
       }
 
       // 2. Send the email using Resend
       if (apiKey) {
         const resendClient = new Resend(apiKey);
         const { data, error } = await resendClient.emails.send({
-          from: 'Feedback <onboarding@resend.dev>',
+          from: 'CV Matcher <admin@thanhnghiep.top>',
           to: [process.env.FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'],
           subject: `Feedback: ${title}`,
           html: `
@@ -124,6 +133,109 @@ async function startServer() {
       res.json({ success: true, message: 'Feedback sent successfully' });
     } catch (error: any) {
       console.error('Feedback submission error:', error);
+      res.status(500).json({ success: false, message: `Lỗi hệ thống: ${error.message}` });
+    }
+  });
+
+  // Welcome email endpoint
+  app.post('/api/send-welcome-email', async (req, res) => {
+    const { token, userEmail, userName } = req.body;
+    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+    const apiKey = process.env.RESEND_API_KEY;
+
+    if (!secretKey) {
+      console.error('RECAPTCHA_SECRET_KEY is missing.');
+      return res.status(500).json({ success: false, message: 'reCAPTCHA configuration error' });
+    }
+
+    // 1. Verify reCAPTCHA
+    try {
+      const params = new URLSearchParams();
+      params.append('secret', secretKey);
+      params.append('response', token);
+
+      const recaptchaResponse = await axios.post(
+        'https://www.google.com/recaptcha/api/siteverify',
+        params
+      );
+      
+      const { success, score, 'error-codes': errorCodes } = recaptchaResponse.data;
+      console.log(`reCAPTCHA Result: success=${success}, score=${score}${errorCodes ? `, codes=${errorCodes}` : ''}`);
+
+      const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');
+
+      if (!success && !isLocal) {
+        return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed', details: errorCodes });
+      } else if (success && score !== undefined && score < 0.2 && !isLocal) {
+        return res.status(400).json({ success: false, message: 'reCAPTCHA score too low' });
+      }
+
+      if (!success && isLocal) {
+        console.warn('reCAPTCHA failed, but on localhost, allowing bypass.');
+      }
+
+      // 2. Send the email using Resend
+      if (apiKey) {
+        console.log(`Đang chuẩn bị gửi email chào mừng tới: ${userEmail}`);
+        const resendClient = new Resend(apiKey);
+        const { data, error } = await resendClient.emails.send({
+          from: 'CV Matcher <hr-lite@thanhnghiep.top>',
+          to: [userEmail],
+          subject: 'Chào mừng bạn! Cùng tối ưu CV để chinh phục công việc mơ ước 🚀',
+          html: `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px;">
+              <h2 style="color: #4f46e5; margin-bottom: 24px;">Chào ${userName || 'bạn'},</h2>
+              
+              <p>Cảm ơn bạn đã tin tưởng lựa chọn <strong>CV Matcher</strong> làm người bạn đồng hành trên con đường phát triển sự nghiệp.</p>
+              
+              <p>Chúng tôi biết rằng mỗi bản CV đều chứa đựng tâm huyết và nỗ lực của bạn. Tuy nhiên, để lọt qua "mắt xanh" của các hệ thống lọc tự động (ATS) và các nhà tuyển dụng khó tính, một bản CV chuyên nghiệp thôi là chưa đủ — nó cần phải <strong>phù hợp</strong>.</p>
+              
+              <h3 style="color: #1e293b; margin-top: 32px;">Bạn có thể làm gì ngay bây giờ?</h3>
+              <p>Chỉ với một thao tác tải lên đơn giản, công cụ của chúng tôi sẽ giúp bạn:</p>
+              
+              <ul style="list-style-type: none; padding: 0;">
+                <li style="margin-bottom: 16px; padding: 12px; background-color: #f8fafc; border-radius: 12px; border-left: 4px solid #4f46e5;">
+                  <strong>📊 Kiểm tra điểm tương thích ATS:</strong> Biết chính xác CV của bạn đạt bao nhiêu điểm so với yêu cầu của vị trí ứng tuyển.
+                </li>
+                <li style="margin-bottom: 16px; padding: 12px; background-color: #f8fafc; border-radius: 12px; border-left: 4px solid #4f46e5;">
+                  <strong>🔍 Phân tích kỹ năng (Skill Gap):</strong> Chỉ ra những từ khóa hoặc kỹ năng quan trọng mà CV của bạn còn thiếu để bổ sung kịp thời.
+                </li>
+                <li style="margin-bottom: 16px; padding: 12px; background-color: #f8fafc; border-radius: 12px; border-left: 4px solid #4f46e5;">
+                  <strong>📈 Ước lượng tỷ lệ trúng tuyển:</strong> Đưa ra dự đoán khách quan về khả năng được gọi phỏng vấn dựa trên dữ liệu phân tích.
+                </li>
+              </ul>
+              
+              <div style="margin-top: 40px; text-align: center;">
+                <p style="font-weight: bold; margin-bottom: 20px;">Bạn đã sẵn sàng để xem CV của mình "mạnh" đến đâu chưa?</p>
+                <a href="https://cv.thanhnghiep.top" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold; transition: background-color 0.3s ease;">
+                  Thử so sánh CV ngay
+                </a>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 40px 0;" />
+              
+              <p style="font-size: 14px; color: #64748b;">Nếu có bất kỳ thắc mắc nào trong quá trình sử dụng, đừng ngần ngại phản hồi email này. Đội ngũ của chúng tôi luôn sẵn sàng hỗ trợ bạn.</p>
+              <p style="font-size: 14px; color: #64748b;">Chúc bạn sớm tìm được bến đỗ ưng ý và bứt phá trong sự nghiệp!</p>
+              
+              <p style="margin-top: 24px; font-weight: bold;">Trân trọng,<br>Đội ngũ CV Matcher</p>
+            </div>
+          `
+        });
+
+        if (error) {
+          console.error('Lỗi Resend API khi gửi Email chào mừng:', JSON.stringify(error, null, 2));
+          return res.status(500).json({ success: false, message: 'Lỗi dịch vụ email', detail: error });
+        }
+        
+        console.log('Welcome email sent successfully to:', userEmail);
+      } else {
+        console.warn('RESEND_API_KEY is missing.');
+        return res.status(500).json({ success: false, message: 'Cấu hình Resend thiếu' });
+      }
+
+      res.json({ success: true, message: 'Welcome email sent successfully' });
+    } catch (error: any) {
+      console.error('Welcome email error:', error);
       res.status(500).json({ success: false, message: `Lỗi hệ thống: ${error.message}` });
     }
   });

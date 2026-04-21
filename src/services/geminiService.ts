@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import axios from 'axios';
 import { db, auth, storage } from "../firebase";
 import { doc, setDoc, getDoc, collection, onSnapshot, increment, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -257,7 +258,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   return null;
 }
 
-export async function createUserProfile(user: any): Promise<UserProfile> {
+export async function createUserProfile(user: any, recaptchaToken?: string): Promise<UserProfile> {
   const isAdmin = user.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
   const profile: UserProfile = {
     uid: user.uid,
@@ -273,6 +274,20 @@ export async function createUserProfile(user: any): Promise<UserProfile> {
   };
   try {
     await setDoc(doc(db, "users", user.uid), profile);
+
+    // Send welcome email if token is provided
+    if (recaptchaToken) {
+      try {
+        await axios.post('/api/send-welcome-email', {
+          token: recaptchaToken,
+          userEmail: profile.email,
+          userName: profile.displayName
+        });
+      } catch (emailError) {
+        // Log error but don't fail the registration
+        console.error("Lỗi khi gửi email chào mừng:", emailError);
+      }
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
   }

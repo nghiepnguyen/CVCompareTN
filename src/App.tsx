@@ -64,6 +64,9 @@ import {
   FileCheck,
   Heart,
   Printer,
+  Mail,
+  Send,
+  HelpCircle,
 } from 'lucide-react';
 import { 
   AnalysisResult, 
@@ -96,11 +99,12 @@ import { SupportDevelopmentPage } from './components/SupportDevelopmentPage';
 import { calculateMatchScore } from './services/matchService';
 import { Candidate, JobDescription } from './types';
 import { auth, googleProvider } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { signInWithRedirect, signInWithPopup, getRedirectResult, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import mammoth from 'mammoth';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
+import axios from 'axios';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -620,6 +624,7 @@ function AppContent() {
   const [history, setHistory] = useState<AnalysisResult[]>([]);
   const [error, setError] = useState<string | React.ReactNode>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isAuthInitialized, setIsAuthInitialized] = useState(false);
   const [selectedResult, setSelectedResult] = useState<AnalysisResult | null>(null);
   const [openSections, setOpenSections] = useState<string[]>(['matching']);
   const [isDraggingJD, setIsDraggingJD] = useState(false);
@@ -636,6 +641,11 @@ function AppContent() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [adminSubTab, setAdminSubTab] = useState<'users' | 'email'>('users');
+  const [testEmail, setTestEmail] = useState('');
+  const [testName, setTestName] = useState('');
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [testEmailStatus, setTestEmailStatus] = useState<{success: boolean, message: string} | null>(null);
   const [userRating, setUserRating] = useState<number>(0);
   const [userFeedback, setUserFeedback] = useState<string>('');
   const [isRatingSubmitted, setIsRatingSubmitted] = useState<boolean>(false);
@@ -763,48 +773,123 @@ function AppContent() {
     }
   }, []);
 
+  // Reusable function to load profile and history
+  const loadUserProfileData = async (currentUser: User) => {
+    setIsLoadingProfile(true);
+    try {
+      console.log("Kiểm tra hồ sơ cho người dùng:", currentUser.email);
+      let profile = await getUserProfile(currentUser.uid);
+      if (!profile) {
+        console.log("Người dùng mới phát hiện! Chuẩn bị tạo hồ sơ và gửi email chào mừng...");
+        let token = undefined;
+        if (executeRecaptcha) {
+          try {
+            console.log("Đang lấy reCAPTCHA token cho email chào mừng...");
+            token = await executeRecaptcha('welcome_email');
+            console.log("Đã lấy được reCAPTCHA token:", token ? "Thành công" : "Thất bại");
+          } catch (recaptchaErr) {
+            console.error("Lỗi thực thi reCAPTCHA cho email chào mừng:", recaptchaErr);
+          }
+        }
+        profile = await createUserProfile(currentUser, token);
+      }
+      setUserProfile(profile);
+      
+      const userHistory = await getUserHistory(currentUser.uid);
+      setHistory(userHistory);
+    } catch (err: any) {
+      console.error("Lỗi khi tải thông tin người dùng:", err);
+      setError("Không thể tải thông tin hồ sơ: " + err.message);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
   // Handle Auth State
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        setIsLoadingProfile(true);
-        try {
-          let profile = await getUserProfile(currentUser.uid);
-          if (!profile) {
-            profile = await createUserProfile(currentUser);
-          }
-          setUserProfile(profile);
-          
-          // Fetch user-specific history
-          const userHistory = await getUserHistory(currentUser.uid);
-          setHistory(userHistory);
-        } catch (err) {
-          console.error("Error loading profile or history:", err);
-        } finally {
-          setIsLoadingProfile(false);
+    let isRedirecting = false;
+
+    const handleAuth = async () => {
+      console.log("Khởi tạo kiểm tra xác thực...");
+      // 1. Process redirect result first
+      try {
+        const result = await getRedirectResult(auth).catch(e => {
+          // If this fails on local, it might not be a real error for the user
+          console.warn("Lỗi kiểm tra Redirect Result (có thể do Local/ẩn danh):", e);
+          return null;
+        });
+
+        if (result && result.user) {
+          isRedirecting = true;
+          console.log("Phát hiện kết quả chuyển hướng thành công:", result.user.email);
+          setUser(result.user);
+          await loadUserProfileData(result.user);
         }
-      } else {
-        setUserProfile(null);
-        setHistory([]); // Clear history on logout
-        setResults([]);
-        setSelectedResult(null);
-        setJd('');
-        setJdUrl('');
-        setJdInputMode('text');
-        setCvText('');
-        setCvInputMode('file');
-        setFiles([]);
-        setError(null);
-        setUploadProgress(null);
-        setIsAnalyzing(false);
-        setActiveTab(prev => (prev === 'history' || prev === 'admin') ? 'analyze' : prev);
-        setIsUserMenuOpen(false);
+      } catch (err: any) {
+        console.error("Lỗi nặng khi xử lý kết quả chuyển hướng:", err);
+        if (err.code === 'auth/unauthorized-domain') {
+          setError(
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-red-600 font-bold">
+                <AlertCircle className="w-5 h-5" />
+                <span>Lỗi tên miền:</span>
+              </div>
+              <p className="text-sm">Tên miền hiện tại không được phép đăng nhập qua Firebase. Vui lòng thêm "{window.location.hostname}" vào Authorized Domains trong Firebase Console.</p>
+            </div>
+          );
+        } else {
+          setError("Lỗi đăng nhập: " + err.message);
+        }
         setIsLoadingProfile(false);
       }
-    });
-    return () => unsubscribe();
-  }, []);
+
+      // 2. Set up auth state listener
+      const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        console.log("onAuthStateChanged fired. User:", currentUser ? currentUser.email : "null");
+        
+        // If we just handled a redirect result in this same component mount, 
+        // we skip the initial onAuthStateChanged call to avoid double loading
+        if (isRedirecting) {
+          console.log("Bỏ qua onAuthStateChanged sơ bộ do đang xử lý redirect.");
+          isRedirecting = false;
+          setIsAuthInitialized(true);
+          return;
+        }
+
+        setUser(currentUser);
+        if (currentUser) {
+          await loadUserProfileData(currentUser);
+        } else {
+          setUserProfile(null);
+          setHistory([]);
+          setResults([]);
+          setSelectedResult(null);
+          setJd('');
+          setJdUrl('');
+          setJdInputMode('text');
+          setCvText('');
+          setCvInputMode('file');
+          setFiles([]);
+          setError(null);
+          setUploadProgress(null);
+          setIsAnalyzing(false);
+          setActiveTab(prev => (prev === 'history' || prev === 'admin') ? 'analyze' : prev);
+          setIsUserMenuOpen(false);
+          setIsLoadingProfile(false);
+        }
+        
+        // Mark auth as officially determined for the first time
+        setIsAuthInitialized(true);
+      });
+
+      return unsubscribe;
+    };
+
+    const unsubscribePromise = handleAuth();
+    return () => {
+      unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
+    };
+  }, [executeRecaptcha]);
 
   // Fetch all users for admin (Real-time)
   useEffect(() => {
@@ -821,6 +906,47 @@ function AppContent() {
   }, [userProfile, user]);
 
   const newUsersCount = allUsers.filter(u => u.isNew && u.role !== 'admin').length;
+
+  const handleSendTestEmail = async () => {
+    if (!testEmail) {
+      setTestEmailStatus({ success: false, message: "Vui lòng nhập địa chỉ email." });
+      return;
+    }
+    
+    setIsSendingTestEmail(true);
+    setTestEmailStatus(null);
+    
+    try {
+      let token = undefined;
+      if (executeRecaptcha) {
+        token = await executeRecaptcha('welcome_email');
+      }
+      
+      const response = await axios.post('/api/send-welcome-email', {
+        token,
+        userEmail: testEmail,
+        userName: testName || 'Người dùng thử nghiệm'
+      });
+      
+      if (response.data.success) {
+        setTestEmailStatus({ success: true, message: `Đã gửi email chào mừng thành công tới ${testEmail}` });
+        setTestEmail('');
+      } else {
+        setTestEmailStatus({ success: false, message: response.data.message || "Gửi email thất bại." });
+      }
+    } catch (err: any) {
+      console.error("Lỗi khi gửi email thử nghiệm:", err);
+      const errorMessage = err.response?.data?.message || err.message || "Lỗi hệ thống khi gửi email.";
+      const errorDetail = err.response?.data?.detail;
+      
+      setTestEmailStatus({ 
+        success: false, 
+        message: `${errorMessage} ${errorDetail ? `(${JSON.stringify(errorDetail)})` : ''}`
+      });
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
 
   // Filtered history logic
   const filteredHistory = useMemo(() => {
@@ -858,9 +984,21 @@ function AppContent() {
 
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      if (isLocalhost) {
+        console.log("Đang đăng nhập qua Popup (môi trường Local)...");
+        const result = await signInWithPopup(auth, googleProvider);
+        if (result.user) {
+          await loadUserProfileData(result.user);
+        }
+      } else {
+        console.log("Đang đăng nhập qua Redirect (môi trường Live)...");
+        await signInWithRedirect(auth, googleProvider);
+      }
+
       if (window.gtag) {
-        window.gtag('event', 'login', { method: 'Google' });
+        window.gtag('event', 'login', { method: 'Google', environment: isLocalhost ? 'local' : 'production' });
       }
     } catch (err: any) {
       console.error("Login Error:", err);
@@ -1504,13 +1642,13 @@ function AppContent() {
     }
   };
 
-  if (isLoadingProfile) {
+  if (!isAuthInitialized || (user && isLoadingProfile)) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
           <p className="text-slate-600 font-medium">
-            Đang xác thực tài khoản...
+            {!isAuthInitialized ? "Đang khởi tạo ứng dụng..." : "Đang xác thực hồ sơ..."}
           </p>
         </div>
       </div>
@@ -2111,22 +2249,50 @@ function AppContent() {
           </div>
         ) : activeTab === 'admin' && (userProfile?.role === 'admin' || user?.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase()) ? (
           <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Quản lý người dùng</h2>
-                <p className="text-slate-500 text-sm">Cấp quyền hoặc thu hồi quyền truy cập ứng dụng.</p>
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="flex items-center bg-slate-100 p-1 rounded-2xl w-fit">
+                <button 
+                  onClick={() => setAdminSubTab('users')}
+                  className={cn(
+                    "px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2",
+                    adminSubTab === 'users' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  <Users className="w-4 h-4" />
+                  Người dùng
+                </button>
+                <button 
+                  onClick={() => setAdminSubTab('email')}
+                  className={cn(
+                    "px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2",
+                    adminSubTab === 'email' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  <Mail className="w-4 h-4" />
+                  Test Email
+                </button>
               </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input 
-                  type="text" 
-                  placeholder="Tìm kiếm email..."
-                  value={userSearchTerm}
-                  onChange={(e) => setUserSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all w-full sm:w-64"
-                />
-              </div>
+
+              {adminSubTab === 'users' && (
+                <div className="relative w-full lg:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Tìm kiếm email..."
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all w-full"
+                  />
+                </div>
+              )}
             </div>
+
+            {adminSubTab === 'users' ? (
+              <>
+                <div>
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Quản lý người dùng</h2>
+                  <p className="text-slate-500 text-sm">Cấp quyền hoặc thu hồi quyền truy cập ứng dụng.</p>
+                </div>
 
             {newUsersCount > 0 && (
               <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-6">
@@ -2311,6 +2477,80 @@ function AppContent() {
                 </table>
               </div>
             </div>
+              </>
+            ) : (
+              <div className="max-w-2xl mx-auto py-12">
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 md:p-12">
+                  <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-8">
+                    <Mail className="w-8 h-8 text-indigo-600" />
+                  </div>
+                  <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Kiểm tra Email chào mừng</h2>
+                  <p className="text-slate-500 mb-8 leading-relaxed">
+                    Nhập địa chỉ email bên dưới để gửi thử nghiệm một email chào mừng (Welcome Email). Tính năng này giúp bạn kiểm tra cấu hình Resend và nội dung mẫu email.
+                  </p>
+
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Địa chỉ Email nhận</label>
+                      <input 
+                        type="email"
+                        placeholder="example@gmail.com"
+                        value={testEmail}
+                        onChange={(e) => setTestEmail(e.target.value)}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Tên người nhận (Tùy chọn)</label>
+                      <input 
+                        type="text"
+                        placeholder="Nguyễn Văn A"
+                        value={testName}
+                        onChange={(e) => setTestName(e.target.value)}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-900"
+                      />
+                    </div>
+
+                    {testEmailStatus && (
+                      <div className={cn(
+                        "p-4 rounded-2xl border flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-300",
+                        testEmailStatus.success 
+                          ? "bg-emerald-50 border-emerald-100 text-emerald-700" 
+                          : "bg-red-50 border-red-100 text-red-700"
+                      )}>
+                        {testEmailStatus.success ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
+                        <p className="text-sm font-medium">{testEmailStatus.message}</p>
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={handleSendTestEmail}
+                      disabled={isSendingTestEmail}
+                      className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      {isSendingTestEmail ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Đang gửi...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-5 h-5" />
+                          Gửi Email Chào Mừng Thử Nghiệm
+                        </>
+                      )}
+                    </button>
+                    
+                    <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex gap-3">
+                      <HelpCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                      <div className="text-xs text-amber-800 leading-relaxed">
+                        <strong>Lưu ý:</strong> Nếu Resend đang ở chế độ Trial (Sandbox), bạn chỉ có thể gửi email đến địa chỉ email chính của mình. Để gửi được cho mọi địa chỉ, vui lòng xác thực tên miền trên Resend.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : activeTab === 'analyze' ? (
           <div className="space-y-12">
@@ -3611,15 +3851,30 @@ function AppContent() {
                                         <button
                                           disabled={isSubmittingRating}
                                           onClick={async () => {
-                                            if (!user || !selectedResult) return;
+                                            if (!user || !selectedResult || !executeRecaptcha) return;
                                             setIsSubmittingRating(true);
                                             try {
+                                              // 1. Save to Firestore
                                               await rateAnalysis(user.uid, selectedResult.id, userRating, userFeedback);
+                                              
+                                              // 2. Get reCAPTCHA token
+                                              const token = await executeRecaptcha('feedback_submission');
+                                              
+                                              // 3. Send email via Resend (Backend API)
+                                              await axios.post('/api/send-feedback', {
+                                                token,
+                                                rating: userRating,
+                                                title: selectedResult.jobTitle || selectedResult.jdTitle || 'CV Analysis Feedback',
+                                                content: userFeedback || (reportLanguage === 'vi' ? 'Không có nội dung góp ý.' : 'No feedback content provided.'),
+                                                userEmail: user.email
+                                              });
+
                                               setIsRatingSubmitted(true);
                                               // Update history locally
                                               setHistory(prev => prev.map(h => h.id === selectedResult.id ? { ...h, rating: userRating, feedback: userFeedback } : h));
                                             } catch (err: any) {
-                                              setError(reportLanguage === 'vi' ? "Không thể gửi đánh giá: " + err.message : "Failed to send rating: " + err.message);
+                                              console.error("Error submitting feedback:", err);
+                                              setError(reportLanguage === 'vi' ? "Không thể gửi đánh giá: " + (err.response?.data?.message || err.message) : "Failed to send rating: " + (err.response?.data?.message || err.message));
                                             } finally {
                                               setIsSubmittingRating(false);
                                             }
