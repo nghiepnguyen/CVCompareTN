@@ -624,7 +624,6 @@ function AppContent() {
   const [history, setHistory] = useState<AnalysisResult[]>([]);
   const [error, setError] = useState<string | React.ReactNode>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isAuthInitialized, setIsAuthInitialized] = useState(false);
   const [selectedResult, setSelectedResult] = useState<AnalysisResult | null>(null);
   const [openSections, setOpenSections] = useState<string[]>(['matching']);
   const [isDraggingJD, setIsDraggingJD] = useState(false);
@@ -651,6 +650,8 @@ function AppContent() {
   const [isRatingSubmitted, setIsRatingSubmitted] = useState<boolean>(false);
   const [isSubmittingRating, setIsSubmittingRating] = useState<boolean>(false);
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [isAuthInitialized, setIsAuthInitialized] = useState(false);
+  const [isRedirectChecked, setIsRedirectChecked] = useState(false);
   const [resultTab, setResultTab] = useState<'analysis' | 'comparison' | 'optimization'>('analysis');
   const [reportLanguage, setReportLanguage] = useState<'vi' | 'en'>(() => {
     const path = window.location.pathname;
@@ -778,24 +779,27 @@ function AppContent() {
     setIsLoadingProfile(true);
     try {
       console.log("Kiểm tra hồ sơ cho người dùng:", currentUser.email);
-      let profile = await getUserProfile(currentUser.uid);
+      
+      // Start fetching profile and history in parallel
+      const profilePromise = getUserProfile(currentUser.uid);
+      const historyPromise = getUserHistory(currentUser.uid);
+      
+      let [profile, userHistory] = await Promise.all([profilePromise, historyPromise]);
+
       if (!profile) {
         console.log("Người dùng mới phát hiện! Chuẩn bị tạo hồ sơ và gửi email chào mừng...");
         let token = undefined;
         if (executeRecaptcha) {
           try {
-            console.log("Đang lấy reCAPTCHA token cho email chào mừng...");
             token = await executeRecaptcha('welcome_email');
-            console.log("Đã lấy được reCAPTCHA token:", token ? "Thành công" : "Thất bại");
           } catch (recaptchaErr) {
             console.error("Lỗi thực thi reCAPTCHA cho email chào mừng:", recaptchaErr);
           }
         }
         profile = await createUserProfile(currentUser, token);
       }
+
       setUserProfile(profile);
-      
-      const userHistory = await getUserHistory(currentUser.uid);
       setHistory(userHistory);
     } catch (err: any) {
       console.error("Lỗi khi tải thông tin người dùng:", err);
@@ -810,23 +814,26 @@ function AppContent() {
     let isRedirecting = false;
 
     const handleAuth = async () => {
-      console.log("Khởi tạo kiểm tra xác thực...");
+      console.log("Khởi tạo kiểm tra xác thực (v4)...");
       // 1. Process redirect result first
       try {
         const result = await getRedirectResult(auth).catch(e => {
-          // If this fails on local, it might not be a real error for the user
-          console.warn("Lỗi kiểm tra Redirect Result (có thể do Local/ẩn danh):", e);
+          console.warn("Lỗi kiểm tra Redirect Result:", e);
           return null;
         });
 
+        setIsRedirectChecked(true);
+
         if (result && result.user) {
           isRedirecting = true;
-          console.log("Phát hiện kết quả chuyển hướng thành công:", result.user.email);
+          console.log("Phát hiện kết quả chuyển hướng (handled by listener):", result.user.email);
+          // Just setting the user is enough, the onAuthStateChanged listener below 
+          // will pick it up and call loadUserProfileData
           setUser(result.user);
-          await loadUserProfileData(result.user);
         }
       } catch (err: any) {
         console.error("Lỗi nặng khi xử lý kết quả chuyển hướng:", err);
+        setIsRedirectChecked(true);
         if (err.code === 'auth/unauthorized-domain') {
           setError(
             <div className="flex flex-col gap-2">
@@ -847,16 +854,14 @@ function AppContent() {
       const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         console.log("onAuthStateChanged fired. User:", currentUser ? currentUser.email : "null");
         
-        // If we just handled a redirect result in this same component mount, 
-        // we skip the initial onAuthStateChanged call to avoid double loading
+        // Update user state
+        setUser(currentUser);
+        
         if (isRedirecting) {
-          console.log("Bỏ qua onAuthStateChanged sơ bộ do đang xử lý redirect.");
+          console.log("Xử lý sau Redirect...");
           isRedirecting = false;
-          setIsAuthInitialized(true);
-          return;
         }
 
-        setUser(currentUser);
         if (currentUser) {
           await loadUserProfileData(currentUser);
         } else {
@@ -873,15 +878,17 @@ function AppContent() {
           setError(null);
           setUploadProgress(null);
           setIsAnalyzing(false);
-          setActiveTab(prev => (prev === 'history' || prev === 'admin') ? 'analyze' : prev);
+          // Only reset tab if we are NOT in the middle of initialization or if we are sure user is null
+          if (isAuthInitialized) {
+            setActiveTab(prev => (prev === 'history' || prev === 'admin') ? 'analyze' : prev);
+          }
           setIsUserMenuOpen(false);
           setIsLoadingProfile(false);
         }
         
-        // Mark auth as officially determined for the first time
+        // Mark auth path as determined ONLY after both sources (onAuthStateChanged and RedirectResult) are ready
         setIsAuthInitialized(true);
       });
-
       return unsubscribe;
     };
 
@@ -990,10 +997,13 @@ function AppContent() {
         console.log("Đang đăng nhập qua Popup (môi trường Local)...");
         const result = await signInWithPopup(auth, googleProvider);
         if (result.user) {
+          setUser(result.user);
           await loadUserProfileData(result.user);
         }
       } else {
         console.log("Đang đăng nhập qua Redirect (môi trường Live)...");
+        // Clear potential state issues before redirect
+        setIsAuthInitialized(false);
         await signInWithRedirect(auth, googleProvider);
       }
 
@@ -1642,13 +1652,13 @@ function AppContent() {
     }
   };
 
-  if (!isAuthInitialized || (user && isLoadingProfile)) {
+  if (!isAuthInitialized || !isRedirectChecked || (user && isLoadingProfile)) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
           <p className="text-slate-600 font-medium">
-            {!isAuthInitialized ? "Đang khởi tạo ứng dụng..." : "Đang xác thực hồ sơ..."}
+            {(!isAuthInitialized || !isRedirectChecked) ? "Đang khởi tạo phiên làm việc..." : "Đang tải hồ sơ của bạn..."}
           </p>
         </div>
       </div>

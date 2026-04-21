@@ -275,18 +275,19 @@ export async function createUserProfile(user: any, recaptchaToken?: string): Pro
   try {
     await setDoc(doc(db, "users", user.uid), profile);
 
-    // Send welcome email if token is provided
+    // Send welcome email if token is provided - NON-BLOCKING
     if (recaptchaToken) {
-      try {
-        await axios.post('/api/send-welcome-email', {
-          token: recaptchaToken,
-          userEmail: profile.email,
-          userName: profile.displayName
-        });
-      } catch (emailError) {
-        // Log error but don't fail the registration
-        console.error("Lỗi khi gửi email chào mừng:", emailError);
-      }
+      console.log("Đang gửi email chào mừng (chế độ chạy ngầm)...");
+      // Fire and forget - don't await to avoid blocking the user dashboard entry
+      axios.post('/api/send-welcome-email', {
+        token: recaptchaToken,
+        userEmail: profile.email,
+        userName: profile.displayName
+      }).then(() => {
+        console.log("Đã gửi email chào mừng thành công (background).");
+      }).catch(emailError => {
+        console.error("Lỗi khi gửi email chào mừng (background):", emailError);
+      });
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
