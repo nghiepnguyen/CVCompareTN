@@ -2,16 +2,25 @@
 
 Frontend của dự án **CV Compare** được thiết kế để xử lý việc so sánh đồng thời nhiều hồ sơ năng lực với một bảng mô tả công việc (JD). Toàn bộ mã nguồn nằm trong thư mục `src/`.
 
-## Cấu trúc thư mục
+## Cấu trúc thư mục (Modular Architecture)
 
--   `src/App.tsx`: Chứa logic chính của ứng dụng. Đặc biệt là khả năng lặp qua danh sách file (`files`) để thực hiện phân tích hàng loạt.
--   `src/services/geminiService.ts`: Xử lý giao tiếp với Gemini 3 Flash. Hàm `analyzeCV` nhận dữ liệu văn bản hoặc tệp tin (qua base64) để so khớp.
--   `src/components/`: Chứa các thành phần UI hiển thị kết quả so sánh, biểu đồ Radar và bảng so sánh chi tiết.
+Ứng dụng được cấu trúc theo hướng mô-đun hóa để dễ dàng bảo trì và mở rộng:
+
+-   **`src/context/`**: Quản lý trạng thái toàn cục (Global State) thông qua React Context API.
+    -   `AuthContext.tsx`: Quản lý xác thực Firebase và thông tin người dùng.
+    -   `UIContext.tsx`: Quản lý giao diện, ngôn ngữ, tab hiện tại và trạng thái các Modals.
+    -   `AnalysisContext.tsx`: Quản lý toàn bộ logic phân tích, dữ liệu JD/CV và kết quả.
+-   **`src/components/views/`**: Chia ứng dụng thành các màn hình riêng biệt:
+    -   `LandingView.tsx`: Trang giới thiệu và đăng nhập.
+    -   `DashboardView.tsx`: Giao diện làm việc chính (Nhập dữ liệu, Phân tích, Kết quả).
+    -   `HistoryView.tsx`: Quản lý lịch sử phân tích và Dashboard thống kê.
+    -   `AdminView.tsx`: Trang quản trị dành cho người dùng có quyền Admin.
+-   **`src/services/geminiService.ts`**: Xử lý giao tiếp với Gemini AI và Firebase Firestore.
 
 ## Các luồng xử lý chính
 
-### 1. Phân tích hàng loạt (Batch Processing)
-Hệ thống cho phép người dùng chọn cùng lúc nhiều tệp CV. Logic trong `handleAnalyze` sẽ lặp qua từng tệp (`files.length`), gửi yêu cầu tới AI và gộp kết quả vào mảng `results`. Điều này giúp người dùng so sánh nhanh chóng nhiều ứng viên cho cùng một vị trí.
+### 1. Quản lý trạng thái tập trung
+Thay vì lưu trữ logic trong `App.tsx`, mọi dữ liệu và hành động được tập trung trong các `Context Providers`. Điều này giúp các component con có thể truy cập dữ liệu dễ dàng mà không cần truyền prop (Prop Drilling).
 
 ### 2. Xử lý đa định dạng (Multi-format Support)
 -   Hỗ trợ trích xuất văn bản từ: `.pdf`, `.docx`, `.txt`.

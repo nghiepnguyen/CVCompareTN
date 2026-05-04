@@ -25,3 +25,10 @@ export interface MatchScoreBreakdown {
   projects: number;
   total: number;
 }
+
+declare global {
+  interface Window {
+    gtag: (...args: any[]) => void;
+    dataLayer: any[];
+  }
+}

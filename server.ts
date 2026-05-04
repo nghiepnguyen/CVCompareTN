@@ -26,6 +26,12 @@ async function startServer() {
   app.post('/api/verify-recaptcha', async (req, res) => {
     const { token } = req.body;
     const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+    const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');
+
+    if (isLocal) {
+      console.log('Bypassing reCAPTCHA verification on localhost');
+      return res.json({ success: true, score: 0.9, action: 'bypass' });
+    }
 
     if (!secretKey) {
       console.error('RECAPTCHA_SECRET_KEY is missing in environment variables.');

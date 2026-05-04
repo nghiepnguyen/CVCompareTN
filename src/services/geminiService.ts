@@ -323,9 +323,31 @@ export async function updateUserRole(uid: string, role: 'admin' | 'user'): Promi
 }
 
 export async function deleteUser(uid: string): Promise<void> {
-  const { deleteDoc } = await import("firebase/firestore");
+  const { deleteDoc, doc, collection, getDocs } = await import("firebase/firestore");
   try {
+    console.log(`Bắt đầu xóa sạch dữ liệu cho người dùng: ${uid}`);
+    
+    // 1. Delete History subcollection documents one by one to avoid batch limits
+    const historyRef = collection(db, "users", uid, "history");
+    const historySnap = await getDocs(historyRef);
+    const historyDeletions = historySnap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(historyDeletions);
+    console.log(`Đã xóa ${historySnap.size} mục lịch sử.`);
+    
+    // 2. Delete SavedJDs subcollection documents
+    const jdsRef = collection(db, "users", uid, "savedJDs");
+    const jdsSnap = await getDocs(jdsRef);
+    const jdsDeletions = jdsSnap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(jdsDeletions);
+    console.log(`Đã xóa ${jdsSnap.size} mục JD đã lưu.`);
+    
+    // 3. Delete the user profile document itself
     await deleteDoc(doc(db, "users", uid));
+    console.log(`Đã xóa hồ sơ người dùng chính.`);
+    
+    // 4. Clear any local cache if it exists (extra safety for current admin browser)
+    localStorage.removeItem(`cv_history_${uid}`);
+    
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `users/${uid}`);
   }

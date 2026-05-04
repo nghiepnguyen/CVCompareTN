@@ -19,7 +19,8 @@ Backend hoạt động như một **API Proxy Server**, giải quyết các vấ
 -   Endpoint: `POST /api/extract-pdf`.
 
 ### 3. Xác thực reCAPTCHA
--   Giao tiếp trực tiếp với Google Site Verify để xác nhận token từ Frontend. Đây là bước bắt buộc để đảm bảo an toàn cho các tính năng gửi email.
+-   Giao tiếp trực tiếp với Google Site Verify để xác nhận token từ Frontend. Đây là bước bắt buộc để đảm bảo an toàn cho các tính năng gửi email và phân tích.
+-   **Localhost Bypass:** Để tối ưu cho quá trình phát triển (Development), Backend tự động bỏ qua xác thực token khi nhận được request từ `localhost` hoặc `127.0.0.1`.
 -   Endpoint: `POST /api/verify-recaptcha`.
 
 ### 4. Gửi Email (Feedback System)

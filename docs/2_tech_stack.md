@@ -37,4 +37,4 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 ## Quản lý mã nguồn & Triển khai
 
 -   **Version Control:** Git & GitHub.
--   **Deployment:** Hỗ trợ triển khai trên [Render](https://render.com/) hoặc Firebase Hosting.
+-   **Deployment:** Hỗ trợ triển khai trên [Render](https://render.com/) hoặc Firebase Hosting. Chi tiết xem tại [Hướng dẫn triển khai](./7_deployment.md).
