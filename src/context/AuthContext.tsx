@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, signInWithRedirect, signInWithPopup, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
-import { UserProfile, getUserProfile, createUserProfile, subscribeToAllUsers } from '../services/geminiService';
+import { UserProfile, getUserProfile, createUserProfile, subscribeToAllUsers } from '../services/userService';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 interface AuthContextType {

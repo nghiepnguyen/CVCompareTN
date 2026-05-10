@@ -6,7 +6,9 @@ import {
   AnalysisResult, 
   analyzeCV, 
   extractJDFromUrl, 
-  extractTextFromImage, 
+  extractTextFromImage,
+} from '../services/aiService';
+import {
   saveToHistory, 
   deleteFromHistory, 
   clearUserHistory, 
@@ -16,7 +18,7 @@ import {
   deleteSavedJD,
   getUserHistory,
   SavedJD
-} from '../services/geminiService';
+} from '../services/historyService';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 interface AnalysisContextType {

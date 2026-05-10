@@ -3,7 +3,7 @@ import { Users, Mail, Search, UserPlus, Check, User as UserIcon, UserCog, UserCh
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
 import axios from 'axios';
-import { markUserAsRead, updateUserRole, updateUserPermission, deleteUser } from '../../services/geminiService';
+import { markUserAsRead, updateUserRole, updateUserPermission, deleteUser } from '../../services/userService';
 
 export function AdminView() {
   const { user, userProfile, allUsers } = useAuth();

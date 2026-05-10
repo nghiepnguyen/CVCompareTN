@@ -5,7 +5,7 @@ import { useAnalysis } from '../../context/AnalysisContext';
 import { useUI } from '../../context/UIContext';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
-import { deleteFromHistory } from '../../services/geminiService';
+import { deleteFromHistory } from '../../services/historyService';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell, Tooltip } from 'recharts';
 
 export function HistoryView() {
