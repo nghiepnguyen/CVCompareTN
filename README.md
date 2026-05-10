@@ -65,13 +65,6 @@ npm run build
 firebase deploy
 ```
 
-## 5. Environment Variables (Local Development)
-
-For local development using `npm run dev`:
-1. Create a `.env` file in the root directory.
-2. Add necessary keys: `GEMINI_API_KEY`, `RECAPTCHA_SECRET_KEY`, `RESEND_API_KEY`.
-3. The frontend uses `VITE_RECAPTCHA_SITE_KEY`.
-
 ## 5. Environment Variables
 
 The application requires the following environment variables. In development, these should be placed in a `.env` file at the root of the project.
@@ -83,6 +76,8 @@ The application requires the following environment variables. In development, th
 
 ### Optional (but recommended for full functionality)
 -   `RESEND_API_KEY`: Your Resend API key for sending user feedback emails. If missing, the feedback submission will fail gracefully.
+-   `FEEDBACK_RECIPIENT_EMAIL`: The recipient email for feedback notifications.
+-   `RESEND_FROM_EMAIL`: The sender email address (authorized in Resend).
 
 ### Firebase Configuration
 Firebase configuration is managed via the `firebase-applet-config.json` file, which is automatically generated and read by `src/firebase.ts`. It does not strictly use `.env` variables for initialization in this specific setup, but relies on the JSON file.

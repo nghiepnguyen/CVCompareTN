@@ -96,7 +96,7 @@ apiRouter.post('/send-feedback', async (req, res) => {
       console.log(`[Feedback] Sending from CV Matcher <admin@thanhnghiep.top> to recipients`);
       const resendClient = new Resend(apiKey);
       await resendClient.emails.send({
-        from: 'CV Matcher <admin@thanhnghiep.top>',
+        from: `CV Matcher <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
         to: [process.env.FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'],
         subject: `Feedback: ${title}`,
         html: `
@@ -157,7 +157,7 @@ apiRouter.post('/send-welcome-email', async (req, res) => {
       console.log(`[Welcome] Sending to: ${userEmail}`);
       const resendClient = new Resend(apiKey);
       await resendClient.emails.send({
-        from: 'CV Matcher <admin@thanhnghiep.top>',
+        from: `CV Matcher <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
         to: [userEmail],
         subject: 'Chào mừng bạn! Cùng tối ưu CV để chinh phục công việc mơ ước 🚀',
         html: `
@@ -234,6 +234,6 @@ export const api = onRequest({
   memory: "1GiB",
   timeoutSeconds: 300,
   cors: true,
-  secrets: ["GEMINI_API_KEY", "RECAPTCHA_SECRET_KEY", "RESEND_API_KEY", "FEEDBACK_RECIPIENT_EMAIL"]
+  secrets: ["GEMINI_API_KEY", "RECAPTCHA_SECRET_KEY", "RESEND_API_KEY", "RESEND_FROM_EMAIL", "FEEDBACK_RECIPIENT_EMAIL"]
 }, app);
 

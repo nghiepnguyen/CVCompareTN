@@ -1,0 +1,226 @@
+{
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/vite.config.ts": {
+    "mtime": 1775881666.0,
+    "hash": "98837ad481d32d24be60f61651f35658"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/server.ts": {
+    "mtime": 1778406946.6438627,
+    "hash": "2ce5101fefcfdeb02d9270eb9c29d295"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/test-resend.ts": {
+    "mtime": 1776778620.7207797,
+    "hash": "03965e63e5d9010e03b86cfd7e5d693f"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/functions/lib/index.js": {
+    "mtime": 1777898245.7714097,
+    "hash": "174e11d59013adff622fde44f3c1a748"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/functions/src/index.ts": {
+    "mtime": 1778406955.5849497,
+    "hash": "a19fe728d32951a12b4919b027f16c8e"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/App.tsx": {
+    "mtime": 1777855604.4198422,
+    "hash": "879b65731808e72c945c764c6f46a846"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/main.tsx": {
+    "mtime": 1775953248.5402448,
+    "hash": "5a9280c207cf69cd8d27087e3f5dfcd1"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/firebase.ts": {
+    "mtime": 1776779914.9642055,
+    "hash": "132c2d72c2fb69b793845a8dced8fb6a"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/types.ts": {
+    "mtime": 1777855331.7557707,
+    "hash": "a72660180017271c6657b8e51e9337b8"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/translations.ts": {
+    "mtime": 1777853683.4842649,
+    "hash": "2746d3161af763303e1adb8fcd2ce1a8"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/context/AnalysisContext.tsx": {
+    "mtime": 1778405782.0422564,
+    "hash": "a7e1bff2485fcf8f93b132ec24540877"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/context/UIContext.tsx": {
+    "mtime": 1777855548.235274,
+    "hash": "02e764706e9b394c4439ee2b868f0a90"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/context/AuthContext.tsx": {
+    "mtime": 1778405772.4256716,
+    "hash": "1221cf60d2f699dc81e9dfedd64f4498"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/PrivacyPolicyPage.tsx": {
+    "mtime": 1775881666.0,
+    "hash": "cc1fe65d412f95d0a063f7ec18b6a89e"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/TermsOfServicePage.tsx": {
+    "mtime": 1775881666.0,
+    "hash": "5f76c4b310d6844f4a734a19e23848d0"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/MatchScoreDisplay.tsx": {
+    "mtime": 1775881666.0,
+    "hash": "fda0afcb768b1ffe0eb59f739779beae"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/SupportDevelopmentPage.tsx": {
+    "mtime": 1775914712.1425238,
+    "hash": "e6103fa6db141be8a24547c0e19586e4"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/layout/InAppBrowserWarning.tsx": {
+    "mtime": 1777853815.173535,
+    "hash": "4122b4ab8e17600f43166408e464f99c"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/layout/Footer.tsx": {
+    "mtime": 1777853813.167728,
+    "hash": "d6661bf17efc86f16a04bde88f7e709a"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/layout/Header.tsx": {
+    "mtime": 1777853796.5841162,
+    "hash": "cbaacc101a6de790c22a79c7f9c90099"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/NoPermissionView.tsx": {
+    "mtime": 1777854055.7656574,
+    "hash": "bfa44525dc7c8e7875c18186305759f0"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/LandingView.tsx": {
+    "mtime": 1777854629.621254,
+    "hash": "b4b5a9ba0731ac267308f945f9a94979"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/AdminView.tsx": {
+    "mtime": 1778405790.7201524,
+    "hash": "38c0c6e272d28aff7e7763d5d5036499"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/HistoryView.tsx": {
+    "mtime": 1778405799.7481163,
+    "hash": "6f6aa55977e32f8345d04b5085d31da1"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/ResultView.tsx": {
+    "mtime": 1778405920.9861352,
+    "hash": "d8ebcde567c0c2023c05962336fecf9a"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/DashboardView.tsx": {
+    "mtime": 1777853979.6299837,
+    "hash": "7cdf05a9095dd1ca2262619be6cf71a3"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/AnalysisInputView.tsx": {
+    "mtime": 1777855685.0823758,
+    "hash": "33ef12f6fbcca6d2226df7f7c0abbdbc"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/ComparisonOverview.tsx": {
+    "mtime": 1778405844.0461586,
+    "hash": "e3bdd92cc72883b8dac3d1450d4d2420"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/OptimizationTab.tsx": {
+    "mtime": 1778406378.0072396,
+    "hash": "ca6bac5b57dd7003cf145bb396b4a110"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/AnalysisLoadingState.tsx": {
+    "mtime": 1778405833.2941062,
+    "hash": "405ff95722b51ada4af65211779fb5a3"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/RatingSection.tsx": {
+    "mtime": 1778405973.1741645,
+    "hash": "653bba6f54c9eeb7a87f4ee29a6da2bb"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/AnalysisDetailsTab.tsx": {
+    "mtime": 1778405867.8713796,
+    "hash": "cd8472878e70104104b87bca5dce648a"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/DetailedComparisonTab.tsx": {
+    "mtime": 1778405880.2650013,
+    "hash": "22968cdee2ee6005336efe24c2afee3b"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/lib/firestoreUtils.ts": {
+    "mtime": 1778405697.0988595,
+    "hash": "7940c0867325c15d7d660c797d66a93b"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/lib/utils.ts": {
+    "mtime": 1777853769.1682632,
+    "hash": "8595c2f874aa1ff8c7cc28df2999f354"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/services/historyService.ts": {
+    "mtime": 1778405747.9099793,
+    "hash": "e79b0af1442795c71149d2bcf63f154e"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/services/storageService.ts": {
+    "mtime": 1778405754.3405929,
+    "hash": "658ec3606bddf0e59c935a24b28412d3"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/services/aiService.ts": {
+    "mtime": 1778405723.8289604,
+    "hash": "c5e920ed3c46e3115d33760fe1f694fd"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/services/matchService.ts": {
+    "mtime": 1775881666.0,
+    "hash": "87b86f0574e01967343777474bef9788"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/services/userService.ts": {
+    "mtime": 1778405735.9613352,
+    "hash": "c1eadfaa6c94674301fb6f517ffd71eb"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/grep_output.txt": {
+    "mtime": 1775881666.0,
+    "hash": "eee7f8aa3357bd4f4da8f445bbdea462"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/render.yaml": {
+    "mtime": 1775907153.3942564,
+    "hash": "931c76c1e84dd56598130701878fd8b3"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/index.html": {
+    "mtime": 1776123268.137375,
+    "hash": "26102662049c4d669e6f95856a8fb62a"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/CODING_CONVENTIONS.md": {
+    "mtime": 1775881666.0,
+    "hash": "1e39b7ebf7f48cb3d2d56f1e63d49630"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/welcome.md": {
+    "mtime": 1776778976.816814,
+    "hash": "3c6568ccf359a256427e4cc79ee1d2e4"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/README.md": {
+    "mtime": 1778409351.963841,
+    "hash": "1f9d5be9a26e0c841426205e04ee22df"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/AGENTS.md": {
+    "mtime": 1778409372.5409698,
+    "hash": "692e4cd6de6549c5fa5e9f5757f4514c"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/tags.txt": {
+    "mtime": 1775881666.0,
+    "hash": "0868d3cb97ac757fab292d70a121f346"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/4_backend.md": {
+    "mtime": 1777856293.297316,
+    "hash": "6eb7c955ceebaa2cf2866a874813a9e3"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/6_workflow.md": {
+    "mtime": 1777856298.4534936,
+    "hash": "0e9766bd5fc3e13d6eddff66aa9d6616"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/5_api.md": {
+    "mtime": 1778409400.8273716,
+    "hash": "0e0e644c4ea9aff4981d59e187a88301"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/2_tech_stack.md": {
+    "mtime": 1778409344.0044973,
+    "hash": "43d98e465137f280d770149841fe8236"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/3_frontend.md": {
+    "mtime": 1778409358.1967628,
+    "hash": "c457a855579020c96bf9523b7b16d88a"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/7_deployment.md": {
+    "mtime": 1777898329.3046165,
+    "hash": "2a28401a00efcf4fa17d686b3f872393"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/1_overview.md": {
+    "mtime": 1777856280.923304,
+    "hash": "6fd350fb96df2a675d55681865f5581c"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/public/robots.txt": {
+    "mtime": 1776123251.9907131,
+    "hash": "cdfcee73957c857408d9ec90bf28d55e"
+  }
+}

@@ -106,7 +106,7 @@ async function startServer() {
       if (apiKey) {
         const resendClient = new Resend(apiKey);
         const { data, error } = await resendClient.emails.send({
-          from: 'CV Matcher <admin@thanhnghiep.top>',
+          from: `CV Matcher <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
           to: [process.env.FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'],
           subject: `Feedback: ${title}`,
           html: `
@@ -185,7 +185,7 @@ async function startServer() {
         console.log(`Đang chuẩn bị gửi email chào mừng tới: ${userEmail}`);
         const resendClient = new Resend(apiKey);
         const { data, error } = await resendClient.emails.send({
-          from: 'CV Matcher <hr-lite@thanhnghiep.top>',
+          from: `CV Matcher <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
           to: [userEmail],
           subject: 'Chào mừng bạn! Cùng tối ưu CV để chinh phục công việc mơ ước 🚀',
           html: `

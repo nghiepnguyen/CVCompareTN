@@ -23,7 +23,7 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 
 ## Trí tuệ nhân tạo (AI)
 
--   **Engine:** [Google Gemini AI](https://deepmind.google/technologies/gemini/) - Sử dụng model `gemini-1.5-flash` hoặc `gemini-1.5-pro` thông qua thư viện `@google/genai`.
+-   **Engine:** [Google Gemini AI](https://deepmind.google/technologies/gemini/) - Sử dụng model `gemini-3-flash-preview` hoặc `gemini-1.5-pro` thông qua thư viện `@google/genai`.
 -   **Capabilities:** Phân tích nội dung, trích xuất thực thể, so khớp ngữ nghĩa và tạo nội dung sáng tạo (rewriting).
 
 ## Dịch vụ & Cơ sở dữ liệu (Cloud Services)

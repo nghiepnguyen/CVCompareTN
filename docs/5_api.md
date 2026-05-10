@@ -38,11 +38,11 @@ Hệ thống tương tác trực tiếp với Firebase từ Frontend qua SDK.
 
 ## 3. Google Gemini AI Service
 
-Tất cả các yêu cầu phân tích đều được thực hiện thông qua `src/services/geminiService.ts`.
+Tất cả các yêu cầu phân tích đều được thực hiện thông qua `src/services/aiService.ts`.
 
 ### `analyzeCV(cvText, jdText, language)`
 -   **Logic:** Tạo Prompt phức tạp bao gồm cấu trúc JSON mong muốn.
--   **Model:** `gemini-1.5-flash` (cho tốc độ) hoặc `gemini-1.5-pro` (cho độ chính xác cao).
+-   **Model:** `gemini-3-flash-preview` (tối ưu nhất cho tốc độ và khả năng suy luận) hoặc `gemini-1.5-pro` (cho độ chính xác cao).
 -   **Kết quả:** Trả về Object `AnalysisResult` chứa toàn bộ thông tin điểm số, so sánh và gợi ý tối ưu.
 
 ### `extractTextFromImage(base64Data)`

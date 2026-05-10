@@ -20,7 +20,7 @@ This file contains custom instructions and context for the AI Studio Build agent
 ### 2. Architecture & Data Flow
 - **Backend Integration:** The Express server (`server.ts`) handles sensitive operations or operations that require specific Node.js libraries (like `pdf-parse` for complex PDFs or `resend` for emails). Do not expose secret keys in the frontend.
 - **Firebase:** Use the existing `src/firebase.ts` setup. Respect the schemas defined in `firebase-blueprint.json` and ensure any new database interactions comply with `firestore.rules`.
-- **AI (Gemini):** All interactions with the Gemini API should go through `src/services/geminiService.ts`. Maintain the structured JSON output format defined in the prompts.
+- **AI (Gemini):** All interactions with the Gemini API should go through `src/services/aiService.ts`. Maintain the structured JSON output format defined in the prompts.
 
 ### 3. UI/UX Guidelines
 - **Language:** Default to Vietnamese for all user-facing text unless the user specifically requests English or the context dictates otherwise.
