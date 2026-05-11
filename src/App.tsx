@@ -19,26 +19,21 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-import { LandingView } from './components/views/LandingView';
-import { DashboardView } from './components/views/DashboardView';
-import { AdminView } from './components/views/AdminView';
-import { HistoryView } from './components/views/HistoryView';
-import { NoPermissionView } from './components/views/NoPermissionView';
+const LandingView = React.lazy(() => import('./components/views/LandingView').then(m => ({ default: m.LandingView })));
+const DashboardView = React.lazy(() => import('./components/views/DashboardView').then(m => ({ default: m.DashboardView })));
+const AdminView = React.lazy(() => import('./components/views/AdminView').then(m => ({ default: m.AdminView })));
+const HistoryView = React.lazy(() => import('./components/views/HistoryView').then(m => ({ default: m.HistoryView })));
+const NoPermissionView = React.lazy(() => import('./components/views/NoPermissionView').then(m => ({ default: m.NoPermissionView })));
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UIProvider, useUI } from './context/UIContext';
 import { AnalysisProvider, useAnalysis } from './context/AnalysisContext';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { InAppBrowserWarning } from './components/layout/InAppBrowserWarning';
-import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
-import { TermsOfServicePage } from './components/TermsOfServicePage';
-import { SupportDevelopmentPage } from './components/SupportDevelopmentPage';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+const PrivacyPolicyPage = React.lazy(() => import('./components/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
+const TermsOfServicePage = React.lazy(() => import('./components/TermsOfServicePage').then(m => ({ default: m.TermsOfServicePage })));
+const SupportDevelopmentPage = React.lazy(() => import('./components/SupportDevelopmentPage').then(m => ({ default: m.SupportDevelopmentPage })));
+import { cn } from './lib/utils';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
   constructor(props: { children: React.ReactNode }) {
@@ -96,7 +91,7 @@ export default function App() {
 function AppContent() {
   const { user, userProfile, error, setError, isAuthInitialized } = useAuth();
   const { 
-    activeTab, setActiveTab, reportLanguage,
+    activeTab, setActiveTab, reportLanguage, t,
     isSavedJDsModalOpen, setIsSavedJDsModalOpen,
     isSaveJDNameModalOpen, setIsSaveJDNameModalOpen
   } = useUI();
@@ -107,6 +102,78 @@ function AppContent() {
 
   const [savedJDSearchTerm, setSavedJDSearchTerm] = useState('');
   const [jdSaveTitle, setJdSaveTitle] = useState('');
+
+  // SEO Dynamic Updates
+  React.useEffect(() => {
+    const isPolicyPage = activeTab === 'privacy' || activeTab === 'terms' || activeTab === 'support';
+    const pageTitle = isPolicyPage 
+      ? `${activeTab === 'privacy' ? (reportLanguage === 'vi' ? 'Chính sách bảo mật' : 'Privacy Policy') : 
+         activeTab === 'terms' ? (reportLanguage === 'vi' ? 'Điều khoản dịch vụ' : 'Terms of Service') : 
+         (reportLanguage === 'vi' ? 'Hỗ trợ phát triển' : 'Support Development')} | CV Matcher`
+      : (t.seoTitle || "CV Matcher & Optimizer");
+
+    // Update Document Title
+    document.title = pageTitle;
+    
+    // Helper to update meta tag
+    const updateMeta = (selector: string, content: string) => {
+      const el = document.querySelector(selector);
+      if (el) el.setAttribute('content', content);
+    };
+
+    const description = t.seoDescription || "";
+    const keywords = t.seoKeywords || "";
+
+    // Basic SEO
+    updateMeta('meta[name="description"]', description);
+    updateMeta('meta[name="keywords"]', keywords);
+    
+    // Open Graph
+    updateMeta('meta[property="og:title"]', pageTitle);
+    updateMeta('meta[property="og:description"]', description);
+    
+    // Twitter
+    updateMeta('meta[name="twitter:title"]', pageTitle);
+    updateMeta('meta[name="twitter:description"]', description);
+    
+    // Update HTML Lang attribute
+    document.documentElement.lang = reportLanguage;
+
+    // Dynamic JSON-LD Schema
+    const existingSchema = document.getElementById('dynamic-schema');
+    if (existingSchema) existingSchema.remove();
+
+    const schemaData = {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "SoftwareApplication",
+          "name": "CV Matcher & Optimizer",
+          "description": description,
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://cv.thanhnghiep.top",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": reportLanguage === 'vi' ? 'VND' : 'USD'
+          }
+        },
+        {
+          "@type": "Organization",
+          "name": "thanhnghiep.top",
+          "url": "https://thanhnghiep.top",
+          "logo": "https://thanhnghiep.top/wp-content/uploads/2021/10/cropped-logo-fav-192x192.png"
+        }
+      ]
+    };
+
+    const script = document.createElement('script');
+    script.id = 'dynamic-schema';
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify(schemaData);
+    document.head.appendChild(script);
+  }, [reportLanguage, t, activeTab]); 
 
   const isAdmin = user?.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
 
@@ -142,27 +209,44 @@ function AppContent() {
         <InAppBrowserWarning />
         <Header />
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {activeTab === 'privacy' ? (
-            <PrivacyPolicyPage onBack={() => setActiveTab('analyze')} />
-          ) : activeTab === 'terms' ? (
-            <TermsOfServicePage onBack={() => setActiveTab('analyze')} />
-          ) : activeTab === 'support' ? (
-            <SupportDevelopmentPage 
-              onBack={() => setActiveTab('analyze')} 
-              language={reportLanguage}
-            />
-          ) : !user ? (
-            <LandingView />
-          ) : user && userProfile?.hasPermission === false && userProfile?.role !== 'admin' && user.email?.toLowerCase() !== (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase() ? (
-            <NoPermissionView />
-          ) : activeTab === 'admin' && isAdmin ? (
-            <AdminView />
-          ) : activeTab === 'analyze' ? (
-            <DashboardView />
-          ) : activeTab === 'history' ? (
-            <HistoryView />
-          ) : null}
+        <main className={cn(
+          "mx-auto transition-all duration-500",
+          !user ? "w-full" : "max-w-7xl px-4 sm:px-6 lg:px-8 py-8"
+        )}>
+          <React.Suspense fallback={
+            <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
+              <div className="relative h-16 w-16">
+                <div className="absolute inset-0 animate-ping rounded-full bg-primary/20" />
+                <div className="flex h-full w-full items-center justify-center rounded-2xl bg-white shadow-xl">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              </div>
+              <p className="mt-4 text-sm font-bold text-slate-400 animate-pulse uppercase tracking-[0.2em]">
+                {reportLanguage === 'vi' ? 'Đang tải nội dung...' : 'Loading Content...'}
+              </p>
+            </div>
+          }>
+            {activeTab === 'privacy' ? (
+              <PrivacyPolicyPage onBack={() => setActiveTab('analyze')} />
+            ) : activeTab === 'terms' ? (
+              <TermsOfServicePage onBack={() => setActiveTab('analyze')} />
+            ) : activeTab === 'support' ? (
+              <SupportDevelopmentPage 
+                onBack={() => setActiveTab('analyze')} 
+                language={reportLanguage}
+              />
+            ) : !user ? (
+              <LandingView />
+            ) : user && userProfile?.hasPermission === false && userProfile?.role !== 'admin' && user.email?.toLowerCase() !== (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase() ? (
+              <NoPermissionView />
+            ) : activeTab === 'admin' && isAdmin ? (
+              <AdminView />
+            ) : activeTab === 'analyze' ? (
+              <DashboardView />
+            ) : activeTab === 'history' ? (
+              <HistoryView />
+            ) : null}
+          </React.Suspense>
         </main>
 
         <Footer />

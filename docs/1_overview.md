@@ -7,8 +7,9 @@
 1.  **Tối ưu hóa ATS (ATS Optimization):** Phân tích và chấm điểm CV dựa trên các tiêu chí mà hệ thống ATS thường sử dụng (từ khóa, cấu trúc, định dạng).
 2.  **Thông minh hóa quy trình (AI-Powered Analysis):** Tận dụng sức mạnh của Google Gemini AI để "đọc" và "hiểu" nội dung CV cũng như yêu cầu của JD như một chuyên gia tuyển dụng thực thụ.
 3.  **Hỗ trợ đa ngôn ngữ (Multilingual Support):** Hỗ trợ tốt cả tiếng Việt và tiếng Anh, phù hợp cho cả thị trường trong nước và quốc tế.
-4.  **Trải nghiệm người dùng cao cấp (Premium UX/UI):** Giao diện hiện đại, mượt mà với các hiệu ứng chuyển động (Framer Motion) và biểu đồ trực quan (Recharts).
-5.  **Bảo mật & Riêng tư (Security & Privacy):** Đảm bảo dữ liệu CV của người dùng được xử lý an toàn thông qua Firebase và các API bảo mật.
+4.  **Trải nghiệm người dùng cao cấp (Premium UX/UI):** Giao diện Landing Page phong cách Bento Grid hiện đại, mượt mà với các hiệu ứng chuyển động (Framer Motion).
+5.  **Tối ưu hóa SEO (Dynamic SEO):** Metadata tự động thay đổi theo ngôn ngữ, hỗ trợ Social Tags (OG/Twitter) và Schema Markup (JSON-LD) giúp website hiển thị chuyên nghiệp trên Google và mạng xã hội.
+6.  **Bảo mật & Riêng tư (Security & Privacy):** Đảm bảo dữ liệu CV của người dùng được xử lý an toàn thông qua Firebase và các API bảo mật.
 
 ## Tính năng nổi bật (Key Features)
 
