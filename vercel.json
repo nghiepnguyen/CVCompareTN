@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/config",
+      "destination": "/api/config.ts"
+    },
+    {
+      "source": "/api/verify-recaptcha",
+      "destination": "/api/verify-recaptcha.ts"
+    },
+    {
+      "source": "/api/send-feedback",
+      "destination": "/api/send-feedback.ts"
+    },
+    {
+      "source": "/api/send-welcome-email",
+      "destination": "/api/send-welcome-email.ts"
+    },
+    {
+      "source": "/api/extract-pdf",
+      "destination": "/api/extract-pdf.ts"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

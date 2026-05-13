@@ -13,3 +13,5 @@ functions/lib/
 firebase-debug.log*
 .firebaserc
 firebase-applet-config.json
+.vercel
+.env*.local
