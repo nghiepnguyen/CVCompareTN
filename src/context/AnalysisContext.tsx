@@ -128,43 +128,24 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
 
     if (isPdf) {
       const reader = new FileReader();
-      const pdfTextPromise = new Promise<string>((resolve, reject) => {
-        reader.onload = async () => {
-          try {
-            const base64Data = reader.result as string;
-            const response = await fetch('/api/extract-pdf', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ base64Data }),
-            });
-            if (!response.ok) throw new Error((await response.json()).error || 'Failed to extract PDF');
-            resolve((await response.json()).text);
-          } catch (err) {
-            reject(err);
-          }
-        };
+      const pdfBase64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      return { data: await pdfTextPromise, mimeType: 'text/plain' };
+      return { data: await pdfBase64Promise, mimeType: 'application/pdf' };
     } else if (isDocx) {
       const arrayBuffer = await file.arrayBuffer();
       const result = await mammoth.extractRawText({ arrayBuffer });
       return { data: cleanText(result.value), mimeType: 'text/plain' };
     } else if (isImage) {
       const reader = new FileReader();
-      const imageTextPromise = new Promise<string>((resolve, reject) => {
-        reader.onload = async () => {
-          try {
-            resolve(await extractTextFromImage(reader.result as string, file.type));
-          } catch (err) {
-            reject(err);
-          }
-        };
+      const imageBase64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      return { data: await imageTextPromise, mimeType: 'text/plain' };
+      return { data: await imageBase64Promise, mimeType: file.type };
     } else {
       const text = await file.text();
       return { data: cleanText(text), mimeType: 'text/plain' };

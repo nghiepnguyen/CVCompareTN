@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { 
-  ArrowRight, FileText, Search, Target, Clock, AlertCircle, 
-  CheckCircle2, Brain, Activity, Key, TrendingUp, Download, 
-  ChevronRight, GraduationCap, Users, Globe, FileCheck, 
+import {
+  ArrowRight, FileText, Search, Target, Clock, AlertCircle,
+  CheckCircle2, Brain, Activity, Key, TrendingUp, Download,
+  ChevronRight, GraduationCap, Users, Globe, FileCheck,
   ChevronDown, Sparkles, Zap, ShieldCheck, BarChart3
 } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
@@ -36,7 +36,7 @@ const FeatureIcon = ({ icon: Icon, color = "primary" }: any) => (
 
 const HeroSection = ({ t, login, opacity, scale }: any) => (
   <section className="relative flex min-h-[90vh] w-full flex-col items-center justify-center px-4 pt-20 pb-32">
-    <motion.div 
+    <motion.div
       style={{ opacity, scale }}
       className="container relative z-10 mx-auto max-w-6xl text-center"
     >
@@ -50,7 +50,7 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
         <span>AI-Powered CV Intelligence</span>
       </motion.div>
 
-      <motion.h1 
+      <motion.h1
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1 }}
@@ -62,7 +62,7 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
         </span>
       </motion.h1>
 
-      <motion.p 
+      <motion.p
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
@@ -71,13 +71,13 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
         {t.heroDesc}
       </motion.p>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.3 }}
         className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row px-4 w-full sm:px-0"
       >
-        <button 
+        <button
           onClick={login}
           className="group relative flex h-14 w-full sm:w-auto items-center justify-center gap-2 overflow-hidden rounded-2xl bg-slate-900 px-10 font-bold text-white transition-all hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-900/20 active:scale-95"
         >
@@ -85,9 +85,9 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
           <span>{t.startNow}</span>
           <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
         </button>
-        <a 
-          href="https://hr.thanhnghiep.top" 
-          target="_blank" 
+        <a
+          href="https://hr.thanhnghiep.top"
+          target="_blank"
           rel="noopener noreferrer"
           className="flex h-14 w-full sm:w-auto items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-8 font-bold text-slate-900 transition-all hover:bg-slate-50 hover:shadow-lg active:scale-95"
         >
@@ -96,7 +96,7 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
         </a>
       </motion.div>
 
-      <motion.p 
+      <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8 }}
@@ -107,7 +107,7 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
     </motion.div>
 
     {/* Floating Preview */}
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 100 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 1, delay: 0.4, type: 'spring' }}
@@ -115,14 +115,14 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
     >
       <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/40 bg-white/30 p-2 shadow-2xl backdrop-blur-2xl transition-transform hover:scale-[1.01]">
         <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-accent/5 opacity-0 transition-opacity group-hover:opacity-100" />
-        <img 
-          src="https://thanhnghiep.top/CVMatcher/cv-dash.jpg" 
-          alt={t.seoTitle || "CV Matcher & Optimizer Dashboard"} 
+        <img
+          src="https://thanhnghiep.top/CVMatcher/cv-dash.jpg"
+          alt={t.seoTitle || "CV Matcher & Optimizer Dashboard"}
           className="relative z-10 rounded-[2rem] shadow-sm transition-transform"
           referrerPolicy="no-referrer"
         />
       </div>
-      
+
       {/* Decorative Elements */}
       <div className="absolute -top-10 -right-10 h-32 w-32 animate-pulse rounded-full bg-primary/20 blur-3xl" />
       <div className="absolute -bottom-10 -left-10 h-32 w-32 animate-pulse rounded-full bg-accent/20 blur-3xl" />
@@ -130,26 +130,49 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
   </section>
 );
 
-const TrustSection = ({ t }: any) => (
-  <section className="w-full border-y border-slate-200/60 bg-white/50 py-12 backdrop-blur-sm">
-    <div className="container mx-auto px-4">
-      <p className="mb-8 text-center text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-        {t.trustedBy || "Công nghệ tin cậy bởi hàng ngàn ứng viên"}
-      </p>
-      <div className="flex flex-wrap justify-center gap-6 md:gap-12 opacity-40 grayscale transition-all hover:opacity-70 hover:grayscale-0">
-        {['VNG', 'FPT', 'Viettel', 'VinGroup', 'Shopee'].map(name => (
-          <span key={name} className="font-sans text-lg md:text-xl font-black italic tracking-tighter text-slate-900">{name}</span>
-        ))}
+const TrustSection = ({ t }: any) => {
+  const experts = [
+    { name: 'VietnamWorks', url: 'https://www.vietnamworks.com/' },
+    { name: 'ITviec', url: 'https://itviec.com/' },
+    { name: 'TopCV', url: 'https://www.topcv.vn/' },
+    { name: 'CareerViet', url: 'https://careerviet.vn/' },
+    { name: 'Việc Làm 24h', url: 'https://vieclam24h.vn/' },
+    { name: 'LinkedIn', url: 'https://www.linkedin.com/' },
+  ];
+
+  return (
+    <section className="w-full border-y border-slate-200/60 bg-white/50 py-12 backdrop-blur-sm">
+      <div className="container mx-auto px-4">
+        <p className="mb-8 text-center text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+          {t.trustedBy}
+        </p>
+        <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
+          {experts.map(expert => (
+            <a
+              key={expert.name}
+              href={expert.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative"
+            >
+              <span className="font-sans text-xl md:text-2xl font-black italic tracking-tighter text-slate-400 transition-all duration-300 group-hover:text-slate-900 group-hover:scale-110 block">
+                {expert.name}
+              </span>
+              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-primary transition-all duration-300 group-hover:w-full" />
+            </a>
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
+
 
 const ProblemSection = ({ t }: any) => (
   <section className="w-full py-32">
     <div className="container mx-auto max-w-6xl px-4">
       <div className="mb-20 text-center">
-        <motion.h2 
+        <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -165,7 +188,7 @@ const ProblemSection = ({ t }: any) => (
           <h3 className="mb-4 font-sans text-2xl font-bold text-slate-900">{t.problemItem1}</h3>
           <p className="text-slate-500">{t.problemItem2}. Hệ thống ATS tự động loại bỏ các hồ sơ không chứa đúng từ khóa hoặc định dạng không chuẩn.</p>
         </BentoCard>
-        
+
         <BentoCard>
           <FeatureIcon icon={Clock} />
           <h3 className="mb-4 font-sans text-2xl font-bold text-slate-900">6–10 Giây</h3>
@@ -218,7 +241,7 @@ const WhyChooseSection = ({ t }: any) => (
           { icon: FileCheck, title: t.feature7Title, desc: t.feature7Desc },
           { icon: Download, title: t.feature8Title, desc: t.feature8Desc }
         ].map((item, i) => (
-          <motion.div 
+          <motion.div
             key={i}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -249,14 +272,14 @@ const HowItWorksSection = ({ t }: any) => (
 
       <div className="relative grid grid-cols-1 gap-8 md:grid-cols-4">
         <div className="absolute top-10 left-0 hidden h-0.5 w-full bg-slate-200 md:block" />
-        
+
         {[
           { title: t.howItWorksStep1Title, desc: t.howItWorksStep1Desc, icon: Download },
           { title: t.howItWorksStep2Title, desc: t.howItWorksStep2Desc, icon: FileText },
           { title: t.howItWorksStep3Title, desc: t.howItWorksStep3Desc, icon: Brain },
           { title: t.howItWorksStep4Title, desc: t.howItWorksStep4Desc, icon: CheckCircle2 }
         ].map((step, i) => (
-          <motion.div 
+          <motion.div
             key={i}
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -272,7 +295,7 @@ const HowItWorksSection = ({ t }: any) => (
           </motion.div>
         ))}
       </div>
-      
+
       <div className="mt-20 flex flex-col items-center justify-center gap-4 rounded-[2.5rem] bg-primary/5 p-8 text-center border border-primary/10">
         <p className="font-sans text-lg font-bold text-primary">
           {t.howItWorksFooter}
@@ -288,8 +311,8 @@ const DemoResultSection = ({ t }: any) => (
       <div className="mb-16 text-center">
         <h2 className="font-sans text-4xl font-extrabold tracking-tight text-slate-900">{t.resultTitle}</h2>
       </div>
-      
-      <motion.div 
+
+      <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -303,7 +326,7 @@ const DemoResultSection = ({ t }: any) => (
             <span className="ml-4 text-xs font-bold uppercase tracking-widest text-slate-400">Analysis Report Preview</span>
           </div>
         </div>
-        
+
         <div className="p-6 md:p-16">
           <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
             <div className="space-y-8">
@@ -313,11 +336,11 @@ const DemoResultSection = ({ t }: any) => (
                   <span className="font-sans text-3xl font-black text-primary">72%</span>
                 </div>
                 <div className="h-4 w-full overflow-hidden rounded-full bg-slate-200">
-                  <motion.div 
+                  <motion.div
                     initial={{ width: 0 }}
                     whileInView={{ width: '72%' }}
                     transition={{ duration: 1.5, ease: "easeOut" }}
-                    className="h-full bg-primary" 
+                    className="h-full bg-primary"
                   />
                 </div>
               </div>
@@ -327,11 +350,11 @@ const DemoResultSection = ({ t }: any) => (
                   <span className="font-sans text-3xl font-black text-emerald-500">81%</span>
                 </div>
                 <div className="h-4 w-full overflow-hidden rounded-full bg-slate-200">
-                  <motion.div 
+                  <motion.div
                     initial={{ width: 0 }}
                     whileInView={{ width: '81%' }}
                     transition={{ duration: 1.5, ease: "easeOut" }}
-                    className="h-full bg-emerald-500" 
+                    className="h-full bg-emerald-500"
                   />
                 </div>
               </div>
@@ -395,7 +418,7 @@ const StatsSection = ({ t }: any) => (
           { val: "2M+", label: t.stats3 }
         ].map((stat, i) => (
           <div key={i} className="text-center">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
               whileInView={{ scale: 1, opacity: 1 }}
               viewport={{ once: true }}
@@ -419,7 +442,7 @@ const TargetUsersSection = ({ t }: any) => (
           {t.targetUsersTitle}
         </h2>
       </div>
-      
+
       <div className="grid grid-cols-2 gap-4 sm:flex sm:flex-wrap sm:justify-center md:gap-6">
         {[
           { label: t.targetUsersItem1, icon: GraduationCap },
@@ -428,7 +451,7 @@ const TargetUsersSection = ({ t }: any) => (
           { label: t.targetUsersItem4, icon: Globe },
           { label: t.targetUsersItem5, icon: FileCheck },
         ].map((item, index) => (
-          <motion.div 
+          <motion.div
             key={index}
             whileHover={{ y: -5 }}
             className={cn(
@@ -449,7 +472,7 @@ const TargetUsersSection = ({ t }: any) => (
 
 const CtaSection = ({ t, login }: any) => (
   <section className="w-full pb-32 pt-16 px-4">
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       whileInView={{ opacity: 1, scale: 1 }}
       viewport={{ once: true }}
@@ -457,21 +480,21 @@ const CtaSection = ({ t, login }: any) => (
     >
       <div className="absolute top-0 right-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
       <div className="absolute bottom-0 left-0 -ml-20 -mb-20 h-64 w-64 rounded-full bg-accent/20 blur-3xl" />
-      
+
       <div className="relative z-10">
         <h2 className="mx-auto max-w-3xl font-sans text-4xl font-extrabold tracking-tight text-white sm:text-6xl">
           {t.ctaTitle}
         </h2>
         <div className="mt-12 flex flex-col items-center justify-center gap-6 sm:flex-row">
-          <button 
+          <button
             onClick={login}
             className="h-16 rounded-2xl bg-white px-12 font-sans text-xl font-black text-primary transition-all hover:bg-slate-50 hover:shadow-2xl active:scale-95"
           >
             {t.ctaBtn}
           </button>
-          <a 
-            href="https://hr.thanhnghiep.top" 
-            target="_blank" 
+          <a
+            href="https://hr.thanhnghiep.top"
+            target="_blank"
             rel="noopener noreferrer"
             className="flex h-16 items-center justify-center gap-3 rounded-2xl border-2 border-white/30 bg-white/10 px-10 font-sans text-lg font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
           >
@@ -493,15 +516,15 @@ const FaqSection = ({ t, openFaqIndex, setOpenFaqIndex }: any) => (
       <div className="mb-20 text-center">
         <h2 className="font-sans text-4xl font-extrabold tracking-tight text-slate-900">{t.faqTitle}</h2>
       </div>
-      
+
       <div className="space-y-6">
         {t.faqItems.map((item: any, index: number) => (
-          <motion.div 
+          <motion.div
             layout
-            key={index} 
+            key={index}
             className="group overflow-hidden rounded-[2rem] border border-slate-200 transition-all hover:border-primary/40"
           >
-            <button 
+            <button
               onClick={() => setOpenFaqIndex(openFaqIndex === index ? null : index)}
               className="flex w-full items-center justify-between p-6 md:p-8 text-left transition-colors focus:outline-none group-hover:bg-primary/[0.02]"
             >
@@ -515,7 +538,7 @@ const FaqSection = ({ t, openFaqIndex, setOpenFaqIndex }: any) => (
             </button>
             <AnimatePresence initial={false}>
               {openFaqIndex === index && (
-                <motion.div 
+                <motion.div
                   key="content"
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}

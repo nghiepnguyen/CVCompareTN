@@ -2,6 +2,72 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 let GEMINI_API_KEY = (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
 
+export interface ParsedPersonalInformation {
+  full_name: string;
+  contact: {
+    email: string;
+    phone: string;
+    location: string;
+    linkedin?: string;
+    website_portfolio?: string;
+  };
+  summary: string;
+}
+
+export interface ParsedEducation {
+  degree: string;
+  institution: string;
+  major: string;
+  graduation_year: number;
+  gpa?: string;
+}
+
+export interface ParsedWorkExperience {
+  company: string;
+  job_title: string;
+  duration: {
+    start: string;
+    end: string;
+    is_current: boolean;
+  };
+  responsibilities: string[];
+  achievements: string[];
+}
+
+export interface ParsedSkills {
+  technical_skills: string[];
+  soft_skills: string[];
+  tools_software: string[];
+  languages: {
+    language: string;
+    proficiency: string;
+  }[];
+}
+
+export interface ParsedProject {
+  name: string;
+  description: string;
+  tech_stack: string[];
+  link?: string;
+}
+
+export interface ATSEvaluation {
+  years_of_experience: number;
+  relevant_score: number;
+  key_match_highlights: string[];
+  missing_keywords: string[];
+}
+
+export interface ParsedCV {
+  personal_information: ParsedPersonalInformation;
+  education: ParsedEducation[];
+  work_experience: ParsedWorkExperience[];
+  skills: ParsedSkills;
+  projects: ParsedProject[];
+  certifications: string[];
+  ats_evaluation: ATSEvaluation;
+}
+
 export interface CategorizedScore {
   skills: number;
   experience: number;
@@ -10,13 +76,14 @@ export interface CategorizedScore {
 }
 
 export interface CategorizedPoint {
-  category: 'Skills' | 'Experience' | 'Tools' | 'Education' | 'Soft Skills' | 'Hard Skills' | 'Technical Skills';
+  category: string;
   content: string;
 }
 
 export interface MissingGap {
-  category: 'Skills' | 'Experience' | 'Keywords' | 'Soft Skills' | 'Hard Skills' | 'Technical Skills';
+  category: string;
   content: string;
+  impact: 'High' | 'Medium' | 'Low';
 }
 
 export interface RewriteSuggestion {
@@ -26,19 +93,15 @@ export interface RewriteSuggestion {
   explanation: string;
 }
 
-export interface ComparisonItem {
-  requirement: string;
-  status: 'matched' | 'missing' | 'partial';
-  cvEvidence?: string;
-  improvement?: string;
-}
-
 export interface DetailedComparison {
-  skills: ComparisonItem[];
-  experience: ComparisonItem[];
-  tools: ComparisonItem[];
-  education: ComparisonItem[];
-  keywords: ComparisonItem[];
+  skills: {
+    match: string[];
+    missing: string[];
+  };
+  experience: {
+    match: string[];
+    missing: string[];
+  };
 }
 
 export interface AnalysisResult {
@@ -65,6 +128,7 @@ export interface AnalysisResult {
   rating?: number;
   feedback?: string;
   language?: 'vi' | 'en';
+  parsedCV?: ParsedCV;
 }
 
 // Function to fetch config from backend if build-time key is missing or invalid
@@ -101,118 +165,72 @@ export async function analyzeCV(jd: string, cvData: string, cvMimeType: string, 
 
   const promptVi = `
     Bạn là một chuyên gia tuyển dụng HR và chuyên gia về hệ thống ATS (Applicant Tracking System).
-    Hãy phân tích CV được cung cấp so với Mô tả công việc (JD).
+    Hãy thực hiện đồng thời hai nhiệm vụ quan trọng: 
+    1. Trích xuất và chuẩn hóa thông tin từ CV thành định dạng JSON chi tiết (Parsed CV).
+    2. Phân tích sự phù hợp của CV này so với Mô tả công việc (JD).
     
     ${jdSection}
     
-    Nhiệm vụ:
+    Nhiệm vụ 1: Trích xuất và chuẩn hóa CV (Parsed CV):
+    - Trích xuất thông tin cá nhân: Họ tên, Email, Số điện thoại, LinkedIn, Portfolio.
+    - Học vấn: Trích xuất đầy đủ bằng cấp, trường, chuyên ngành, năm tốt nghiệp, GPA.
+    - Kinh nghiệm làm việc: Trích xuất TẤT CẢ các công việc trong CV (không giới hạn số lượng). Với mỗi công việc, lấy đầy đủ thông tin: công ty, chức danh, mốc thời gian (Chuẩn hóa về định dạng MM/YYYY), chi tiết các nhiệm vụ và thành tựu (không tóm tắt quá ngắn).
+    - Kỹ năng: Phân loại rõ ràng thành: technical_skills (kỹ năng kỹ thuật), soft_skills (kỹ năng mềm), tools_software (công cụ/phần mềm).
+    - Dự án & Chứng chỉ: Trích xuất tên, mô tả, công nghệ sử dụng.
+    - ATS Evaluation sơ bộ: Tính toán tổng số năm kinh nghiệm thực tế (dựa trên các mốc thời gian kinh nghiệm, không chỉ là lấy năm hiện tại trừ năm bắt đầu).
+    
+    Nhiệm vụ 2: Phân tích và So sánh với JD:
     1. Xác định chức danh công việc (Job Title) từ JD.
     2. Tính toán điểm phù hợp tổng thể (0-100).
-    2. Cung cấp điểm thành phần (0-100) cho: Kỹ năng (Skills), Kinh nghiệm (Experience), Công cụ/Công nghệ (Tools), và Học văn/Chứng chỉ (Education).
-    3. Liệt kê các điểm tương đồng cụ thể theo danh mục: Kỹ năng mềm (Soft Skills), Kỹ năng cứng (Hard Skills), Kỹ năng kỹ thuật (Technical Skills), Kinh nghiệm (Experience), Công cụ (Tools), hoặc Học vấn (Education).
-    4. Liệt kê các điểm còn thiếu (gaps) theo danh mục: Kỹ năng mềm (Soft Skills), Kỹ năng cứng (Hard Skills), Kỹ năng kỹ thuật (Technical Skills), Kinh nghiệm (Experience), hoặc Từ khóa (Keywords).
-    5. Xác định các từ khóa ATS quan trọng nên có trong CV.
-    6. Cung cấp các gợi ý viết lại cụ thể và có tác động cao (impactful) cho các phần trong CV:
-       - Tập trung vào việc chuyển đổi các mô tả chung chung thành các thành tựu có thể định lượng được (Sử dụng công thức Google XYZ: "Đạt được [X] được đo lường bởi [Y], bằng cách thực hiện [Z]").
-       - Sử dụng các động từ hành động mạnh mẽ (Strong Action Verbs).
-       - Lồng ghép các từ khóa quan trọng từ JD một cách tự nhiên để tối ưu hóa ATS.
-       - Đảm bảo các gợi ý là thực tế, có thể thực hiện ngay (actionable) và trực tiếp cải thiện sự phù hợp với JD.
-       - Phần 'optimized' phải dùng ĐÚNG NGÔN NGỮ của phần đó trong CV gốc.
-       - Phần 'explanation' phải giải thích rõ ràng tại sao thay đổi này giúp vượt qua bộ lọc ATS hoặc gây ấn tượng với nhà tuyển dụng (ví dụ: "Thêm từ khóa 'Cloud Architecture' giúp tăng điểm ATS", "Định lượng kết quả giúp tăng tính thuyết phục").
-    7. VIẾT LẠI TOÀN BỘ CV (Full Rewritten CV): Dựa trên thông tin từ CV gốc và yêu cầu của JD, hãy tạo ra một bản CV hoàn chỉnh, chuyên nghiệp, tối ưu hóa 100% cho hệ thống ATS và JD này. 
-       - QUAN TRỌNG: Phải sử dụng ĐÚNG NGÔN NGỮ GỐC của CV.
-       - TUYỆT ĐỐI KHÔNG sử dụng các thẻ HTML hoặc bao bọc nội dung trong các khối mã Markdown (KHÔNG dùng \` \` \` hoặc \` \` \`markdown ở đầu và cuối). Trả về văn bản thuần túy theo định dạng Markdown.
-       - Cấu trúc bắt buộc: 
-         # [Họ và Tên]
-         [Thông tin liên hệ: Email | Số điện thoại | LinkedIn | Địa chỉ]
-         
-         ## Tóm tắt chuyên môn (Professional Summary)
-         [Đoạn văn ngắn gọn, ấn tượng]
-         
-         ## Kinh nghiệm làm việc (Work Experience)
-         [Liệt kê theo thứ tự thời gian đảo ngược. Sử dụng công thức XYZ cho các thành tựu]
-         
-         ## Kỹ năng (Skills)
-         [Phân loại rõ ràng: Kỹ năng kỹ thuật, Kỹ năng mềm...]
-         
-         ## Học vấn (Education)
-         [Trường học, Chuyên ngành, Năm tốt nghiệp]
-       - QUAN TRỌNG: Mỗi tiêu đề (# hoặc ##) phải nằm trên một dòng riêng biệt và theo sau bởi một dòng trống.
-       - Sử dụng danh sách có dấu đầu dòng (-) cho các nhiệm vụ và thành tựu.
-       - Đảm bảo có 2 dòng trống giữa các mục lớn (##) để tạo không gian thoáng.
-    8. Ước tính xác suất thành công khi phỏng vấn.
-    9. Ước lượng khả năng vượt qua vòng lọc CV (Thấp, Trung bình, Cao).
-    10. Giải thích ngắn gọn lý do tại sao khả năng vượt qua vòng lọc CV lại ở mức đó.
-    11. Xác định yếu tố nào đang ảnh hưởng nhiều nhất đến kết quả này.
-    12. Cung cấp một bảng so sánh chi tiết (Detailed Comparison) đối chiếu TẤT CẢ các yêu cầu được nêu trong JD với nội dung CV:
-        - Phân tích kỹ lưỡng JD để trích xuất mọi yêu cầu về Kỹ năng, Kinh nghiệm, Công cụ, Học vấn và các Từ khóa quan trọng.
-        - Đối với mỗi yêu cầu, hãy xác định xem CV có đáp ứng hay không.
-        - Trạng thái (status): 'matched' (khớp), 'missing' (thiếu), 'partial' (khớp một phần).
-        - Bằng chứng từ CV (cvEvidence): Trích dẫn chính xác phần trong CV chứng minh sự phù hợp (nếu có).
-        - Gợi ý cải thiện (improvement): Cách cụ thể để bổ sung hoặc làm rõ yêu cầu này trong CV để gây ấn tượng với nhà tuyển dụng.
+    3. Cung cấp điểm thành phần (0-100) cho: Kỹ năng (Skills), Kinh nghiệm (Experience), Công cụ/Công nghệ (Tools), và Học văn/Chứng chỉ (Education).
+    4. Liệt kê các điểm tương đồng cụ thể theo danh mục.
+    5. Liệt kê các điểm còn thiếu (gaps).
+    6. Xác định các từ khóa ATS quan trọng nên có trong CV.
+    7. Cung cấp các gợi ý viết lại cụ thể cho từng phần CV (Sử dụng công thức Google XYZ).
+    8. Viết lại toàn bộ CV (Full Rewritten CV) chuyên nghiệp, tối ưu 100% cho ATS.
+    9. Ước tính xác suất thành công khi phỏng vấn và khả năng vượt qua vòng lọc CV.
+    10. Cung cấp bảng so sánh chi tiết (Detailed Comparison) đối chiếu TẤT CẢ các yêu cầu trong JD.
     
     YÊU CẦU QUAN TRỌNG: 
-    - Toàn bộ nội dung phân tích (điểm số, nhận xét, giải thích) phải bằng TIẾNG VIỆT để người dùng dễ hiểu.
-    - RIÊNG PHẦN VIẾT LẠI CV (Full Rewritten CV) và nội dung tối ưu trong gợi ý (optimized content) phải dùng ĐÚNG NGÔN NGỮ GỐC của CV.
-    - Trả về kết quả dưới định dạng JSON.
+    - Toàn bộ nội dung phân tích (điểm số, nhận xét, giải thích) phải bằng TIẾNG VIỆT.
+    - RIÊNG PHẦN VIẾT LẠI CV (Full Rewritten CV), các gợi ý 'optimized' và PHẦN PARSED CV (trừ phần đánh giá) phải dùng ĐÚNG NGÔN NGỮ GỐC của CV.
+    - Mốc thời gian phải chuẩn hóa về MM/YYYY.
+    - Trả về kết quả dưới định dạng JSON theo schema đã quy định.
   `;
 
   const promptEn = `
     You are an HR recruitment expert and an ATS (Applicant Tracking System) specialist.
-    Analyze the provided CV against the Job Description (JD).
+    Perform two critical tasks simultaneously:
+    1. Extract and standardize CV information into a detailed JSON format (Parsed CV).
+    2. Analyze the suitability of this CV against the Job Description (JD).
     
     ${jdSection}
     
-    Tasks:
+    Task 1: CV Extraction & Standardization (Parsed CV):
+    - Personal Info: Full name, Email, Phone, LinkedIn, Portfolio.
+    - Education: ALL degrees, institutions, majors, graduation years, GPA.
+    - Work Experience: Extract ALL work experiences listed in the CV (no limit). For each role, provide complete details: companies, titles, durations (Standardize to MM/YYYY), detailed responsibilities, and achievements (do not truncate or over-summarize).
+    - Skills: Categorize clearly into technical_skills, soft_skills, tools_software.
+    - Projects & Certifications: Names, descriptions, tech stack used.
+    - Preliminary ATS Evaluation: Calculate total years of actual experience (based on experience milestones, not just subtracting start year from current year).
+    
+    Task 2: Analysis & Comparison with JD:
     1. Identify the Job Title from the JD.
     2. Calculate an overall match score (0-100).
-    3. Provide component scores (0-100) for: Skills, Experience, Tools/Technology, and Education/Certifications.
-    4. List specific matching points by category: Soft Skills, Hard Skills, Technical Skills, Experience, Tools, or Education.
-    5. List missing gaps by category: Soft Skills, Hard Skills, Technical Skills, Experience, or Keywords.
-    6. Identify important ATS keywords that should be in the CV.
-    7. Provide specific and impactful rewrite suggestions for sections in the CV:
-       - Focus on converting generic descriptions into quantifiable achievements (Use Google XYZ formula: "Accomplished [X] as measured by [Y], by doing [Z]").
-       - Use strong action verbs.
-       - Naturally incorporate important keywords from the JD to optimize for ATS.
-       - Ensure suggestions are realistic, actionable, and directly improve alignment with the JD.
-       - The 'optimized' part must use the EXACT ORIGINAL LANGUAGE of that section in the CV.
-       - The 'explanation' part must clearly explain why this change helps pass ATS filters or impress recruiters (e.g., "Adding 'Cloud Architecture' keyword increases ATS score", "Quantifying results increases persuasiveness").
-    8. FULL REWRITTEN CV: Based on information from the original CV and JD requirements, create a complete, professional CV, 100% optimized for ATS and this JD.
-       - IMPORTANT: Must use the EXACT ORIGINAL LANGUAGE of the CV.
-       - ABSOLUTELY DO NOT use HTML tags or wrap the content in Markdown code blocks (NO \` \` \` or \` \` \`markdown at the beginning and end). Return pure Markdown text.
-       - Mandatory Structure:
-         # [Full Name]
-         [Contact Info: Email | Phone | LinkedIn | Location]
-         
-         ## Professional Summary
-         [Short, impactful paragraph]
-         
-         ## Work Experience
-         [Reverse chronological order. Use XYZ formula for achievements]
-         
-         ## Skills
-         [Categorized clearly: Technical, Soft Skills...]
-         
-         ## Education
-         [School, Degree, Years]
-       - IMPORTANT: Each heading (# or ##) must be on its own line followed by a blank line.
-       - Use bullet points (-) for responsibilities and achievements.
-       - Ensure 2 blank lines between major sections (##) for readability.
-    9. Estimate the probability of success in an interview.
-    10. Estimate the probability of passing the CV screening (Low, Medium, High).
-    11. Briefly explain why the probability of passing the CV screening is at that level.
-    12. Identify which factor is influencing this result the most.
-    13. Provide a detailed comparison table matching ALL requirements stated in the JD with the CV content:
-        - Thoroughly analyze the JD to extract all requirements for Skills, Experience, Tools, Education, and important Keywords.
-        - For each requirement, determine if the CV meets it.
-        - Status: 'matched', 'missing', 'partial'.
-        - CV Evidence (cvEvidence): Accurately quote the part in the CV that proves suitability (if any).
-        - Improvement Suggestion (improvement): Specific way to add or clarify this requirement in the CV to impress recruiters.
+    3. Provide component scores (0-100) for Skills, Experience, Tools, and Education.
+    4. List specific matching points by category.
+    5. List missing gaps (gaps).
+    6. Identify important ATS keywords.
+    7. Provide specific rewrite suggestions (Google XYZ formula).
+    8. Generate a FULL REWRITTEN CV optimized 100% for ATS.
+    9. Estimate success probability and pass probability.
+    10. Provide a detailed comparison table against ALL JD requirements.
     
     IMPORTANT REQUIREMENTS:
-    - All analysis content (scores, comments, explanations) must be in ENGLISH for the user to understand.
-    - ONLY the FULL REWRITTEN CV and optimized content in suggestions must use the EXACT ORIGINAL LANGUAGE of the CV.
-    - Return the result in JSON format.
+    - All analysis content (scores, comments, explanations) must be in ENGLISH.
+    - The FULL REWRITTEN CV, 'optimized' suggestions, and the PARSED CV data (except evaluation) must use the EXACT ORIGINAL LANGUAGE of the CV.
+    - Standardize dates to MM/YYYY format.
+    - Return the result in JSON format following the specified schema.
   `;
 
   const prompt = language === 'vi' ? promptVi : promptEn;
@@ -359,8 +377,113 @@ export async function analyzeCV(jd: string, cvData: string, cvMimeType: string, 
           },
           required: ["skills", "experience", "tools", "education", "keywords"],
         },
+        parsedCV: {
+          type: Type.OBJECT,
+          properties: {
+            personal_information: {
+              type: Type.OBJECT,
+              properties: {
+                full_name: { type: Type.STRING },
+                contact: {
+                  type: Type.OBJECT,
+                  properties: {
+                    email: { type: Type.STRING },
+                    phone: { type: Type.STRING },
+                    location: { type: Type.STRING },
+                    linkedin: { type: Type.STRING },
+                    website_portfolio: { type: Type.STRING },
+                  },
+                  required: ["email", "phone", "location"],
+                },
+                summary: { type: Type.STRING },
+              },
+              required: ["full_name", "contact", "summary"],
+            },
+            education: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  degree: { type: Type.STRING },
+                  institution: { type: Type.STRING },
+                  major: { type: Type.STRING },
+                  graduation_year: { type: Type.NUMBER },
+                  gpa: { type: Type.STRING },
+                },
+                required: ["degree", "institution", "graduation_year"],
+              },
+            },
+            work_experience: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  company: { type: Type.STRING },
+                  job_title: { type: Type.STRING },
+                  duration: {
+                    type: Type.OBJECT,
+                    properties: {
+                      start: { type: Type.STRING, description: "MM/YYYY" },
+                      end: { type: Type.STRING, description: "MM/YYYY or 'Present'" },
+                      is_current: { type: Type.BOOLEAN },
+                    },
+                    required: ["start", "end", "is_current"],
+                  },
+                  responsibilities: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  achievements: { type: Type.ARRAY, items: { type: Type.STRING } },
+                },
+                required: ["company", "job_title", "duration"],
+              },
+            },
+            skills: {
+              type: Type.OBJECT,
+              properties: {
+                technical_skills: { type: Type.ARRAY, items: { type: Type.STRING } },
+                soft_skills: { type: Type.ARRAY, items: { type: Type.STRING } },
+                tools_software: { type: Type.ARRAY, items: { type: Type.STRING } },
+                languages: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      language: { type: Type.STRING },
+                      proficiency: { type: Type.STRING },
+                    },
+                    required: ["language", "proficiency"],
+                  },
+                },
+              },
+              required: ["technical_skills", "soft_skills", "tools_software"],
+            },
+            projects: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  tech_stack: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  link: { type: Type.STRING },
+                },
+                required: ["name", "description"],
+              },
+            },
+            certifications: { type: Type.ARRAY, items: { type: Type.STRING } },
+            ats_evaluation: {
+              type: Type.OBJECT,
+              properties: {
+                years_of_experience: { type: Type.NUMBER },
+                relevant_score: { type: Type.NUMBER },
+                key_match_highlights: { type: Type.ARRAY, items: { type: Type.STRING } },
+                missing_keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+              },
+              required: ["years_of_experience", "relevant_score", "key_match_highlights", "missing_keywords"],
+            },
+          },
+          required: ["personal_information", "education", "work_experience", "skills", "ats_evaluation"],
+        },
       },
-      required: ["matchScore", "categoryScores", "matchingPoints", "missingGaps", "atsKeywords", "rewriteSuggestions", "fullRewrittenCV", "successProbability", "passProbability", "passExplanation", "mainFactor", "detailedComparison"],
+      required: ["matchScore", "categoryScores", "matchingPoints", "missingGaps", "atsKeywords", "rewriteSuggestions", "fullRewrittenCV", "successProbability", "passProbability", "passExplanation", "mainFactor", "detailedComparison", "parsedCV"],
     },
   };
 

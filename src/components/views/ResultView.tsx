@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, Target, FileSearch, Activity, Zap } from 'lucide-react';
+import { ChevronRight, Target, FileSearch, Activity, Zap, User } from 'lucide-react';
 import { useAnalysis } from '../../context/AnalysisContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
@@ -12,12 +12,13 @@ import { ComparisonOverview } from './result/ComparisonOverview';
 import { AnalysisDetailsTab } from './result/AnalysisDetailsTab';
 import { DetailedComparisonTab } from './result/DetailedComparisonTab';
 import { OptimizationTab } from './result/OptimizationTab';
+import { ParsedCVTab } from './result/ParsedCVTab';
 import { RatingSection } from './result/RatingSection';
 
 export function ResultView() {
   const { user } = useAuth();
   const { t, reportLanguage } = useUI();
-  const [resultTab, setResultTab] = React.useState<'analysis' | 'comparison' | 'optimization'>('analysis');
+  const [resultTab, setResultTab] = React.useState<'analysis' | 'comparison' | 'optimization' | 'parsed'>('analysis');
   
   const {
     isAnalyzing, analysisStatus, analysisProgress,
@@ -97,6 +98,7 @@ export function ResultView() {
                 <div className="flex items-center gap-1.5 p-1.5 bg-slate-200/50 backdrop-blur-md rounded-[2rem] w-full sm:w-fit shadow-inner overflow-x-auto scrollbar-hide no-scrollbar border border-white/50">
                   {[
                     { id: 'analysis', icon: Activity, label: t.analyze },
+                    { id: 'parsed', icon: User, label: reportLanguage === 'vi' ? 'Thông tin CV' : 'Parsed CV' },
                     { id: 'comparison', icon: FileSearch, label: reportLanguage === 'vi' ? 'So sánh' : 'Comparison' },
                     { id: 'optimization', icon: Zap, label: t.optimized }
                   ].map((tab) => (
@@ -123,6 +125,10 @@ export function ResultView() {
               {/* Tab Content */}
               {resultTab === 'analysis' && (
                 <AnalysisDetailsTab selectedResult={selectedResult} />
+              )}
+
+              {resultTab === 'parsed' && (
+                <ParsedCVTab selectedResult={selectedResult} />
               )}
 
               {resultTab === 'comparison' && (

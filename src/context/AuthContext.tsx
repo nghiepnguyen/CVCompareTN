@@ -58,6 +58,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isRedirecting = false;
 
     const handleAuth = async () => {
+      // 1. Setup onAuthStateChanged immediately
+      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
+        
+        if (currentUser) {
+          loadUserProfileData(currentUser);
+        } else {
+          setUserProfile(null);
+          setIsLoadingProfile(false);
+        }
+        
+        setIsAuthInitialized(true);
+      });
+
+      // 2. Handle redirect result in background
       try {
         const result = await getRedirectResult(auth).catch(e => {
           console.warn("Lỗi kiểm tra Redirect Result:", e);
@@ -67,7 +82,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsRedirectChecked(true);
 
         if (result && result.user) {
-          isRedirecting = true;
           setUser(result.user);
         }
       } catch (err: any) {
@@ -81,22 +95,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoadingProfile(false);
       }
 
-      const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-        setUser(currentUser);
-        
-        if (isRedirecting) {
-          isRedirecting = false;
-        }
-
-        if (currentUser) {
-          await loadUserProfileData(currentUser);
-        } else {
-          setUserProfile(null);
-          setIsLoadingProfile(false);
-        }
-        
-        setIsAuthInitialized(true);
-      });
       return unsubscribe;
     };
 

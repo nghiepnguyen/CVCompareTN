@@ -10,9 +10,9 @@ graph TD
     A -->|2. Tải nhiều CV| C[Danh sách Files / Văn bản]
     C --> D[Vòng lặp: Phân tích từng CV]
     D --> E{Định dạng file?}
-    E -->|Văn bản/PDF| F[Backend: Extract Text]
-    E -->|Hình ảnh| G[Gemini: OCR]
-    F --> H[Chuẩn bị Prompt Gemini]
+    E -->|Văn bản/Docx| F[Frontend: Extract Text]
+    E -->|PDF/Hình ảnh| G[Gemini: Multimodal Direct]
+    F --> H[Chuẩn bị Payload Gemini]
     G --> H
     H --> I[AI: So khớp & Đánh giá]
     I --> J[Tích lũy kết quả vào mảng Results]
