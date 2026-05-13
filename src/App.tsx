@@ -189,7 +189,7 @@ function AppContent() {
     setJdSaveTitle('');
   };
 
-  if (!isAuthInitialized) {
+  if (!isAuthInitialized || !isRedirectChecked) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <div className="w-16 h-16 bg-white rounded-3xl shadow-xl flex items-center justify-center mb-6 animate-bounce">

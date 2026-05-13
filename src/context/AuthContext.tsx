@@ -14,6 +14,7 @@ interface AuthContextType {
   error: string | React.ReactNode | null;
   setError: React.Dispatch<React.SetStateAction<string | React.ReactNode | null>>;
   isAuthInitialized: boolean;
+  isRedirectChecked: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -161,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, userProfile, isLoadingProfile, allUsers, login, logout, error, setError, isAuthInitialized
+      user, userProfile, isLoadingProfile, allUsers, login, logout, error, setError, isAuthInitialized, isRedirectChecked
     }}>
       {children}
     </AuthContext.Provider>
