@@ -89,7 +89,7 @@ export default function App() {
 }
 
 function AppContent() {
-  const { user, userProfile, error, setError, isAuthInitialized } = useAuth();
+  const { user, userProfile, error, setError, isAuthInitialized, isRedirectChecked } = useAuth();
   const { 
     activeTab, setActiveTab, reportLanguage, t,
     isSavedJDsModalOpen, setIsSavedJDsModalOpen,
