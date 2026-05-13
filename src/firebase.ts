@@ -90,7 +90,7 @@ async function testConnection() {
     }
   }
 }
-testConnection();
+// testConnection();
 
 export { 
   collection, 

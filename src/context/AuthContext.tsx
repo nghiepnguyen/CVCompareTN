@@ -58,8 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isRedirecting = false;
 
     const handleAuth = async () => {
+      console.log("AuthProvider: Khởi tạo Firebase Auth...");
+      
       // 1. Setup onAuthStateChanged immediately
       const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        console.log("AuthProvider: onAuthStateChanged fired. User:", currentUser?.email || 'Guest');
         setUser(currentUser);
         
         if (currentUser) {
@@ -70,10 +73,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         setIsAuthInitialized(true);
+      }, (err) => {
+        console.error("AuthProvider: onAuthStateChanged error:", err);
+        setIsAuthInitialized(true);
+        setError("Lỗi kết nối Firebase: " + err.message);
       });
 
-      // 2. Handle redirect result in background
+      // 2. Fallback timeout to prevent stuck screen
+      const timeoutId = setTimeout(() => {
+        if (!isAuthInitialized) {
+          console.warn("AuthProvider: Initialization timeout reached. Forcing true.");
+          setIsAuthInitialized(true);
+        }
+      }, 8000);
+
+      // 3. Handle redirect result
       try {
+        console.log("AuthProvider: Đang kiểm tra Redirect Result...");
         const result = await getRedirectResult(auth).catch(e => {
           console.warn("Lỗi kiểm tra Redirect Result:", e);
           return null;
@@ -82,20 +98,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsRedirectChecked(true);
 
         if (result && result.user) {
+          console.log("AuthProvider: Đăng nhập thành công qua redirect:", result.user.email);
           setUser(result.user);
         }
       } catch (err: any) {
         console.error("Lỗi nặng khi xử lý kết quả chuyển hướng:", err);
         setIsRedirectChecked(true);
         if (err.code === 'auth/unauthorized-domain') {
-          setError('Lỗi tên miền: Tên miền hiện tại không được phép đăng nhập qua Firebase.');
+          setError('Lỗi tên miền: Tên miền hiện tại không được phép đăng nhập qua Firebase. Vui lòng thêm domain này vào Authorized Domains trong Firebase Console.');
         } else {
           setError("Lỗi đăng nhập: " + err.message);
         }
         setIsLoadingProfile(false);
+        setIsAuthInitialized(true); // Ensure we don't get stuck
       }
 
-      return unsubscribe;
+      return () => {
+        clearTimeout(timeoutId);
+        unsubscribe();
+      };
     };
 
     const unsubscribePromise = handleAuth();
