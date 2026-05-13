@@ -138,15 +138,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async () => {
     try {
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      if (isLocalhost) {
-        await signInWithPopup(auth, googleProvider);
-      } else {
-        await signInWithRedirect(auth, googleProvider);
-      }
+      console.log("AuthProvider: Bắt đầu đăng nhập với Popup...");
+      await signInWithPopup(auth, googleProvider);
+      console.log("AuthProvider: Đăng nhập thành công!");
     } catch (err: any) {
       console.error("Login Error:", err);
-      setError("Lỗi đăng nhập: " + err.message);
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('Lỗi tên miền: Tên miền hiện tại không được phép đăng nhập qua Firebase. Vui lòng thêm ' + window.location.hostname + ' vào Authorized Domains trong Firebase Console.');
+      } else {
+        setError("Lỗi đăng nhập: " + err.message);
+      }
     }
   };
 
