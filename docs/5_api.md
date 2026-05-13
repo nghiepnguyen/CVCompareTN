@@ -42,7 +42,7 @@ Tất cả các yêu cầu phân tích đều được thực hiện thông qua 
 
 ### `analyzeCV(cvData, jdText, language, isBinary?)`
 -   **Logic:** Hỗ trợ cả văn bản thuần túy và dữ liệu nhị phân (Base64). Khi xử lý PDF/Hình ảnh, hệ thống gửi trực tiếp file cho Gemini qua tính năng Multimodal.
--   **Model:** `gemini-3-flash-preview` hoặc `gemini-1.5-flash`.
+-   **Model:** `gemini-3-flash-preview` (Gemini 3 Flash).
 -   **Kết quả:** Trả về Object `AnalysisResult` chứa toàn bộ thông tin điểm số, so sánh và gợi ý tối ưu.
 
 ### `extractTextFromImage(base64Data)`

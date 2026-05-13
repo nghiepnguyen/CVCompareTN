@@ -13,7 +13,7 @@
 
 ## Tính năng nổi bật (Key Features)
 
--   **Phân tích CV đa định dạng:** Hỗ trợ PDF, DOCX và hình ảnh (OCR). Đặc biệt tích hợp công nghệ **Multimodal AI** giúp xử lý trực tiếp các file PDF có layout phức tạp với độ chính xác cao.
+-   **Phân tích CV đa định dạng:** Hỗ trợ PDF, DOCX và hình ảnh (OCR). Đặc biệt tích hợp công nghệ **Gemini 3 Multimodal** giúp xử lý trực tiếp các file PDF có layout phức tạp với độ chính xác cao.
 -   **Trích xuất JD thông minh:** Lấy dữ liệu JD từ văn bản thuần túy hoặc từ đường link tuyển dụng.
 -   **Chấm điểm tương thích (Matching Score):** Đánh giá mức độ phù hợp giữa CV và JD theo tỷ lệ phần trăm.
 -   **Phân tích khoảng trống kỹ năng (Skill Gap):** Chỉ ra những kỹ năng còn thiếu mà ứng viên cần bổ sung.
