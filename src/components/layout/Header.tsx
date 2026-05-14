@@ -38,7 +38,7 @@ export function Header() {
                 <button 
                   onClick={() => { setActiveTab('analyze'); setSelectedResult(null); }}
                   className={cn(
-                    "flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95",
+                    "flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95",
                     activeTab === 'analyze' && !selectedResult ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
                   )}
                 >
@@ -52,7 +52,7 @@ export function Header() {
                     if (window.gtag) window.gtag('event', 'view_history');
                   }}
                   className={cn(
-                    "flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95",
+                    "flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95",
                     activeTab === 'history' && !selectedResult ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
                   )}
                 >
@@ -87,7 +87,7 @@ export function Header() {
             <button 
               onClick={() => setReportLanguage('vi')}
               className={cn(
-                "px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer hover:scale-110 active:scale-90",
+                "px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer hover:scale-110 active:scale-90",
                 reportLanguage === 'vi' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
               )}
             >
@@ -96,7 +96,7 @@ export function Header() {
             <button 
               onClick={() => setReportLanguage('en')}
               className={cn(
-                "px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer hover:scale-110 active:scale-90",
+                "px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer hover:scale-110 active:scale-90",
                 reportLanguage === 'en' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
               )}
             >
@@ -139,7 +139,7 @@ export function Header() {
                         </div>
                         <button 
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
                         >
                           <LogOut className="w-4 h-4" />
                           {t.logout}
@@ -154,7 +154,7 @@ export function Header() {
             <div className="flex items-center gap-2">
               <button 
                 onClick={login}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 sm:bg-white sm:text-slate-700 sm:border sm:border-slate-200 sm:shadow-sm sm:hover:bg-slate-50 cursor-pointer"
+                className="flex items-center gap-2 px-5 py-3 sm:px-4 sm:py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 sm:bg-white sm:text-slate-700 sm:border sm:border-slate-200 sm:shadow-sm sm:hover:bg-slate-50 cursor-pointer"
               >
                 <LogIn className="w-4 h-4 sm:text-indigo-600" />
                 <span className="hidden xs:inline sm:inline">{t.login}</span>

@@ -115,12 +115,13 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
     >
       <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/40 bg-white/30 p-2 shadow-2xl backdrop-blur-2xl transition-transform hover:scale-[1.01]">
         <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-accent/5 opacity-0 transition-opacity group-hover:opacity-100" />
-        <img
-          src="https://thanhnghiep.top/CVMatcher/cv-dash.jpg"
-          alt={t.seoTitle || "CV Matcher & Optimizer Dashboard"}
-          className="relative z-10 rounded-[2rem] shadow-sm transition-transform"
-          referrerPolicy="no-referrer"
-        />
+          <img
+            src="https://thanhnghiep.top/CVMatcher/cv-dash.jpg"
+            alt={t.seoTitle || "CV Matcher & Optimizer Dashboard"}
+            className="relative z-10 rounded-[2rem] shadow-sm transition-transform"
+            referrerPolicy="no-referrer"
+            loading="lazy"
+          />
       </div>
 
       {/* Decorative Elements */}
@@ -327,10 +328,9 @@ const DemoResultSection = ({ t }: any) => (
           </div>
         </div>
 
-        <div className="p-6 md:p-16">
+        <div className="p-5 sm:p-10 lg:p-16">
           <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-            <div className="space-y-8">
-              <div>
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
                   <span className="font-sans text-lg font-bold text-slate-700">{t.matchingScore}</span>
                   <span className="font-sans text-3xl font-black text-primary">72%</span>
@@ -344,7 +344,7 @@ const DemoResultSection = ({ t }: any) => (
                   />
                 </div>
               </div>
-              <div>
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="mb-4 flex items-center justify-between">
                   <span className="font-sans text-lg font-bold text-slate-700">{t.atsScore}</span>
                   <span className="font-sans text-3xl font-black text-emerald-500">81%</span>
@@ -358,7 +358,6 @@ const DemoResultSection = ({ t }: any) => (
                   />
                 </div>
               </div>
-            </div>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">

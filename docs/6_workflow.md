@@ -11,10 +11,11 @@ graph TD
     C --> D[Vòng lặp: Phân tích từng CV]
     D --> E{Định dạng file?}
     E -->|Văn bản/Docx| F[Frontend: Extract Text]
-    E -->|PDF/Hình ảnh| G[Gemini: Multimodal Direct]
+    E -->|PDF/Hình ảnh| G[API: /api/extract-pdf]
     F --> H[Chuẩn bị Payload Gemini]
-    G --> H
-    H --> I[AI: So khớp & Đánh giá]
+    G --> I[Gemini: Multimodal Direct]
+    H --> I
+    I --> J[AI: So khớp & Đánh giá]
     I --> J[Tích lũy kết quả vào mảng Results]
     D -.->|Lặp đến hết danh sách| C
     J --> K[Hiển thị bảng so khớp & Phân tích chi tiết]

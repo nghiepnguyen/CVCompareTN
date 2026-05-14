@@ -1,7 +1,7 @@
 {
   "/Users/nghiepnguyen/My Files/cv-compare-tn/vite.config.ts": {
-    "mtime": 1775881666.0,
-    "hash": "98837ad481d32d24be60f61651f35658"
+    "mtime": 1778718271.0598176,
+    "hash": "d0131b9ac35de5d58096b4939b31a343"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/server.ts": {
     "mtime": 1778406946.6438627,
@@ -11,45 +11,65 @@
     "mtime": 1776778620.7207797,
     "hash": "03965e63e5d9010e03b86cfd7e5d693f"
   },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/api/send-welcome-email.ts": {
+    "mtime": 1778714402.0321424,
+    "hash": "e7403bf61ffe37518ff9968de8911446"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/api/send-feedback.ts": {
+    "mtime": 1778714393.5167491,
+    "hash": "18677d4362d9ca502980c57d5bf71c06"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/api/verify-recaptcha.ts": {
+    "mtime": 1778716832.2551188,
+    "hash": "123c18566fc0aa122116649eaad1ea6a"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/api/config.ts": {
+    "mtime": 1778714379.2851238,
+    "hash": "6f1f3a8831c29dc55e190d3b568ca100"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/api/extract-pdf.ts": {
+    "mtime": 1778714407.6495702,
+    "hash": "d636b2912da60d5df591870e3b9d00c0"
+  },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/functions/lib/index.js": {
-    "mtime": 1777898245.7714097,
-    "hash": "174e11d59013adff622fde44f3c1a748"
+    "mtime": 1778683860.5147176,
+    "hash": "d92584c7626818f8a4152d22802375ff"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/functions/src/index.ts": {
     "mtime": 1778406955.5849497,
     "hash": "a19fe728d32951a12b4919b027f16c8e"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/App.tsx": {
-    "mtime": 1777855604.4198422,
-    "hash": "879b65731808e72c945c764c6f46a846"
+    "mtime": 1778718816.502787,
+    "hash": "24b127e058a3db0c06a5ed872d218d71"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/main.tsx": {
     "mtime": 1775953248.5402448,
     "hash": "5a9280c207cf69cd8d27087e3f5dfcd1"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/firebase.ts": {
-    "mtime": 1776779914.9642055,
-    "hash": "132c2d72c2fb69b793845a8dced8fb6a"
+    "mtime": 1778715957.4104102,
+    "hash": "4a3c663533b59ef9622c7e35ec6f3c24"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/types.ts": {
     "mtime": 1777855331.7557707,
     "hash": "a72660180017271c6657b8e51e9337b8"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/translations.ts": {
-    "mtime": 1777853683.4842649,
-    "hash": "2746d3161af763303e1adb8fcd2ce1a8"
+    "mtime": 1778718996.8977387,
+    "hash": "f02577519f781b025ad98eeb54459e04"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/context/AnalysisContext.tsx": {
-    "mtime": 1778405782.0422564,
-    "hash": "a7e1bff2485fcf8f93b132ec24540877"
+    "mtime": 1778717474.7933419,
+    "hash": "e0f5d9f8ccf677d44e0b096a94bdc6cb"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/context/UIContext.tsx": {
     "mtime": 1777855548.235274,
     "hash": "02e764706e9b394c4439ee2b868f0a90"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/context/AuthContext.tsx": {
-    "mtime": 1778405772.4256716,
-    "hash": "1221cf60d2f699dc81e9dfedd64f4498"
+    "mtime": 1778716708.7989948,
+    "hash": "dc261d926001954cf25159ab8812f36c"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/PrivacyPolicyPage.tsx": {
     "mtime": 1775881666.0,
@@ -72,60 +92,64 @@
     "hash": "4122b4ab8e17600f43166408e464f99c"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/layout/Footer.tsx": {
-    "mtime": 1777853813.167728,
-    "hash": "d6661bf17efc86f16a04bde88f7e709a"
+    "mtime": 1778717701.8333628,
+    "hash": "47878a3ac7cf78539d857d9aef8733e5"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/layout/Header.tsx": {
-    "mtime": 1777853796.5841162,
-    "hash": "cbaacc101a6de790c22a79c7f9c90099"
+    "mtime": 1778718659.7074237,
+    "hash": "7e749e8cfd7b49bdd01dc9e9486f31a4"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/NoPermissionView.tsx": {
     "mtime": 1777854055.7656574,
     "hash": "bfa44525dc7c8e7875c18186305759f0"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/LandingView.tsx": {
-    "mtime": 1777854629.621254,
-    "hash": "b4b5a9ba0731ac267308f945f9a94979"
+    "mtime": 1778717736.8256416,
+    "hash": "a1715cb6c5b9840cae8120c57d55f71c"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/AdminView.tsx": {
     "mtime": 1778405790.7201524,
     "hash": "38c0c6e272d28aff7e7763d5d5036499"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/HistoryView.tsx": {
-    "mtime": 1778405799.7481163,
-    "hash": "6f6aa55977e32f8345d04b5085d31da1"
+    "mtime": 1778718618.530482,
+    "hash": "9b576d7975c831b569c99de36036f7e6"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/ResultView.tsx": {
-    "mtime": 1778405920.9861352,
-    "hash": "d8ebcde567c0c2023c05962336fecf9a"
+    "mtime": 1778680633.7477882,
+    "hash": "7377668a7fa3d4199e990636b091d540"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/DashboardView.tsx": {
-    "mtime": 1777853979.6299837,
-    "hash": "7cdf05a9095dd1ca2262619be6cf71a3"
+    "mtime": 1778681455.128254,
+    "hash": "38f15940e315ce19429e441fd8a84e11"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/AnalysisInputView.tsx": {
-    "mtime": 1777855685.0823758,
-    "hash": "33ef12f6fbcca6d2226df7f7c0abbdbc"
+    "mtime": 1778718933.146418,
+    "hash": "72c6358a1350d9bb31244a79f19070f5"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/ComparisonOverview.tsx": {
-    "mtime": 1778405844.0461586,
-    "hash": "e3bdd92cc72883b8dac3d1450d4d2420"
+    "mtime": 1778717723.5314178,
+    "hash": "0f946d9325ef985cb95f78ec3cac45f2"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/OptimizationTab.tsx": {
-    "mtime": 1778406378.0072396,
-    "hash": "ca6bac5b57dd7003cf145bb396b4a110"
+    "mtime": 1778718612.6971602,
+    "hash": "c0ce6b347721556a4b615c0cf81b5f3e"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/AnalysisLoadingState.tsx": {
     "mtime": 1778405833.2941062,
     "hash": "405ff95722b51ada4af65211779fb5a3"
+  },
+  "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/ParsedCVTab.tsx": {
+    "mtime": 1778680792.7979403,
+    "hash": "57b23ae2b9ecd3f3a338a4296212d73c"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/RatingSection.tsx": {
     "mtime": 1778405973.1741645,
     "hash": "653bba6f54c9eeb7a87f4ee29a6da2bb"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/AnalysisDetailsTab.tsx": {
-    "mtime": 1778405867.8713796,
-    "hash": "cd8472878e70104104b87bca5dce648a"
+    "mtime": 1778717706.330263,
+    "hash": "08c8dd4d15b282ee530ce54ec3c00d57"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/DetailedComparisonTab.tsx": {
     "mtime": 1778405880.2650013,
@@ -148,8 +172,8 @@
     "hash": "658ec3606bddf0e59c935a24b28412d3"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/services/aiService.ts": {
-    "mtime": 1778405723.8289604,
-    "hash": "c5e920ed3c46e3115d33760fe1f694fd"
+    "mtime": 1778682436.014066,
+    "hash": "b841877c37294da03944510d463d7351"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/services/matchService.ts": {
     "mtime": 1775881666.0,
@@ -180,8 +204,8 @@
     "hash": "3c6568ccf359a256427e4cc79ee1d2e4"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/README.md": {
-    "mtime": 1778409351.963841,
-    "hash": "1f9d5be9a26e0c841426205e04ee22df"
+    "mtime": 1778717780.2599022,
+    "hash": "8a598912b060405e1aa6daa36233b45d"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/AGENTS.md": {
     "mtime": 1778409372.5409698,
@@ -192,32 +216,32 @@
     "hash": "0868d3cb97ac757fab292d70a121f346"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/4_backend.md": {
-    "mtime": 1777856293.297316,
-    "hash": "6eb7c955ceebaa2cf2866a874813a9e3"
+    "mtime": 1778719074.4215834,
+    "hash": "8661a8ca3dece0364bacf94334a1506b"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/6_workflow.md": {
-    "mtime": 1777856298.4534936,
-    "hash": "0e9766bd5fc3e13d6eddff66aa9d6616"
+    "mtime": 1778683001.582581,
+    "hash": "8d3570525b7f1776ae7312f6ed6dcc1d"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/5_api.md": {
-    "mtime": 1778409400.8273716,
-    "hash": "0e0e644c4ea9aff4981d59e187a88301"
+    "mtime": 1778683266.0346694,
+    "hash": "63d96843b3167be9ee0ee77b8596b55c"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/2_tech_stack.md": {
-    "mtime": 1778409344.0044973,
-    "hash": "43d98e465137f280d770149841fe8236"
+    "mtime": 1778719060.1556568,
+    "hash": "bf83d87b4e4034598989dfdd74896e30"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/3_frontend.md": {
-    "mtime": 1778409358.1967628,
-    "hash": "c457a855579020c96bf9523b7b16d88a"
+    "mtime": 1778717902.5055444,
+    "hash": "09fe7712aa02d822d05a075c807e4f83"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/7_deployment.md": {
-    "mtime": 1777898329.3046165,
-    "hash": "2a28401a00efcf4fa17d686b3f872393"
+    "mtime": 1778719090.0899901,
+    "hash": "5dac4ec699d17fcf7953b6dd94cc59e1"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/1_overview.md": {
-    "mtime": 1777856280.923304,
-    "hash": "6fd350fb96df2a675d55681865f5581c"
+    "mtime": 1778719098.081915,
+    "hash": "86e6a9aa696c02c3f3a854714d999c55"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/public/robots.txt": {
     "mtime": 1776123251.9907131,

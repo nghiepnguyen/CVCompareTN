@@ -17,7 +17,7 @@ export function AnalysisDetailsTab({ selectedResult }: AnalysisDetailsTabProps) 
   return (
     <div id="analysis-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
       {/* ATS Score Card */}
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center gap-8">
+      <div className="bg-white p-5 sm:p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center gap-8">
         <div className="relative shrink-0">
           <svg className="w-32 h-32 transform -rotate-90">
             <circle

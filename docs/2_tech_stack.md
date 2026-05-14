@@ -10,17 +10,18 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 -   **Animations:** [Framer Motion (motion/react)](https://motion.dev/) - Tạo các hiệu ứng chuyển cảnh và tương tác mượt mà.
 -   **Icons:** [Lucide React](https://lucide.dev/) - Bộ icon vector đa dạng và hiện đại.
 -   **Data Visualization:** [Recharts](https://recharts.org/) - Hiển thị biểu đồ phân tích điểm số trực quan.
+-   **Analytics:** [Vercel Analytics](https://vercel.com/analytics) - Theo dõi hiệu suất và tương tác người dùng theo thời gian thực.
 -   **State Management:** React Hooks (useState, useEffect, useMemo) kết hợp với Firebase Context.
 
-## Backend (Proxy Server)
+## Backend (Serverless)
 
--   **Runtime:** [Node.js](https://nodejs.org/) với `tsx` để chạy TypeScript trực tiếp.
--   **Framework:** [Express 5](https://expressjs.com/) - Xử lý các API Proxy và phục vụ ứng dụng.
+-   **Runtime:** [Node.js](https://nodejs.org/) (Vercel Serverless Functions).
+-   **Architecture:** API Routes nằm trong thư mục `/api`, tự động triển khai thành các hàm Lambda trên Vercel.
 -   **PDF/Docx Processing:**
-    -   `Gemini 3 Multimodal`: Trực tiếp xử lý file nhị phân (Binary) qua model Vision, hỗ trợ cả PDF dạng ảnh và file quét.
+    -   `Gemini 3.0 Flash`: Model AI đa phương thức xử lý trực tiếp file nhị phân (PDF/Image) qua Vision API.
     -   `mammoth`: Chuyển đổi tệp .docx sang văn bản thuần túy.
-    -   `pdf-parse`: (Fallback) Hỗ trợ trích xuất văn bản truyền thống.
--   **Security:** `react-google-recaptcha-v3` để ngăn chặn spam và bot.
+    -   `pdf-parse`: Hỗ trợ trích xuất văn bản từ PDF truyền thống.
+-   **Security:** `Google reCAPTCHA v3` để bảo vệ các endpoint API nhạy cảm.
 
 ## Trí tuệ nhân tạo (AI)
 
@@ -38,4 +39,7 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 ## Quản lý mã nguồn & Triển khai
 
 -   **Version Control:** Git & GitHub.
--   **Deployment:** Hỗ trợ triển khai trên [Render](https://render.com/) hoặc Firebase Hosting. Chi tiết xem tại [Hướng dẫn triển khai](./7_deployment.md).
+-   **Deployment:** 
+    -   **Vercel (Chính):** Phục vụ Frontend và các Serverless Functions (`/api`).
+    -   **Firebase:** Quản lý Authentication và Firestore Database.
+    -   Chi tiết xem tại [Hướng dẫn triển khai](./7_deployment.md).

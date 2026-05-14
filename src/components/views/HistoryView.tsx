@@ -9,7 +9,14 @@ import { deleteFromHistory } from '../../services/historyService';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell, Tooltip } from 'recharts';
 
 export function HistoryView() {
-    const { history, setHistory, clearHistory, setSelectedResult, setResults } = useAnalysis();
+    const { 
+    history, 
+    setHistory, 
+    clearHistory, 
+    setSelectedResult, 
+    setResults,
+    isLoadingHistory 
+  } = useAnalysis();
   const { t, setActiveTab } = useUI();
   const { user } = useAuth();
 
@@ -84,7 +91,13 @@ export function HistoryView() {
               )}
             </div>
 
-            {history.length === 0 ? (
+            {isLoadingHistory ? (
+              <div className="text-center py-24 bg-white rounded-[2rem] border border-slate-200 shadow-sm flex flex-col items-center justify-center">
+                <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-6"></div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Đang tải lịch sử...</h3>
+                <p className="text-slate-500 max-w-sm mx-auto">Vui lòng đợi trong giây lát khi chúng tôi lấy dữ liệu của bạn.</p>
+              </div>
+            ) : history.length === 0 ? (
               <div className="text-center py-24 bg-white rounded-[2rem] border border-slate-200 shadow-sm">
                 <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
                   <HistoryIcon className="w-10 h-10 text-slate-200" />
@@ -193,12 +206,12 @@ export function HistoryView() {
                     />
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 sm:py-1.5 rounded-xl border border-slate-200">
                       <Filter className="w-3.5 h-3.5 text-slate-400" />
                       <select 
                         value={historyScoreFilter}
                         onChange={(e) => setHistoryScoreFilter(e.target.value as any)}
-                        className="bg-transparent text-xs font-bold text-slate-600 focus:outline-none cursor-pointer"
+                        className="bg-transparent text-xs font-bold text-slate-600 focus:outline-none cursor-pointer h-8 sm:h-auto"
                       >
                         <option value="all">Tất cả điểm số</option>
                         <option value="high">Điểm cao ({'>'}80)</option>
@@ -206,12 +219,12 @@ export function HistoryView() {
                         <option value="low">Điểm thấp ({'<'}60)</option>
                       </select>
                     </div>
-                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 sm:py-1.5 rounded-xl border border-slate-200">
                       <Calendar className="w-3.5 h-3.5 text-slate-400" />
                       <select 
                         value={historyDateFilter}
                         onChange={(e) => setHistoryDateFilter(e.target.value as any)}
-                        className="bg-transparent text-xs font-bold text-slate-600 focus:outline-none cursor-pointer"
+                        className="bg-transparent text-xs font-bold text-slate-600 focus:outline-none cursor-pointer h-8 sm:h-auto"
                       >
                         <option value="all">Mọi thời gian</option>
                         <option value="today">Hôm nay</option>
@@ -343,10 +356,10 @@ export function HistoryView() {
                                 e.stopPropagation();
                                 deleteHistoryItem(item.id);
                               }}
-                              className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                              className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all lg:opacity-0 lg:group-hover:opacity-100 cursor-pointer"
                               title="Xóa kết quả"
                             >
-                              <Trash2 className="w-4.5 h-4.5" />
+                              <Trash2 className="w-5 h-5" />
                             </button>
                             <div className="p-2.5 bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 rounded-xl transition-all">
                               <ChevronRight className="w-5 h-5" />

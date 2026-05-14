@@ -10,10 +10,11 @@
 4.  **Trải nghiệm người dùng cao cấp (Premium UX/UI):** Giao diện Landing Page phong cách Bento Grid hiện đại, mượt mà với các hiệu ứng chuyển động (Framer Motion).
 5.  **Tối ưu hóa SEO (Dynamic SEO):** Metadata tự động thay đổi theo ngôn ngữ, hỗ trợ Social Tags (OG/Twitter) và Schema Markup (JSON-LD) giúp website hiển thị chuyên nghiệp trên Google và mạng xã hội.
 6.  **Bảo mật & Riêng tư (Security & Privacy):** Đảm bảo dữ liệu CV của người dùng được xử lý an toàn thông qua Firebase và các API bảo mật.
+7. **Kiến trúc Mobile-First (Mobile-First Design):** Tối ưu hóa trải nghiệm trên thiết bị di động với Bottom Navigation, Bottom Sheets và giao diện thích ứng linh hoạt, đảm bảo tính ergonomic cho người dùng.
 
 ## Tính năng nổi bật (Key Features)
 
--   **Phân tích CV đa định dạng:** Hỗ trợ PDF, DOCX và hình ảnh (OCR). Đặc biệt tích hợp công nghệ **Gemini 3 Multimodal** giúp xử lý trực tiếp các file PDF có layout phức tạp với độ chính xác cao.
+-   **Phân tích CV đa định dạng:** Hỗ trợ PDF, DOCX và hình ảnh (OCR). Đặc biệt tích hợp Gemini 3.0 Flash: Model AI đa phương thức xử lý trực tiếp file nhị phân (PDF/Image) qua Vision API với độ chính xác cao.
 -   **Trích xuất JD thông minh:** Lấy dữ liệu JD từ văn bản thuần túy hoặc từ đường link tuyển dụng.
 -   **Chấm điểm tương thích (Matching Score):** Đánh giá mức độ phù hợp giữa CV và JD theo tỷ lệ phần trăm.
 -   **Phân tích khoảng trống kỹ năng (Skill Gap):** Chỉ ra những kỹ năng còn thiếu mà ứng viên cần bổ sung.

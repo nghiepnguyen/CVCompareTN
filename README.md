@@ -10,60 +10,53 @@
 - **Markdown Rendering:** `react-markdown`, `rehype-raw`, `rehype-sanitize`, `remark-gfm`, `remark-breaks`
 - **Charts:** Recharts
 - **PDF/Docx Processing:** `pdfjs-dist`, `mammoth`
+- **Analytics:** Vercel Analytics (`@vercel/analytics`)
 - **Security:** `react-google-recaptcha-v3`
 
 ### Backend
-- **Server:** Node.js, Express 5
-- **Execution:** `tsx` (for running TypeScript directly)
+- **Platform:** Vercel Serverless Functions (Node.js 20+)
 - **PDF Extraction:** `pdf-parse`
-- **Email Service:** Resend (for feedback emails)
-- **CORS:** `cors`
+- **Email Service:** Resend (for feedback and welcome emails)
 
 ### Database & Auth
 - **BaaS:** Firebase (Authentication, Firestore)
-- **AI Integration:** Google Gemini API (`@google/genai`)
+- **AI Integration:** Google Gemini 3.0 Flash (`@google/genai`)
 
 ## 2. Folder Structure
 
 ```text
 /
-├── public/                 # Static assets
+├── api/                    # Vercel Serverless Functions (Node.js/TypeScript)
+│   ├── verify-recaptcha.ts # ReCAPTCHA v3 verification
+│   ├── extract-pdf.ts     # Complex PDF text extraction
+│   └── send-feedback.ts    # Email notification via Resend
 ├── src/                    # Frontend (React 19, Vite)
-├── functions/              # Backend (Firebase Cloud Functions)
-│   ├── src/index.ts        # Cloud Functions entry point (Express API)
-│   └── package.json        # Backend dependencies
 ├── firestore.rules         # Security rules
-├── storage.rules           # Storage rules
-├── firebase.json           # Firebase config (Hosting + Functions)
+├── firebase.json           # Firebase config (Auth + Firestore)
 ├── package.json            # Main project dependencies
 └── README.md
 ```
 
-## 4. Deployment Flow (Firebase)
+The application is optimized for **Vercel** (Frontend & API) and uses **Firebase** for Authentication and Database.
 
-The application uses **Firebase Hosting** for the frontend and **Firebase Functions** for the API logic.
+### 1. Vercel Deployment (Recommended)
+- Push code to GitHub and connect to Vercel.
+- Configure environment variables in Vercel Dashboard.
+- The `/api` directory will automatically be deployed as Serverless Functions.
 
-### 1. Prerequisites
-- Ensure you are on the **Blaze (Pay-as-you-go) Plan** in Firebase Console.
-- Install Firebase CLI: `npm install -g firebase-tools`.
-- Login: `firebase login`.
+### 2. Firebase Setup (Auth & DB)
+- Create a Firebase project.
+- Enable **Authentication** (Google Sign-In).
+- Enable **Firestore Database**.
+- Deploy security rules: `firebase deploy --only firestore:rules`.
 
-### 2. Configuration (Secrets)
-You must set your API keys as Firebase Secrets before deploying:
-```bash
-firebase functions:secrets:set GEMINI_API_KEY
-firebase functions:secrets:set RECAPTCHA_SECRET_KEY
-firebase functions:secrets:set RESEND_API_KEY
-```
+## 5. Mobile-First Optimization
 
-### 3. Deploy
-```bash
-# Build frontend
-npm run build
-
-# Deploy all (Hosting + Functions)
-firebase deploy
-```
+The application is built with a **Mobile-First** approach to ensure the best experience on all devices:
+- **Bottom Navigation:** Quick access to main features (Analyze, History, Saved JDs) for one-handed use.
+- **Bottom Sheets:** Native-like modal experience for mobile users.
+- **Responsive Layouts:** Optimized padding and card-based views instead of tables on small screens.
+- **Touch-Friendly Targets:** All interactive elements meet the minimum 44x44px touch target standard.
 
 ## 5. Environment Variables
 

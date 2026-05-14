@@ -80,7 +80,7 @@ export function AnalysisInputView() {
         {/* Left Column: Job Description */}
         <section 
           className={cn(
-            "bg-white p-8 rounded-[2.5rem] shadow-sm border transition-all relative flex flex-col h-full",
+            "bg-white p-5 sm:p-8 rounded-[2.5rem] shadow-sm border transition-all relative flex flex-col h-full",
             isDraggingJD ? "border-indigo-500 bg-indigo-50/30 ring-4 ring-indigo-500/10" : "border-slate-200"
           )}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingJD(true); }}
@@ -119,7 +119,7 @@ export function AnalysisInputView() {
                 <button 
                   onClick={() => setJdInputMode('text')}
                   className={cn(
-                    "px-4 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-lg transition-all cursor-pointer hover:scale-105 active:scale-95",
+                    "px-4 py-2 sm:py-1.5 text-[10px] font-black uppercase tracking-tight rounded-lg transition-all cursor-pointer hover:scale-105 active:scale-95",
                     jdInputMode === 'text' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"
                   )}
                 >
@@ -128,7 +128,7 @@ export function AnalysisInputView() {
                 <button 
                   onClick={() => setJdInputMode('link')}
                   className={cn(
-                    "px-4 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-lg transition-all cursor-pointer hover:scale-105 active:scale-95",
+                    "px-4 py-2 sm:py-1.5 text-[10px] font-black uppercase tracking-tight rounded-lg transition-all cursor-pointer hover:scale-105 active:scale-95",
                     jdInputMode === 'link' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"
                   )}
                 >
@@ -154,8 +154,9 @@ export function AnalysisInputView() {
                     {jd && (
                       <button 
                         onClick={() => setJd('')}
-                        className="text-[10px] font-black text-slate-400 hover:text-red-500 transition-colors uppercase tracking-widest cursor-pointer hover:scale-110 active:scale-90"
+                        className="text-[11px] font-black text-slate-500 hover:text-red-500 transition-colors uppercase tracking-widest cursor-pointer hover:scale-110 active:scale-90 flex items-center gap-1"
                       >
+                        <X className="w-3.5 h-3.5" />
                         {t.clearBtn}
                       </button>
                     )}
@@ -179,7 +180,7 @@ export function AnalysisInputView() {
                         onClick={handleExtractJD}
                         disabled={isExtractingJD || !jdUrl.trim()}
                         className={cn(
-                          "h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                          "h-11 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2",
                           isExtractingJD 
                             ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
                             : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md active:scale-95"
@@ -217,7 +218,7 @@ export function AnalysisInputView() {
                   <>
                     <button 
                       onClick={() => setIsSavedJDsModalOpen(true)}
-                      className="flex-1 h-12 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                      className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
                     >
                       <FolderOpen className="w-4 h-4" />
                       {t.jdStore}
@@ -226,7 +227,7 @@ export function AnalysisInputView() {
                       <button 
                         onClick={handleSaveJD}
                         disabled={isSavingJD}
-                        className="flex-1 h-12 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-2xl transition-all disabled:opacity-50 cursor-pointer hover:scale-[1.02] active:scale-95 border border-indigo-100"
+                        className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-2xl transition-all disabled:opacity-50 cursor-pointer hover:scale-[1.02] active:scale-95 border border-indigo-100"
                       >
                         {isSavingJD ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookmarkPlus className="w-4 h-4" />}
                         {t.saveJd}
@@ -247,7 +248,7 @@ export function AnalysisInputView() {
         </section>
 
         {/* Right Column: CV Upload */}
-        <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200 flex flex-col h-full">
+        <section className="bg-white p-5 sm:p-8 rounded-[2.5rem] shadow-sm border border-slate-200 flex flex-col h-full">
           <div className="flex flex-col gap-5 h-full">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -266,7 +267,7 @@ export function AnalysisInputView() {
                 <button 
                   onClick={() => setCvInputMode('file')}
                   className={cn(
-                    "px-4 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-lg transition-all cursor-pointer",
+                    "px-4 py-2 sm:py-1.5 text-[10px] font-black uppercase tracking-tight rounded-lg transition-all cursor-pointer",
                     cvInputMode === 'file' ? "bg-white text-violet-600 shadow-sm" : "text-slate-500"
                   )}
                 >
@@ -275,7 +276,7 @@ export function AnalysisInputView() {
                 <button 
                   onClick={() => setCvInputMode('text')}
                   className={cn(
-                    "px-4 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-lg transition-all cursor-pointer",
+                    "px-4 py-2 sm:py-1.5 text-[10px] font-black uppercase tracking-tight rounded-lg transition-all cursor-pointer",
                     cvInputMode === 'text' ? "bg-white text-violet-600 shadow-sm" : "text-slate-500"
                   )}
                 >
@@ -290,7 +291,7 @@ export function AnalysisInputView() {
                   <div 
                     className={cn(
                       "flex-1 border-2 border-dashed rounded-[2rem] p-8 transition-all cursor-pointer flex flex-col items-center justify-center text-center relative overflow-hidden group/cv",
-                      isDraggingCV ? "border-violet-500 bg-violet-50/50 ring-4 ring-violet-500/10" : "border-slate-100 hover:border-violet-400 hover:bg-slate-50/50"
+                      isDraggingCV ? "border-violet-500 bg-violet-50/50 ring-4 ring-violet-500/10" : "border-slate-200 hover:border-violet-400 hover:bg-slate-50/50"
                     )}
                     onClick={() => document.getElementById('cv-upload')?.click()}
                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingCV(true); }}
@@ -388,8 +389,9 @@ export function AnalysisInputView() {
                     <div className="mt-3 flex justify-end px-2">
                       <button 
                         onClick={() => setCvText('')}
-                        className="text-[10px] font-black text-slate-400 hover:text-red-500 transition-colors uppercase tracking-widest cursor-pointer hover:scale-110 active:scale-90"
+                        className="text-[11px] font-black text-slate-500 hover:text-red-500 transition-colors uppercase tracking-widest cursor-pointer hover:scale-110 active:scale-90 flex items-center gap-1"
                       >
+                        <X className="w-3.5 h-3.5" />
                         {t.clearBtn}
                       </button>
                     </div>
@@ -403,17 +405,17 @@ export function AnalysisInputView() {
 
       {/* Footer Actions: Language & Analyze */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6">
-        <div className="flex items-center gap-4 bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm shrink-0">
-          <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-            <Globe className="w-5 h-5 text-indigo-600" />
+        <div className="flex items-center gap-4 bg-white px-6 py-4 sm:py-5 rounded-[2rem] border border-slate-200 shadow-sm shrink-0">
+          <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center">
+            <Globe className="w-6 h-6 text-indigo-600" />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{t.reportLanguageLabel}</p>
-            <div className="flex bg-slate-100 p-1 rounded-lg">
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1.5">{t.reportLanguageLabel}</p>
+            <div className="flex bg-slate-100 p-1.5 rounded-xl">
               <button
                 onClick={() => setReportLanguage('vi')}
                 className={cn(
-                  "px-4 py-1 text-[10px] font-black rounded-md transition-all cursor-pointer",
+                  "px-5 py-2 text-[11px] font-black rounded-lg transition-all cursor-pointer",
                   reportLanguage === 'vi' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-indigo-600"
                 )}
               >
@@ -422,7 +424,7 @@ export function AnalysisInputView() {
               <button
                 onClick={() => setReportLanguage('en')}
                 className={cn(
-                  "px-4 py-1 text-[10px] font-black rounded-md transition-all cursor-pointer",
+                  "px-5 py-2 text-[11px] font-black rounded-lg transition-all cursor-pointer",
                   reportLanguage === 'en' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-indigo-600"
                 )}
               >
@@ -436,21 +438,21 @@ export function AnalysisInputView() {
           onClick={handleAnalyze}
           disabled={isAnalyzing}
           className={cn(
-            "flex-1 h-16 rounded-[1.5rem] font-black text-lg uppercase tracking-widest transition-all flex items-center justify-center gap-3 relative overflow-hidden group shadow-xl shadow-indigo-200/50",
+            "flex-1 h-16 sm:h-20 rounded-[2.5rem] font-black text-xl uppercase tracking-widest transition-all flex items-center justify-center gap-4 relative overflow-hidden group",
             isAnalyzing 
-              ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
-              : "bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-[1.01] active:scale-95 cursor-pointer"
+              ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200" 
+              : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-2xl hover:shadow-indigo-300/50 active:scale-95 cursor-pointer shadow-[0_20px_50px_-12px_rgba(79,70,229,0.4)]"
           )}
         >
           {isAnalyzing ? (
-            <>
-              <Loader2 className="w-6 h-6 animate-spin" />
-              <span>
+            <div className="flex items-center gap-3 animate-pulse">
+              <Loader2 className="w-7 h-7 animate-spin" />
+              <span className="text-base font-bold">
                 {cvInputMode === 'file' 
-                  ? (reportLanguage === 'vi' ? `Đang xử lý ${files.length} hồ sơ...` : `Analyzing ${files.length} profiles...`) 
+                  ? (reportLanguage === 'vi' ? `Đang phân tích ${files.length} hồ sơ...` : `Analyzing ${files.length} profiles...`) 
                   : t.analyzingBtn}
               </span>
-            </>
+            </div>
           ) : (
             <>
               <TrendingUp className="w-6 h-6 group-hover:translate-y-[-2px] group-hover:translate-x-[2px] transition-transform" />

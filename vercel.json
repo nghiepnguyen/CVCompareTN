@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "framework": "vite",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
   "rewrites": [
     {
       "source": "/api/config",
@@ -22,7 +25,7 @@
       "destination": "/api/extract-pdf.ts"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]

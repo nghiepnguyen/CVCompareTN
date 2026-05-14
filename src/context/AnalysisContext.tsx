@@ -49,6 +49,8 @@ interface AnalysisContextType {
   savedJDs: SavedJD[];
   setSavedJDs: React.Dispatch<React.SetStateAction<SavedJD[]>>;
   isSavingJD: boolean;
+  isLoadingHistory: boolean;
+  isLoadingSavedJDs: boolean;
   
   handleAnalyze: () => Promise<void>;
   handleExtractJD: () => Promise<void>;
@@ -83,25 +85,33 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const [isExtractingJD, setIsExtractingJD] = useState(false);
   const [savedJDs, setSavedJDs] = useState<SavedJD[]>([]);
   const [isSavingJD, setIsSavingJD] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isLoadingSavedJDs, setIsLoadingSavedJDs] = useState(false);
 
   const loadHistory = async () => {
     if (user?.uid) {
+      setIsLoadingHistory(true);
       try {
         const userHistory = await getUserHistory(user.uid);
         setHistory(userHistory);
       } catch (err) {
         console.error("Error loading history:", err);
+      } finally {
+        setIsLoadingHistory(false);
       }
     }
   };
 
   const loadSavedJDs = async () => {
     if (user?.uid) {
+      setIsLoadingSavedJDs(true);
       try {
         const jds = await getSavedJDs(user.uid);
         setSavedJDs(jds);
       } catch (err) {
         console.error("Error loading saved JDs:", err);
+      } finally {
+        setIsLoadingSavedJDs(false);
       }
     }
   };
@@ -352,7 +362,8 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       history, setHistory, selectedResult, setSelectedResult,
       isExtractingJD, savedJDs, setSavedJDs, isSavingJD,
       handleAnalyze, handleExtractJD, clearHistory, deleteHistoryItem,
-      loadSavedJDs, confirmSaveJD, handleDeleteSavedJD
+      loadSavedJDs, confirmSaveJD, handleDeleteSavedJD,
+      isLoadingHistory, isLoadingSavedJDs
     }}>
       {children}
     </AnalysisContext.Provider>

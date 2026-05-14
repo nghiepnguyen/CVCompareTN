@@ -17,7 +17,11 @@ import {
   Bookmark,
   BookmarkPlus,
   Trash2,
-  ArrowRight
+  ArrowRight,
+  Menu,
+  LayoutDashboard,
+  History as HistoryIcon,
+  Settings
 } from 'lucide-react';
 
 const LandingView = React.lazy(() => import('./components/views/LandingView').then(m => ({ default: m.LandingView })));
@@ -99,11 +103,13 @@ function AppContent() {
   } = useUI();
   const { 
     setJd, selectedResult,
-    savedJDs, handleDeleteSavedJD, confirmSaveJD, isSavingJD
+    savedJDs, handleDeleteSavedJD, confirmSaveJD, isSavingJD,
+    isLoadingSavedJDs
   } = useAnalysis();
 
   const [savedJDSearchTerm, setSavedJDSearchTerm] = useState('');
   const [jdSaveTitle, setJdSaveTitle] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // SEO Dynamic Updates
   React.useEffect(() => {
@@ -212,8 +218,8 @@ function AppContent() {
         <Header />
 
         <main className={cn(
-          "mx-auto transition-all duration-500",
-          !user ? "w-full" : "max-w-7xl px-4 sm:px-6 lg:px-8 py-8"
+          "mx-auto transition-all duration-500 mb-20 lg:mb-0",
+          !user ? "w-full" : "max-w-7xl px-3 sm:px-6 lg:px-8 py-6 lg:py-8"
         )}>
           <React.Suspense fallback={
             <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
@@ -253,14 +259,55 @@ function AppContent() {
 
         <Footer />
 
+        {/* 📱 Mobile Bottom Navigation */}
+        {user && (
+          <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-slate-200 px-4 py-2 flex items-center justify-around pb-safe">
+            {[
+              { id: 'analyze', icon: LayoutDashboard, label: t.analyzeTab || 'Phân tích' },
+              { id: 'history', icon: HistoryIcon, label: t.historyTab || 'Lịch sử' },
+              { id: 'saved', icon: Bookmark, label: 'Kho JD', action: () => setIsSavedJDsModalOpen(true) },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={item.action || (() => { setActiveTab(item.id as any); setSelectedResult(null); })}
+                className={cn(
+                  "flex flex-col items-center gap-1 p-2 min-w-[64px] transition-all active:scale-90",
+                  activeTab === item.id && !selectedResult ? "text-indigo-600" : "text-slate-400"
+                )}
+              >
+                <item.icon className={cn("w-6 h-6", activeTab === item.id && !selectedResult ? "stroke-[2.5px]" : "stroke-2")} />
+                <span className="text-[10px] font-bold uppercase tracking-tight">{item.label}</span>
+                {activeTab === item.id && !selectedResult && (
+                  <motion.div layoutId="activeTabDot" className="w-1 h-1 bg-indigo-600 rounded-full" />
+                )}
+              </button>
+            ))}
+            {(isAdmin || userProfile?.role === 'admin') && (
+              <button
+                onClick={() => { setActiveTab('admin'); setSelectedResult(null); }}
+                className={cn(
+                  "flex flex-col items-center gap-1 p-2 min-w-[64px] transition-all active:scale-90",
+                  activeTab === 'admin' ? "text-indigo-600" : "text-slate-400"
+                )}
+              >
+                <Settings className="w-6 h-6" />
+                <span className="text-[10px] font-bold uppercase tracking-tight">Admin</span>
+              </button>
+            )}
+          </nav>
+        )}
+
         {/* Error Toast UI */}
         <AnimatePresence>
           {error && (
             <motion.div 
-              initial={{ opacity: 0, x: -20, y: 0, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -20, scale: 0.9 }}
-              className="fixed bottom-6 left-6 z-[200] max-w-[calc(100vw-3rem)] sm:max-w-md w-full sm:w-auto"
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.9 }}
+              className={cn(
+                "fixed left-4 right-4 z-[200] max-w-md mx-auto sm:left-6 sm:right-auto sm:mx-0",
+                user ? "bottom-24 sm:bottom-6" : "bottom-6"
+              )}
             >
               <div className="bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-200 overflow-hidden flex items-stretch ring-1 ring-black/5">
                 <div className="w-1.5 bg-rose-500 shrink-0" />
@@ -291,12 +338,12 @@ function AppContent() {
         {/* Saved JDs Modal */}
         <AnimatePresence>
           {isSavedJDsModalOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
               <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+                initial={{ opacity: 0, y: 100 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 100 }}
+                className="bg-white w-full max-w-lg rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[80vh]"
               >
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-indigo-600 text-white">
                   <div className="flex items-center gap-3">
@@ -330,7 +377,12 @@ function AppContent() {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6">
-                  {savedJDs.length === 0 ? (
+                  {isLoadingSavedJDs ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
+                      <p className="text-sm font-bold text-slate-400 animate-pulse uppercase tracking-widest">Đang tải dữ liệu...</p>
+                    </div>
+                  ) : savedJDs.length === 0 ? (
                     <div className="text-center py-12">
                       <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                         <BookmarkPlus className="w-8 h-8 text-slate-300" />
@@ -363,7 +415,7 @@ function AppContent() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-2 shrink-0 self-center lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -400,12 +452,12 @@ function AppContent() {
         {/* Modal: Save JD Name */}
         <AnimatePresence>
           {isSaveJDNameModalOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
               <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+                initial={{ opacity: 0, y: 100 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 100 }}
+                className="bg-white w-full max-w-md rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl overflow-hidden"
               >
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-indigo-600 text-white">
                   <div className="flex items-center gap-3">

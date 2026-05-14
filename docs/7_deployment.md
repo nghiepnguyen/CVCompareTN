@@ -1,73 +1,50 @@
 # Hướng dẫn Triển khai (Deployment Guide)
 
-Dự án **CV Compare** có thể được triển khai trên nhiều nền tảng khác nhau. Dưới đây là hướng dẫn chi tiết cho hai nền tảng phổ biến nhất đã được cấu hình sẵn: **Firebase Hosting** và **Render**.
+Dự án **CV Matcher & Optimizer** được triển khai theo mô hình **Vercel Native**, tích hợp cả Frontend (React/Vite) và Backend (Serverless Functions) trên cùng một hạ tầng Vercel.
 
-## 1. Triển khai trên Firebase (Khuyên dùng)
+## 1. Triển khai trên Vercel
 
-Hệ thống đã được cấu hình để sử dụng Firebase Hosting kết hợp với Firebase Functions cho Backend.
+Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/api`.
 
 ### Các bước thực hiện:
 
-1.  **Cài đặt Firebase CLI:**
+1.  **Kết nối GitHub:** Đẩy mã nguồn lên GitHub và kết nối project với Vercel.
+2.  **Cấu hình Environment Variables:** Trong Dashboard của Vercel, hãy thiết lập các biến môi trường sau:
+    -   `GEMINI_API_KEY`: API Key từ Google AI Studio.
+    -   `RECAPTCHA_SECRET_KEY`: Secret Key cho reCAPTCHA v3.
+    -   `RESEND_API_KEY`: API Key từ Resend.com.
+    -   `RESEND_FROM_EMAIL`: Email gửi đi (phải được verify trên Resend).
+    -   `FEEDBACK_RECIPIENT_EMAIL`: Email nhận thông báo góp ý.
+    -   `VITE_ADMIN_EMAIL`: Email có quyền truy cập trang Admin.
+3.  **Cấu hình Frontend (Client-side):** Các biến có tiền tố `VITE_` sẽ được nhúng vào mã nguồn khi build.
+4.  **Tự động triển khai:** Vercel sẽ tự động nhận diện thư mục `/api` và triển khai chúng dưới dạng Serverless Functions dựa trên cấu hình trong `vercel.json`.
+
+## 2. Cấu hình Firebase (Bắt buộc)
+
+Ứng dụng sử dụng Firebase cho việc xác thực người dùng và lưu trữ dữ liệu Firestore.
+
+### Các bước thực hiện:
+
+1.  **Tạo dự án Firebase:** Truy cập [Firebase Console](https://console.firebase.google.com/).
+2.  **Bật Authentication:** Kích hoạt phương thức đăng nhập bằng Google.
+3.  **Authorized Domains:** Quan trọng! Thêm domain của bạn (ví dụ: `cv.thanhnghiep.top`) và các domain preview của Vercel vào danh sách Authorized Domains trong Firebase.
+4.  **Bật Firestore Database:** Tạo database ở chế độ production.
+5.  **Triển khai Security Rules:**
     ```bash
-    npm install -g firebase-tools
+    firebase deploy --only firestore:rules
     ```
 
-2.  **Đăng nhập và chọn dự án:**
-    ```bash
-    firebase login
-    firebase use <your-project-id>
-    ```
+## 3. Chế độ Phát triển (Local Development)
 
-3.  **Xây dựng bản build (Frontend):**
-    ```bash
-    npm run build
-    ```
+Để chạy ứng dụng ở môi trường local với đầy đủ tính năng API:
 
-4.  **Xây dựng bản build (Backend/Functions):**
-    ```bash
-    cd functions
-    npm run build
-    cd ..
-    ```
+1.  **Cài đặt Vercel CLI:** `npm install -g vercel`
+2.  **Chạy lệnh:** `npm run vercel-dev` hoặc `vercel dev`.
+3.  Lệnh này sẽ khởi tạo một local server tại `http://localhost:3000` mô phỏng môi trường Serverless của Vercel.
 
-5.  **Deploy:**
-    -   Triển khai toàn bộ (Hosting + Functions + Rules):
-        ```bash
-        firebase deploy
-        ```
-    -   Chỉ triển khai Hosting:
-        ```bash
-        firebase deploy --only hosting
-        ```
+## 4. Cấu hình Điều hướng (vercel.json)
 
-## 2. Triển khai trên Render
+Tệp `vercel.json` ở thư mục gốc đóng vai trò quan trọng trong việc định tuyến:
 
-Render phù hợp nếu bạn muốn chạy ứng dụng dưới dạng một Node.js server hoàn chỉnh (sử dụng `server.ts`).
-
-### Cấu hình trong `render.yaml`:
-Dự án đã có sẵn file cấu hình Blueprint cho Render. Khi bạn kết nối GitHub với Render, hãy chọn "Blueprint" và nó sẽ tự động nhận diện:
-
--   **Build Command:** `npm install && npm run build`
-*   **Start Command:** `npm start` (Sử dụng `tsx server.ts`)
-
-### Các biến môi trường cần thiết:
-Dù triển khai ở đâu, bạn PHẢI cấu hình các biến môi trường sau trong bảng điều khiển (Dashboard) của nhà cung cấp hosting:
-
-| Biến | Mô tả |
-| :--- | :--- |
-| `GEMINI_API_KEY` | API Key từ Google AI Studio. |
-| `RECAPTCHA_SECRET_KEY` | Secret Key từ Google reCAPTCHA v3. |
-| `RESEND_API_KEY` | API Key từ Resend.com. |
-| `VITE_ADMIN_EMAIL` | Email có quyền truy cập trang Admin. |
-| `NODE_ENV` | Đặt là `production`. |
-
----
-
-## Lưu ý về Local Development
-
-Trong quá trình phát triển tại `localhost`, hệ thống sẽ:
--   Tự động bỏ qua xác thực reCAPTCHA để thuận tiện cho việc test.
--   Sử dụng cấu hình từ file `.env`.
-
-Khi lên production, hãy đảm bảo các biến môi trường đã được thiết lập đầy đủ để tránh lỗi `500` khi gọi API.
+-   **Rewrites:** Điều hướng các request `/api/:path*` vào đúng thư mục `/api`.
+-   **SPA Support:** Đảm bảo các route của React (như `/history`, `/admin`) luôn trả về `index.html` thay vì lỗi 404 khi người dùng tải lại trang.

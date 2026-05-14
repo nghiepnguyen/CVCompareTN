@@ -7,7 +7,7 @@ export function Footer() {
   const { setActiveTab, t } = useUI();
 
   return (
-    <footer className="relative z-10 border-t border-slate-200 bg-white py-20">
+    <footer className="relative z-10 border-t border-slate-200 bg-white pt-12 pb-24 lg:py-20">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-4 md:grid-cols-2">
           <div className="lg:col-span-2">
@@ -55,7 +55,7 @@ export function Footer() {
           </div>
         </div>
         
-        <div className="mt-20 flex flex-col items-center justify-between gap-6 border-t border-slate-100 pt-10 md:flex-row">
+        <div className="mt-10 lg:mt-20 flex flex-col items-center justify-between gap-6 border-t border-slate-100 pt-10 md:flex-row">
           <div className="flex gap-8 text-xs font-bold text-slate-400">
             <button onClick={() => { setActiveTab('privacy'); window.scrollTo(0,0); }} className="hover:text-primary transition-colors cursor-pointer">Chính sách bảo mật</button>
             <button onClick={() => { setActiveTab('terms'); window.scrollTo(0,0); }} className="hover:text-primary transition-colors cursor-pointer">Điều khoản dịch vụ</button>

@@ -96,7 +96,7 @@ export function OptimizationTab({ selectedResult }: OptimizationTabProps) {
                                   setCopiedId(`suggestion-${i}`);
                                   setTimeout(() => setCopiedId(null), 2000);
                                 }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all border border-slate-200 hover:border-emerald-200 shadow-sm"
+                                className="flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all border border-slate-200 hover:border-emerald-200 shadow-sm cursor-pointer hover:scale-105 active:scale-95"
                               >
                                 {copiedId === `suggestion-${i}` ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                                 {copiedId === `suggestion-${i}` ? t.copied : t.copy}
@@ -148,7 +148,7 @@ export function OptimizationTab({ selectedResult }: OptimizationTabProps) {
                           setTimeout(() => setCopiedId(null), 2000);
                         }
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm hover:shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm hover:shadow-md cursor-pointer hover:scale-105 active:scale-95"
                     >
                       {copiedId === 'full-cv' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                       {copiedId === 'full-cv' ? t.copied : reportLanguage === 'vi' ? 'Copy MD' : 'Copy MD'}
@@ -156,7 +156,7 @@ export function OptimizationTab({ selectedResult }: OptimizationTabProps) {
                     
                     <button 
                       onClick={() => window.print()}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm hover:shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm hover:shadow-md cursor-pointer hover:scale-105 active:scale-95"
                     >
                       <Printer className="w-4 h-4" />
                       {t.printOptimized}
