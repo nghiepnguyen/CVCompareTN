@@ -32,10 +32,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const { success, score } = response.data;
     
-    if (success && (score === undefined || score >= 0.5)) {
+    if (success && (score === undefined || score >= 0.3)) {
       return res.status(200).json(response.data);
     } else {
-      return res.status(200).json({ success: false, score, message: 'Low trust score' });
+      console.warn('Low reCAPTCHA score:', score, response.data);
+      return res.status(200).json({ 
+        success: false, 
+        score, 
+        message: 'Low trust score',
+        errorCodes: response.data['error-codes']
+      });
     }
   } catch (error) {
     console.error('reCAPTCHA error:', error);
