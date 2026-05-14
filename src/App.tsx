@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Analytics } from "@vercel/analytics/react";
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -81,6 +82,7 @@ export default function App() {
         <UIProvider>
           <AnalysisProvider>
             <AppContent />
+            <Analytics />
           </AnalysisProvider>
         </UIProvider>
       </AuthProvider>
