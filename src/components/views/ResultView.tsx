@@ -25,6 +25,22 @@ export function ResultView() {
     results, selectedResult, setSelectedResult
   } = useAnalysis();
 
+  const topAnchorRef = React.useRef<HTMLDivElement>(null);
+
+  // Optimized Scroll to Top of Content on Tab Change
+  React.useEffect(() => {
+    if (resultTab && topAnchorRef.current) {
+      // Calculate the absolute top position of our anchor
+      const anchorTop = topAnchorRef.current.getBoundingClientRect().top + window.pageYOffset;
+      const yOffset = -80; // Adjusted for header visibility
+      
+      window.scrollTo({ 
+        top: anchorTop + yOffset, 
+        behavior: 'smooth' 
+      });
+    }
+  }, [resultTab]);
+
   return (
     <AnimatePresence mode="wait">
       {isAnalyzing ? (
@@ -93,9 +109,12 @@ export function ResultView() {
                 )}
               </div>
 
+              {/* Scroll Anchor */}
+              <div ref={topAnchorRef} className="scroll-mt-32" />
+
               {/* Tab Navigation - Sticky Header */}
-              <div id="tab-navigation" className="sticky top-16 z-40 bg-white/80 backdrop-blur-xl py-4 -mx-4 px-4 mb-8 border-b border-slate-200/50 flex items-center justify-between shadow-sm overflow-hidden transition-all duration-300">
-                <div className="flex items-center gap-1.5 p-1.5 bg-slate-200/50 backdrop-blur-md rounded-[2rem] w-full sm:w-fit shadow-inner overflow-x-auto scrollbar-hide no-scrollbar border border-white/50">
+              <div id="tab-navigation" className="sticky top-16 z-40 bg-white/90 backdrop-blur-xl py-4 -mx-4 px-4 mb-10 border-b border-slate-200/60 flex items-center justify-between shadow-sm transition-all duration-500">
+                <div className="flex items-center gap-2 p-1.5 bg-slate-200/40 backdrop-blur-md rounded-[2.5rem] w-full sm:w-fit shadow-inner overflow-x-auto scrollbar-hide no-scrollbar border border-white/40 snap-x snap-mandatory">
                   {[
                     { id: 'analysis', icon: Activity, label: t.analyze },
                     { id: 'parsed', icon: User, label: reportLanguage === 'vi' ? 'Thông tin CV' : 'Parsed CV' },
@@ -106,20 +125,41 @@ export function ResultView() {
                       key={tab.id}
                       onClick={() => {
                         setResultTab(tab.id as any);
-                        setTimeout(() => document.getElementById(`${tab.id}-content`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
                       }}
                       className={cn(
-                        "px-5 sm:px-10 py-3 sm:py-3.5 rounded-[1.5rem] text-[10px] sm:text-xs font-black uppercase tracking-[0.1em] transition-all flex items-center gap-2.5 shrink-0 cursor-pointer hover:scale-105 active:scale-95",
-                        resultTab === tab.id 
-                          ? "bg-white text-indigo-600 shadow-xl shadow-indigo-100/50 ring-1 ring-slate-200" 
-                          : "text-slate-500 hover:text-indigo-600 hover:bg-white/60"
+                        "relative px-5 sm:px-8 py-3.5 sm:py-4 rounded-[2rem] text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] transition-all flex items-center gap-3 shrink-0 cursor-pointer snap-center outline-none",
+                        resultTab === tab.id ? "text-indigo-600" : "text-slate-500 hover:text-slate-800"
                       )}
                     >
-                      <tab.icon className={cn("w-4 h-4", resultTab === tab.id ? "animate-pulse" : "")} />
-                      {tab.label}
+                      {resultTab === tab.id && (
+                        <motion.div
+                          layoutId="activeTab"
+                          className="absolute inset-0 bg-white shadow-xl shadow-indigo-200/40 border border-slate-200/50 rounded-[2rem]"
+                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                        />
+                      )}
+                      <div className="relative z-10 flex items-center gap-2.5">
+                        <tab.icon className={cn("w-4 h-4 transition-transform duration-300", resultTab === tab.id ? "scale-110" : "scale-100")} />
+                        <span className="whitespace-nowrap">{tab.label}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
+
+                {/* Animated Scan Line - Bottom of header */}
+                <motion.div 
+                  className="absolute bottom-0 left-0 h-[2px] bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.5)]"
+                  initial={{ width: "25%" }}
+                  animate={{ 
+                    width: resultTab === 'analysis' ? '25%' : 
+                           resultTab === 'parsed' ? '50%' : 
+                           resultTab === 'comparison' ? '75%' : '100%',
+                    left: resultTab === 'analysis' ? '0%' : 
+                          resultTab === 'parsed' ? '0%' : 
+                          resultTab === 'comparison' ? '0%' : '0%'
+                  }}
+                  transition={{ type: "spring", bounce: 0, duration: 0.8 }}
+                />
               </div>
 
               {/* Tab Content */}

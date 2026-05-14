@@ -137,14 +137,14 @@ export function AnalysisInputView() {
               </div>
             </div>
 
-            <div className="flex-1 min-h-[320px] flex flex-col gap-4">
+            <div className="flex-1 min-h-[260px] flex flex-col gap-4">
               {jdInputMode === 'text' ? (
                 <div className="flex-1 flex flex-col relative group">
                   <textarea
                     value={jd}
                     onChange={(e) => setJd(e.target.value)}
                     placeholder={t.placeholderJD}
-                    className="flex-1 w-full min-h-[200px] sm:min-h-[300px] p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all resize-none text-slate-700 bg-slate-50/30 text-sm font-medium leading-relaxed"
+                    className="flex-1 w-full min-h-[160px] sm:min-h-[240px] p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all resize-none text-slate-700 bg-slate-50/30 text-sm font-medium leading-relaxed"
                   />
                   <div className="mt-3 flex items-center justify-between px-2">
                     <div className="flex items-start gap-2 text-[10px] text-slate-400 italic font-medium">
@@ -383,7 +383,7 @@ export function AnalysisInputView() {
                     value={cvText}
                     onChange={(e) => setCvText(e.target.value)}
                     placeholder={t.placeholderCV}
-                    className="flex-1 w-full min-h-[200px] sm:min-h-[300px] p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all resize-none text-slate-700 bg-slate-50/30 text-sm font-medium leading-relaxed"
+                    className="flex-1 w-full min-h-[160px] sm:min-h-[240px] p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all resize-none text-slate-700 bg-slate-50/30 text-sm font-medium leading-relaxed"
                   />
                   {cvText && (
                     <div className="mt-3 flex justify-end px-2">
@@ -405,32 +405,35 @@ export function AnalysisInputView() {
 
       {/* Footer Actions: Language & Analyze */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-6">
-        <div className="flex-1 flex items-center gap-4 bg-white px-5 rounded-[1.5rem] sm:rounded-[2.5rem] border border-slate-200 shadow-sm !h-[60px] sm:!h-20 min-h-[60px] sm:min-h-20">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-50 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0">
-            <Globe className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] sm:tracking-[0.2em] mb-1 sm:mb-1.5 truncate">{t.reportLanguageLabel}</p>
-            <div className="flex bg-slate-100 p-1 rounded-xl w-full">
-              <button
-                onClick={() => setReportLanguage('vi')}
-                className={cn(
-                  "flex-1 py-1.5 sm:py-2 text-[10px] sm:text-[11px] font-black rounded-lg transition-all cursor-pointer whitespace-nowrap",
-                  reportLanguage === 'vi' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-indigo-600"
-                )}
-              >
-                TIẾNG VIỆT
-              </button>
-              <button
-                onClick={() => setReportLanguage('en')}
-                className={cn(
-                  "flex-1 py-1.5 sm:py-2 text-[10px] sm:text-[11px] font-black rounded-lg transition-all cursor-pointer whitespace-nowrap",
-                  reportLanguage === 'en' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-indigo-600"
-                )}
-              >
-                ENGLISH
-              </button>
+        <div className="flex-1 flex items-center gap-3 sm:gap-4 bg-white px-4 sm:px-5 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm !h-[52px] sm:!h-16 min-h-[52px] sm:min-h-16">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-50 rounded-lg sm:rounded-xl flex items-center justify-center">
+              <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
             </div>
+            <span className="hidden md:inline text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] whitespace-nowrap">
+              {t.reportLanguageLabel}
+            </span>
+          </div>
+          
+          <div className="flex-1 flex bg-slate-100 p-1 rounded-xl">
+            <button
+              onClick={() => setReportLanguage('vi')}
+              className={cn(
+                "flex-1 py-1.5 text-[10px] sm:text-[11px] font-black rounded-lg transition-all cursor-pointer whitespace-nowrap",
+                reportLanguage === 'vi' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-indigo-600"
+              )}
+            >
+              VI
+            </button>
+            <button
+              onClick={() => setReportLanguage('en')}
+              className={cn(
+                "flex-1 py-1.5 text-[10px] sm:text-[11px] font-black rounded-lg transition-all cursor-pointer whitespace-nowrap",
+                reportLanguage === 'en' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-indigo-600"
+              )}
+            >
+              EN
+            </button>
           </div>
         </div>
 
@@ -438,7 +441,7 @@ export function AnalysisInputView() {
             onClick={handleAnalyze}
             disabled={isAnalyzing}
             className={cn(
-              "w-full sm:flex-1 !h-[60px] sm:!h-20 min-h-[60px] sm:min-h-20 rounded-[1.5rem] sm:rounded-[2.5rem] font-black text-lg sm:text-xl uppercase tracking-widest transition-all flex items-center justify-center gap-4 relative overflow-hidden group shrink-0",
+              "w-full sm:flex-1 !h-[52px] sm:!h-16 min-h-[52px] sm:min-h-16 rounded-2xl sm:rounded-3xl font-black text-base sm:text-lg uppercase tracking-widest transition-all flex items-center justify-center gap-3 sm:gap-4 relative overflow-hidden group shrink-0",
             isAnalyzing 
               ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200" 
               : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-2xl hover:shadow-indigo-300/50 active:scale-95 cursor-pointer shadow-[0_20px_50px_-12px_rgba(79,70,229,0.4)]"

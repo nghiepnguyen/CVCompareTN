@@ -1072,7 +1072,7 @@
       "label": "StatsSection()",
       "file_type": "code",
       "source_file": "src/components/views/LandingView.tsx",
-      "source_location": "L407",
+      "source_location": "L486",
       "id": "views_landingview_statssection",
       "community": 7,
       "norm_label": "statssection()"
@@ -1081,7 +1081,7 @@
       "label": "TargetUsersSection()",
       "file_type": "code",
       "source_file": "src/components/views/LandingView.tsx",
-      "source_location": "L436",
+      "source_location": "L515",
       "id": "views_landingview_targetuserssection",
       "community": 7,
       "norm_label": "targetuserssection()"
@@ -1090,7 +1090,7 @@
       "label": "CtaSection()",
       "file_type": "code",
       "source_file": "src/components/views/LandingView.tsx",
-      "source_location": "L472",
+      "source_location": "L551",
       "id": "views_landingview_ctasection",
       "community": 7,
       "norm_label": "ctasection()"
@@ -1099,7 +1099,7 @@
       "label": "FaqSection()",
       "file_type": "code",
       "source_file": "src/components/views/LandingView.tsx",
-      "source_location": "L512",
+      "source_location": "L591",
       "id": "views_landingview_faqsection",
       "community": 7,
       "norm_label": "faqsection()"
@@ -1108,7 +1108,7 @@
       "label": "LandingView()",
       "file_type": "code",
       "source_file": "src/components/views/LandingView.tsx",
-      "source_location": "L560",
+      "source_location": "L639",
       "id": "views_landingview_landingview",
       "community": 1,
       "norm_label": "landingview()"
@@ -2026,7 +2026,7 @@
       "label": "Backend",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L16",
+      "source_location": "L17",
       "id": "cv_compare_tn_readme_backend",
       "community": 4,
       "norm_label": "backend"
@@ -2035,7 +2035,7 @@
       "label": "Database & Auth",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L23",
+      "source_location": "L22",
       "id": "cv_compare_tn_readme_database_auth",
       "community": 4,
       "norm_label": "database & auth"
@@ -2044,7 +2044,7 @@
       "label": "2. Folder Structure",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L27",
+      "source_location": "L26",
       "id": "cv_compare_tn_readme_2_folder_structure",
       "community": 4,
       "norm_label": "2. folder structure"
@@ -2053,7 +2053,7 @@
       "label": "code:text (/)",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L29",
+      "source_location": "L28",
       "id": "cv_compare_tn_readme_codeblock_1",
       "community": 4,
       "norm_label": "code:text (/)"
@@ -2062,7 +2062,7 @@
       "label": "1. Vercel Deployment (Recommended)",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L44",
+      "source_location": "L43",
       "id": "cv_compare_tn_readme_1_vercel_deployment_recommended",
       "community": 4,
       "norm_label": "1. vercel deployment (recommended)"
@@ -2071,7 +2071,7 @@
       "label": "2. Firebase Setup (Auth & DB)",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L49",
+      "source_location": "L48",
       "id": "cv_compare_tn_readme_2_firebase_setup_auth_db",
       "community": 4,
       "norm_label": "2. firebase setup (auth & db)"
@@ -2080,7 +2080,7 @@
       "label": "5. Mobile-First Optimization",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L55",
+      "source_location": "L54",
       "id": "cv_compare_tn_readme_5_mobile_first_optimization",
       "community": 4,
       "norm_label": "5. mobile-first optimization"
@@ -2089,7 +2089,7 @@
       "label": "5. Environment Variables",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L63",
+      "source_location": "L64",
       "id": "cv_compare_tn_readme_5_environment_variables",
       "community": 4,
       "norm_label": "5. environment variables"
@@ -2098,7 +2098,7 @@
       "label": "Required",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L67",
+      "source_location": "L68",
       "id": "cv_compare_tn_readme_required",
       "community": 4,
       "norm_label": "required"
@@ -2107,7 +2107,7 @@
       "label": "Optional (but recommended for full functionality)",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L72",
+      "source_location": "L73",
       "id": "cv_compare_tn_readme_optional_but_recommended_for_full_functionality",
       "community": 4,
       "norm_label": "optional (but recommended for full functionality)"
@@ -2116,7 +2116,7 @@
       "label": "Firebase Configuration",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L77",
+      "source_location": "L78",
       "id": "cv_compare_tn_readme_firebase_configuration",
       "community": 4,
       "norm_label": "firebase configuration"
@@ -2188,7 +2188,7 @@
       "label": "4. Specific Workflows",
       "file_type": "document",
       "source_file": "AGENTS.md",
-      "source_location": "L31",
+      "source_location": "L34",
       "id": "cv_compare_tn_agents_4_specific_workflows",
       "community": 2,
       "norm_label": "4. specific workflows"
@@ -2197,7 +2197,7 @@
       "label": "5. Agent Behavior",
       "file_type": "document",
       "source_file": "AGENTS.md",
-      "source_location": "L35",
+      "source_location": "L38",
       "id": "cv_compare_tn_agents_5_agent_behavior",
       "community": 2,
       "norm_label": "5. agent behavior"
@@ -2341,7 +2341,7 @@
       "label": "C\u00e1c b\u01b0\u1edbc tr\u1ecdng t\u00e2m:",
       "file_type": "document",
       "source_file": "docs/6_workflow.md",
-      "source_location": "L24",
+      "source_location": "L25",
       "id": "docs_6_workflow_c_c_b_c_tr_ng_t_m",
       "community": 15,
       "norm_label": "cac buoc trong tam:"
@@ -2350,7 +2350,7 @@
       "label": "2. Lu\u1ed3ng t\u1ed1i \u01b0u h\u00f3a & Xu\u1ea5t b\u1ea3n",
       "file_type": "document",
       "source_file": "docs/6_workflow.md",
-      "source_location": "L29",
+      "source_location": "L30",
       "id": "docs_6_workflow_2_lu_ng_t_i_u_h_a_xu_t_b_n",
       "community": 15,
       "norm_label": "2. luong toi uu hoa & xuat ban"
@@ -2359,7 +2359,7 @@
       "label": "3. Qu\u1ea3n l\u00fd d\u1eef li\u1ec7u",
       "file_type": "document",
       "source_file": "docs/6_workflow.md",
-      "source_location": "L35",
+      "source_location": "L36",
       "id": "docs_6_workflow_3_qu_n_l_d_li_u",
       "community": 15,
       "norm_label": "3. quan ly du lieu"
@@ -8691,9 +8691,9 @@
       "source_file": "docs/4_backend.md",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_4_backend_md",
-      "target": "docs_4_backend_ki_n_tr_c_backend_serverless_functions",
-      "confidence_score": 1.0
+      "target": "docs_4_backend_ki_n_tr_c_backend_serverless_functions"
     },
     {
       "relation": "contains",
@@ -8711,9 +8711,9 @@
       "source_file": "docs/4_backend.md",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_4_backend_ki_n_tr_c_backend_serverless_functions",
-      "target": "docs_4_backend_c_u_tr_c_runtime",
-      "confidence_score": 1.0
+      "target": "docs_4_backend_c_u_tr_c_runtime"
     },
     {
       "relation": "contains",
@@ -8721,9 +8721,9 @@
       "source_file": "docs/4_backend.md",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_4_backend_ki_n_tr_c_backend_serverless_functions",
-      "target": "docs_4_backend_c_c_ch_c_n_ng_ch_nh",
-      "confidence_score": 1.0
+      "target": "docs_4_backend_c_c_ch_c_n_ng_ch_nh"
     },
     {
       "relation": "contains",
@@ -8731,9 +8731,9 @@
       "source_file": "docs/4_backend.md",
       "source_location": "L32",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_4_backend_ki_n_tr_c_backend_serverless_functions",
-      "target": "docs_4_backend_bi_n_m_i_tr_ng_environment_variables",
-      "confidence_score": 1.0
+      "target": "docs_4_backend_bi_n_m_i_tr_ng_environment_variables"
     },
     {
       "relation": "contains",
@@ -8741,9 +8741,9 @@
       "source_file": "docs/4_backend.md",
       "source_location": "L44",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_4_backend_ki_n_tr_c_backend_serverless_functions",
-      "target": "docs_4_backend_security_routing",
-      "confidence_score": 1.0
+      "target": "docs_4_backend_security_routing"
     },
     {
       "relation": "contains",
@@ -8751,9 +8751,9 @@
       "source_file": "docs/4_backend.md",
       "source_location": "L12",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_4_backend_c_c_ch_c_n_ng_ch_nh",
-      "target": "docs_4_backend_1_ph_n_ph_i_c_u_h_nh_api_config_ts",
-      "confidence_score": 1.0
+      "target": "docs_4_backend_1_ph_n_ph_i_c_u_h_nh_api_config_ts"
     },
     {
       "relation": "contains",
@@ -8761,9 +8761,9 @@
       "source_file": "docs/4_backend.md",
       "source_location": "L16",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_4_backend_c_c_ch_c_n_ng_ch_nh",
-      "target": "docs_4_backend_2_tr_ch_xu_t_n_i_dung_pdf_api_extract_pdf_ts",
-      "confidence_score": 1.0
+      "target": "docs_4_backend_2_tr_ch_xu_t_n_i_dung_pdf_api_extract_pdf_ts"
     },
     {
       "relation": "contains",
@@ -8771,9 +8771,9 @@
       "source_file": "docs/4_backend.md",
       "source_location": "L21",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_4_backend_c_c_ch_c_n_ng_ch_nh",
-      "target": "docs_4_backend_3_x_c_th_c_recaptcha_api_verify_recaptcha_ts",
-      "confidence_score": 1.0
+      "target": "docs_4_backend_3_x_c_th_c_recaptcha_api_verify_recaptcha_ts"
     },
     {
       "relation": "contains",
@@ -8781,9 +8781,9 @@
       "source_file": "docs/4_backend.md",
       "source_location": "L26",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_4_backend_c_c_ch_c_n_ng_ch_nh",
-      "target": "docs_4_backend_4_h_th_ng_email_api_send_feedback_ts_api_send_welcome_email_ts",
-      "confidence_score": 1.0
+      "target": "docs_4_backend_4_h_th_ng_email_api_send_feedback_ts_api_send_welcome_email_ts"
     },
     {
       "relation": "contains",
@@ -9011,9 +9011,9 @@
       "source_file": "docs/2_tech_stack.md",
       "source_location": "L16",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_2_tech_stack_c_ng_ngh_s_d_ng_cv_compare",
-      "target": "docs_2_tech_stack_backend_serverless",
-      "confidence_score": 1.0
+      "target": "docs_2_tech_stack_backend_serverless"
     },
     {
       "relation": "contains",
@@ -9141,9 +9141,9 @@
       "source_file": "docs/7_deployment.md",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_7_deployment_h_ng_d_n_tri_n_khai_deployment_guide",
-      "target": "docs_7_deployment_1_tri_n_khai_tr_n_vercel",
-      "confidence_score": 1.0
+      "target": "docs_7_deployment_1_tri_n_khai_tr_n_vercel"
     },
     {
       "relation": "contains",
@@ -9161,9 +9161,9 @@
       "source_file": "docs/7_deployment.md",
       "source_location": "L37",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_7_deployment_h_ng_d_n_tri_n_khai_deployment_guide",
-      "target": "docs_7_deployment_3_ch_ph_t_tri_n_local_development",
-      "confidence_score": 1.0
+      "target": "docs_7_deployment_3_ch_ph_t_tri_n_local_development"
     },
     {
       "relation": "contains",
@@ -9171,9 +9171,9 @@
       "source_file": "docs/7_deployment.md",
       "source_location": "L45",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_7_deployment_h_ng_d_n_tri_n_khai_deployment_guide",
-      "target": "docs_7_deployment_4_c_u_h_nh_i_u_h_ng_vercel_json",
-      "confidence_score": 1.0
+      "target": "docs_7_deployment_4_c_u_h_nh_i_u_h_ng_vercel_json"
     },
     {
       "relation": "contains",
@@ -9241,9 +9241,9 @@
       "source_file": "docs/7_deployment.md",
       "source_location": "L9",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_7_deployment_1_tri_n_khai_tr_n_vercel",
-      "target": "docs_7_deployment_c_c_b_c_th_c_hi_n",
-      "confidence_score": 1.0
+      "target": "docs_7_deployment_c_c_b_c_th_c_hi_n"
     },
     {
       "relation": "contains",
@@ -9331,9 +9331,9 @@
       "source_file": "docs/7_deployment.md",
       "source_location": "L26",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_7_deployment_2_c_u_h_nh_firebase_b_t_bu_c",
-      "target": "docs_7_deployment_c_c_b_c_th_c_hi_n_26",
-      "confidence_score": 1.0
+      "target": "docs_7_deployment_c_c_b_c_th_c_hi_n_26"
     },
     {
       "relation": "contains",
@@ -9351,9 +9351,9 @@
       "source_file": "docs/7_deployment.md",
       "source_location": "L33",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "docs_7_deployment_c_c_b_c_th_c_hi_n_26",
-      "target": "docs_7_deployment_codeblock_1",
-      "confidence_score": 1.0
+      "target": "docs_7_deployment_codeblock_1"
     },
     {
       "relation": "contains",
@@ -10233,5 +10233,5 @@
       "source_file": "src/components/views/"
     }
   ],
-  "built_at_commit": "35f963c7f968d091027c80fe12e42ce8c12323e9"
+  "built_at_commit": "71ffe6fab40014f27208ff2a5e753fe0a6ae4c7b"
 }

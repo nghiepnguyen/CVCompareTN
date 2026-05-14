@@ -56,8 +56,8 @@
     "hash": "a72660180017271c6657b8e51e9337b8"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/translations.ts": {
-    "mtime": 1778718996.8977387,
-    "hash": "f02577519f781b025ad98eeb54459e04"
+    "mtime": 1778761417.596303,
+    "hash": "c341d4c29e03ef2eb591245a4a17238e"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/context/AnalysisContext.tsx": {
     "mtime": 1778717474.7933419,
@@ -96,16 +96,16 @@
     "hash": "47878a3ac7cf78539d857d9aef8733e5"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/layout/Header.tsx": {
-    "mtime": 1778718659.7074237,
-    "hash": "7e749e8cfd7b49bdd01dc9e9486f31a4"
+    "mtime": 1778761917.3124075,
+    "hash": "154bc34899c5819097b6772196b02792"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/NoPermissionView.tsx": {
     "mtime": 1777854055.7656574,
     "hash": "bfa44525dc7c8e7875c18186305759f0"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/LandingView.tsx": {
-    "mtime": 1778717736.8256416,
-    "hash": "a1715cb6c5b9840cae8120c57d55f71c"
+    "mtime": 1778761443.8132422,
+    "hash": "3cec7adf810baea9c17222fa27b800b7"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/AdminView.tsx": {
     "mtime": 1778405790.7201524,
@@ -116,16 +116,16 @@
     "hash": "9b576d7975c831b569c99de36036f7e6"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/ResultView.tsx": {
-    "mtime": 1778680633.7477882,
-    "hash": "7377668a7fa3d4199e990636b091d540"
+    "mtime": 1778764389.1489666,
+    "hash": "17a62c8f3e66ced013bb5cc6d49fe3f6"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/DashboardView.tsx": {
-    "mtime": 1778681455.128254,
-    "hash": "38f15940e315ce19429e441fd8a84e11"
+    "mtime": 1778761680.8654156,
+    "hash": "d9b77b480abd0e11201a34ab1413a5f6"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/AnalysisInputView.tsx": {
-    "mtime": 1778718933.146418,
-    "hash": "72c6358a1350d9bb31244a79f19070f5"
+    "mtime": 1778762618.0409906,
+    "hash": "a074148255ebf5eb2b7a78d9e43e90a9"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/src/components/views/result/ComparisonOverview.tsx": {
     "mtime": 1778717723.5314178,
@@ -204,12 +204,12 @@
     "hash": "3c6568ccf359a256427e4cc79ee1d2e4"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/README.md": {
-    "mtime": 1778717780.2599022,
-    "hash": "8a598912b060405e1aa6daa36233b45d"
+    "mtime": 1778764458.6195292,
+    "hash": "1806228d275c73d6b4a7c376c88b0541"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/AGENTS.md": {
-    "mtime": 1778409372.5409698,
-    "hash": "692e4cd6de6549c5fa5e9f5757f4514c"
+    "mtime": 1778764478.4169638,
+    "hash": "beb56b241594988ee37763e3b71a2e3a"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/tags.txt": {
     "mtime": 1775881666.0,
@@ -220,28 +220,28 @@
     "hash": "8661a8ca3dece0364bacf94334a1506b"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/6_workflow.md": {
-    "mtime": 1778683001.582581,
-    "hash": "8d3570525b7f1776ae7312f6ed6dcc1d"
+    "mtime": 1778719110.0898247,
+    "hash": "ca202e320e76bc4898b7eb54b9dc85bb"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/5_api.md": {
     "mtime": 1778683266.0346694,
     "hash": "63d96843b3167be9ee0ee77b8596b55c"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/2_tech_stack.md": {
-    "mtime": 1778719060.1556568,
-    "hash": "bf83d87b4e4034598989dfdd74896e30"
+    "mtime": 1778719171.865582,
+    "hash": "6e842c8804db2c7bf8fcd2ff56b70a3b"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/3_frontend.md": {
-    "mtime": 1778717902.5055444,
-    "hash": "09fe7712aa02d822d05a075c807e4f83"
+    "mtime": 1778764469.444146,
+    "hash": "90964ca5ebba4e3fb77a36682b01daa9"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/7_deployment.md": {
     "mtime": 1778719090.0899901,
     "hash": "5dac4ec699d17fcf7953b6dd94cc59e1"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/docs/1_overview.md": {
-    "mtime": 1778719098.081915,
-    "hash": "86e6a9aa696c02c3f3a854714d999c55"
+    "mtime": 1778719165.13198,
+    "hash": "7bcdc5ee9cfb02ca5a79baf41b7d5f77"
   },
   "/Users/nghiepnguyen/My Files/cv-compare-tn/public/robots.txt": {
     "mtime": 1776123251.9907131,

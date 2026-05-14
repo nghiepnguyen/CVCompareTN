@@ -12,6 +12,7 @@
 - **PDF/Docx Processing:** `pdfjs-dist`, `mammoth`
 - **Analytics:** Vercel Analytics (`@vercel/analytics`)
 - **Security:** `react-google-recaptcha-v3`
+- **Design Philosophy:** **Industrial Utilitarian** (High-precision, data-centric, and premium tactile feedback)
 
 ### Backend
 - **Platform:** Vercel Serverless Functions (Node.js 20+)
@@ -52,8 +53,10 @@ The application is optimized for **Vercel** (Frontend & API) and uses **Firebase
 
 ## 5. Mobile-First Optimization
 
-The application is built with a **Mobile-First** approach to ensure the best experience on all devices:
+The application is built with a **Mobile-First** and **Industrial Utilitarian** approach to ensure the best experience on all devices, focusing on a **High-Craft** and **Memorable** user journey:
 - **Bottom Navigation:** Quick access to main features (Analyze, History, Saved JDs) for one-handed use.
+- **Sticky Result Navigation:** High-craft navigation bar for analysis results with fluid `layoutId` transitions and an animated "Scan Line" indicator.
+- **Optimized Action Bar:** Balanced 50/50 layout on desktop and height-enforced (60px) mobile controls for consistency.
 - **Bottom Sheets:** Native-like modal experience for mobile users.
 - **Responsive Layouts:** Optimized padding and card-based views instead of tables on small screens.
 - **Touch-Friendly Targets:** All interactive elements meet the minimum 44x44px touch target standard.

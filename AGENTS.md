@@ -23,10 +23,13 @@ This file contains custom instructions and context for the AI Studio Build agent
 - **AI (Gemini):** All interactions with the Gemini API should go through `src/services/aiService.ts`. Maintain the structured JSON output format defined in the prompts.
 
 ### 3. UI/UX Guidelines
+- **Aesthetic Stance:** Follow the **Industrial Utilitarian** design language. Focus on high-precision layouts, clear boundaries (borders over shadows), and data-centric aesthetics.
+- **Navigation Standards:**
+    - Mobile uses **Bottom Navigation** as the primary source. Header links are hidden on small screens.
+    - Result views utilize **Sticky Headers** with high-craft interactive elements (Framer Motion `layoutId`).
+    - Implement **Smart Auto-Scroll** when transitioning between long content sections.
 - **Language:** Default to Vietnamese for all user-facing text unless the user specifically requests English or the context dictates otherwise.
-- **Animations:** Use `framer-motion` for smooth transitions (e.g., modals, list items appearing).
-- **Error Handling:** Never swallow errors. Display user-friendly error messages in the UI and log detailed errors to the console.
-- **Loading States:** Always show loading indicators (e.g., spinners, skeleton screens) during asynchronous operations (file processing, AI analysis, data fetching).
+- **Animations:** Use `framer-motion` for smooth transitions (e.g., sliding tab backgrounds, modals).
 
 ### 4. Specific Workflows
 - **File Processing:** Be aware that file processing is split. Simple text/images are handled client-side, while complex PDFs are sent to the `/api/extract-pdf` endpoint.
