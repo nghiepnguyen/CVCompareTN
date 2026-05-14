@@ -32,7 +32,7 @@ export function Header() {
         </div>
           
         <div className="flex items-center gap-2 sm:gap-4">
-          <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+          <nav className="hidden lg:flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
             {user && (
               <>
                 <button 

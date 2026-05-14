@@ -180,6 +180,7 @@ export const UI_LABELS = {
     seoTitle: "CV Matcher & Optimizer - Tối ưu CV chuẩn ATS",
     seoDescription: "Tải lên CV và so sánh với Job Description để nhận điểm tương thích ATS, phân tích kỹ năng và bản CV được viết lại hoàn chỉnh bởi AI.",
     seoKeywords: "Công cụ so sánh CV, ATS resume checker, tối ưu CV, phân tích CV, HR AI",
+    forEmployers: "Dành cho nhà tuyển dụng",
   },
   en: {
     atsScore: "ATS Compatibility Score",
@@ -362,5 +363,6 @@ export const UI_LABELS = {
     seoTitle: "CV Matcher & Optimizer - Optimize CV for ATS Standards",
     seoDescription: "Upload your CV and compare it with any Job Description to get ATS compatibility scores, skill analysis, and a full AI-rewritten CV.",
     seoKeywords: "CV Comparison Tool, ATS resume checker, CV optimization, CV analysis, HR AI",
+    forEmployers: "For Employers",
   }
 };

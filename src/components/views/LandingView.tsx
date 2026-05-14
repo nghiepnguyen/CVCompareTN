@@ -91,7 +91,7 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
           rel="noopener noreferrer"
           className="flex h-14 w-full sm:w-auto items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-8 font-bold text-slate-900 transition-all hover:bg-slate-50 hover:shadow-lg active:scale-95"
         >
-          <span className="truncate">Dành cho nhà tuyển dụng</span>
+          <span className="truncate">{t.forEmployers}</span>
           <ArrowRight className="h-5 w-5 text-slate-400 shrink-0" />
         </a>
       </motion.div>
@@ -307,99 +307,178 @@ const HowItWorksSection = ({ t }: any) => (
 );
 
 const DemoResultSection = ({ t }: any) => (
-  <section className="w-full bg-white py-32">
-    <div className="container mx-auto max-w-5xl px-4">
-      <div className="mb-16 text-center">
-        <h2 className="font-sans text-4xl font-extrabold tracking-tight text-slate-900">{t.resultTitle}</h2>
+  <section className="w-full bg-slate-50 py-32 overflow-hidden">
+    <div className="container mx-auto max-w-6xl px-4">
+      <div className="mb-20 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-primary backdrop-blur-md mb-6"
+        >
+          <Activity className="h-3 w-3" />
+          <span>Intelligent Analysis</span>
+        </motion.div>
+        <h2 className="font-sans text-4xl font-extrabold tracking-tight text-slate-900 sm:text-6xl">
+          {t.resultTitle}
+        </h2>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="overflow-hidden rounded-[3rem] border border-slate-200 bg-slate-50 shadow-2xl"
-      >
-        <div className="border-b border-slate-200 bg-white px-8 py-6">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-red-400" />
-            <div className="h-3 w-3 rounded-full bg-amber-400" />
-            <div className="h-3 w-3 rounded-full bg-emerald-400" />
-            <span className="ml-4 text-xs font-bold uppercase tracking-widest text-slate-400">Analysis Report Preview</span>
-          </div>
-        </div>
+      <div className="relative">
+        {/* Glass Container */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="group relative overflow-hidden rounded-[3.5rem] border border-white/40 bg-white/40 p-1 shadow-2xl backdrop-blur-3xl"
+        >
+          <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-accent/5 opacity-50" />
+          
+          <div className="relative overflow-hidden rounded-[3rem] border border-slate-200/60 bg-white/80 shadow-inner">
+            {/* Window Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-8 py-4 backdrop-blur-md">
+              <div className="flex gap-2">
+                <div className="h-3 w-3 rounded-full bg-slate-200" />
+                <div className="h-3 w-3 rounded-full bg-slate-200" />
+                <div className="h-3 w-3 rounded-full bg-slate-200" />
+              </div>
+              <div className="flex items-center gap-2 rounded-full bg-white/50 px-4 py-1 border border-slate-200/50 shadow-sm">
+                <Brain className="h-3 w-3 text-primary" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gemini 3 Engine Powered</span>
+              </div>
+              <div className="w-12" />
+            </div>
 
-        <div className="p-5 sm:p-10 lg:p-16">
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="font-sans text-lg font-bold text-slate-700">{t.matchingScore}</span>
-                  <span className="font-sans text-3xl font-black text-primary">72%</span>
-                </div>
-                <div className="h-4 w-full overflow-hidden rounded-full bg-slate-200">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    whileInView={{ width: '72%' }}
-                    transition={{ duration: 1.5, ease: "easeOut" }}
-                    className="h-full bg-primary"
-                  />
-                </div>
-              </div>
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="font-sans text-lg font-bold text-slate-700">{t.atsScore}</span>
-                  <span className="font-sans text-3xl font-black text-emerald-500">81%</span>
-                </div>
-                <div className="h-4 w-full overflow-hidden rounded-full bg-slate-200">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    whileInView={{ width: '81%' }}
-                    transition={{ duration: 1.5, ease: "easeOut" }}
-                    className="h-full bg-emerald-500"
-                  />
-                </div>
-              </div>
+            {/* Analysis Content */}
+            <div className="relative p-6 sm:p-12 lg:p-20">
+              {/* Scanning Pulse Effect */}
+              <motion.div 
+                animate={{ 
+                  top: ['0%', '100%', '0%'],
+                  opacity: [0, 1, 0]
+                }}
+                transition={{ 
+                  duration: 4, 
+                  repeat: Infinity, 
+                  ease: "linear" 
+                }}
+                className="absolute left-0 right-0 z-20 h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent shadow-[0_0_15px_rgba(79,70,229,0.3)]"
+              />
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
-                <h4 className="mb-4 flex items-center gap-2 font-sans text-sm font-black uppercase tracking-wider text-red-500">
-                  <AlertCircle className="h-4 w-4" />
-                  {t.missingSkills}
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {['SQL', 'Communication', 'Leadership'].map(skill => (
-                    <span key={skill} className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600">{skill}</span>
-                  ))}
+              <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
+                {/* Left Side: Scores */}
+                <div className="lg:col-span-5 space-y-8">
+                  <div className="relative group/score rounded-3xl border border-slate-100 bg-white p-8 shadow-sm transition-all hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5">
+                    <div className="mb-6 flex items-center justify-between">
+                      <div className="space-y-1">
+                        <span className="block text-xs font-black uppercase tracking-widest text-slate-400">{t.matchingScore}</span>
+                        <h4 className="font-sans text-xl font-bold text-slate-900">Overall Compatibility</h4>
+                      </div>
+                      <span className="font-sans text-4xl font-black text-primary">72%</span>
+                    </div>
+                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        whileInView={{ width: '72%' }}
+                        transition={{ duration: 1.5, delay: 0.5 }}
+                        className="absolute h-full bg-gradient-to-r from-primary to-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="relative group/score rounded-3xl border border-slate-100 bg-white p-8 shadow-sm transition-all hover:border-emerald-200/50 hover:shadow-xl hover:shadow-emerald-500/5">
+                    <div className="mb-6 flex items-center justify-between">
+                      <div className="space-y-1">
+                        <span className="block text-xs font-black uppercase tracking-widest text-slate-400">{t.atsScore}</span>
+                        <h4 className="font-sans text-xl font-bold text-slate-900">System Readability</h4>
+                      </div>
+                      <span className="font-sans text-4xl font-black text-emerald-500">81%</span>
+                    </div>
+                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        whileInView={{ width: '81%' }}
+                        transition={{ duration: 1.5, delay: 0.7 }}
+                        className="absolute h-full bg-gradient-to-r from-emerald-400 to-teal-500"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
-                <h4 className="mb-4 flex items-center gap-2 font-sans text-sm font-black uppercase tracking-wider text-emerald-500">
-                  <CheckCircle2 className="h-4 w-4" />
-                  {t.strengths}
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {['UX Design', 'Figma', 'Research'].map(skill => (
-                    <span key={skill} className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-600">{skill}</span>
-                  ))}
+
+                {/* Right Side: Insights */}
+                <div className="lg:col-span-7 space-y-8">
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <motion.div 
+                      initial={{ opacity: 0, x: 20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      className="rounded-3xl bg-red-50/50 p-6 border border-red-100"
+                    >
+                      <h4 className="mb-4 flex items-center gap-2 font-sans text-xs font-black uppercase tracking-widest text-red-600">
+                        <AlertCircle className="h-3 w-3" />
+                        {t.missingSkills}
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {['SQL', 'Communication', 'Leadership'].map(skill => (
+                          <span key={skill} className="rounded-xl bg-white px-3 py-1.5 text-[10px] font-black text-red-600 shadow-sm border border-red-100/50">{skill}</span>
+                        ))}
+                      </div>
+                    </motion.div>
+
+                    <motion.div 
+                      initial={{ opacity: 0, x: 20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.2 }}
+                      className="rounded-3xl bg-emerald-50/50 p-6 border border-emerald-100"
+                    >
+                      <h4 className="mb-4 flex items-center gap-2 font-sans text-xs font-black uppercase tracking-widest text-emerald-600">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {t.strengths}
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {['UX Design', 'Figma', 'Research'].map(skill => (
+                          <span key={skill} className="rounded-xl bg-white px-3 py-1.5 text-[10px] font-black text-emerald-600 shadow-sm border border-emerald-100/50">{skill}</span>
+                        ))}
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.4 }}
+                    className="rounded-3xl border border-slate-100 bg-slate-50/50 p-8"
+                  >
+                    <h4 className="mb-6 font-sans text-lg font-extrabold text-slate-900">{t.suggestions}</h4>
+                    <div className="space-y-4">
+                      {[t.suggestion1, t.suggestion2, t.suggestion3].map((s, i) => (
+                        <motion.div 
+                          key={i} 
+                          initial={{ opacity: 0, x: -10 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.6 + (i * 0.1) }}
+                          className="flex items-start gap-4"
+                        >
+                          <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <Zap className="h-3 w-3" />
+                          </div>
+                          <p className="text-sm font-bold text-slate-600">{s}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
                 </div>
               </div>
             </div>
           </div>
+        </motion.div>
 
-          <div className="mt-12 rounded-[2rem] bg-white p-8 border border-slate-100 shadow-sm">
-            <h4 className="mb-6 font-sans text-xl font-extrabold text-slate-900">{t.suggestions}</h4>
-            <ul className="space-y-4">
-              {[t.suggestion1, t.suggestion2, t.suggestion3].map((s, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <div className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <CheckCircle2 className="h-3 w-3" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-600">{s}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </motion.div>
+        {/* Floating Accent Elements */}
+        <div className="absolute -top-12 -right-12 -z-10 h-64 w-64 rounded-full bg-primary/10 blur-[100px] animate-pulse" />
+        <div className="absolute -bottom-12 -left-12 -z-10 h-64 w-64 rounded-full bg-accent/10 blur-[100px] animate-pulse" />
+      </div>
     </div>
   </section>
 );
@@ -497,7 +576,7 @@ const CtaSection = ({ t, login }: any) => (
             rel="noopener noreferrer"
             className="flex h-16 items-center justify-center gap-3 rounded-2xl border-2 border-white/30 bg-white/10 px-10 font-sans text-lg font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
           >
-            <span>Dành cho nhà tuyển dụng</span>
+            <span>{t.forEmployers}</span>
             <ArrowRight className="h-5 w-5" />
           </a>
         </div>
