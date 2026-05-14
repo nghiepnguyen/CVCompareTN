@@ -137,33 +137,27 @@ export function AnalysisInputView() {
               </div>
             </div>
 
-            <div className="flex-1 min-h-[260px] flex flex-col gap-4">
+            <div className="h-[200px] sm:h-[240px] w-full flex flex-col">
               {jdInputMode === 'text' ? (
                 <div className="flex-1 flex flex-col relative group">
                   <textarea
                     value={jd}
                     onChange={(e) => setJd(e.target.value)}
                     placeholder={t.placeholderJD}
-                    className="flex-1 w-full min-h-[160px] sm:min-h-[240px] p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all resize-none text-slate-700 bg-slate-50/30 text-sm font-medium leading-relaxed"
+                    className="flex-1 w-full p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all resize-none text-slate-700 bg-slate-50/30 text-sm font-medium leading-relaxed"
                   />
-                  <div className="mt-3 flex items-center justify-between px-2">
-                    <div className="flex items-start gap-2 text-[10px] text-slate-400 italic font-medium">
-                      <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
-                      <span>{reportLanguage === 'vi' ? 'Dán link hoặc kéo thả file trực tiếp vào đây.' : 'Paste link or drag and drop file directly.'}</span>
-                    </div>
-                    {jd && (
-                      <button 
-                        onClick={() => setJd('')}
-                        className="text-[11px] font-black text-slate-500 hover:text-red-500 transition-colors uppercase tracking-widest cursor-pointer hover:scale-110 active:scale-90 flex items-center gap-1"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        {t.clearBtn}
-                      </button>
-                    )}
-                  </div>
+                  {jd && (
+                    <button 
+                      onClick={() => setJd('')}
+                      className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] font-black text-slate-500 hover:text-red-500 transition-all uppercase tracking-widest cursor-pointer shadow-sm border border-slate-100 hover:scale-105 active:scale-95 flex items-center gap-1.5 z-10"
+                    >
+                      <X className="w-3 h-3" />
+                      {t.clearBtn}
+                    </button>
+                  )}
                 </div>
               ) : (
-                <div className="flex flex-col gap-4 justify-center py-10">
+                <div className="flex-1 flex flex-col justify-center py-2 sm:py-4">
                   <div className="relative flex items-center">
                     <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
                       <Globe className="w-5 h-5 text-slate-300" />
@@ -211,31 +205,31 @@ export function AnalysisInputView() {
                   )}
                 </div>
               )}
+            </div>
 
-              {/* JD Actions Footer */}
-              <div className="mt-auto pt-4 flex items-center gap-3">
-                {user && (
-                  <>
+            {/* JD Actions Footer */}
+            <div className="mt-auto pt-4 flex items-center gap-3">
+              {user && (
+                <>
+                  <button 
+                    onClick={() => setIsSavedJDsModalOpen(true)}
+                    className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                  >
+                    <FolderOpen className="w-4 h-4" />
+                    {t.jdStore}
+                  </button>
+                  {jdInputMode === 'text' && jd.trim() && (
                     <button 
-                      onClick={() => setIsSavedJDsModalOpen(true)}
-                      className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                      onClick={handleSaveJD}
+                      disabled={isSavingJD}
+                      className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-2xl transition-all disabled:opacity-50 cursor-pointer hover:scale-[1.02] active:scale-95 border border-indigo-100"
                     >
-                      <FolderOpen className="w-4 h-4" />
-                      {t.jdStore}
+                      {isSavingJD ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookmarkPlus className="w-4 h-4" />}
+                      {t.saveJd}
                     </button>
-                    {jdInputMode === 'text' && jd.trim() && (
-                      <button 
-                        onClick={handleSaveJD}
-                        disabled={isSavingJD}
-                        className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-2xl transition-all disabled:opacity-50 cursor-pointer hover:scale-[1.02] active:scale-95 border border-indigo-100"
-                      >
-                        {isSavingJD ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookmarkPlus className="w-4 h-4" />}
-                        {t.saveJd}
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
           <input 
@@ -287,10 +281,10 @@ export function AnalysisInputView() {
 
             <div className="flex-1 flex flex-col">
               {cvInputMode === 'file' ? (
-                <div className="flex-1 flex flex-col gap-6">
+                <div className="flex-1 flex flex-col">
                   <div 
                     className={cn(
-                      "flex-1 border-2 border-dashed rounded-[2rem] p-8 transition-all cursor-pointer flex flex-col items-center justify-center text-center relative overflow-hidden group/cv",
+                      "flex-1 border-2 border-dashed rounded-[2rem] p-4 sm:p-8 transition-all cursor-pointer flex flex-col items-center justify-center text-center relative overflow-hidden group/cv",
                       isDraggingCV ? "border-violet-500 bg-violet-50/50 ring-4 ring-violet-500/10" : "border-slate-200 hover:border-violet-400 hover:bg-slate-50/50"
                     )}
                     onClick={() => document.getElementById('cv-upload')?.click()}
@@ -339,7 +333,7 @@ export function AnalysisInputView() {
                   </div>
 
                   {uploadProgress !== null && (
-                    <div className="space-y-2">
+                    <div className="mt-4 space-y-2">
                       <div className="flex items-center justify-between px-2">
                         <span className="text-[10px] font-black text-violet-600 uppercase tracking-widest">{t.processingFile}</span>
                         <span className="text-[10px] font-black text-violet-600">{uploadProgress}%</span>
@@ -355,22 +349,22 @@ export function AnalysisInputView() {
                   )}
 
                   {files.length > 0 && (
-                    <div className="max-h-[140px] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                    <div className="mt-4 h-24 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                       {files.map((f, i) => (
                         <motion.div 
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           key={i} 
-                          className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 group/item hover:border-violet-200 transition-all"
+                          className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 group/item hover:border-violet-200 transition-all"
                         >
-                          <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                              <FileText className="w-4 h-4 text-violet-500" />
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                              <FileText className="w-3.5 h-3.5 text-violet-500" />
                             </div>
-                            <span className="text-xs font-black text-slate-700 truncate tracking-tight">{f.name}</span>
+                            <span className="text-[11px] font-black text-slate-700 truncate tracking-tight">{f.name}</span>
                           </div>
-                          <button onClick={() => removeFile(i)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
-                            <X className="w-4 h-4" />
+                          <button onClick={() => removeFile(i)} className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         </motion.div>
                       ))}
@@ -383,18 +377,16 @@ export function AnalysisInputView() {
                     value={cvText}
                     onChange={(e) => setCvText(e.target.value)}
                     placeholder={t.placeholderCV}
-                    className="flex-1 w-full min-h-[160px] sm:min-h-[240px] p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all resize-none text-slate-700 bg-slate-50/30 text-sm font-medium leading-relaxed"
+                    className="flex-1 w-full p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all resize-none text-slate-700 bg-slate-50/30 text-sm font-medium leading-relaxed"
                   />
                   {cvText && (
-                    <div className="mt-3 flex justify-end px-2">
-                      <button 
-                        onClick={() => setCvText('')}
-                        className="text-[11px] font-black text-slate-500 hover:text-red-500 transition-colors uppercase tracking-widest cursor-pointer hover:scale-110 active:scale-90 flex items-center gap-1"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        {t.clearBtn}
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => setCvText('')}
+                      className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-white/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] font-black text-slate-500 hover:text-red-500 transition-all uppercase tracking-widest cursor-pointer shadow-sm border border-slate-100 hover:scale-105 active:scale-95 flex items-center gap-1.5 z-10"
+                    >
+                      <X className="w-3 h-3" />
+                      {t.clearBtn}
+                    </button>
                   )}
                 </div>
               )}

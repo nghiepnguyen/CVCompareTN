@@ -78,7 +78,7 @@ export function AnalysisDetailsTab({ selectedResult }: AnalysisDetailsTabProps) 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
           <h4 className="text-sm font-bold text-slate-800 mb-6">{t.scoreDistribution}</h4>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart data={[
                 { label: t.skills, score: selectedResult.categoryScores.skills },
                 { label: t.experience, score: selectedResult.categoryScores.experience },
@@ -98,7 +98,7 @@ export function AnalysisDetailsTab({ selectedResult }: AnalysisDetailsTabProps) 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
           <h4 className="text-sm font-bold text-slate-800 mb-6">{t.skillDistribution}</h4>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <PieChart>
                 <Pie
                   data={(() => {
