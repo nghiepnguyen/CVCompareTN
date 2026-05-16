@@ -1,45 +1,46 @@
-# Công nghệ sử dụng (CV Compare)
+# Công nghệ sử dụng (CV Matcher & Optimizer)
 
-Dự án được xây dựng trên một nền tảng công nghệ hiện đại, tập trung vào hiệu suất, khả năng mở rộng và trải nghiệm người dùng.
+Dự án được xây dựng trên một nền tảng công nghệ hiện đại, tập trung vào hiệu suất, khả năng mở rộng và trải nghiệm người dùng cao cấp.
 
 ## Frontend
 
 -   **Framework:** [React 19](https://react.dev/) - Tận dụng các tính năng mới nhất để tối ưu hiệu suất.
 -   **Build Tool:** [Vite 6](https://vitejs.dev/) - Đảm bảo tốc độ phát triển và build cực nhanh.
 -   **Styling:** [Tailwind CSS 4](https://tailwindcss.com/) - Sử dụng Engine mới nhất cho việc thiết kế UI nhanh chóng và nhất quán.
--   **Animations:** [Framer Motion (motion/react)](https://motion.dev/) - Tạo các hiệu ứng chuyển cảnh và tương tác mượt mà.
+-   **Animations:** [Motion](https://motion.dev/) (`motion`, import `motion/react`) — hiệu ứng chuyển cảnh và tương tác.
 -   **Icons:** [Lucide React](https://lucide.dev/) - Bộ icon vector đa dạng và hiện đại.
 -   **Data Visualization:** [Recharts](https://recharts.org/) - Hiển thị biểu đồ phân tích điểm số trực quan.
 -   **Analytics:** [Vercel Analytics](https://vercel.com/analytics) - Theo dõi hiệu suất và tương tác người dùng theo thời gian thực.
--   **State Management:** React Hooks (useState, useEffect, useMemo) kết hợp với Firebase Context.
+-   **State Management:** React Context (`AuthContext`, `AnalysisContext`, `UIContext`).
 
-## Backend (Serverless)
+## Backend (Modular Express)
 
--   **Runtime:** [Node.js](https://nodejs.org/) (Vercel Serverless Functions).
--   **Architecture:** API Routes nằm trong thư mục `/api`, tự động triển khai thành các hàm Lambda trên Vercel.
+-   **Runtime:** [Node.js](https://nodejs.org/).
+-   **Architecture:** **Modular Express Server** với các Route Handler được tách biệt, tích hợp trực tiếp với Vite Middleware trong môi trường phát triển.
 -   **PDF/Docx Processing:**
-    -   `Gemini 3.0 Flash`: Model AI đa phương thức xử lý trực tiếp file nhị phân (PDF/Image) qua Vision API.
-    -   `mammoth`: Chuyển đổi tệp .docx sang văn bản thuần túy.
-    -   `pdf-parse`: Hỗ trợ trích xuất văn bản từ PDF truyền thống.
--   **Security:** `Google reCAPTCHA v3` để bảo vệ các endpoint API nhạy cảm.
+    -   `Google Gemini AI`: Xử lý đa phương thức (Vision) trực tiếp cho các file PDF/Hình ảnh từ Frontend.
+    -   `mammoth`: Chuyển đổi tệp .docx sang văn bản thuần túy (Lazy-loaded để tối ưu bundle).
+    -   `Supabase Edge Functions`: Xử lý trích xuất PDF cho các Job Description (JD) từ liên kết hoặc file.
+-   **Security:** `Google reCAPTCHA v3` bảo vệ các endpoint API (Feedback, Welcome Email).
 
 ## Trí tuệ nhân tạo (AI)
 
--   **Engine:** [Google Gemini AI](https://deepmind.google/technologies/gemini/) - Sử dụng model `gemini-3-flash-preview` cho hiệu suất và trí tuệ vượt trội.
--   **Multimodal capabilities:** Có khả năng "nhìn" và hiểu trực tiếp các file PDF, hình ảnh mà không cần qua bước trích xuất văn bản trung gian, giúp tăng độ chính xác 40% cho các CV có layout phức tạp.
+-   **Engine:** [Google Gemini AI](https://deepmind.google/technologies/gemini/) - Sử dụng model **Gemini 3.0 Flash** cho tốc độ và trí tuệ vượt trội.
+-   **Modular Service:** Logic AI được module hóa hoàn toàn trong `src/services/ai/` giúp dễ dàng bảo trì và mở rộng.
+-   **Multimodal capabilities:** Khả năng hiểu trực tiếp layout CV phức tạp qua hình ảnh và URL.
 
 ## Dịch vụ & Cơ sở dữ liệu (Cloud Services)
 
--   **Firebase:**
-    -   **Authentication:** Quản lý đăng nhập người dùng qua Google.
-    -   **Firestore:** Lưu trữ hồ sơ người dùng, lịch sử phân tích và cấu hình hệ thống.
-    -   **Hosting:** Phục vụ ứng dụng web trên hạ tầng của Google.
--   **Email Service:** [Resend](https://resend.com/) - Gửi email phản hồi (feedback) từ người dùng đến quản trị viên.
+-   **Supabase:**
+    -   **Authentication:** Quản lý đăng nhập người dùng qua Google OAuth.
+    -   **PostgreSQL:** Cơ sở dữ liệu quan hệ mạnh mẽ lưu trữ Profile, Lịch sử và JDs đã lưu.
+    -   **Edge Functions:** (Tùy chọn) Triển khai logic serverless trên hạ tầng toàn cầu của Supabase.
+-   **Email Service:** [Resend](https://resend.com/) - Gửi email phản hồi và email chào mừng tự động.
 
 ## Quản lý mã nguồn & Triển khai
 
 -   **Version Control:** Git & GitHub.
--   **Deployment:** 
-    -   **Vercel (Chính):** Phục vụ Frontend và các Serverless Functions (`/api`).
-    -   **Firebase:** Quản lý Authentication và Firestore Database.
-    -   Chi tiết xem tại [Hướng dẫn triển khai](./7_deployment.md).
+-   **Deployment Platform:** **Vercel** (Frontend & Modular API).
+-   **Database Provider:** **Supabase**.
+-   **Secrets hygiene:** Root `.gitignore` loại trừ `.env`, cache `supabase/.temp/`, khóa TLS/SSH và file backup PII — chi tiết tại [`docs/7_deployment.md` §5](7_deployment.md#5-bảo-mật-mã-nguồn-và-bi-mật).
+-   **Graphify (tùy chọn):** Phân tích codebase qua skill Graphify; cache AST trong `graphify-out/cache/` được ignore — chỉ chạy `graphify update .` sau khi clone.

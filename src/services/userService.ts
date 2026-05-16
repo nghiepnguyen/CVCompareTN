@@ -1,162 +1,175 @@
-import { db, auth } from "../firebase";
-import { doc, setDoc, getDoc, collection, onSnapshot, updateDoc } from "firebase/firestore";
-import axios from 'axios';
-import { handleFirestoreError, OperationType } from "../lib/firestoreUtils";
+import { supabase } from "../lib/supabase";
 
 export const DEFAULT_AVATAR_URL = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
 
 export interface UserProfile {
-  uid: string;
+  id: string;
   email: string;
   displayName: string;
   photoURL: string;
-  defaultAvatarURL: string;
-  role: 'admin' | 'user';
+  role: 'user' | 'admin';
+  createdAt: string;
+  isNew: boolean;
   hasPermission: boolean;
-  createdAt: number;
   usageCount: number;
-  isNew?: boolean;
 }
 
-export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-  const docRef = doc(db, "users", uid);
-  try {
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data() as UserProfile;
-      let needsUpdate = false;
-      if (!data.defaultAvatarURL) {
-        data.defaultAvatarURL = DEFAULT_AVATAR_URL;
-        needsUpdate = true;
-      }
-      if (!data.photoURL) {
-        data.photoURL = DEFAULT_AVATAR_URL;
-        needsUpdate = true;
-      }
-      
-      if (data.email.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase() && (data.role !== 'admin' || !data.hasPermission)) {
-        data.role = 'admin' as const;
-        data.hasPermission = true;
-        needsUpdate = true;
-      }
+// Map database fields to UserProfile interface
+function mapProfile(data: any): UserProfile {
+  return {
+    id: data.id,
+    email: data.email,
+    displayName: data.display_name,
+    photoURL: data.photo_url || DEFAULT_AVATAR_URL,
+    role: data.role || 'user',
+    createdAt: data.created_at,
+    isNew: data.is_new,
+    hasPermission: data.has_permission,
+    usageCount: data.usage_count || 0
+  };
+}
 
-      if (needsUpdate) {
-        await setDoc(docRef, data, { merge: true });
-      }
-      return data;
+export async function getUserProfile(id: string): Promise<UserProfile | null> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle(); // Sử dụng maybeSingle để tránh lỗi 406/PGRST116
+
+    if (error) {
+      console.error('Lỗi truy vấn hồ sơ:', error);
+      throw error; // Ném lỗi ra ngoài để AuthContext biết
     }
+
+    if (!data) return null;
+
+    const profile = mapProfile(data);
+    
+    // Tự động nâng cấp admin dựa trên email
+    const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
+    if (profile.email.toLowerCase() === adminEmail && profile.role !== 'admin') {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ role: 'admin', has_permission: true })
+        .eq('id', id);
+      
+      if (!updateError) {
+        profile.role = 'admin';
+        profile.hasPermission = true;
+      }
+    }
+    
+    return profile;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, `users/${uid}`);
+    console.error('Lỗi nghiêm trọng trong getUserProfile:', error);
+    throw error; // Đảm bảo lỗi được truyền đi
   }
-  return null;
 }
 
 export async function createUserProfile(user: any, recaptchaToken?: string): Promise<UserProfile> {
   const isAdmin = user.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
-  const profile: UserProfile = {
-    uid: user.uid,
+  
+  const profileData = {
+    id: user.id,
     email: user.email || '',
-    displayName: user.displayName || '',
-    photoURL: user.photoURL || DEFAULT_AVATAR_URL,
-    defaultAvatarURL: DEFAULT_AVATAR_URL,
+    display_name: user.user_metadata?.full_name || user.displayName || '',
+    photo_url: user.user_metadata?.avatar_url || user.photoURL || DEFAULT_AVATAR_URL,
     role: isAdmin ? 'admin' : 'user',
-    hasPermission: true,
-    createdAt: Date.now(),
-    usageCount: 0,
-    isNew: !isAdmin,
+    has_permission: true,
+    usage_count: 0,
+    created_at: new Date().toISOString(),
+    is_new: true,
   };
+
   try {
-    await setDoc(doc(db, "users", user.uid), profile);
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert([profileData])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const profile = mapProfile(data);
 
     if (recaptchaToken) {
-      axios.post('/api/send-welcome-email', {
-        token: recaptchaToken,
-        userEmail: profile.email,
-        userName: profile.displayName
+      supabase.functions.invoke('send-email', {
+        body: {
+          type: 'welcome',
+          data: {
+            userEmail: profile.email,
+            userName: profile.displayName
+          }
+        }
       }).catch(emailError => {
-        console.error("Lỗi khi gửi email chào mừng (background):", emailError);
+        console.error("Lỗi khi gửi email chào mừng (Edge Function):", emailError);
       });
     }
+
+    return profile;
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}`);
+    console.error('Error creating user profile:', error);
+    throw error;
   }
-  return profile;
 }
 
 export async function markUserAsRead(uid: string): Promise<void> {
-  const docRef = doc(db, "users", uid);
-  try {
-    await setDoc(docRef, { isNew: false }, { merge: true });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
-  }
+  const { error } = await supabase
+    .from('profiles')
+    .update({ is_new: false })
+    .eq('id', uid);
+  
+  if (error) throw error;
 }
 
 export async function updateUserPermission(uid: string, hasPermission: boolean): Promise<void> {
-  const docRef = doc(db, "users", uid);
-  try {
-    await setDoc(docRef, { hasPermission }, { merge: true });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
-  }
+  const { error } = await supabase
+    .from('profiles')
+    .update({ has_permission: hasPermission })
+    .eq('id', uid);
+  
+  if (error) throw error;
 }
 
 export async function updateUserRole(uid: string, role: 'admin' | 'user'): Promise<void> {
-  const docRef = doc(db, "users", uid);
-  try {
-    await setDoc(docRef, { role }, { merge: true });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
-  }
+  const { error } = await supabase
+    .from('profiles')
+    .update({ role })
+    .eq('id', uid);
+  
+  if (error) throw error;
 }
 
-export async function deleteUser(uid: string): Promise<void> {
-  const { deleteDoc, doc, collection, getDocs } = await import("firebase/firestore");
-  try {
-    const historyRef = collection(db, "users", uid, "history");
-    const historySnap = await getDocs(historyRef);
-    const historyDeletions = historySnap.docs.map(d => deleteDoc(d.ref));
-    await Promise.all(historyDeletions);
-    
-    const jdsRef = collection(db, "users", uid, "savedJDs");
-    const jdsSnap = await getDocs(jdsRef);
-    const jdsDeletions = jdsSnap.docs.map(d => deleteDoc(d.ref));
-    await Promise.all(jdsDeletions);
-    
-    await deleteDoc(doc(db, "users", uid));
-    localStorage.removeItem(`cv_history_${uid}`);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `users/${uid}`);
-  }
+export async function deleteUser(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {
-  const { getDocs } = await import("firebase/firestore");
-  try {
-    const usersSnap = await getDocs(collection(db, "users"));
-    return usersSnap.docs
-      .map(doc => doc.data() as UserProfile)
-      .sort((a, b) => b.createdAt - a.createdAt);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, "users");
-  }
-  return [];
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data.map(mapProfile);
 }
 
 export function subscribeToAllUsers(callback: (users: UserProfile[]) => void) {
-  return onSnapshot(collection(db, "users"), (snapshot) => {
-    const users = snapshot.docs
-      .map(doc => {
-        const data = doc.data() as UserProfile;
-        return {
-          ...data,
-          photoURL: data.photoURL || data.defaultAvatarURL || DEFAULT_AVATAR_URL,
-          defaultAvatarURL: data.defaultAvatarURL || DEFAULT_AVATAR_URL
-        };
-      })
-      .sort((a, b) => b.createdAt - a.createdAt);
-    callback(users);
-  }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, "users");
-  });
+  const subscription = supabase
+    .channel('public:profiles')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async () => {
+      const users = await getAllUsers();
+      callback(users);
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(subscription);
+  };
 }

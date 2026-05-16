@@ -1,0 +1,550 @@
+{
+  "communities": {
+    "0": [
+      "ai_types_analysisresult",
+      "ai_types_detailedcomparison",
+      "context_analysiscontext_analysisprovider",
+      "context_analysiscontext_useanalysis",
+      "context_authcontext_authprovider",
+      "context_authcontext_useauth",
+      "context_uicontext_tab",
+      "context_uicontext_uicontext",
+      "context_uicontext_uicontexttype",
+      "context_uicontext_uiprovider",
+      "context_uicontext_useui",
+      "layout_footer_footer",
+      "layout_header_header",
+      "result_analysisdetailstab_analysisdetailstab",
+      "result_analysisloadingstate_analysisloadingstate",
+      "result_comparisonoverview_comparisonoverview",
+      "result_optimizationtab_optimizationtab",
+      "result_parsedcvtab_parsedcvtab",
+      "result_ratingsection_ratingsection",
+      "src_app_appcontent",
+      "src_app_cn",
+      "src_app_dashboardview",
+      "src_app_historyview",
+      "src_app_landingview",
+      "src_app_nopermissionview",
+      "src_app_printview",
+      "src_app_privacypolicypage",
+      "src_app_supportdevelopmentpage",
+      "src_app_termsofservicepage",
+      "src_app_tsx",
+      "src_components_layout_footer_tsx",
+      "src_components_layout_header_tsx",
+      "src_components_layout_inappbrowserwarning_tsx",
+      "src_components_views_result_parsedcvtab_tsx",
+      "src_components_views_resultview_tsx",
+      "src_context_uicontext_tsx",
+      "src_lib_utils_ts",
+      "src_main_tsx",
+      "src_translations_ts",
+      "src_translations_ui_labels",
+      "views_analysisinputview_analysisinputview",
+      "views_landingview_bentocard",
+      "views_landingview_counter",
+      "views_landingview_ctasection",
+      "views_landingview_demoresultsection",
+      "views_landingview_faqsection",
+      "views_landingview_featureicon",
+      "views_landingview_herosection",
+      "views_landingview_howitworkssection",
+      "views_landingview_problemsection",
+      "views_landingview_statssection",
+      "views_landingview_targetuserssection",
+      "views_landingview_trustsection",
+      "views_landingview_whychoosesection",
+      "views_resultview_resultview"
+    ],
+    "1": [
+      "context_authcontext_authcontext",
+      "cv_compare_tn_migrate_data_migrate",
+      "cv_compare_tn_migrate_data_serviceaccount",
+      "lib_supabase_getsupabasesession",
+      "lib_supabase_getsupabaseuser",
+      "migrate_data_ts",
+      "services_geminiservice_clearuserhistory",
+      "services_geminiservice_deletefromhistory",
+      "services_geminiservice_deletesavedjd",
+      "services_geminiservice_getsavedjds",
+      "services_geminiservice_getuserhistory",
+      "services_geminiservice_incrementusagecount",
+      "services_geminiservice_rateanalysis",
+      "services_geminiservice_savedjd",
+      "services_geminiservice_savejdtoprofile",
+      "services_geminiservice_savetohistory",
+      "services_geminiservice_uploadfiletostorage",
+      "services_historyservice_maphistory",
+      "services_userservice_createuserprofile",
+      "services_userservice_deleteuser",
+      "services_userservice_getallusers",
+      "services_userservice_getuserprofile",
+      "services_userservice_mapprofile",
+      "services_userservice_markuserasread",
+      "services_userservice_subscribetoallusers",
+      "services_userservice_updateuserpermission",
+      "services_userservice_updateuserrole",
+      "services_userservice_userprofile",
+      "src_app_adminview",
+      "src_context_analysiscontext_tsx",
+      "src_context_authcontext_tsx",
+      "src_firebase_auth",
+      "src_firebase_db",
+      "src_firebase_firestoreerrorinfo",
+      "src_firebase_googleprovider",
+      "src_firebase_handlefirestoreerror",
+      "src_firebase_operationtype",
+      "src_firebase_storage",
+      "src_firebase_testconnection",
+      "src_firebase_ts",
+      "src_lib_firestoreutils_ts",
+      "src_lib_supabase_ts",
+      "src_services_geminiservice_ts",
+      "src_services_historyservice_ts",
+      "src_services_storageservice_ts",
+      "src_services_userservice_ts"
+    ],
+    "2": [
+      "api_config_handler",
+      "api_config_ts",
+      "api_extract_pdf_ts",
+      "api_send_feedback_ts",
+      "api_send_welcome_email_ts",
+      "api_verify_recaptcha_ts",
+      "cv_compare_tn_server_startserver",
+      "cv_compare_tn_test_resend_sendtestemail",
+      "extract_pdf_index_binarystring",
+      "extract_pdf_index_bytes",
+      "functions_lib_index_js",
+      "functions_src_index_ts",
+      "lib_index_apirouter",
+      "lib_index_axios_1",
+      "lib_index_buffer",
+      "lib_index_cors_1",
+      "lib_index_express_1",
+      "lib_index_https_1",
+      "lib_index_params",
+      "lib_index_parser",
+      "lib_index_pdf_parse_1",
+      "lib_index_resend_1",
+      "lib_index_resendclient",
+      "routes_pdf_router",
+      "send_email_index_corsheaders",
+      "send_email_index_resend",
+      "server_routes_feedback_ts",
+      "server_routes_pdf_ts",
+      "server_routes_recaptcha_ts",
+      "server_routes_welcomeemail_ts",
+      "server_ts",
+      "src_app_app",
+      "src_index_api",
+      "test_resend_ts",
+      "verify_recaptcha_index_secretkey"
+    ],
+    "3": [
+      "ai_analysisservice_analyzecv",
+      "ai_analysisservice_parsegeminijson",
+      "ai_geminiprovider_ensureapikey",
+      "ai_geminiprovider_getgeminiclient",
+      "ai_types_atsevaluation",
+      "ai_types_categorizedpoint",
+      "ai_types_categorizedscore",
+      "ai_types_comparisonitem",
+      "ai_types_missinggap",
+      "ai_types_parsedcv",
+      "ai_types_parsededucation",
+      "ai_types_parsedpersonalinformation",
+      "ai_types_parsedproject",
+      "ai_types_parsedskills",
+      "ai_types_parsedworkexperience",
+      "ai_types_rewritesuggestion",
+      "components_matchscoredisplay_props",
+      "docs_5_api_extractjdfromurl_url",
+      "matchservice_matchservice",
+      "services_aiservice_extracttextfromimage",
+      "services_matchservice_calculatematchscore",
+      "src_components_matchscoredisplay_tsx",
+      "src_services_ai_analysisservice_ts",
+      "src_services_ai_extractionservice_ts",
+      "src_services_ai_geminiprovider_ts",
+      "src_services_aiservice_ts",
+      "src_types_candidate",
+      "src_types_jobdescription",
+      "src_types_matchscorebreakdown",
+      "src_types_ts",
+      "src_types_window"
+    ],
+    "4": [
+      "agents_md",
+      "analysisinputview_analysisinputview",
+      "coding_conventions_md",
+      "cv_compare_tn_agents_1_code_style_conventions",
+      "cv_compare_tn_agents_2_architecture_data_flow",
+      "cv_compare_tn_agents_3_ui_ux_guidelines",
+      "cv_compare_tn_agents_4_specific_workflows",
+      "cv_compare_tn_agents_5_agent_behavior",
+      "cv_compare_tn_agents_ai_studio_agent_instructions",
+      "cv_compare_tn_agents_core_directives",
+      "cv_compare_tn_agents_project_context",
+      "cv_compare_tn_coding_conventions_1_general_principles",
+      "cv_compare_tn_coding_conventions_2_naming_conventions",
+      "cv_compare_tn_coding_conventions_3_react_best_practices",
+      "cv_compare_tn_coding_conventions_4_performance_optimization",
+      "cv_compare_tn_coding_conventions_4_styling_tailwind_css",
+      "cv_compare_tn_coding_conventions_5_typescript_usage",
+      "cv_compare_tn_coding_conventions_6_error_handling",
+      "cv_compare_tn_coding_conventions_7_comments_and_documentation",
+      "cv_compare_tn_coding_conventions_8_file_structure_within_components",
+      "cv_compare_tn_coding_conventions_codeblock_1",
+      "cv_compare_tn_coding_conventions_codeblock_2",
+      "cv_compare_tn_coding_conventions_codeblock_3",
+      "cv_compare_tn_coding_conventions_files_and_directories",
+      "cv_compare_tn_coding_conventions_types_and_interfaces",
+      "cv_compare_tn_coding_conventions_variables_and_functions",
+      "dashboardview_dashboardview",
+      "geminiservice_geminiservice",
+      "historyview_historyview",
+      "resultview_resultview"
+    ],
+    "5": [
+      "docs_4_backend_1_c_u_h_nh_api_config",
+      "docs_4_backend_1_ph_n_ph_i_c_u_h_nh_api_config_ts",
+      "docs_4_backend_1_ph_n_ph_i_c_u_h_nh_b_o_m_t",
+      "docs_4_backend_2_tr_ch_xu_t_n_i_dung_pdf",
+      "docs_4_backend_2_tr_ch_xu_t_n_i_dung_pdf_api_extract_pdf_ts",
+      "docs_4_backend_2_tr_ch_xu_t_pdf_api_extract_pdf_extract",
+      "docs_4_backend_3_x_c_th_c_recaptcha",
+      "docs_4_backend_3_x_c_th_c_recaptcha_api_verify_recaptcha_ts",
+      "docs_4_backend_4_g_i_email_feedback_system",
+      "docs_4_backend_4_h_th_ng_email_api_send_feedback_api_send_welcome_email",
+      "docs_4_backend_5_ph_c_v_ng_d_ng_static_serving",
+      "docs_4_backend_bi_n_m_i_tr_ng_environment_variables",
+      "docs_4_backend_c_c_ch_c_n_ng_ch_nh",
+      "docs_4_backend_c_c_ch_c_n_ng_ch_nh_routes",
+      "docs_4_backend_c_u_tr_c_ch_nh",
+      "docs_4_backend_c_u_tr_c_runtime",
+      "docs_4_backend_codeblock_1",
+      "docs_4_backend_ki_n_tr_c_backend_cv_compare_proxy",
+      "docs_4_backend_ki_n_tr_c_backend_modular_express_server",
+      "docs_4_backend_ki_n_tr_c_backend_serverless_functions",
+      "docs_4_backend_md",
+      "docs_4_backend_security_middleware",
+      "docs_4_backend_security_performance",
+      "docs_4_backend_security_routing",
+      "docs_4_backend_vai_tr_c_a_backend"
+    ],
+    "6": [
+      "cv_compare_tn_readme_1_prerequisites",
+      "cv_compare_tn_readme_1_vercel_deployment_recommended",
+      "cv_compare_tn_readme_2_configuration_secrets",
+      "cv_compare_tn_readme_2_firebase_setup_auth_db",
+      "cv_compare_tn_readme_2_folder_structure",
+      "cv_compare_tn_readme_3_deploy",
+      "cv_compare_tn_readme_4_deployment_flow_firebase",
+      "cv_compare_tn_readme_4_mobile_first_optimization",
+      "cv_compare_tn_readme_5_environment_variables",
+      "cv_compare_tn_readme_5_environment_variables_local_development",
+      "cv_compare_tn_readme_codeblock_1",
+      "cv_compare_tn_readme_codeblock_2",
+      "cv_compare_tn_readme_codeblock_3",
+      "cv_compare_tn_readme_cv_matcher_optimizer_repository_overview",
+      "cv_compare_tn_readme_database_supabase",
+      "cv_compare_tn_readme_frontend_api_vercel",
+      "cv_compare_tn_readme_optional",
+      "cv_compare_tn_readme_optional_but_recommended_for_full_functionality",
+      "cv_compare_tn_readme_required",
+      "firebase_firebase",
+      "readme_md"
+    ],
+    "7": [
+      "docs_7_deployment_1_tri_n_khai_tr_n_firebase_khuy_n_d_ng",
+      "docs_7_deployment_1_tri_n_khai_tr_n_vercel",
+      "docs_7_deployment_2_c_u_h_nh_firebase_b_t_bu_c",
+      "docs_7_deployment_2_tri_n_khai_tr_n_render",
+      "docs_7_deployment_3_c_c_bi_n_m_i_tr_ng_chi_ti_t",
+      "docs_7_deployment_3_ch_ph_t_tri_n_local_development",
+      "docs_7_deployment_4_c_u_h_nh_i_u_h_ng_vercel_json",
+      "docs_7_deployment_4_l_u_v_local_development",
+      "docs_7_deployment_c_c_b_c_th_c_hi_n",
+      "docs_7_deployment_c_c_bi_n_m_i_tr_ng_c_n_thi_t",
+      "docs_7_deployment_c_u_h_nh_trong_render_yaml",
+      "docs_7_deployment_codeblock_1",
+      "docs_7_deployment_codeblock_2",
+      "docs_7_deployment_codeblock_3",
+      "docs_7_deployment_codeblock_4",
+      "docs_7_deployment_codeblock_5",
+      "docs_7_deployment_codeblock_6",
+      "docs_7_deployment_h_ng_d_n_tri_n_khai_deployment_guide",
+      "docs_7_deployment_l_u_v_local_development",
+      "docs_7_deployment_md"
+    ],
+    "8": [
+      "cv_compare_tn_readme_1_tech_stack",
+      "cv_compare_tn_readme_backend",
+      "cv_compare_tn_readme_database_auth",
+      "docs_2_tech_stack_backend_modular_express",
+      "docs_2_tech_stack_backend_proxy_server",
+      "docs_2_tech_stack_backend_serverless",
+      "docs_2_tech_stack_c_ng_ngh_s_d_ng_cv_compare",
+      "docs_2_tech_stack_c_ng_ngh_s_d_ng_cv_matcher_optimizer",
+      "docs_2_tech_stack_d_ch_v_c_s_d_li_u_cloud_services",
+      "docs_2_tech_stack_frontend",
+      "docs_2_tech_stack_md",
+      "docs_2_tech_stack_qu_n_l_m_ngu_n_tri_n_khai",
+      "docs_2_tech_stack_tr_tu_nh_n_t_o_ai"
+    ],
+    "9": [
+      "docs_5_api_1_internal_api_backend_proxy",
+      "docs_5_api_2_d_ch_v_l_u_tr_firebase",
+      "docs_5_api_3_google_gemini_ai_service",
+      "docs_5_api_analyzecv_cvdata_jdtext_language_isbinary",
+      "docs_5_api_analyzecv_cvtext_jdtext_language",
+      "docs_5_api_danh_s_ch_api_endpoints_cv_compare",
+      "docs_5_api_extracttextfromimage_base64data",
+      "docs_5_api_get_api_config",
+      "docs_5_api_md",
+      "docs_5_api_post_api_extract_pdf",
+      "docs_5_api_post_api_send_feedback",
+      "docs_5_api_post_api_verify_recaptcha"
+    ],
+    "10": [
+      "docs_3_frontend_1_qu_n_l_tr_ng_th_i_t_p_trung",
+      "docs_3_frontend_2_x_l_a_nh_d_ng_multi_format_support",
+      "docs_3_frontend_3_hi_n_th_k_t_qu_so_s_nh",
+      "docs_3_frontend_c_c_lu_ng_x_l_ch_nh",
+      "docs_3_frontend_c_u_tr_c_th_m_c_modular_architecture",
+      "docs_3_frontend_i_m_nh_n_ux",
+      "docs_3_frontend_ki_n_tr_c_frontend_cv_compare",
+      "docs_3_frontend_md"
+    ],
+    "11": [
+      "adminview_adminview",
+      "analysiscontext_analysiscontext",
+      "app_app",
+      "authcontext_authcontext",
+      "landingview_landingview",
+      "server_server",
+      "test_resend",
+      "uicontext_uicontext"
+    ],
+    "12": [
+      "docs_6_workflow_1_lu_ng_ph_n_t_ch_ng_th_i_batch_analysis_flow",
+      "docs_6_workflow_2_lu_ng_t_i_u_h_a_xu_t_b_n",
+      "docs_6_workflow_3_qu_n_l_d_li_u",
+      "docs_6_workflow_c_c_b_c_tr_ng_t_m",
+      "docs_6_workflow_codeblock_1",
+      "docs_6_workflow_md",
+      "docs_6_workflow_quy_tr_nh_ho_t_ng_cv_compare_workflow"
+    ],
+    "13": [
+      "src_app_errorboundary",
+      "src_app_errorboundary_componentdidcatch",
+      "src_app_errorboundary_constructor",
+      "src_app_errorboundary_getderivedstatefromerror",
+      "src_app_errorboundary_render"
+    ],
+    "14": [
+      "docs_1_overview_d_n_cv_compare",
+      "docs_1_overview_m_c_ti_u_ch_nh_core_objectives",
+      "docs_1_overview_md",
+      "docs_1_overview_t_nh_n_ng_n_i_b_t_key_features"
+    ],
+    "15": [
+      "cv_compare_tn_vite_config_env",
+      "vite_config_ts"
+    ],
+    "16": [
+      "api_md",
+      "backend_md"
+    ],
+    "17": [
+      "welcome_md"
+    ],
+    "18": [
+      "main_main"
+    ],
+    "19": [
+      "header_header"
+    ],
+    "20": [
+      "footer_footer"
+    ],
+    "21": [
+      "matchscoredisplay_matchscoredisplay"
+    ],
+    "22": [
+      "vite_config"
+    ],
+    "23": [
+      "functions_index"
+    ],
+    "24": [
+      "utils_cn"
+    ],
+    "25": [
+      "graphify_md"
+    ],
+    "26": [
+      "overview_md"
+    ],
+    "27": [
+      "tech_stack_md"
+    ],
+    "28": [
+      "frontend_md"
+    ],
+    "29": [
+      "workflow_md"
+    ],
+    "30": [
+      "deployment_md"
+    ]
+  },
+  "cohesion": {
+    "0": 0.1,
+    "1": 0.13,
+    "2": 0.08,
+    "3": 0.13,
+    "4": 0.07,
+    "5": 0.1,
+    "6": 0.1,
+    "7": 0.11,
+    "8": 0.22,
+    "9": 0.17,
+    "10": 0.25,
+    "11": 0.29,
+    "12": 0.29,
+    "13": 0.4,
+    "14": 0.5,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0,
+    "18": 1.0,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0,
+    "23": 1.0,
+    "24": 1.0,
+    "25": 1.0,
+    "26": 1.0,
+    "27": 1.0,
+    "28": 1.0,
+    "29": 1.0,
+    "30": 1.0
+  },
+  "gods": [
+    {
+      "id": "context_uicontext_useui",
+      "label": "useUI()",
+      "degree": 24
+    },
+    {
+      "id": "src_app_landingview",
+      "label": "LandingView",
+      "degree": 21
+    },
+    {
+      "id": "src_firebase_handlefirestoreerror",
+      "label": "handleFirestoreError()",
+      "degree": 20
+    },
+    {
+      "id": "src_app_cn",
+      "label": "cn()",
+      "degree": 19
+    },
+    {
+      "id": "context_authcontext_useauth",
+      "label": "useAuth()",
+      "degree": 14
+    },
+    {
+      "id": "src_app_adminview",
+      "label": "AdminView",
+      "degree": 12
+    },
+    {
+      "id": "src_app_historyview",
+      "label": "HistoryView",
+      "degree": 12
+    },
+    {
+      "id": "ai_types_analysisresult",
+      "label": "AnalysisResult",
+      "degree": 12
+    },
+    {
+      "id": "src_app_dashboardview",
+      "label": "DashboardView",
+      "degree": 11
+    },
+    {
+      "id": "context_analysiscontext_useanalysis",
+      "label": "useAnalysis()",
+      "degree": 10
+    }
+  ],
+  "surprises": [
+    {
+      "source": "`extractJDFromUrl(url)`",
+      "target": "ensureApiKey()",
+      "source_files": [
+        "docs/5_api.md",
+        "src/services/ai/geminiProvider.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "crosses file types (code \u2194 doc); connects across different repos/directories"
+    },
+    {
+      "source": "`extractJDFromUrl(url)`",
+      "target": "getGeminiClient()",
+      "source_files": [
+        "docs/5_api.md",
+        "src/services/ai/geminiProvider.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "crosses file types (code \u2194 doc); connects across different repos/directories"
+    },
+    {
+      "source": "Admin Dashboard View",
+      "target": "Express Backend Server",
+      "source_files": [
+        "src/components/views/AdminView.tsx",
+        "server.ts"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "Express Backend Server",
+      "target": "Resend Email Test Script",
+      "source_files": [
+        "server.ts",
+        "test-resend.ts"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "AnalysisInputView Component",
+      "target": "Match Service",
+      "source_files": [
+        "src/components/views/AnalysisInputView.tsx",
+        "src/services/matchService.ts"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

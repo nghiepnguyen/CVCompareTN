@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, signInWithRedirect, signInWithPopup, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import { UserProfile, getUserProfile, createUserProfile, subscribeToAllUsers } from '../services/userService';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
@@ -26,14 +26,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [error, setError] = useState<string | React.ReactNode | null>(null);
   const [isAuthInitialized, setIsAuthInitialized] = useState(false);
-  const [isRedirectChecked, setIsRedirectChecked] = useState(false);
+  const [isRedirectChecked, setIsRedirectChecked] = useState(true); // OAuth redirect handled by Supabase session
   
   const { executeRecaptcha } = useGoogleReCaptcha();
 
   const loadUserProfileData = async (currentUser: User) => {
     setIsLoadingProfile(true);
     try {
-      let profile = await getUserProfile(currentUser.uid);
+      let profile = await getUserProfile(currentUser.id);
       
       if (!profile) {
         let token = undefined;
@@ -44,7 +44,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error("Lỗi thực thi reCAPTCHA cho email chào mừng:", recaptchaErr);
           }
         }
-        profile = await createUserProfile(currentUser, token);
+        
+        try {
+          profile = await createUserProfile(currentUser, token);
+        } catch (createErr: any) {
+          // Nếu báo lỗi trùng ID (23505), nghĩa là hồ sơ vừa được tạo hoặc đã tồn tại
+          if (createErr.code === '23505') {
+            console.log("AuthProvider: [RETRY] Hồ sơ đã tồn tại, đang thử tải lại...");
+            profile = await getUserProfile(currentUser.id);
+          } else {
+            throw createErr;
+          }
+        }
       }
       setUserProfile(profile);
     } catch (err: any) {
@@ -55,105 +66,117 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    let isRedirecting = false;
-
-    const handleAuth = async () => {
-      console.log("AuthProvider: Khởi tạo Firebase Auth...");
+  const fetchAllUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
       
-      // 1. Setup onAuthStateChanged immediately
-      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        console.log("AuthProvider: onAuthStateChanged fired. User:", currentUser?.email || 'Guest');
-        setUser(currentUser);
-        
-        if (currentUser) {
-          loadUserProfileData(currentUser);
-        } else {
-          setUserProfile(null);
-          setIsLoadingProfile(false);
-        }
-        
-        setIsAuthInitialized(true);
-      }, (err) => {
-        console.error("AuthProvider: onAuthStateChanged error:", err);
-        setIsAuthInitialized(true);
-        setError("Lỗi kết nối Firebase: " + err.message);
-      });
-
-      // 2. Fallback timeout to prevent stuck screen
-      const timeoutId = setTimeout(() => {
-        if (!isAuthInitialized) {
-          console.warn("AuthProvider: Initialization timeout reached. Forcing true.");
-          setIsAuthInitialized(true);
-        }
-      }, 8000);
-
-      // 3. Handle redirect result
-      try {
-        console.log("AuthProvider: Đang kiểm tra Redirect Result...");
-        const result = await getRedirectResult(auth).catch(e => {
-          console.warn("Lỗi kiểm tra Redirect Result:", e);
-          return null;
-        });
-
-        setIsRedirectChecked(true);
-
-        if (result && result.user) {
-          console.log("AuthProvider: Đăng nhập thành công qua redirect:", result.user.email);
-          setUser(result.user);
-        }
-      } catch (err: any) {
-        console.error("Lỗi nặng khi xử lý kết quả chuyển hướng:", err);
-        setIsRedirectChecked(true);
-        if (err.code === 'auth/unauthorized-domain') {
-          setError('Lỗi tên miền: Tên miền hiện tại không được phép đăng nhập qua Firebase. Vui lòng thêm domain này vào Authorized Domains trong Firebase Console.');
-        } else {
-          setError("Lỗi đăng nhập: " + err.message);
-        }
-        setIsLoadingProfile(false);
-        setIsAuthInitialized(true); // Ensure we don't get stuck
-      }
-
-      return () => {
-        clearTimeout(timeoutId);
-        unsubscribe();
-      };
-    };
-
-    const unsubscribePromise = handleAuth();
-    return () => {
-      unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
-    };
-  }, [executeRecaptcha]);
+      if (error) throw error;
+      
+      const mappedUsers: UserProfile[] = data.map(u => ({
+        id: u.id,
+        email: u.email,
+        displayName: u.display_name,
+        photoURL: u.photo_url,
+        role: u.role,
+        hasPermission: u.has_permission,
+        usageCount: u.usage_count,
+        createdAt: u.created_at,
+        isNew: u.is_new
+      }));
+      
+      setAllUsers(mappedUsers);
+    } catch (err: any) {
+      console.error("Lỗi khi tải danh sách người dùng:", err);
+    }
+  };
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    if (userProfile?.role === 'admin' || user?.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase()) {
-      unsubscribe = subscribeToAllUsers(setAllUsers);
-    }
-    return () => {
-      if (unsubscribe) unsubscribe();
+    let isMounted = true;
+    console.log("AuthProvider: [INIT] Bắt đầu khởi tạo Supabase Auth...");
+
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!isMounted) return;
+
+      const currentUser = session?.user ?? null;
+      console.log("AuthProvider: [SESSION] User:", currentUser ? currentUser.email : "Trống");
+      console.log("AuthProvider: [SESSION] Full Session Object:", session);
+      setUser(currentUser);
+      
+      if (currentUser) {
+        loadUserProfileData(currentUser);
+      } else {
+        setIsLoadingProfile(false);
+      }
+      setIsAuthInitialized(true);
     };
-  }, [userProfile, user]);
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
+      console.log("AuthProvider: [EVENT] Auth state changed:", _event);
+      
+      const currentUser = session?.user ?? null;
+      console.log("AuthProvider: [EVENT] Auth event:", _event, "User:", currentUser?.email);
+      setUser(currentUser);
+      
+      if (currentUser) {
+        loadUserProfileData(currentUser);
+      } else {
+        setUserProfile(null);
+        setIsLoadingProfile(false);
+      }
+      setIsAuthInitialized(true);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []); // Không phụ thuộc vào executeRecaptcha để tránh re-subscribe loop
+
+  useEffect(() => {
+    if (userProfile?.role === 'admin') {
+      fetchAllUsers();
+      
+      // Đăng ký lắng nghe thay đổi để cập nhật realtime
+      const channel = supabase
+        .channel('admin_profiles_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+          fetchAllUsers();
+        })
+        .subscribe();
+        
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [userProfile]);
 
   const login = async () => {
     try {
-      console.log("AuthProvider: Bắt đầu đăng nhập với Popup...");
-      await signInWithPopup(auth, googleProvider);
-      console.log("AuthProvider: Đăng nhập thành công!");
+      console.log("AuthProvider: Bắt đầu đăng nhập với Google OAuth...");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      
+      if (error) throw error;
     } catch (err: any) {
       console.error("Login Error:", err);
-      if (err.code === 'auth/unauthorized-domain') {
-        setError('Lỗi tên miền: Tên miền hiện tại không được phép đăng nhập qua Firebase. Vui lòng thêm ' + window.location.hostname + ' vào Authorized Domains trong Firebase Console.');
-      } else {
-        setError("Lỗi đăng nhập: " + err.message);
-      }
+      setError("Lỗi đăng nhập: " + err.message);
     }
   };
 
   const logout = async () => {
     try {
-      await signOut(auth);
+      await supabase.auth.signOut();
       setUser(null);
       setUserProfile(null);
     } catch (err: any) {

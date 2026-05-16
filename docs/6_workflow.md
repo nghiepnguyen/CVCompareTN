@@ -11,7 +11,7 @@ graph TD
     C --> D[Vòng lặp: Phân tích từng CV]
     D --> E{Định dạng file?}
     E -->|Văn bản/Docx| F[Frontend: Extract Text]
-    E -->|PDF/Hình ảnh| G[API: /api/extract-pdf]
+    E -->|PDF (server)| G[Vercel: POST /api/extract-pdf \n hoặc Express: /api/extract-pdf/extract]
     F --> H[Chuẩn bị Payload Gemini]
     G --> I[Gemini: Multimodal Direct]
     H --> I
@@ -19,7 +19,7 @@ graph TD
     I --> J[Tích lũy kết quả vào mảng Results]
     D -.->|Lặp đến hết danh sách| C
     J --> K[Hiển thị bảng so khớp & Phân tích chi tiết]
-    K --> L[Lưu vào lịch sử Firestore]
+    K --> L[Lưu vào lịch sử Supabase]
 ```
 
 ### Các bước trọng tâm:
@@ -31,7 +31,8 @@ graph TD
 
 1.  Từ kết quả so sánh, người dùng có thể chọn một kết quả cụ thể để xem chi tiết.
 2.  **Optimization:** AI đề xuất cách viết lại CV để khớp 100% với JD đó.
-3.  **Export:** Tính năng in (Print) giúp xuất bản CV đã tối ưu ra file PDF chuyên nghiệp ngay lập tức.
+3.  **Export:** In (`PrintView` / `window.print()`) xuất CV Markdown đã tối ưu; có sao chép Markdown / plain text từ tab Optimization.
+4.  **Hiển thị CV tối ưu:** `fullRewrittenCV` (Markdown GFM từ Gemini) được chuẩn hoá bởi `fullRewrittenCvMarkdown.ts` và render qua `CvMarkdownBody.tsx` (sanitize + typography `.cv-markdown-specimen`).
 
 ## 3. Quản lý dữ liệu
 

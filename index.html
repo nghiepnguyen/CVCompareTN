@@ -50,66 +50,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      (function() {
-        // Try to make window.fetch writable if possible
-        try {
-          const originalFetch = window.fetch;
-          Object.defineProperty(window, 'fetch', {
-            value: originalFetch,
-            writable: true,
-            configurable: true
-          });
-        } catch (e) {
-          console.warn('Could not make window.fetch writable, relying on proxy.');
-        }
-
-        const overrides = new Map();
-        const proxy = new Proxy(window, {
-          get(target, prop) {
-            if (prop === 'global' || prop === 'globalThis') return proxy;
-            if (overrides.has(prop)) return overrides.get(prop);
-            
-            const value = target[prop];
-            if (typeof value === 'function') {
-              // Bind native functions to window to avoid Illegal invocation
-              if (value.toString().includes('[native code]') && !/^[A-Z]/.test(String(prop))) {
-                return value.bind(target);
-              }
-            }
-            return value;
-          },
-          set(target, prop, value) {
-            if (prop === 'fetch' || prop === 'global' || prop === 'globalThis' || prop === 'self') {
-              overrides.set(prop, value);
-              return true;
-            }
-            try {
-              target[prop] = value;
-            } catch (e) {
-              overrides.set(prop, value);
-            }
-            return true;
-          }
-        });
-        window.global = proxy;
-        
-        // Try to set globalThis if it's not already set or is configurable
-        try {
-          if (typeof globalThis === 'undefined' || Object.getOwnPropertyDescriptor(window, 'globalThis')?.configurable) {
-            Object.defineProperty(window, 'globalThis', {
-              value: proxy,
-              configurable: true,
-              writable: true
-            });
-          }
-        } catch (e) {}
-
-        if (typeof process === 'undefined') {
-          window.process = { env: {} };
-        }
-      })();
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

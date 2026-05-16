@@ -1,16 +1,27 @@
-import { auth, storage } from "../firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { supabase } from "../lib/supabase";
 
 export async function uploadFileToStorage(file: File, path: string): Promise<string> {
-  if (!auth.currentUser) throw new Error("Bạn cần đăng nhập để tải tệp lên.");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Bạn cần đăng nhập để tải tệp lên.");
   
   try {
-    const fileRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-    const snapshot = await uploadBytes(fileRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    return downloadURL;
-  } catch (error) {
+    const fileName = `${Date.now()}_${file.name}`;
+    const filePath = `${path}/${fileName}`;
+
+    // Note: 'cv-files' bucket must exist in Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('cv-files')
+      .upload(filePath, file);
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('cv-files')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  } catch (error: any) {
     console.error("Lỗi khi tải tệp lên Storage:", error);
-    throw new Error("Không thể tải tệp lên. Vui lòng thử lại.");
+    throw new Error("Không thể tải tệp lên: " + error.message);
   }
 }

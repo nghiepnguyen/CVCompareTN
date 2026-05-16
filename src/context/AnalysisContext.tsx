@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useState, useRef } from 'react';
-import mammoth from 'mammoth';
+// import mammoth from 'mammoth'; // Moved to dynamic import
 import { useAuth } from './AuthContext';
 import { useUI } from './UIContext';
+import { supabase } from '../lib/supabase';
 import { 
   AnalysisResult, 
   analyzeCV, 
   extractJDFromUrl, 
   extractTextFromImage,
-} from '../services/aiService';
+} from '../services/ai';
 import {
   saveToHistory, 
   deleteFromHistory, 
@@ -89,10 +90,10 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingSavedJDs, setIsLoadingSavedJDs] = useState(false);
 
   const loadHistory = async () => {
-    if (user?.uid) {
+    if (user?.id) {
       setIsLoadingHistory(true);
       try {
-        const userHistory = await getUserHistory(user.uid);
+        const userHistory = await getUserHistory(user.id);
         setHistory(userHistory);
       } catch (err) {
         console.error("Error loading history:", err);
@@ -103,10 +104,10 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loadSavedJDs = async () => {
-    if (user?.uid) {
+    if (user?.id) {
       setIsLoadingSavedJDs(true);
       try {
-        const jds = await getSavedJDs(user.uid);
+        const jds = await getSavedJDs(user.id);
         setSavedJDs(jds);
       } catch (err) {
         console.error("Error loading saved JDs:", err);
@@ -118,14 +119,14 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
 
   // Load user data when user changes
   React.useEffect(() => {
-    if (user?.uid) {
+    if (user?.id) {
       loadHistory();
       loadSavedJDs();
     } else {
       setHistory([]);
       setSavedJDs([]);
     }
-  }, [user?.uid]);
+  }, [user?.id]);
 
   const cleanText = (text: string): string => {
     return text.replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').replace(/\n\s*\n/g, '\n\n').trim();
@@ -146,6 +147,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       return { data: await pdfBase64Promise, mimeType: 'application/pdf' };
     } else if (isDocx) {
       const arrayBuffer = await file.arrayBuffer();
+      const mammoth = (await import('mammoth')).default;
       const result = await mammoth.extractRawText({ arrayBuffer });
       return { data: cleanText(result.value), mimeType: 'text/plain' };
     } else if (isImage) {
@@ -213,13 +215,11 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         const token = await executeRecaptcha('analyze_cv');
-        const verifyResponse = await fetch('/api/verify-recaptcha', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
+        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-recaptcha', {
+          body: { token }
         });
-        const verifyData = await verifyResponse.json();
-        if (!verifyData.success) {
+
+        if (verifyError || !verifyData?.success) {
           setError('Xác nhận reCAPTCHA thất bại (điểm tin cậy thấp). Vui lòng thử lại.');
           setIsAnalyzing(false);
           return;
@@ -258,13 +258,13 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
           setAnalysisProgress(fileBaseProgress + 15);
           
           const analysis = await analyzeCV(jd, data, mimeType, file.name, jdInputMode === 'link' ? jdUrl : undefined, reportLanguage);
-          newResults.push({ ...analysis, userId: user?.uid });
+          newResults.push({ ...analysis, userId: user?.id });
           
           if (window.gtag) {
             window.gtag('event', 'analysis_success', { cv_name: file.name, match_score: analysis.matchScore, jd_type: jdInputMode });
           }
           setAnalysisProgress(fileBaseProgress + (1 / totalFiles) * 75);
-          if (user?.uid) incrementUsageCount(user.uid).catch(console.error);
+          if (user?.id) incrementUsageCount(user.id).catch(console.error);
         }
       } else {
         setAnalysisStatus(reportLanguage === 'vi' ? 'Đang đọc nội dung CV...' : 'Reading CV content...');
@@ -273,13 +273,13 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         setAnalysisProgress(45);
         
         const analysis = await analyzeCV(jd, cvText, 'text/plain', 'CV_Pasted.txt', jdInputMode === 'link' ? jdUrl : undefined, reportLanguage);
-        newResults.push({ ...analysis, userId: user?.uid });
+        newResults.push({ ...analysis, userId: user?.id });
         
         if (window.gtag) {
           window.gtag('event', 'analysis_success', { cv_name: 'Pasted Text', match_score: analysis.matchScore, jd_type: jdInputMode });
         }
         setAnalysisProgress(90);
-        if (user?.uid) incrementUsageCount(user.uid).catch(console.error);
+        if (user?.id) incrementUsageCount(user.id).catch(console.error);
       }
 
       setAnalysisStatus(reportLanguage === 'vi' ? 'Đang tổng hợp kết quả...' : 'Synthesizing results...');
@@ -287,7 +287,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       setResults(newResults);
       setHistory(prev => [...newResults, ...prev].slice(0, 20));
       
-      if (user?.uid) saveToHistory(newResults).catch(console.error);
+      if (user?.id) saveToHistory(newResults).catch(console.error);
       if (newResults.length === 1) setSelectedResult(newResults[0]);
       
       setAnalysisProgress(100);
@@ -306,9 +306,9 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
   const clearHistory = async () => {
     if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử không?')) {
       setHistory([]);
-      if (user?.uid) {
+      if (user?.id) {
         try {
-          await clearUserHistory(user.uid);
+          await clearUserHistory(user.id);
         } catch (err) {
           console.error("Error clearing history:", err);
         }
@@ -318,9 +318,9 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
 
   const deleteHistoryItem = async (id: string) => {
     setHistory(prev => prev.filter(item => item.id !== id));
-    if (user?.uid) {
+    if (user?.id) {
       try {
-        await deleteFromHistory(user.uid, id);
+        await deleteFromHistory(user.id, id);
       } catch (err) {
         console.error("Error deleting history item:", err);
       }
@@ -333,7 +333,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     setIsSavingJD(true);
     try {
-      await saveJDToProfile(user.uid, title, jd);
+      await saveJDToProfile(user.id, title, jd);
       await loadSavedJDs();
       if (window.gtag) window.gtag('event', 'jd_create', { method: 'manual' });
     } catch (err: any) {
@@ -347,7 +347,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     if (!window.confirm('Bạn có chắc chắn muốn xóa JD này khỏi kho lưu trữ không?')) return;
     try {
-      await deleteSavedJD(user.uid, jdId);
+      await deleteSavedJD(user.id, jdId);
       await loadSavedJDs();
     } catch (err: any) {
       setError("Lỗi khi xóa JD: " + err.message);

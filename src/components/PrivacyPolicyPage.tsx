@@ -97,7 +97,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
               <h2 className="text-2xl font-black tracking-tight">3. Bảo mật dữ liệu</h2>
             </div>
             <p className="leading-relaxed">
-              Chúng tôi áp dụng các biện pháp bảo mật kỹ thuật và tổ chức nghiêm ngặt để bảo vệ dữ liệu của bạn khỏi việc truy cập, thay đổi hoặc phá hủy trái phép. Dữ liệu của bạn được lưu trữ an toàn trên nền tảng Firebase của Google.
+              Chúng tôi áp dụng các biện pháp bảo mật kỹ thuật và tổ chức nghiêm ngặt để bảo vệ dữ liệu của bạn khỏi việc truy cập, thay đổi hoặc phá hủy trái phép. Dữ liệu của bạn được lưu trữ trên hạ tầng Supabase (PostgreSQL và Storage), được triển khai trên đám mây với các điều khiển truy cập và mã hóa phù hợp.
             </p>
           </section>
 

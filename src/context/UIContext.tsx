@@ -71,7 +71,8 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     url.searchParams.delete('support');
     
     if (currentPathname !== newPathname || hadLegacyParams) {
-      window.history.pushState(null, '', newPathname + url.search);
+      // Đảm bảo giữ lại hash fragment (chứa token của Supabase)
+      window.history.pushState(null, '', newPathname + url.search + window.location.hash);
     }
   }, [reportLanguage, activeTab]);
 

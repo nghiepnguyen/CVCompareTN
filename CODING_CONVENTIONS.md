@@ -13,7 +13,8 @@ This document outlines the coding standards and conventions for the CV Matcher &
 
 ### Files and Directories
 -   **React Components:** PascalCase (e.g., `MatchScoreDisplay.tsx`, `PrivacyPolicyPage.tsx`).
--   **Utility/Service Files:** camelCase (e.g., `geminiService.ts`, `firebase.ts`).
+-   **Utility/Service Files:** camelCase (e.g., `geminiProvider.ts`, `supabase.ts`).
+-   **Service Modules:** For complex services, use a directory structure with an `index.ts` entry point (e.g., `src/services/ai/`).
 -   **Directories:** kebab-case or camelCase, but be consistent (e.g., `components`, `services`).
 
 ### Variables and Functions
@@ -38,6 +39,12 @@ This document outlines the coding standards and conventions for the CV Matcher &
 -   **State Management:** Keep state as close to where it's needed as possible. Lift state up only when necessary for sharing between components.
 -   **Effect Dependencies:** Always specify dependencies in `useEffect`, `useMemo`, and `useCallback`. Avoid omitting dependencies to suppress warnings; fix the underlying issue instead.
 -   **Event Handlers:** Prefix event handler functions with `handle` (e.g., `handleFileChange`, `handleSubmit`).
+
+## 4. Performance Optimization
+
+-   **React.memo:** Use `React.memo` for heavy components that receive stable data (e.g., Analysis Result Tabs). This prevents unnecessary re-renders when parent states (like scrolling or navigation) change.
+-   **Code Splitting:** Use dynamic `import()` or `React.lazy` for large components or entire pages that are not needed immediately.
+-   **Dependency Optimization:** Be cautious with `useEffect` and `useMemo` dependencies to avoid infinite loops or redundant computations.
 
 ## 4. Styling (Tailwind CSS)
 
@@ -84,3 +91,9 @@ Organize the contents of a React component file in the following order:
 5.  Helper functions/Event handlers.
 6.  Return statement (JSX).
 7.  Exports.
+
+## 9. Secrets & Environment
+
+-   Copy `.env.example` to `.env` for local work; never commit `.env` or real API keys.
+-   Do not add `supabase/.temp/`, `.vercel/`, private keys (`*.pem`), `*-backup.json`, or `graphify-out/cache/` to Git (see root `.gitignore`).
+-   Prefix only **public** client config with `VITE_`. Server secrets (`GEMINI_API_KEY`, `RECAPTCHA_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) stay server-side.

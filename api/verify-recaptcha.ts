@@ -32,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     const { success, score } = response.data;
     
-    if (success && (score === undefined || score >= 0.3)) {
+    if (success && score !== undefined && score >= 0.5) {
       return res.status(200).json(response.data);
     } else {
       console.warn('Low reCAPTCHA score:', score, response.data);

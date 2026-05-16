@@ -1,15 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=Fira+Sans:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Manrope", "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-cv: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-cv-header: "Fira Code", monospace;
   
-  --color-primary: oklch(0.6 0.18 255);
-  --color-primary-light: oklch(0.9 0.05 255);
-  --color-accent: oklch(0.7 0.2 320);
-  --color-surface: oklch(0.98 0 0);
+  /* Base UI Tokens */
+  --color-primary: #0f172a;
+  --color-primary-light: #f1f5f9;
+  --color-accent: #4f46e5;
+  --color-accent-light: #eef2ff;
+  --color-accent-hover: #4338ca;
+  --color-success: #10b981;
+  --color-success-light: #ecfdf5;
+  --color-warning: #f59e0b;
+  --color-warning-light: #fffbeb;
+  --color-error: #ef4444;
+  --color-error-light: #fef2f2;
+  --color-surface: #ffffff;
+  --color-surface-secondary: #f8fafc;
+  --color-surface-muted: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-text-main: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-light: #94a3b8;
   
+  /* CV Specific Tokens */
+  --color-cv-dark: #020617;
+  --color-cv-slate: #334155;
+  --color-cv-indigo: #4f46e5;
+  --color-cv-border: #0f172a;
+  --color-cv-muted: #64748b;
+
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
   --radius-3xl: 2rem;
@@ -18,7 +43,7 @@
 
 @layer base {
   body {
-    @apply font-sans text-slate-900 bg-slate-50 antialiased;
+    @apply font-sans text-text-main bg-surface-secondary antialiased;
   }
   button, 
   [role="button"],
@@ -33,67 +58,140 @@
   }
 }
 
-.markdown-body {
-  line-height: 1.7;
-  color: #334155;
+/*
+  Full Optimized CV — typography is driven by CSS variables on .cv-markdown-specimen.
+  Defaults use :where(...) so specificity stays low: override with:
+    .cv-markdown-specimen { --cv-md-body-size: 1rem; --cv-md-text: #1e293b; }
+  or any selector that targets the element (e.g. .cv-markdown-specimen p { ... }).
+*/
+.cv-markdown-specimen {
   word-wrap: break-word;
+  font-family: var(--cv-md-font-body);
+  color: var(--cv-md-text);
+  line-height: var(--cv-md-body-leading);
+  --cv-md-font-body: var(--font-cv);
+  --cv-md-font-header: var(--font-cv-header);
+  --cv-md-text: var(--color-cv-slate);
+  --cv-md-text-strong: var(--color-cv-dark);
+  --cv-md-text-muted: var(--color-cv-muted);
+  --cv-md-accent: var(--color-cv-indigo);
+  --cv-md-rule: var(--color-cv-border);
+  --cv-md-body-size: 0.875rem;
+  --cv-md-body-weight: 400;
+  --cv-md-body-leading: 1.625;
+  --cv-md-small-size: 0.8125rem;
+  --cv-md-code-size: 0.75rem;
+  --cv-md-h1-size: clamp(1.75rem, 4vw, 3rem);
+  --cv-md-h2-size: 1.125rem;
+  --cv-md-h3-size: 0.9375rem;
+  --cv-md-stamp-size: 0.625rem;
 }
 
-.markdown-body h1 {
-  display: block;
-  font-size: 2.25rem;
-  font-weight: 800;
-  margin-top: 2.5rem;
-  margin-bottom: 1.25rem;
-  color: #0f172a;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 0.75rem;
-  width: 100%;
+.cv-markdown-specimen :where(p) {
+  font-family: var(--cv-md-font-body);
+  font-size: var(--cv-md-body-size);
+  font-weight: var(--cv-md-body-weight);
+  line-height: var(--cv-md-body-leading);
+  color: var(--cv-md-text);
+  text-align: start;
 }
 
-.markdown-body h2 {
-  display: flex;
-  font-size: 1.75rem;
+.cv-markdown-specimen header > :where(p) {
+  font-family: var(--cv-md-font-header);
+  font-size: var(--cv-md-stamp-size);
   font-weight: 700;
-  margin-top: 2.5rem;
-  margin-bottom: 1rem;
-  color: #4f46e5;
-  align-items: center;
-  gap: 0.6rem;
-  width: 100%;
+  line-height: 1.4;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--cv-md-text-muted);
 }
 
-.markdown-body h3 {
-  font-size: 1.25rem;
+.cv-markdown-specimen :where(h1) {
+  font-family: var(--cv-md-font-header);
+  font-size: var(--cv-md-h1-size);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+  color: var(--cv-md-text-strong);
+}
+
+.cv-markdown-specimen :where(h2) {
+  font-family: var(--cv-md-font-header);
+  font-size: var(--cv-md-h2-size);
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: var(--cv-md-text-strong);
+}
+
+.cv-markdown-specimen :where(h3) {
+  font-family: var(--cv-md-font-header);
+  font-size: var(--cv-md-h3-size);
+  font-weight: 900;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--cv-md-text-strong);
+}
+
+.cv-markdown-specimen :where(strong) {
+  font-weight: 900;
+  color: var(--cv-md-text-strong);
+}
+
+.cv-markdown-specimen :where(a) {
   font-weight: 600;
-  margin-top: 2rem;
-  margin-bottom: 0.75rem;
-  color: #1e293b;
+  color: var(--cv-md-accent);
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, var(--cv-md-accent) 30%, transparent);
+  text-underline-offset: 2px;
 }
 
-.markdown-body p {
-  margin-bottom: 1.25rem;
+.cv-markdown-specimen :where(blockquote) {
+  font-size: var(--cv-md-small-size);
+  font-style: italic;
+  line-height: var(--cv-md-body-leading);
+  color: color-mix(in srgb, var(--cv-md-text) 95%, transparent);
 }
 
-.markdown-body ul {
-  margin-bottom: 1.25rem;
-  padding-left: 1.5rem;
-  list-style-type: disc;
+.cv-markdown-specimen :where(li) {
+  font-family: var(--cv-md-font-body);
+  font-size: var(--cv-md-body-size);
+  line-height: var(--cv-md-body-leading);
+  color: var(--cv-md-text);
 }
 
-.markdown-body li {
-  margin-bottom: 0.6rem;
+.cv-markdown-specimen :where(td) {
+  font-family: var(--cv-md-font-body);
+  font-size: var(--cv-md-small-size);
+  color: var(--cv-md-text);
 }
 
-.markdown-body strong {
-  color: #0f172a;
-  font-weight: 700;
+.cv-markdown-specimen :where(th) {
+  font-family: var(--cv-md-font-header);
+  font-size: 0.625rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.markdown-body hr {
-  margin: 2.5rem 0;
-  border: 0;
-  border-top: 1px solid #e2e8f0;
+.cv-markdown-specimen :where(pre) {
+  font-size: var(--cv-md-code-size);
+  line-height: var(--cv-md-body-leading);
+  color: var(--cv-md-text-strong);
+}
+
+.cv-markdown-specimen :where(pre code) {
+  font-size: inherit;
+  color: inherit;
+}
+
+.cv-markdown-specimen :where(code:not(pre code)) {
+  font-family: var(--font-cv-header), ui-monospace, monospace;
+  font-size: var(--cv-md-code-size);
+  color: var(--cv-md-text-strong);
 }
 
 /* Hide reCAPTCHA badge globally since brand text is provided in App.tsx */
@@ -109,12 +207,7 @@
   left: -9999px !important;
 }
 
-/* 
-   BULLETPROOF PRINT ISOLATION: 
-   Standard view hides the print container.
-   Print view hides the dashboard and shows the CV.
-*/
-
+/* Standard view hides the print container. */
 #cv-print-root {
   display: none !important;
 }
@@ -154,29 +247,11 @@
     z-index: 99999 !important;
   }
 
-  /* Ensure the Markdown container is clean for paper */
-  .markdown-body {
+  .cv-markdown-specimen {
     background: white !important;
-    color: #1e293b !important;
-    font-size: 11pt !important;
-    line-height: 1.6 !important;
     padding: 0 !important;
-  }
-
-  /* Specific header styling for paper */
-  .markdown-body h1 {
-    font-size: 24pt !important;
-    text-align: center !important;
-    margin-bottom: 30pt !important;
-    border-bottom: 2pt solid #f1f5f9 !important;
-  }
-
-  .markdown-body h2 {
-    font-size: 14pt !important;
-    background: #f8fafc !important;
-    padding: 4pt 12pt !important;
-    border-left: 4pt solid #4f46e5 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    max-width: none !important;
+    --cv-md-text: #1e293b;
+    --cv-md-text-strong: #0f172a;
   }
 }

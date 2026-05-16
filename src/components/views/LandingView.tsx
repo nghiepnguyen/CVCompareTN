@@ -17,7 +17,7 @@ const BentoCard = ({ children, className, delay = 0 }: any) => (
     viewport={{ once: true }}
     transition={{ duration: 0.5, delay }}
     className={cn(
-      "relative overflow-hidden rounded-[1.5rem] md:rounded-[2rem] border border-slate-200/60 bg-white/80 p-6 md:p-8 backdrop-blur-xl transition-all hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5",
+      "relative overflow-hidden rounded-[1.5rem] md:rounded-[2rem] border border-border bg-surface/80 p-6 md:p-8 backdrop-blur-xl transition-all hover:border-accent/30 hover:shadow-2xl hover:shadow-accent/5",
       className
     )}
   >
@@ -28,7 +28,7 @@ const BentoCard = ({ children, className, delay = 0 }: any) => (
 const FeatureIcon = ({ icon: Icon, color = "primary" }: any) => (
   <div className={cn(
     "mb-6 flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm",
-    color === "primary" ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"
+    color === "primary" ? "bg-accent-light text-accent" : "bg-accent-light text-accent"
   )}>
     <Icon className="h-7 w-7" />
   </div>
@@ -44,7 +44,7 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-bold text-primary backdrop-blur-md"
+        className="mb-8 inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent-light px-4 py-1.5 text-sm font-bold text-accent backdrop-blur-md"
       >
         <Sparkles className="h-4 w-4" />
         <span>AI-Powered CV Intelligence</span>
@@ -54,10 +54,10 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1 }}
-        className="font-sans text-4xl font-extrabold tracking-tight text-slate-900 sm:text-7xl lg:text-8xl"
+        className="font-sans text-4xl font-extrabold tracking-tight text-text-main sm:text-7xl lg:text-8xl"
       >
         {t.heroTitle.split(' ').slice(0, -1).join(' ')} <br className="hidden sm:block" />
-        <span className="block mt-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent sm:inline sm:mt-0">
+        <span className="block mt-2 bg-gradient-to-r from-accent to-accent bg-clip-text text-transparent sm:inline sm:mt-0">
           {t.heroTitle.split(' ').slice(-1)} Smart Insights
         </span>
       </motion.h1>
@@ -66,7 +66,7 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-slate-600 sm:text-xl"
+        className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-text-muted sm:text-xl"
       >
         {t.heroDesc}
       </motion.p>
@@ -79,9 +79,9 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
       >
         <button
           onClick={login}
-          className="group relative flex h-14 w-full sm:w-auto items-center justify-center gap-2 overflow-hidden rounded-2xl bg-slate-900 px-10 font-bold text-white transition-all hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-900/20 active:scale-95"
+          className="group relative flex h-14 w-full sm:w-auto items-center justify-center gap-2 overflow-hidden rounded-2xl bg-text-main px-10 font-bold text-white transition-all hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-900/20 active:scale-95 cursor-pointer"
         >
-          <Zap className="h-5 w-5 fill-current text-primary" />
+          <Zap className="h-5 w-5 fill-current text-accent" />
           <span>{t.startNow}</span>
           <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
         </button>
@@ -89,10 +89,10 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
           href="https://hr.thanhnghiep.top"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-14 w-full sm:w-auto items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-8 font-bold text-slate-900 transition-all hover:bg-slate-50 hover:shadow-lg active:scale-95"
+          className="flex h-14 w-full sm:w-auto items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-8 font-bold text-text-main transition-all hover:bg-surface-secondary hover:shadow-lg active:scale-95 cursor-pointer"
         >
           <span className="truncate">{t.forEmployers}</span>
-          <ArrowRight className="h-5 w-5 text-slate-400 shrink-0" />
+          <ArrowRight className="h-5 w-5 text-text-light shrink-0" />
         </a>
       </motion.div>
 
@@ -100,7 +100,7 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8 }}
-        className="mt-6 text-sm font-semibold text-slate-400"
+        className="mt-6 text-sm font-semibold text-text-light"
       >
         {t.heroSub}
       </motion.p>
@@ -114,7 +114,7 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
       className="relative mt-20 w-full max-w-6xl px-4"
     >
       <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/40 bg-white/30 p-2 shadow-2xl backdrop-blur-2xl transition-transform hover:scale-[1.01]">
-        <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-accent/5 opacity-0 transition-opacity group-hover:opacity-100" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-accent/5 to-accent/5 opacity-0 transition-opacity group-hover:opacity-100" />
           <img
             src="https://thanhnghiep.top/CVMatcher/cv-dash.jpg"
             alt={t.seoTitle || "CV Matcher & Optimizer Dashboard"}
@@ -125,7 +125,7 @@ const HeroSection = ({ t, login, opacity, scale }: any) => (
       </div>
 
       {/* Decorative Elements */}
-      <div className="absolute -top-10 -right-10 h-32 w-32 animate-pulse rounded-full bg-primary/20 blur-3xl" />
+      <div className="absolute -top-10 -right-10 h-32 w-32 animate-pulse rounded-full bg-accent/20 blur-3xl" />
       <div className="absolute -bottom-10 -left-10 h-32 w-32 animate-pulse rounded-full bg-accent/20 blur-3xl" />
     </motion.div>
   </section>
@@ -142,9 +142,9 @@ const TrustSection = ({ t }: any) => {
   ];
 
   return (
-    <section className="w-full border-y border-slate-200/60 bg-white/50 py-12 backdrop-blur-sm">
+    <section className="w-full border-y border-border bg-surface-secondary/50 py-12 backdrop-blur-sm">
       <div className="container mx-auto px-4">
-        <p className="mb-8 text-center text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+        <p className="mb-8 text-center text-xs font-black uppercase tracking-[0.2em] text-text-light">
           {t.trustedBy}
         </p>
         <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
@@ -154,12 +154,12 @@ const TrustSection = ({ t }: any) => {
               href={expert.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative"
+              className="group relative cursor-pointer"
             >
-              <span className="font-sans text-xl md:text-2xl font-black italic tracking-tighter text-slate-400 transition-all duration-300 group-hover:text-slate-900 group-hover:scale-110 block">
+              <span className="font-sans text-xl md:text-2xl font-black italic tracking-tighter text-text-light transition-all duration-300 group-hover:text-text-main group-hover:scale-110 block">
                 {expert.name}
               </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-primary transition-all duration-300 group-hover:w-full" />
+              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-accent transition-all duration-300 group-hover:w-full" />
             </a>
           ))}
         </div>
@@ -177,7 +177,7 @@ const ProblemSection = ({ t }: any) => (
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="font-sans text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+          className="font-sans text-4xl font-extrabold tracking-tight text-text-main sm:text-5xl"
         >
           {t.problemTitle}
         </motion.h2>
@@ -186,27 +186,27 @@ const ProblemSection = ({ t }: any) => (
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <BentoCard className="lg:col-span-2">
           <FeatureIcon icon={AlertCircle} color="accent" />
-          <h3 className="mb-4 font-sans text-2xl font-bold text-slate-900">{t.problemItem1}</h3>
-          <p className="text-slate-500">{t.problemItem2}. Hệ thống ATS tự động loại bỏ các hồ sơ không chứa đúng từ khóa hoặc định dạng không chuẩn.</p>
+          <h3 className="mb-4 font-sans text-2xl font-bold text-text-main">{t.problemItem1}</h3>
+          <p className="text-text-muted">{t.problemItem2}. Hệ thống ATS tự động loại bỏ các hồ sơ không chứa đúng từ khóa hoặc định dạng không chuẩn.</p>
         </BentoCard>
 
         <BentoCard>
           <FeatureIcon icon={Clock} />
-          <h3 className="mb-4 font-sans text-2xl font-bold text-slate-900">6–10 Giây</h3>
-          <p className="text-slate-500">{t.problemItem4}. Bạn cần làm nổi bật giá trị của mình ngay lập tức.</p>
+          <h3 className="mb-4 font-sans text-2xl font-bold text-text-main">6–10 Giây</h3>
+          <p className="text-text-muted">{t.problemItem4}. Bạn cần làm nổi bật giá trị của mình ngay lập tức.</p>
         </BentoCard>
 
         <BentoCard>
           <FeatureIcon icon={Search} />
-          <h3 className="mb-4 font-sans text-2xl font-bold text-slate-900">{t.problemItem3}</h3>
-          <p className="text-slate-500">Kỹ năng không khớp khiến AI đánh giá thấp hồ sơ của bạn.</p>
+          <h3 className="mb-4 font-sans text-2xl font-bold text-text-main">{t.problemItem3}</h3>
+          <p className="text-text-muted">Kỹ năng không khớp khiến AI đánh giá thấp hồ sơ của bạn.</p>
         </BentoCard>
 
-        <BentoCard className="lg:col-span-2 bg-slate-900 text-white border-none shadow-xl shadow-slate-900/20">
+        <BentoCard className="lg:col-span-2 bg-text-main text-white border-none shadow-xl shadow-slate-900/20">
           <div className="flex h-full flex-col justify-center">
             <div className="mb-6 flex items-center gap-3">
-              <div className="h-2 w-12 rounded-full bg-primary" />
-              <span className="text-xs font-black uppercase tracking-widest text-primary">Critical Insight</span>
+              <div className="h-2 w-12 rounded-full bg-accent" />
+              <span className="text-xs font-black uppercase tracking-widest text-accent">Critical Insight</span>
             </div>
             <h3 className="mb-4 font-sans text-3xl font-extrabold leading-tight">
               {t.problemResult}
@@ -220,15 +220,15 @@ const ProblemSection = ({ t }: any) => (
 );
 
 const WhyChooseSection = ({ t }: any) => (
-  <section className="w-full bg-slate-900 py-32 text-white">
+  <section className="w-full bg-text-main py-32 text-white">
     <div className="container mx-auto max-w-6xl px-4">
       <div className="mb-24 flex flex-col items-end justify-between gap-8 md:flex-row md:items-center">
         <div className="max-w-2xl">
-          <h2 className="font-sans text-4xl font-extrabold tracking-tight sm:text-6xl">
+          <h2 className="font-sans text-4xl font-extrabold tracking-tight sm:text-6xl text-white">
             {t.whyTitle}
           </h2>
         </div>
-        <div className="h-1 w-24 bg-primary" />
+        <div className="h-1 w-24 bg-accent" />
       </div>
 
       <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
@@ -250,7 +250,7 @@ const WhyChooseSection = ({ t }: any) => (
             transition={{ delay: i * 0.05 }}
             className="group"
           >
-            <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+            <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-accent transition-colors group-hover:bg-accent group-hover:text-white">
               <item.icon className="h-6 w-6" />
             </div>
             <h4 className="mb-4 font-sans text-xl font-bold leading-snug">{item.title}</h4>
@@ -266,13 +266,13 @@ const HowItWorksSection = ({ t }: any) => (
   <section className="w-full py-32">
     <div className="container mx-auto max-w-6xl px-4">
       <div className="mb-20 text-center">
-        <h2 className="font-sans text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
+        <h2 className="font-sans text-4xl font-extrabold tracking-tight text-text-main sm:text-5xl">
           {t.howItWorksTitle}
         </h2>
       </div>
 
       <div className="relative grid grid-cols-1 gap-8 md:grid-cols-4">
-        <div className="absolute top-10 left-0 hidden h-0.5 w-full bg-slate-200 md:block" />
+        <div className="absolute top-10 left-0 hidden h-0.5 w-full bg-border md:block" />
 
         {[
           { title: t.howItWorksStep1Title, desc: t.howItWorksStep1Desc, icon: Download },
@@ -288,17 +288,17 @@ const HowItWorksSection = ({ t }: any) => (
             transition={{ delay: i * 0.1 }}
             className="relative flex flex-col items-center text-center"
           >
-            <div className="relative z-10 mb-8 flex h-20 w-20 items-center justify-center rounded-full border-4 border-slate-50 bg-white shadow-xl shadow-slate-200/50">
-              <span className="font-sans text-2xl font-black text-primary">{i + 1}</span>
+            <div className="relative z-10 mb-8 flex h-20 w-20 items-center justify-center rounded-full border-4 border-surface-secondary bg-surface shadow-xl shadow-border/50">
+              <span className="font-sans text-2xl font-black text-accent">{i + 1}</span>
             </div>
-            <h4 className="mb-3 font-sans text-xl font-extrabold text-slate-900">{step.title}</h4>
-            <p className="max-w-[200px] text-sm leading-relaxed text-slate-500">{step.desc}</p>
+            <h4 className="mb-3 font-sans text-xl font-extrabold text-text-main">{step.title}</h4>
+            <p className="max-w-[200px] text-sm leading-relaxed text-text-muted">{step.desc}</p>
           </motion.div>
         ))}
       </div>
 
-      <div className="mt-20 flex flex-col items-center justify-center gap-4 rounded-[2.5rem] bg-primary/5 p-8 text-center border border-primary/10">
-        <p className="font-sans text-lg font-bold text-primary">
+      <div className="mt-20 flex flex-col items-center justify-center gap-4 rounded-[2.5rem] bg-accent-light p-8 text-center border border-accent/10">
+        <p className="font-sans text-lg font-bold text-accent">
           {t.howItWorksFooter}
         </p>
       </div>
@@ -307,19 +307,19 @@ const HowItWorksSection = ({ t }: any) => (
 );
 
 const DemoResultSection = ({ t }: any) => (
-  <section className="w-full bg-slate-50 py-32 overflow-hidden">
+  <section className="w-full bg-surface-secondary py-32 overflow-hidden">
     <div className="container mx-auto max-w-6xl px-4">
       <div className="mb-20 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-primary backdrop-blur-md mb-6"
+          className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent-light px-4 py-1.5 text-xs font-black uppercase tracking-widest text-accent backdrop-blur-md mb-6"
         >
           <Activity className="h-3 w-3" />
           <span>Intelligent Analysis</span>
         </motion.div>
-        <h2 className="font-sans text-4xl font-extrabold tracking-tight text-slate-900 sm:text-6xl">
+        <h2 className="font-sans text-4xl font-extrabold tracking-tight text-text-main sm:text-6xl">
           {t.resultTitle}
         </h2>
       </div>
@@ -332,19 +332,19 @@ const DemoResultSection = ({ t }: any) => (
           viewport={{ once: true }}
           className="group relative overflow-hidden rounded-[3.5rem] border border-white/40 bg-white/40 p-1 shadow-2xl backdrop-blur-3xl"
         >
-          <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-accent/5 opacity-50" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-accent/5 to-accent/5 opacity-50" />
           
-          <div className="relative overflow-hidden rounded-[3rem] border border-slate-200/60 bg-white/80 shadow-inner">
+          <div className="relative overflow-hidden rounded-[3rem] border border-border bg-surface/80 shadow-inner">
             {/* Window Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-8 py-4 backdrop-blur-md">
+            <div className="flex items-center justify-between border-b border-border bg-surface-secondary/50 px-8 py-4 backdrop-blur-md">
               <div className="flex gap-2">
-                <div className="h-3 w-3 rounded-full bg-slate-200" />
-                <div className="h-3 w-3 rounded-full bg-slate-200" />
-                <div className="h-3 w-3 rounded-full bg-slate-200" />
+                <div className="h-3 w-3 rounded-full bg-border" />
+                <div className="h-3 w-3 rounded-full bg-border" />
+                <div className="h-3 w-3 rounded-full bg-border" />
               </div>
-              <div className="flex items-center gap-2 rounded-full bg-white/50 px-4 py-1 border border-slate-200/50 shadow-sm">
-                <Brain className="h-3 w-3 text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gemini 3 Engine Powered</span>
+              <div className="flex items-center gap-2 rounded-full bg-surface/50 px-4 py-1 border border-border/50 shadow-sm">
+                <Brain className="h-3 w-3 text-accent" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-text-light">Gemini 3 Engine Powered</span>
               </div>
               <div className="w-12" />
             </div>
@@ -362,44 +362,44 @@ const DemoResultSection = ({ t }: any) => (
                   repeat: Infinity, 
                   ease: "linear" 
                 }}
-                className="absolute left-0 right-0 z-20 h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent shadow-[0_0_15px_rgba(79,70,229,0.3)]"
+                className="absolute left-0 right-0 z-20 h-px w-full bg-gradient-to-r from-transparent via-accent/50 to-transparent shadow-[0_0_15px_rgba(79,70,229,0.3)]"
               />
 
               <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
                 {/* Left Side: Scores */}
                 <div className="lg:col-span-5 space-y-8">
-                  <div className="relative group/score rounded-3xl border border-slate-100 bg-white p-8 shadow-sm transition-all hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5">
+                  <div className="relative group/score rounded-3xl border border-border bg-surface p-8 shadow-sm transition-all hover:border-accent/20 hover:shadow-xl hover:shadow-accent/5">
                     <div className="mb-6 flex items-center justify-between">
                       <div className="space-y-1">
-                        <span className="block text-xs font-black uppercase tracking-widest text-slate-400">{t.matchingScore}</span>
-                        <h4 className="font-sans text-xl font-bold text-slate-900">Overall Compatibility</h4>
+                        <span className="block text-xs font-black uppercase tracking-widest text-text-light">{t.matchingScore}</span>
+                        <h4 className="font-sans text-xl font-bold text-text-main">Overall Compatibility</h4>
                       </div>
-                      <span className="font-sans text-4xl font-black text-primary">72%</span>
+                      <span className="font-sans text-4xl font-black text-accent">72%</span>
                     </div>
-                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-surface-muted">
                       <motion.div
                         initial={{ width: 0 }}
                         whileInView={{ width: '72%' }}
                         transition={{ duration: 1.5, delay: 0.5 }}
-                        className="absolute h-full bg-gradient-to-r from-primary to-indigo-500"
+                        className="absolute h-full bg-gradient-to-r from-accent to-accent-hover"
                       />
                     </div>
                   </div>
 
-                  <div className="relative group/score rounded-3xl border border-slate-100 bg-white p-8 shadow-sm transition-all hover:border-emerald-200/50 hover:shadow-xl hover:shadow-emerald-500/5">
+                  <div className="relative group/score rounded-3xl border border-border bg-surface p-8 shadow-sm transition-all hover:border-success/20 hover:shadow-xl hover:shadow-success/5">
                     <div className="mb-6 flex items-center justify-between">
                       <div className="space-y-1">
-                        <span className="block text-xs font-black uppercase tracking-widest text-slate-400">{t.atsScore}</span>
-                        <h4 className="font-sans text-xl font-bold text-slate-900">System Readability</h4>
+                        <span className="block text-xs font-black uppercase tracking-widest text-text-light">{t.atsScore}</span>
+                        <h4 className="font-sans text-xl font-bold text-text-main">System Readability</h4>
                       </div>
-                      <span className="font-sans text-4xl font-black text-emerald-500">81%</span>
+                      <span className="font-sans text-4xl font-black text-success">81%</span>
                     </div>
-                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="relative h-3 w-full overflow-hidden rounded-full bg-surface-muted">
                       <motion.div
                         initial={{ width: 0 }}
                         whileInView={{ width: '81%' }}
                         transition={{ duration: 1.5, delay: 0.7 }}
-                        className="absolute h-full bg-gradient-to-r from-emerald-400 to-teal-500"
+                        className="absolute h-full bg-success"
                       />
                     </div>
                   </div>
@@ -412,15 +412,19 @@ const DemoResultSection = ({ t }: any) => (
                       initial={{ opacity: 0, x: 20 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true }}
-                      className="rounded-3xl bg-red-50/50 p-6 border border-red-100"
+                      className="rounded-3xl bg-error-light/50 p-6 border border-error-light"
                     >
-                      <h4 className="mb-4 flex items-center gap-2 font-sans text-xs font-black uppercase tracking-widest text-red-600">
+                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-[10px] font-black uppercase tracking-widest shadow-sm">
+                        <Zap className="h-3 w-3" />
+                        AI Powered
+                      </div>
+                      <h4 className="mb-4 flex items-center gap-2 font-sans text-xs font-black uppercase tracking-widest text-error">
                         <AlertCircle className="h-3 w-3" />
                         {t.missingSkills}
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {['SQL', 'Communication', 'Leadership'].map(skill => (
-                          <span key={skill} className="rounded-xl bg-white px-3 py-1.5 text-[10px] font-black text-red-600 shadow-sm border border-red-100/50">{skill}</span>
+                          <span key={skill} className="rounded-xl bg-surface px-3 py-1.5 text-[10px] font-black text-error shadow-sm border border-error-light">{skill}</span>
                         ))}
                       </div>
                     </motion.div>
@@ -430,15 +434,15 @@ const DemoResultSection = ({ t }: any) => (
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true }}
                       transition={{ delay: 0.2 }}
-                      className="rounded-3xl bg-emerald-50/50 p-6 border border-emerald-100"
+                      className="rounded-3xl bg-success-light/50 p-6 border border-success-light"
                     >
-                      <h4 className="mb-4 flex items-center gap-2 font-sans text-xs font-black uppercase tracking-widest text-emerald-600">
+                      <h4 className="mb-4 flex items-center gap-2 font-sans text-xs font-black uppercase tracking-widest text-success">
                         <CheckCircle2 className="h-3 w-3" />
                         {t.strengths}
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {['UX Design', 'Figma', 'Research'].map(skill => (
-                          <span key={skill} className="rounded-xl bg-white px-3 py-1.5 text-[10px] font-black text-emerald-600 shadow-sm border border-emerald-100/50">{skill}</span>
+                          <span key={skill} className="rounded-xl bg-surface px-3 py-1.5 text-[10px] font-black text-success shadow-sm border border-success-light">{skill}</span>
                         ))}
                       </div>
                     </motion.div>
@@ -449,9 +453,9 @@ const DemoResultSection = ({ t }: any) => (
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.4 }}
-                    className="rounded-3xl border border-slate-100 bg-slate-50/50 p-8"
+                    className="rounded-3xl border border-border bg-surface-secondary/50 p-8"
                   >
-                    <h4 className="mb-6 font-sans text-lg font-extrabold text-slate-900">{t.suggestions}</h4>
+                    <h4 className="mb-6 font-sans text-lg font-extrabold text-text-main">{t.suggestions}</h4>
                     <div className="space-y-4">
                       {[t.suggestion1, t.suggestion2, t.suggestion3].map((s, i) => (
                         <motion.div 
@@ -461,10 +465,10 @@ const DemoResultSection = ({ t }: any) => (
                           transition={{ delay: 0.6 + (i * 0.1) }}
                           className="flex items-start gap-4"
                         >
-                          <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-accent-light text-accent">
                             <Zap className="h-3 w-3" />
                           </div>
-                          <p className="text-sm font-bold text-slate-600">{s}</p>
+                          <p className="text-sm font-bold text-text-muted">{s}</p>
                         </motion.div>
                       ))}
                     </div>
@@ -476,7 +480,7 @@ const DemoResultSection = ({ t }: any) => (
         </motion.div>
 
         {/* Floating Accent Elements */}
-        <div className="absolute -top-12 -right-12 -z-10 h-64 w-64 rounded-full bg-primary/10 blur-[100px] animate-pulse" />
+        <div className="absolute -top-12 -right-12 -z-10 h-64 w-64 rounded-full bg-accent/10 blur-[100px] animate-pulse" />
         <div className="absolute -bottom-12 -left-12 -z-10 h-64 w-64 rounded-full bg-accent/10 blur-[100px] animate-pulse" />
       </div>
     </div>
@@ -484,7 +488,7 @@ const DemoResultSection = ({ t }: any) => (
 );
 
 const StatsSection = ({ t }: any) => (
-  <section className="relative w-full overflow-hidden bg-slate-900 py-24 text-white">
+  <section className="relative w-full overflow-hidden bg-text-main py-24 text-white">
     <div className="absolute top-0 left-0 h-full w-full opacity-10">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#4f46e5,transparent_50%)]" />
     </div>
@@ -516,7 +520,7 @@ const TargetUsersSection = ({ t }: any) => (
   <section className="w-full py-32">
     <div className="container mx-auto max-w-6xl px-4">
       <div className="mb-20 text-center">
-        <h2 className="font-sans text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
+        <h2 className="font-sans text-4xl font-extrabold tracking-tight text-text-main sm:text-5xl">
           {t.targetUsersTitle}
         </h2>
       </div>
@@ -533,14 +537,14 @@ const TargetUsersSection = ({ t }: any) => (
             key={index}
             whileHover={{ y: -5 }}
             className={cn(
-              "flex flex-col items-center gap-4 rounded-2xl md:rounded-3xl border border-slate-200 bg-white p-6 md:px-8 md:py-10 text-center transition-all hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5",
+              "flex flex-col items-center gap-4 rounded-2xl md:rounded-3xl border border-border bg-surface p-6 md:px-8 md:py-10 text-center transition-all hover:border-accent/30 hover:shadow-xl hover:shadow-accent/5 cursor-default",
               index === 4 && "col-span-2 sm:col-span-1"
             )}
           >
-            <div className="flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-xl md:rounded-2xl bg-slate-50 text-primary">
+            <div className="flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-xl md:rounded-2xl bg-surface-secondary text-accent">
               <item.icon className="h-6 w-6 md:h-8 md:w-8" />
             </div>
-            <p className="font-sans text-sm md:text-lg font-bold text-slate-800 leading-tight">{item.label}</p>
+            <p className="font-sans text-sm md:text-lg font-bold text-text-main leading-tight">{item.label}</p>
           </motion.div>
         ))}
       </div>
@@ -554,10 +558,10 @@ const CtaSection = ({ t, login }: any) => (
       initial={{ opacity: 0, scale: 0.95 }}
       whileInView={{ opacity: 1, scale: 1 }}
       viewport={{ once: true }}
-      className="container relative mx-auto max-w-6xl overflow-hidden rounded-[3rem] bg-primary px-8 py-20 text-center shadow-2xl shadow-primary/30 md:px-20 md:py-32"
+      className="container relative mx-auto max-w-6xl overflow-hidden rounded-[3rem] bg-accent px-8 py-20 text-center shadow-2xl shadow-accent/30 md:px-20 md:py-32"
     >
       <div className="absolute top-0 right-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-      <div className="absolute bottom-0 left-0 -ml-20 -mb-20 h-64 w-64 rounded-full bg-accent/20 blur-3xl" />
+      <div className="absolute bottom-0 left-0 -ml-20 -mb-20 h-64 w-64 rounded-full bg-accent-hover/20 blur-3xl" />
 
       <div className="relative z-10">
         <h2 className="mx-auto max-w-3xl font-sans text-4xl font-extrabold tracking-tight text-white sm:text-6xl">
@@ -566,7 +570,7 @@ const CtaSection = ({ t, login }: any) => (
         <div className="mt-12 flex flex-col items-center justify-center gap-6 sm:flex-row">
           <button
             onClick={login}
-            className="h-16 rounded-2xl bg-white px-12 font-sans text-xl font-black text-primary transition-all hover:bg-slate-50 hover:shadow-2xl active:scale-95"
+            className="h-16 rounded-2xl bg-surface px-12 font-sans text-xl font-black text-accent transition-all hover:bg-surface-secondary hover:shadow-2xl active:scale-95 cursor-pointer"
           >
             {t.ctaBtn}
           </button>
@@ -574,7 +578,7 @@ const CtaSection = ({ t, login }: any) => (
             href="https://hr.thanhnghiep.top"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-16 items-center justify-center gap-3 rounded-2xl border-2 border-white/30 bg-white/10 px-10 font-sans text-lg font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
+            className="flex h-16 items-center justify-center gap-3 rounded-2xl border-2 border-white/30 bg-white/10 px-10 font-sans text-lg font-bold text-white backdrop-blur-md transition-all hover:bg-white/20 active:scale-95 cursor-pointer"
           >
             <span>{t.forEmployers}</span>
             <ArrowRight className="h-5 w-5" />
@@ -589,10 +593,10 @@ const CtaSection = ({ t, login }: any) => (
 );
 
 const FaqSection = ({ t, openFaqIndex, setOpenFaqIndex }: any) => (
-  <section className="w-full border-t border-slate-200/60 bg-white py-32">
+  <section className="w-full border-t border-border bg-surface py-32">
     <div className="container mx-auto max-w-3xl px-4">
       <div className="mb-20 text-center">
-        <h2 className="font-sans text-4xl font-extrabold tracking-tight text-slate-900">{t.faqTitle}</h2>
+        <h2 className="font-sans text-4xl font-extrabold tracking-tight text-text-main">{t.faqTitle}</h2>
       </div>
 
       <div className="space-y-6">
@@ -600,16 +604,16 @@ const FaqSection = ({ t, openFaqIndex, setOpenFaqIndex }: any) => (
           <motion.div
             layout
             key={index}
-            className="group overflow-hidden rounded-[2rem] border border-slate-200 transition-all hover:border-primary/40"
+            className="group overflow-hidden rounded-[2rem] border border-border transition-all hover:border-accent/40"
           >
             <button
               onClick={() => setOpenFaqIndex(openFaqIndex === index ? null : index)}
-              className="flex w-full items-center justify-between p-6 md:p-8 text-left transition-colors focus:outline-none group-hover:bg-primary/[0.02]"
+              className="flex w-full items-center justify-between p-6 md:p-8 text-left transition-colors focus:outline-none group-hover:bg-accent-light/20 cursor-pointer"
             >
-              <span className="font-sans text-base md:text-lg font-bold text-slate-800 pr-4">{item.q}</span>
+              <span className="font-sans text-base md:text-lg font-bold text-text-main pr-4">{item.q}</span>
               <div className={cn(
                 "flex h-8 w-8 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full transition-all duration-500",
-                openFaqIndex === index ? "rotate-180 bg-primary text-white" : "bg-slate-50 text-slate-400"
+                openFaqIndex === index ? "rotate-180 bg-accent text-white" : "bg-surface-secondary text-text-light"
               )}>
                 <ChevronDown className="h-5 w-5 md:h-6 md:w-6" />
               </div>
@@ -623,7 +627,7 @@ const FaqSection = ({ t, openFaqIndex, setOpenFaqIndex }: any) => (
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.4, ease: [0.04, 0.62, 0.23, 0.98] }}
                 >
-                  <div className="px-8 pb-8 text-slate-500 leading-relaxed whitespace-pre-line border-t border-slate-50 pt-6">
+                  <div className="px-8 pb-8 text-text-muted leading-relaxed whitespace-pre-line border-t border-surface-secondary pt-6">
                     {item.a}
                   </div>
                 </motion.div>
@@ -645,12 +649,12 @@ export function LandingView() {
   const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95]);
 
   return (
-    <div className="relative flex w-full flex-col items-center overflow-hidden bg-slate-50 font-body">
+    <div className="relative flex w-full flex-col items-center overflow-hidden bg-surface-secondary font-body">
       {/* Background Orbs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-[10%] -left-[10%] h-[40%] w-[40%] rounded-full bg-primary/10 blur-[120px]" />
+        <div className="absolute -top-[10%] -left-[10%] h-[40%] w-[40%] rounded-full bg-accent/10 blur-[120px]" />
         <div className="absolute top-[20%] -right-[5%] h-[30%] w-[30%] rounded-full bg-accent/10 blur-[100px]" />
-        <div className="absolute bottom-[10%] left-[20%] h-[25%] w-[25%] rounded-full bg-indigo-200/30 blur-[80px]" />
+        <div className="absolute bottom-[10%] left-[20%] h-[25%] w-[25%] rounded-full bg-accent/10 blur-[80px]" />
       </div>
 
       <HeroSection t={t} login={login} opacity={opacity} scale={scale} />
@@ -666,4 +670,5 @@ export function LandingView() {
     </div>
   );
 }
+
 

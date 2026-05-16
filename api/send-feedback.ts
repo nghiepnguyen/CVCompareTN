@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!success && !isLocal) {
       return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed' });
-    } else if (success && score !== undefined && score < 0.2 && !isLocal) {
+    } else if (success && score !== undefined && score < 0.5 && !isLocal) {
       return res.status(400).json({ success: false, message: 'reCAPTCHA score too low' });
     }
 
