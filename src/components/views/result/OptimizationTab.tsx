@@ -47,7 +47,7 @@ export const OptimizationTab = React.memo(function OptimizationTab({ selectedRes
             <div className="space-y-10">
               {Object.entries(
                 selectedResult.rewriteSuggestions.reduce((acc, s) => {
-                  const key = s.section || (reportLanguage === 'vi' ? 'Khác' : 'Other');
+                  const key = s.section || t.sectionOther;
                   if (!acc[key]) acc[key] = [];
                   acc[key].push(s);
                   return acc;

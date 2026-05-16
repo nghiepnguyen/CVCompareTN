@@ -32,7 +32,7 @@ import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { InAppBrowserWarning } from './components/layout/InAppBrowserWarning';
 import { CookieConsentBanner } from './components/layout/CookieConsentBanner';
-import { initGa4Bootstrap, restoreAnalyticsConsent } from './lib/ga4';
+import { AnalyticsBootstrap } from './components/layout/AnalyticsBootstrap';
 const PrivacyPolicyPage = React.lazy(() => import('./components/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
 const TermsOfServicePage = React.lazy(() => import('./components/TermsOfServicePage').then(m => ({ default: m.TermsOfServicePage })));
 const SupportDevelopmentPage = React.lazy(() => import('./components/SupportDevelopmentPage').then(m => ({ default: m.SupportDevelopmentPage })));
@@ -85,6 +85,7 @@ export default function App() {
         <UIProvider>
           <AnalysisProvider>
             <AppContent />
+            <AnalyticsBootstrap />
             <Analytics />
           </AnalysisProvider>
         </UIProvider>
@@ -109,11 +110,6 @@ function AppContent() {
   const [savedJDSearchTerm, setSavedJDSearchTerm] = useState('');
   const [jdSaveTitle, setJdSaveTitle] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    initGa4Bootstrap();
-    restoreAnalyticsConsent();
-  }, []);
 
   // SEO Dynamic Updates
   React.useEffect(() => {

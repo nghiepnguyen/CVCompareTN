@@ -10,7 +10,7 @@ interface ComparisonOverviewProps {
 }
 
 export function ComparisonOverview({ results, setSelectedResult }: ComparisonOverviewProps) {
-  const { t, reportLanguage } = useUI();
+  const { t } = useUI();
 
   return (
     <div className="bg-surface p-6 rounded-3xl shadow-sm border border-border overflow-hidden">
@@ -54,10 +54,10 @@ export function ComparisonOverview({ results, setSelectedResult }: ComparisonOve
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-border">
-              <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider">{reportLanguage === 'vi' ? 'Ứng viên / CV' : 'Candidate / CV'}</th>
-              <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider text-center">{reportLanguage === 'vi' ? 'Điểm số' : 'Score'}</th>
-              <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider text-center">{reportLanguage === 'vi' ? 'Xác suất' : 'Probability'}</th>
-              <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider text-right">{reportLanguage === 'vi' ? 'Hành động' : 'Action'}</th>
+              <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider">{t.comparisonColCandidate}</th>
+              <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider text-center">{t.comparisonColScore}</th>
+              <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider text-center">{t.comparisonColProbability}</th>
+              <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider text-right">{t.comparisonColAction}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

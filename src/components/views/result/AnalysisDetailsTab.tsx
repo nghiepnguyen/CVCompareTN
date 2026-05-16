@@ -4,6 +4,7 @@ import { Sparkles, Check, CheckCircle2, AlertCircle, Target, ChevronDown, Chevro
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
 import { AnalysisResult } from '../../../services/ai';
+import { getMatchingCategoryLabel } from './matchingCategoryLabels';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface AnalysisDetailsTabProps {
@@ -11,7 +12,7 @@ interface AnalysisDetailsTabProps {
 }
 
 export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selectedResult }: AnalysisDetailsTabProps) {
-  const { t, reportLanguage } = useUI();
+  const { t } = useUI();
   const [openSections, setOpenSections] = React.useState<string[]>(['matching']);
 
   const pieData = React.useMemo(() => {
@@ -71,12 +72,11 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
           </p>
           <div className="bg-surface-secondary p-4 rounded-2xl border border-border">
             <p className="text-sm font-medium text-text-main leading-relaxed">
-              {selectedResult.matchScore >= 80 
-                ? (reportLanguage === 'vi' ? 'CV của bạn rất phù hợp với vị trí này. Hãy tự tin ứng tuyển!' : 'Your CV is a great match for this position. Apply with confidence!')
+              {selectedResult.matchScore >= 80
+                ? t.matchVerdictHigh
                 : selectedResult.matchScore >= 60
-                ? (reportLanguage === 'vi' ? 'CV của bạn khá phù hợp. Hãy tối ưu thêm các từ khóa để tăng cơ hội.' : 'Your CV is a good match. Optimize with more keywords to increase your chances.')
-                : (reportLanguage === 'vi' ? 'CV cần cải thiện đáng kể để phù hợp với yêu cầu. Hãy xem kỹ các gợi ý bên dưới.' : 'Your CV needs significant improvement to match the requirements. Review the suggestions below carefully.')
-              }
+                ? t.matchVerdictMid
+                : t.matchVerdictLow}
             </p>
           </div>
         </div>
@@ -128,7 +128,7 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
             </ResponsiveContainer>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center px-4 text-text-muted text-sm">
-                <p>{reportLanguage === 'vi' ? 'Chưa có nhóm điểm khớp để hiển thị biểu đồ.' : 'No matching-point categories yet for this chart.'}</p>
+                <p>{t.noChartMatchingPoints}</p>
               </div>
             )}
           </div>
@@ -170,9 +170,7 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
       {(selectedResult.matchingPoints || []).length === 0 &&
         (selectedResult.missingGaps || []).length === 0 && (
         <div className="rounded-2xl border border-dashed border-border bg-surface-secondary/80 px-4 py-3 text-center text-sm text-text-muted">
-          {reportLanguage === 'vi'
-            ? 'Chưa có danh sách điểm khớp / khoảng trống từ phân tích. Thử chạy phân tích lại; nếu tải từ lịch sử, bản ghi có thể được lưu trước khi có đủ trường JSON.'
-            : 'No matching points or gaps in this result. Try analyzing again; history rows saved before schema updates may lack this data.'}
+          {t.noMatchingGapsData}
         </div>
       )}
 
@@ -214,17 +212,7 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
                       const points = (selectedResult.matchingPoints || []).filter(p => p.category === cat);
                       if (points.length === 0) return null;
                       
-                      const catLabelMap: Record<string, string> = {
-                        'Skills': reportLanguage === 'vi' ? 'Kỹ năng chung' : 'General Skills',
-                        'Soft Skills': reportLanguage === 'vi' ? 'Kỹ năng mềm' : 'Soft Skills',
-                        'Hard Skills': reportLanguage === 'vi' ? 'Kỹ năng cứng' : 'Hard Skills',
-                        'Technical Skills': reportLanguage === 'vi' ? 'Kỹ năng kỹ thuật' : 'Technical Skills',
-                        'Experience': reportLanguage === 'vi' ? 'Kinh nghiệm' : 'Experience',
-                        'Tools': reportLanguage === 'vi' ? 'Công cụ' : 'Tools',
-                        'Education': reportLanguage === 'vi' ? 'Học vấn' : 'Education',
-                        'Keywords': reportLanguage === 'vi' ? 'Từ khóa' : 'Keywords'
-                      };
-                      const catLabel = catLabelMap[cat] || cat;
+                      const catLabel = getMatchingCategoryLabel(cat, t);
 
                       return (
                         <div key={cat} className="space-y-4">
@@ -287,15 +275,7 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
                       const gaps = (selectedResult.missingGaps || []).filter(g => g.category === cat);
                       if (gaps.length === 0) return null;
                       
-                      const catLabelMap: Record<string, string> = {
-                        'Skills': reportLanguage === 'vi' ? 'Kỹ năng chung' : 'General Skills',
-                        'Soft Skills': reportLanguage === 'vi' ? 'Kỹ năng mềm' : 'Soft Skills',
-                        'Hard Skills': reportLanguage === 'vi' ? 'Kỹ năng cứng' : 'Hard Skills',
-                        'Technical Skills': reportLanguage === 'vi' ? 'Kỹ năng kỹ thuật' : 'Technical Skills',
-                        'Experience': reportLanguage === 'vi' ? 'Kinh nghiệm' : 'Experience',
-                        'Keywords': reportLanguage === 'vi' ? 'Từ khóa' : 'Keywords'
-                      };
-                      const catLabel = catLabelMap[cat] || cat;
+                      const catLabel = getMatchingCategoryLabel(cat, t);
 
                       return (
                         <div key={cat} className="space-y-4">

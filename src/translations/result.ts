@@ -252,4 +252,176 @@ export const result = {
     vi: "Phân bổ kỹ năng",
     en: "Skill Distribution",
   },
+  comparisonColCandidate: {
+    vi: "Ứng viên / CV",
+    en: "Candidate / CV",
+  },
+  comparisonColScore: {
+    vi: "Điểm số",
+    en: "Score",
+  },
+  comparisonColProbability: {
+    vi: "Xác suất",
+    en: "Probability",
+  },
+  comparisonColAction: {
+    vi: "Hành động",
+    en: "Action",
+  },
+  noComparisonDataTitle: {
+    vi: "Không có dữ liệu so sánh",
+    en: "No comparison data available",
+  },
+  noComparisonDataDesc: {
+    vi: "Thông tin so sánh chi tiết hiện không khả dụng cho kết quả này.",
+    en: "Detailed comparison information is currently unavailable for this result.",
+  },
+  categoryKeywords: {
+    vi: "Từ khóa",
+    en: "Keywords",
+  },
+  categoryGeneralSkills: {
+    vi: "Kỹ năng chung",
+    en: "General Skills",
+  },
+  categorySoftSkills: {
+    vi: "Kỹ năng mềm",
+    en: "Soft Skills",
+  },
+  categoryHardSkills: {
+    vi: "Kỹ năng cứng",
+    en: "Hard Skills",
+  },
+  categoryTechnicalSkills: {
+    vi: "Kỹ năng kỹ thuật",
+    en: "Technical Skills",
+  },
+  matchVerdictHigh: {
+    vi: "CV của bạn rất phù hợp với vị trí này. Hãy tự tin ứng tuyển!",
+    en: "Your CV is a great match for this position. Apply with confidence!",
+  },
+  matchVerdictMid: {
+    vi: "CV của bạn khá phù hợp. Hãy tối ưu thêm các từ khóa để tăng cơ hội.",
+    en: "Your CV is a good match. Optimize with more keywords to increase your chances.",
+  },
+  matchVerdictLow: {
+    vi: "CV cần cải thiện đáng kể để phù hợp với yêu cầu. Hãy xem kỹ các gợi ý bên dưới.",
+    en: "Your CV needs significant improvement to match the requirements. Review the suggestions below carefully.",
+  },
+  noChartMatchingPoints: {
+    vi: "Chưa có nhóm điểm khớp để hiển thị biểu đồ.",
+    en: "No matching-point categories yet for this chart.",
+  },
+  noMatchingGapsData: {
+    vi: "Chưa có danh sách điểm khớp / khoảng trống từ phân tích. Thử chạy phân tích lại; nếu tải từ lịch sử, bản ghi có thể được lưu trước khi có đủ trường JSON.",
+    en: "No matching points or gaps in this result. Try analyzing again; history rows saved before schema updates may lack this data.",
+  },
+  tabParsedCv: {
+    vi: "Thông tin CV",
+    en: "Parsed CV",
+  },
+  tabComparison: {
+    vi: "So sánh",
+    en: "Comparison",
+  },
+  parsedCvEmpty: {
+    vi: "Không có dữ liệu CV chuẩn hóa cho kết quả này.",
+    en: "No parsed CV data available for this result.",
+  },
+  parsedPersonalInfo: {
+    vi: "Thông tin cá nhân",
+    en: "Personal Information",
+  },
+  parsedEducation: {
+    vi: "Học vấn",
+    en: "Education",
+  },
+  parsedExperience: {
+    vi: "Kinh nghiệm làm việc",
+    en: "Work Experience",
+  },
+  parsedSkillsLang: {
+    vi: "Kỹ năng & Ngôn ngữ",
+    en: "Skills & Languages",
+  },
+  parsedProjects: {
+    vi: "Dự án tiêu biểu",
+    en: "Featured Projects",
+  },
+  parsedCertifications: {
+    vi: "Chứng chỉ",
+    en: "Certifications",
+  },
+  parsedAtsAnalysis: {
+    vi: "Phân tích ATS chi tiết",
+    en: "Detailed ATS Analysis",
+  },
+  parsedYearsExp: {
+    vi: "Tổng năm kinh nghiệm",
+    en: "Total Experience",
+  },
+  parsedRelevance: {
+    vi: "Độ liên quan chuyên môn",
+    en: "Professional Relevance",
+  },
+  parsedHighlights: {
+    vi: "Điểm mạnh nổi bật",
+    en: "Key Highlights",
+  },
+  parsedMissingKeywords: {
+    vi: "Từ khóa còn thiếu",
+    en: "Missing Keywords",
+  },
+  parsedPresent: {
+    vi: "Hiện tại",
+    en: "Present",
+  },
+  parsedTechSkills: {
+    vi: "Kỹ năng chuyên môn",
+    en: "Technical Skills",
+  },
+  parsedSoftSkills: {
+    vi: "Kỹ năng mềm",
+    en: "Soft Skills",
+  },
+  parsedToolsSoftware: {
+    vi: "Công cụ & Phần mềm",
+    en: "Tools & Software",
+  },
+  parsedLanguages: {
+    vi: "Ngoại ngữ",
+    en: "Languages",
+  },
+  parsedYearsUnit: {
+    vi: "Năm",
+    en: "Years",
+  },
+  progressStart: {
+    vi: "Khởi tạo",
+    en: "Start",
+  },
+  progressEstLeft: {
+    vi: "Ước tính: {seconds}s còn lại",
+    en: "Est: {seconds}s left",
+  },
+  progressDone: {
+    vi: "Hoàn tất",
+    en: "Done",
+  },
+  loadingStepReadCv: {
+    vi: "Đọc CV",
+    en: "Read CV",
+  },
+  loadingStepAnalyze: {
+    vi: "Phân tích",
+    en: "Analyze",
+  },
+  loadingStepMatch: {
+    vi: "Đối chiếu",
+    en: "Match",
+  },
+  loadingStepReport: {
+    vi: "Báo cáo",
+    en: "Report",
+  },
 } as const;

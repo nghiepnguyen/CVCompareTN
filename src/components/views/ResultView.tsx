@@ -117,8 +117,8 @@ export function ResultView() {
                 <div className="flex items-center gap-2 p-1.5 bg-surface-muted backdrop-blur-md rounded-[2.5rem] w-full sm:w-fit shadow-inner overflow-x-auto scrollbar-hide no-scrollbar border border-white/40 snap-x snap-mandatory">
                   {[
                     { id: 'analysis', icon: Activity, label: t.analyze },
-                    { id: 'parsed', icon: User, label: reportLanguage === 'vi' ? 'Thông tin CV' : 'Parsed CV' },
-                    { id: 'comparison', icon: FileSearch, label: reportLanguage === 'vi' ? 'So sánh' : 'Comparison' },
+                    { id: 'parsed', icon: User, label: t.tabParsedCv },
+                    { id: 'comparison', icon: FileSearch, label: t.tabComparison },
                     { id: 'optimization', icon: Zap, label: t.optimized }
                   ].map((tab) => (
                     <button

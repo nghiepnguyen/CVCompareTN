@@ -9,7 +9,7 @@ interface DetailedComparisonTabProps {
 }
 
 export function DetailedComparisonTab({ selectedResult }: DetailedComparisonTabProps) {
-  const { t, reportLanguage } = useUI();
+  const { t } = useUI();
 
   if (!detailedComparisonHasRows(selectedResult.detailedComparison)) {
     return (
@@ -18,12 +18,10 @@ export function DetailedComparisonTab({ selectedResult }: DetailedComparisonTabP
           <FileSearch className="w-8 h-8" />
         </div>
         <h4 className="text-lg font-black text-text-main mb-2">
-          {reportLanguage === 'vi' ? 'Không có dữ liệu so sánh' : 'No comparison data available'}
+          {t.noComparisonDataTitle}
         </h4>
         <p className="text-sm text-text-muted max-w-sm">
-          {reportLanguage === 'vi' 
-            ? 'Thông tin so sánh chi tiết hiện không khả dụng cho kết quả này.' 
-            : 'Detailed comparison information is currently unavailable for this result.'}
+          {t.noComparisonDataDesc}
         </p>
       </div>
     );
@@ -61,7 +59,7 @@ export function DetailedComparisonTab({ selectedResult }: DetailedComparisonTabP
                 'experience': t.experience,
                 'tools': t.tools,
                 'education': t.education,
-                'keywords': reportLanguage === 'vi' ? 'Từ khóa' : 'Keywords'
+                'keywords': t.categoryKeywords,
               };
               const categoryLabel = categoryLabelMap[category.toLowerCase()] || category;
 

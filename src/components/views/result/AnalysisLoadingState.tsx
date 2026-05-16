@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Sparkles, Check } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
+import { formatLabel } from '../../../translations';
 
 interface AnalysisLoadingStateProps {
   analysisStatus: string | null;
@@ -10,7 +11,8 @@ interface AnalysisLoadingStateProps {
 }
 
 export function AnalysisLoadingState({ analysisStatus, analysisProgress }: AnalysisLoadingStateProps) {
-  const { t, reportLanguage } = useUI();
+  const { t } = useUI();
+  const estSeconds = Math.max(0, Math.round((100 - analysisProgress) * 0.15));
 
   return (
     <motion.div 
@@ -53,18 +55,18 @@ export function AnalysisLoadingState({ analysisStatus, analysisProgress }: Analy
         </div>
         
         <div className="flex justify-between mt-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          <span>{reportLanguage === 'vi' ? 'Khởi tạo' : 'Start'}</span>
-          <span>{reportLanguage === 'vi' ? 'Ước tính: ' : 'Est: '} {Math.max(0, Math.round((100 - analysisProgress) * 0.15))}s {reportLanguage === 'vi' ? 'còn lại' : 'left'}</span>
-          <span>{reportLanguage === 'vi' ? 'Hoàn tất' : 'Done'}</span>
+          <span>{t.progressStart}</span>
+          <span>{formatLabel(t.progressEstLeft, { seconds: estSeconds })}</span>
+          <span>{t.progressDone}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-4 gap-4 w-full max-w-md">
         {[
-          { step: 1, label: reportLanguage === 'vi' ? 'Đọc CV' : 'Read CV', min: 15 },
-          { step: 2, label: reportLanguage === 'vi' ? 'Phân tích' : 'Analyze', min: 40 },
-          { step: 3, label: reportLanguage === 'vi' ? 'Đối chiếu' : 'Match', min: 70 },
-          { step: 4, label: reportLanguage === 'vi' ? 'Báo cáo' : 'Report', min: 95 }
+          { step: 1, label: t.loadingStepReadCv, min: 15 },
+          { step: 2, label: t.loadingStepAnalyze, min: 40 },
+          { step: 3, label: t.loadingStepMatch, min: 70 },
+          { step: 4, label: t.loadingStepReport, min: 95 }
         ].map((s) => (
           <div key={s.step} className="flex flex-col items-center gap-2">
             <div className={cn(

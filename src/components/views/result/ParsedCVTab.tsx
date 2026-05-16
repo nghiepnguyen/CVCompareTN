@@ -15,41 +15,20 @@ interface ParsedCVTabProps {
 }
 
 export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
-  const { reportLanguage } = useUI();
+  const { t } = useUI();
   const parsedCV = selectedResult.parsedCV;
 
   if (!parsedCV) {
     return (
       <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center">
         <p className="text-slate-500 italic">
-          {reportLanguage === 'vi' 
-            ? 'Không có dữ liệu CV chuẩn hóa cho kết quả này.' 
-            : 'No parsed CV data available for this result.'}
+          {t.parsedCvEmpty}
         </p>
       </div>
     );
   }
 
   const { personal_information, education, work_experience, skills, projects, certifications, ats_evaluation } = parsedCV;
-
-  const t = {
-    personalInfo: reportLanguage === 'vi' ? 'Thông tin cá nhân' : 'Personal Information',
-    education: reportLanguage === 'vi' ? 'Học vấn' : 'Education',
-    experience: reportLanguage === 'vi' ? 'Kinh nghiệm làm việc' : 'Work Experience',
-    skills: reportLanguage === 'vi' ? 'Kỹ năng & Ngôn ngữ' : 'Skills & Languages',
-    projects: reportLanguage === 'vi' ? 'Dự án tiêu biểu' : 'Featured Projects',
-    certifications: reportLanguage === 'vi' ? 'Chứng chỉ' : 'Certifications',
-    atsAnalysis: reportLanguage === 'vi' ? 'Phân tích ATS chi tiết' : 'Detailed ATS Analysis',
-    yearsExp: reportLanguage === 'vi' ? 'Tổng năm kinh nghiệm' : 'Total Experience',
-    relevance: reportLanguage === 'vi' ? 'Độ liên quan chuyên môn' : 'Professional Relevance',
-    highlights: reportLanguage === 'vi' ? 'Điểm mạnh nổi bật' : 'Key Highlights',
-    missingKeywords: reportLanguage === 'vi' ? 'Từ khóa còn thiếu' : 'Missing Keywords',
-    present: reportLanguage === 'vi' ? 'Hiện tại' : 'Present',
-    techSkills: reportLanguage === 'vi' ? 'Kỹ năng chuyên môn' : 'Technical Skills',
-    softSkills: reportLanguage === 'vi' ? 'Kỹ năng mềm' : 'Soft Skills',
-    tools: reportLanguage === 'vi' ? 'Công cụ & Phần mềm' : 'Tools & Software',
-    languages: reportLanguage === 'vi' ? 'Ngoại ngữ' : 'Languages'
-  };
 
   return (
     <div id="parsed-cv-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
@@ -61,9 +40,9 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
             <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-4">
               <Clock className="w-6 h-6 text-white" />
             </div>
-            <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">{t.yearsExp}</div>
+            <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-1">{t.parsedYearsExp}</div>
             <div className="text-4xl font-black">{ats_evaluation.years_of_experience}</div>
-            <div className="text-xs font-bold opacity-80 mt-1">{reportLanguage === 'vi' ? 'Năm' : 'Years'}</div>
+            <div className="text-xs font-bold opacity-80 mt-1">{t.parsedYearsUnit}</div>
           </div>
         </div>
 
@@ -74,7 +53,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-[10px] font-black text-text-light uppercase tracking-widest">{t.relevance}</div>
+                <div className="text-[10px] font-black text-text-light uppercase tracking-widest">{t.parsedRelevance}</div>
                 <div className="text-lg font-black text-text-main">{ats_evaluation.relevant_score}%</div>
               </div>
             </div>
@@ -99,7 +78,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
           <div className="flex-1 space-y-3">
             <div className="flex items-center gap-2 text-warning">
               <Search className="w-4 h-4" />
-              <span className="text-[10px] font-black uppercase tracking-widest">{t.missingKeywords}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">{t.parsedMissingKeywords}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {ats_evaluation.missing_keywords.map((k, i) => (
@@ -122,7 +101,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
             </div>
             <h4 className="text-xs font-black text-text-muted uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
               <User className="w-4 h-4" />
-              {t.personalInfo}
+              {t.parsedPersonalInfo}
             </h4>
             <div className="space-y-6">
               <div>
@@ -173,7 +152,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
           <div className="bg-surface p-6 rounded-3xl border border-border shadow-sm">
             <h4 className="text-xs font-black text-text-muted uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
               <Terminal className="w-4 h-4" />
-              {t.skills}
+              {t.parsedSkillsLang}
             </h4>
             
             <div className="space-y-6">
@@ -181,7 +160,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
               <div>
                 <div className="text-[10px] font-black text-accent uppercase tracking-widest mb-3 flex items-center gap-2">
                   <Code className="w-3 h-3" />
-                  {t.techSkills}
+                  {t.parsedTechSkills}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(skills.technical_skills || []).map((s, i) => (
@@ -196,7 +175,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
               <div>
                 <div className="text-[10px] font-black text-text-main uppercase tracking-widest mb-3 flex items-center gap-2">
                   <Layers className="w-3 h-3" />
-                  {t.tools}
+                  {t.parsedToolsSoftware}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(skills.tools_software || []).map((s, i) => (
@@ -211,7 +190,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
               <div>
                 <div className="text-[10px] font-black text-success uppercase tracking-widest mb-3 flex items-center gap-2">
                   <TrendingUp className="w-3 h-3" />
-                  {t.softSkills}
+                  {t.parsedSoftSkills}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(skills.soft_skills || []).map((s, i) => (
@@ -227,7 +206,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
                 <div>
                   <div className="text-[10px] font-black text-warning uppercase tracking-widest mb-3 flex items-center gap-2">
                     <Languages className="w-3 h-3" />
-                    {t.languages}
+                    {t.parsedLanguages}
                   </div>
                   <div className="space-y-2">
                     {skills.languages.map((l, i) => (
@@ -249,7 +228,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
           <div className="bg-surface p-6 rounded-3xl border border-border shadow-sm">
             <h4 className="text-xs font-black text-text-muted uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
               <Briefcase className="w-4 h-4" />
-              {t.experience}
+              {t.parsedExperience}
             </h4>
             
             <div className="space-y-10 relative">
@@ -269,7 +248,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
                       </div>
                       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-secondary text-text-light text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
                         <Calendar className="w-3 h-3" />
-                        {exp.duration.start} - {exp.duration.is_current ? t.present : exp.duration.end}
+                        {exp.duration.start} - {exp.duration.is_current ? t.parsedPresent : exp.duration.end}
                       </div>
                     </div>
 
@@ -313,7 +292,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
           <div className="bg-surface p-6 rounded-3xl border border-border shadow-sm">
             <h4 className="text-xs font-black text-text-muted uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
               <GraduationCap className="w-4 h-4" />
-              {t.education}
+              {t.parsedEducation}
             </h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -345,7 +324,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
               <div className="bg-surface p-6 rounded-3xl border border-border shadow-sm space-y-4">
                 <h4 className="text-xs font-black text-text-muted uppercase tracking-[0.2em] flex items-center gap-2">
                   <Terminal className="w-4 h-4" />
-                  {t.projects}
+                  {t.parsedProjects}
                 </h4>
                 <div className="space-y-4">
                   {(projects || []).map((p, i) => (
@@ -377,7 +356,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
               <div className="bg-surface p-6 rounded-3xl border border-border shadow-sm space-y-4 h-full">
                 <h4 className="text-xs font-black text-text-muted uppercase tracking-[0.2em] flex items-center gap-2">
                   <Award className="w-4 h-4" />
-                  {t.certifications}
+                  {t.parsedCertifications}
                 </h4>
                 <div className="space-y-3">
                   {(certifications || []).map((cert, i) => (
