@@ -26,7 +26,7 @@
 
 ## Cookie consent (EU / VN)
 
-GA4 **không** được nhúng sẵn trong `index.html`. Script `googletagmanager.com/gtag/js` chỉ được inject sau khi người dùng bấm **Chấp nhận phân tích**.
+GA4 được **nhúng vào `index.html` lúc build** (plugin Vite `inject-google-tag` trong `vite.config.ts`) khi có `VITE_GA_MEASUREMENT_ID`. Trình duyệt tải `gtag/js` ngay — Google Tag Assistant nhận diện được. **Consent Mode** mặc định `analytics_storage: denied`; chỉ sau khi người dùng bấm **Chấp nhận phân tích** thì `ga4.ts` gọi `gtag('consent', 'update', { analytics_storage: 'granted' })` và mới gửi hit phân tích.
 
 ### Luồng
 

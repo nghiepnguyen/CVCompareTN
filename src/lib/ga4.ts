@@ -12,6 +12,13 @@ let loadPromise: Promise<void> | null = null;
 let consentDefaultsApplied = false;
 const eventQueue: QueuedEvent[] = [];
 
+const GRANTED_CONSENT = {
+  analytics_storage: 'granted' as const,
+  ad_storage: 'denied' as const,
+  ad_user_data: 'denied' as const,
+  ad_personalization: 'denied' as const,
+};
+
 export function getGaMeasurementId(): string {
   return MEASUREMENT_ID;
 }
@@ -52,12 +59,8 @@ export function subscribeAnalyticsConsentReset(listener: () => void): () => void
   return () => window.removeEventListener(CONSENT_RESET_EVENT, listener);
 }
 
-function flushEventQueue(): void {
-  if (!window.gtag) return;
-  while (eventQueue.length > 0) {
-    const { name, params } = eventQueue.shift()!;
-    window.gtag('event', name, params ?? {});
-  }
+function isGtagScriptInPage(): boolean {
+  return !!document.querySelector(`script[src*="googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}"]`);
 }
 
 function ensureDataLayer(): void {
@@ -69,9 +72,34 @@ function ensureDataLayer(): void {
   }
 }
 
-/** Stub gtag + Consent Mode defaults (denied until user accepts). Safe to call on every app load. */
+function applyGrantedConsent(): void {
+  ensureDataLayer();
+  window.gtag!('consent', 'update', GRANTED_CONSENT);
+}
+
+function flushEventQueue(): void {
+  if (!window.gtag) return;
+  while (eventQueue.length > 0) {
+    const { name, params } = eventQueue.shift()!;
+    window.gtag('event', name, params ?? {});
+  }
+}
+
+/** Align in-app state with gtag injected in index.html (build-time). */
 export function initGa4Bootstrap(): void {
-  if (!MEASUREMENT_ID || consentDefaultsApplied) return;
+  if (!MEASUREMENT_ID) return;
+
+  if (isGtagScriptInPage()) {
+    consentDefaultsApplied = true;
+    isScriptLoaded = true;
+    if (getAnalyticsConsent() === 'granted') {
+      applyGrantedConsent();
+      flushEventQueue();
+    }
+    return;
+  }
+
+  if (consentDefaultsApplied) return;
   ensureDataLayer();
   window.gtag!('consent', 'default', {
     analytics_storage: 'denied',
@@ -87,15 +115,16 @@ export async function loadGA4(): Promise<void> {
   if (!MEASUREMENT_ID || isScriptLoaded) return;
   if (loadPromise) return loadPromise;
 
+  if (isGtagScriptInPage()) {
+    applyGrantedConsent();
+    isScriptLoaded = true;
+    flushEventQueue();
+    return;
+  }
+
   loadPromise = new Promise((resolve, reject) => {
     ensureDataLayer();
-
-    window.gtag!('consent', 'update', {
-      analytics_storage: 'granted',
-      ad_storage: 'denied',
-      ad_user_data: 'denied',
-      ad_personalization: 'denied',
-    });
+    applyGrantedConsent();
 
     const script = document.createElement('script');
     script.async = true;
