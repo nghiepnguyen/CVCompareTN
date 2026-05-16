@@ -51,9 +51,10 @@
 ## 3. Deployment
 
 ### Frontend & API (Vercel)
-- Push code to GitHub and connect to Vercel.
-- Configure environment variables in Vercel Dashboard.
-- The application is configured to run as a SPA with a companion API.
+- Push code to GitHub repo `nghiepnguyen/CVCompareTN`.
+- Connect the repo to Vercel project **`cvcompare`** (not `cv-compare-tn`). Production: `https://cv.thanhnghiep.top`.
+- Configure environment variables in the **`cvcompare`** project on Vercel Dashboard.
+- The application is configured to run as a SPA with a companion API. If Git push deploys the wrong Vercel project, see [`docs/7_deployment.md`](docs/7_deployment.md) (section *Project Vercel đúng*).
 
 ### Database (Supabase)
 - Create a Supabase project.

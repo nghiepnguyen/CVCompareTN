@@ -6,9 +6,28 @@ Dự án **CV Matcher & Optimizer** được triển khai theo mô hình **Verce
 
 Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/api`.
 
+### Project Vercel đúng (quan trọng)
+
+| | |
+|---|---|
+| **Project name (Dashboard)** | `cvcompare` |
+| **GitHub repo** | `nghiepnguyen/CVCompareTN` |
+| **Production domain** | `https://cv.thanhnghiep.top` (gắn trên project `cvcompare`) |
+| **Preview URL (ví dụ)** | `https://cvcompare-<hash>-nghiepnguyens.vercel.app` |
+
+**Không** dùng project `cv-compare-tn` (thường tạo khi `vercel link` / import nhầm). Push lên GitHub chỉ deploy đúng khi repo được gắn vào **`cvcompare`**, không phải `cv-compare-tn`.
+
+#### Sửa khi push GitHub deploy nhầm project
+
+1. Mở [Vercel Dashboard](https://vercel.com/dashboard) → project **`cv-compare-tn`** (nếu có) → **Settings** → **Git** → **Disconnect** repository `CVCompareTN`.
+2. Mở project **`cvcompare`** → **Settings** → **Git** → **Connect** → chọn `nghiepnguyen/CVCompareTN`, branch **`main`**.
+3. Trên **`cvcompare`**: **Settings** → **Environment Variables** — copy toàn bộ biến từ project cũ (hoặc từ `.env.example`).
+4. **Deployments** → chọn deployment mới nhất trên `main` → **Redeploy** (hoặc push một commit nhỏ sau khi đã connect).
+5. Local CLI (tùy chọn): trong thư mục repo chạy `vercel link` và chọn project **`cvcompare`** (cập nhật `.vercel/project.json`).
+
 ### Các bước thực hiện:
 
-1.  **Kết nối GitHub:** Đẩy mã nguồn lên GitHub và kết nối project với Vercel.
+1.  **Kết nối GitHub:** Đẩy mã nguồn lên `nghiepnguyen/CVCompareTN` và kết nối **project Vercel `cvcompare`** (xem bảng trên).
 2.  **Cấu hình Environment Variables:** Trong Dashboard của Vercel, hãy thiết lập các biến môi trường sau:
     -   `GEMINI_API_KEY`: API Key từ Google AI Studio.
     -   `RECAPTCHA_SECRET_KEY`: Secret Key cho reCAPTCHA v3.

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "vercel-dev": "vercel dev"
+    "vercel-dev": "vercel dev",
+    "vercel-link": "vercel link --project cvcompare"
   },
   "dependencies": {
     "@google/genai": "^1.48.0",
