@@ -32,7 +32,7 @@ import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { InAppBrowserWarning } from './components/layout/InAppBrowserWarning';
 import { CookieConsentBanner } from './components/layout/CookieConsentBanner';
-import { restoreAnalyticsConsent } from './lib/ga4';
+import { initGa4Bootstrap, restoreAnalyticsConsent } from './lib/ga4';
 const PrivacyPolicyPage = React.lazy(() => import('./components/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
 const TermsOfServicePage = React.lazy(() => import('./components/TermsOfServicePage').then(m => ({ default: m.TermsOfServicePage })));
 const SupportDevelopmentPage = React.lazy(() => import('./components/SupportDevelopmentPage').then(m => ({ default: m.SupportDevelopmentPage })));
@@ -111,6 +111,7 @@ function AppContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    initGa4Bootstrap();
     restoreAnalyticsConsent();
   }, []);
 

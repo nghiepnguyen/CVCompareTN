@@ -9,6 +9,7 @@ type QueuedEvent = { name: string; params?: Record<string, unknown> };
 
 let isScriptLoaded = false;
 let loadPromise: Promise<void> | null = null;
+let consentDefaultsApplied = false;
 const eventQueue: QueuedEvent[] = [];
 
 export function getGaMeasurementId(): string {
@@ -68,6 +69,20 @@ function ensureDataLayer(): void {
   }
 }
 
+/** Stub gtag + Consent Mode defaults (denied until user accepts). Safe to call on every app load. */
+export function initGa4Bootstrap(): void {
+  if (!MEASUREMENT_ID || consentDefaultsApplied) return;
+  ensureDataLayer();
+  window.gtag!('consent', 'default', {
+    analytics_storage: 'denied',
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+    wait_for_update: 500,
+  });
+  consentDefaultsApplied = true;
+}
+
 export async function loadGA4(): Promise<void> {
   if (!MEASUREMENT_ID || isScriptLoaded) return;
   if (loadPromise) return loadPromise;
@@ -104,6 +119,7 @@ export async function loadGA4(): Promise<void> {
 }
 
 export function restoreAnalyticsConsent(): void {
+  initGa4Bootstrap();
   if (getAnalyticsConsent() === 'granted') {
     void loadGA4();
   }
