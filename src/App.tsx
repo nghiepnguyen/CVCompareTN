@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Analytics } from "@vercel/analytics/react";
 import { 
@@ -26,10 +26,13 @@ const HistoryView = React.lazy(() => import('./components/views/HistoryView').th
 const NoPermissionView = React.lazy(() => import('./components/views/NoPermissionView').then(m => ({ default: m.NoPermissionView })));
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { UIProvider, useUI } from './context/UIContext';
+import { formatLabel } from './translations';
 import { AnalysisProvider, useAnalysis } from './context/AnalysisContext';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { InAppBrowserWarning } from './components/layout/InAppBrowserWarning';
+import { CookieConsentBanner } from './components/layout/CookieConsentBanner';
+import { restoreAnalyticsConsent } from './lib/ga4';
 const PrivacyPolicyPage = React.lazy(() => import('./components/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
 const TermsOfServicePage = React.lazy(() => import('./components/TermsOfServicePage').then(m => ({ default: m.TermsOfServicePage })));
 const SupportDevelopmentPage = React.lazy(() => import('./components/SupportDevelopmentPage').then(m => ({ default: m.SupportDevelopmentPage })));
@@ -92,7 +95,7 @@ export default function App() {
 
 function AppContent() {
   const { user, userProfile, error, setError, isAuthInitialized, isRedirectChecked } = useAuth();
-  const { 
+  const {
     activeTab, setActiveTab, reportLanguage, t,
     isSavedJDsModalOpen, setIsSavedJDsModalOpen,
     isSaveJDNameModalOpen, setIsSaveJDNameModalOpen
@@ -107,13 +110,15 @@ function AppContent() {
   const [jdSaveTitle, setJdSaveTitle] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  useEffect(() => {
+    restoreAnalyticsConsent();
+  }, []);
+
   // SEO Dynamic Updates
   React.useEffect(() => {
     const isPolicyPage = activeTab === 'privacy' || activeTab === 'terms' || activeTab === 'support';
     const pageTitle = isPolicyPage 
-      ? `${activeTab === 'privacy' ? (reportLanguage === 'vi' ? 'Chính sách bảo mật' : 'Privacy Policy') : 
-         activeTab === 'terms' ? (reportLanguage === 'vi' ? 'Điều khoản dịch vụ' : 'Terms of Service') : 
-         (reportLanguage === 'vi' ? 'Hỗ trợ phát triển' : 'Support Development')} | CV Matcher`
+      ? `${activeTab === 'privacy' ? t.privacyPolicyPageTitle : activeTab === 'terms' ? t.termsPageTitle : t.supportPageTitle} | CV Matcher`
       : (t.seoTitle || "CV Matcher & Optimizer");
 
     // Update Document Title
@@ -201,7 +206,7 @@ function AppContent() {
         </div>
         <div className="flex items-center gap-3 bg-surface px-6 py-3 rounded-2xl shadow-sm border border-border">
           <Loader2 className="w-5 h-5 text-accent animate-spin" />
-          <span className="text-sm font-bold text-text-muted tracking-tight">Đang khởi tạo hệ thống...</span>
+          <span className="text-sm font-bold text-text-muted tracking-tight">{t.appInitializing}</span>
         </div>
       </div>
     );
@@ -226,7 +231,7 @@ function AppContent() {
                 </div>
               </div>
               <p className="mt-4 text-sm font-bold text-text-light animate-pulse uppercase tracking-[0.2em]">
-                {reportLanguage === 'vi' ? 'Đang tải nội dung...' : 'Loading Content...'}
+                {t.appLoadingContent}
               </p>
             </div>
           }>
@@ -261,7 +266,7 @@ function AppContent() {
             {[
               { id: 'analyze', icon: LayoutDashboard, label: t.analyze || 'Phân tích' },
               { id: 'history', icon: HistoryIcon, label: t.history || 'Lịch sử' },
-              { id: 'saved', icon: Bookmark, label: 'Kho JD', action: () => setIsSavedJDsModalOpen(true) },
+              { id: 'saved', icon: Bookmark, label: t.mobileJdStore, action: () => setIsSavedJDsModalOpen(true) },
             ].map((item) => (
               <button
                 key={item.id}
@@ -287,7 +292,7 @@ function AppContent() {
                 )}
               >
                 <Settings className="w-6 h-6" />
-                <span className="text-[10px] font-bold uppercase tracking-tight">Admin</span>
+                <span className="text-[10px] font-bold uppercase tracking-tight">{t.admin}</span>
               </button>
             )}
           </nav>
@@ -313,10 +318,10 @@ function AppContent() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-xs font-black text-text-light uppercase tracking-widest mb-1">
-                      {reportLanguage === 'vi' ? 'Thông báo lỗi' : 'Error Message'}
+                      {t.appErrorNotice}
                     </h4>
                     <div className="text-sm font-bold text-text-main leading-relaxed pr-8">
-                      {typeof error === 'string' ? error : 'Đã xảy ra lỗi không xác định'}
+                      {typeof error === 'string' ? error : t.appUnknownError}
                     </div>
                   </div>
                   <button 
@@ -347,8 +352,8 @@ function AppContent() {
                       <Bookmark className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">Kho JD đã lưu</h2>
-                      <p className="text-xs text-accent-light">Chọn một JD để sử dụng ngay</p>
+                      <h2 className="text-xl font-bold">{t.jdStoreModalTitle}</h2>
+                      <p className="text-xs text-accent-light">{t.jdStoreModalSubtitle}</p>
                     </div>
                   </div>
                   <button 
@@ -364,7 +369,7 @@ function AppContent() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-light" />
                     <input 
                       type="text"
-                      placeholder="Tìm kiếm JD theo tên..."
+                      placeholder={t.jdStoreSearchPlaceholder}
                       value={savedJDSearchTerm}
                       onChange={(e) => setSavedJDSearchTerm(e.target.value)}
                       className="w-full pl-10 pr-4 py-2 bg-surface border border-border rounded-xl text-sm focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
@@ -376,19 +381,21 @@ function AppContent() {
                   {isLoadingSavedJDs ? (
                     <div className="flex flex-col items-center justify-center py-12">
                       <Loader2 className="w-10 h-10 text-accent animate-spin mb-4" />
-                      <p className="text-sm font-bold text-text-light animate-pulse uppercase tracking-widest">Đang tải dữ liệu...</p>
+                      <p className="text-sm font-bold text-text-light animate-pulse uppercase tracking-widest">{t.jdStoreLoading}</p>
                     </div>
                   ) : savedJDs.length === 0 ? (
                     <div className="text-center py-12">
                       <div className="w-16 h-16 bg-surface-secondary rounded-full flex items-center justify-center mx-auto mb-4">
                         <BookmarkPlus className="w-8 h-8 text-text-light/50" />
                       </div>
-                      <h3 className="text-text-muted font-bold">Chưa có JD nào được lưu</h3>
-                      <p className="text-sm text-text-light mt-1">Hãy lưu các JD bạn thường xuyên sử dụng để tiết kiệm thời gian.</p>
+                      <h3 className="text-text-muted font-bold">{t.jdStoreEmptyTitle}</h3>
+                      <p className="text-sm text-text-light mt-1">{t.jdStoreEmptyDesc}</p>
                     </div>
                   ) : savedJDs.filter(jdItem => jdItem.title.toLowerCase().includes(savedJDSearchTerm.toLowerCase())).length === 0 ? (
                     <div className="text-center py-12">
-                      <p className="text-slate-400 text-sm italic">Không tìm thấy JD nào khớp với từ khóa "{savedJDSearchTerm}"</p>
+                      <p className="text-slate-400 text-sm italic">
+                        {formatLabel(t.jdStoreNoMatch, { term: savedJDSearchTerm })}
+                      </p>
                     </div>
                   ) : (
                     <div className="grid gap-3">
@@ -407,7 +414,7 @@ function AppContent() {
                             <div className="flex items-center gap-2 mt-2">
                               <Clock className="w-3 h-3 text-text-light" />
                               <span className="text-[10px] text-text-light font-bold uppercase tracking-wider">
-                                {new Date(savedJd.timestamp).toLocaleDateString('vi-VN')}
+                                {new Date(savedJd.timestamp).toLocaleDateString(reportLanguage === 'vi' ? 'vi-VN' : 'en-US')}
                               </span>
                             </div>
                           </div>
@@ -418,7 +425,7 @@ function AppContent() {
                                 handleDeleteSavedJD(savedJd.id);
                               }}
                               className="w-8 h-8 rounded-full bg-surface text-error shadow-sm border border-border flex items-center justify-center hover:bg-error-light transition-colors"
-                              title="Xóa JD này"
+                              title={t.jdStoreDeleteTitle}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -460,7 +467,7 @@ function AppContent() {
                     <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
                       <BookmarkPlus className="w-5 h-5 text-white" />
                     </div>
-                    <h2 className="text-xl font-bold">Lưu JD vào kho</h2>
+                    <h2 className="text-xl font-bold">{t.saveJdModalTitle}</h2>
                   </div>
                   <button 
                     onClick={() => setIsSaveJDNameModalOpen(false)}
@@ -471,11 +478,11 @@ function AppContent() {
                 </div>
                 
                 <div className="p-8">
-                  <label className="block text-xs font-black text-text-light uppercase tracking-widest mb-3">Tên gợi nhớ cho JD này</label>
+                  <label className="block text-xs font-black text-text-light uppercase tracking-widest mb-3">{t.saveJdNameLabel}</label>
                   <input 
                     type="text"
                     autoFocus
-                    placeholder="Ví dụ: Frontend Developer - VNG"
+                    placeholder={t.saveJdNamePlaceholder}
                     value={jdSaveTitle}
                     onChange={(e) => setJdSaveTitle(e.target.value)}
                     onKeyDown={(e) => {
@@ -485,7 +492,7 @@ function AppContent() {
                     }}
                     className="w-full px-5 py-4 bg-surface-secondary border border-border rounded-2xl text-text-main font-bold focus:ring-2 focus:ring-accent focus:border-transparent transition-all mb-2"
                   />
-                  <p className="text-[10px] text-text-light font-medium italic">JD sẽ được lưu vào kho để bạn có thể sử dụng lại bất cứ lúc nào.</p>
+                  <p className="text-[10px] text-text-light font-medium italic">{t.saveJdHint}</p>
                 </div>
                 
                 <div className="p-6 bg-surface-secondary border-t border-border flex gap-3">
@@ -503,12 +510,12 @@ function AppContent() {
                     {isSavingJD ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Đang lưu...
+                        {t.saveJdSaving}
                       </>
                     ) : (
                       <>
                         <Check className="w-4 h-4" />
-                        Xác nhận lưu
+                        {t.saveJdConfirm}
                       </>
                     )}
                   </button>
@@ -517,6 +524,13 @@ function AppContent() {
             </div>
           )}
         </AnimatePresence>
+
+        <CookieConsentBanner
+          onOpenPrivacy={() => {
+            setActiveTab('privacy');
+            window.scrollTo(0, 0);
+          }}
+        />
       </div>
 
       {/* 🚀 DEDICATED PRINT VIEW - Isolated from Dashboard UI */}

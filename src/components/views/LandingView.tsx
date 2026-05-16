@@ -342,11 +342,25 @@ const DemoResultSection = ({ t }: any) => (
                 <div className="h-3 w-3 rounded-full bg-border" />
                 <div className="h-3 w-3 rounded-full bg-border" />
               </div>
-              <div className="flex items-center gap-2 rounded-full bg-surface/50 px-4 py-1 border border-border/50 shadow-sm">
-                <Brain className="h-3 w-3 text-accent" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-text-light">Gemini 3 Engine Powered</span>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <div className="flex items-center gap-2 rounded-full bg-surface/50 px-4 py-1 border border-border/50 shadow-sm">
+                  <Brain className="h-3 w-3 shrink-0 text-accent" aria-hidden />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-light whitespace-nowrap">
+                    Gemini 3 Engine Powered
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 border border-accent/20 text-accent shadow-sm">
+                  <Zap className="h-3 w-3 shrink-0" aria-hidden />
+                  <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                    AI Powered
+                  </span>
+                </div>
               </div>
-              <div className="w-12" />
+              <div className="flex w-12 shrink-0 gap-2 opacity-0 pointer-events-none" aria-hidden>
+                <div className="h-3 w-3 rounded-full bg-border" />
+                <div className="h-3 w-3 rounded-full bg-border" />
+                <div className="h-3 w-3 rounded-full bg-border" />
+              </div>
             </div>
 
             {/* Analysis Content */}
@@ -414,10 +428,6 @@ const DemoResultSection = ({ t }: any) => (
                       viewport={{ once: true }}
                       className="rounded-3xl bg-error-light/50 p-6 border border-error-light"
                     >
-                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-[10px] font-black uppercase tracking-widest shadow-sm">
-                        <Zap className="h-3 w-3" />
-                        AI Powered
-                      </div>
                       <h4 className="mb-4 flex items-center gap-2 font-sans text-xs font-black uppercase tracking-widest text-error">
                         <AlertCircle className="h-3 w-3" />
                         {t.missingSkills}

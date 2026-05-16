@@ -35,5 +35,6 @@
 | [5_api.md](5_api.md) | Endpoint Vercel vs Express, Gemini |
 | [6_workflow.md](6_workflow.md) | Luồng phân tích, export, lịch sử |
 | [7_deployment.md](7_deployment.md) | Vercel, Supabase migrations, **bảo mật Git** |
+| [8_analytics.md](8_analytics.md) | GA4 + Vercel Analytics, cookie consent, **bảng event** |
 
 *Hệ thống được thiết kế để biến quá trình tìm việc trở nên bớt áp lực và tăng cơ hội thành công cho mọi ứng viên.*

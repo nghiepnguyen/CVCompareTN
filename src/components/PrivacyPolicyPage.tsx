@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Lock, Eye, FileText, ArrowLeft, Share2, Check } from 'lucide-react';
+import { Shield, Lock, Eye, FileText, ArrowLeft, Share2, Check, Cookie } from 'lucide-react';
 
 export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
   const [copied, setCopied] = useState(false);
@@ -68,7 +68,8 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
               <li>Nội dung CV/Resume bạn tải lên hoặc dán vào hệ thống.</li>
               <li>Mô tả công việc (Job Description) bạn cung cấp để so sánh.</li>
               <li>Thông tin hồ sơ từ tài khoản Google của bạn (Tên, Email, Ảnh đại diện) khi bạn đăng nhập.</li>
-              <li>Dữ liệu phân tích hành vi sử dụng trang web thông qua Google Analytics.</li>
+              <li>Dữ liệu phân tích hành vi (chỉ khi bạn chấp nhận cookie) qua Google Analytics 4 (GA4).</li>
+              <li>Dữ liệu hiệu năng ẩn danh qua Vercel Analytics (không dùng cho quảng cáo).</li>
             </ul>
           </section>
 
@@ -103,8 +104,23 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
 
           <section className="space-y-4">
             <div className="flex items-center gap-3 text-indigo-600 mb-2">
+              <Cookie className="w-6 h-6" />
+              <h2 className="text-2xl font-black tracking-tight">4. Cookie và phân tích</h2>
+            </div>
+            <p className="leading-relaxed">
+              Google Analytics 4 (GA4) chỉ được kích hoạt sau khi bạn bấm &quot;Chấp nhận phân tích&quot;. Nếu từ chối,
+              script Google không được tải. Đổi lựa chọn qua &quot;Cài đặt cookie&quot; ở chân trang.
+            </p>
+            <ul className="list-disc list-inside space-y-2 ml-4 text-sm">
+              <li><strong>GA4:</strong> sự kiện phân tích (không gửi nội dung CV/JD).</li>
+              <li><strong>Vercel Analytics:</strong> hiệu năng trang, độc lập với GA4.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 text-indigo-600 mb-2">
               <FileText className="w-6 h-6" />
-              <h2 className="text-2xl font-black tracking-tight">4. Quyền của bạn</h2>
+              <h2 className="text-2xl font-black tracking-tight">5. Quyền của bạn</h2>
             </div>
             <p className="leading-relaxed">
               Bạn có quyền truy cập, chỉnh sửa hoặc yêu cầu xóa dữ liệu cá nhân của mình bất kỳ lúc nào thông qua các tính năng trên trang web hoặc liên hệ trực tiếp với chúng tôi.
@@ -112,7 +128,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
           </section>
 
           <div className="pt-8 border-t border-slate-100 text-sm text-slate-400 text-center">
-            Cập nhật lần cuối: Ngày 02 tháng 04 năm 2026
+            Cập nhật lần cuối: Ngày 16 tháng 05 năm 2026
           </div>
         </div>
       </div>

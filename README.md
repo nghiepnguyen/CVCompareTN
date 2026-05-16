@@ -10,7 +10,7 @@
 - **Markdown Rendering:** `react-markdown`, `rehype-raw`, `rehype-sanitize`, `remark-gfm`, `remark-breaks`
 - **Charts:** Recharts
 - **PDF/Docx Processing:** `pdfjs-dist`, `mammoth`
-- **Analytics:** Vercel Analytics (`@vercel/analytics`)
+- **Analytics:** Vercel Analytics + GA4 (cookie consent) — xem [`docs/8_analytics.md`](docs/8_analytics.md)
 - **Security:** Google reCAPTCHA v3
 - **Design Philosophy:** **Industrial Utilitarian** (High-precision, data-centric, and premium tactile feedback)
 

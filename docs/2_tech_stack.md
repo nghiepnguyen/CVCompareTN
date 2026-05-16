@@ -10,7 +10,9 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 -   **Animations:** [Motion](https://motion.dev/) (`motion`, import `motion/react`) — hiệu ứng chuyển cảnh và tương tác.
 -   **Icons:** [Lucide React](https://lucide.dev/) - Bộ icon vector đa dạng và hiện đại.
 -   **Data Visualization:** [Recharts](https://recharts.org/) - Hiển thị biểu đồ phân tích điểm số trực quan.
--   **Analytics:** [Vercel Analytics](https://vercel.com/analytics) - Theo dõi hiệu suất và tương tác người dùng theo thời gian thực.
+-   **Analytics (kép):**
+    -   [Vercel Analytics](https://vercel.com/analytics) — pageview / Web Vitals trên dashboard Vercel (luôn bật, `<Analytics />`).
+    -   **Google Analytics 4 (GA4)** — event sản phẩm (`analyze_cv`, `analysis_success`, …) qua `src/lib/ga4.ts`, **chỉ sau cookie consent**. Chi tiết: [`docs/8_analytics.md`](8_analytics.md).
 -   **State Management:** React Context (`AuthContext`, `AnalysisContext`, `UIContext`).
 
 ## Backend (Modular Express)

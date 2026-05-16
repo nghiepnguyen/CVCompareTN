@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useRef } from 'react';
 // import mammoth from 'mammoth'; // Moved to dynamic import
 import { useAuth } from './AuthContext';
 import { useUI } from './UIContext';
+import { trackEvent } from '../lib/ga4';
 import { supabase } from '../lib/supabase';
 import { 
   AnalysisResult, 
@@ -182,7 +183,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       const extractedText = await extractJDFromUrl(jdUrl);
       setJd(extractedText);
       setJdInputMode('text');
-      if (window.gtag) window.gtag('event', 'jd_create', { method: 'extract_url', url: jdUrl });
+      trackEvent('jd_create', { method: 'extract_url' });
     } catch (err: any) {
       setError(err.message || "Không thể trích xuất nội dung từ liên kết này.");
     } finally {
@@ -230,13 +231,11 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
       console.error('Lỗi xác thực reCAPTCHA:', err);
     }
 
-    if (window.gtag) {
-      window.gtag('event', 'analyze_cv', {
-        input_mode: cvInputMode,
-        jd_mode: jdInputMode,
-        cv_count: cvInputMode === 'file' ? files.length : 1,
-      });
-    }
+    trackEvent('analyze_cv', {
+      input_mode: cvInputMode,
+      jd_mode: jdInputMode,
+      cv_count: cvInputMode === 'file' ? files.length : 1,
+    });
 
     try {
       const newResults: AnalysisResult[] = [];
@@ -260,9 +259,11 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
           const analysis = await analyzeCV(jd, data, mimeType, file.name, jdInputMode === 'link' ? jdUrl : undefined, reportLanguage);
           newResults.push({ ...analysis, userId: user?.id });
           
-          if (window.gtag) {
-            window.gtag('event', 'analysis_success', { cv_name: file.name, match_score: analysis.matchScore, jd_type: jdInputMode });
-          }
+          trackEvent('analysis_success', {
+            match_score: analysis.matchScore,
+            jd_type: jdInputMode,
+            input_mode: 'file',
+          });
           setAnalysisProgress(fileBaseProgress + (1 / totalFiles) * 75);
           if (user?.id) incrementUsageCount(user.id).catch(console.error);
         }
@@ -275,9 +276,11 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
         const analysis = await analyzeCV(jd, cvText, 'text/plain', 'CV_Pasted.txt', jdInputMode === 'link' ? jdUrl : undefined, reportLanguage);
         newResults.push({ ...analysis, userId: user?.id });
         
-        if (window.gtag) {
-          window.gtag('event', 'analysis_success', { cv_name: 'Pasted Text', match_score: analysis.matchScore, jd_type: jdInputMode });
-        }
+        trackEvent('analysis_success', {
+          match_score: analysis.matchScore,
+          jd_type: jdInputMode,
+          input_mode: 'text',
+        });
         setAnalysisProgress(90);
         if (user?.id) incrementUsageCount(user.id).catch(console.error);
       }
@@ -335,7 +338,7 @@ export function AnalysisProvider({ children }: { children: React.ReactNode }) {
     try {
       await saveJDToProfile(user.id, title, jd);
       await loadSavedJDs();
-      if (window.gtag) window.gtag('event', 'jd_create', { method: 'manual' });
+      trackEvent('jd_create', { method: 'manual' });
     } catch (err: any) {
       setError("Lỗi khi lưu JD: " + err.message);
     } finally {

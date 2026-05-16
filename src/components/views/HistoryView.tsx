@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Trash2, TrendingUp, Download, Eye, FileText, CheckCircle2, AlertCircle, History as HistoryIcon, Clock, ChevronRight, Sparkles, Target, BarChart3, Search, Filter, Calendar } from 'lucide-react';
 import { useAnalysis } from '../../context/AnalysisContext';
 import { useUI } from '../../context/UIContext';
+import { formatLabel } from '../../translations';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
 import { deleteFromHistory } from '../../services/historyService';
@@ -17,7 +18,8 @@ export function HistoryView() {
     setResults,
     isLoadingHistory 
   } = useAnalysis();
-  const { t, setActiveTab } = useUI();
+  const { t, setActiveTab, reportLanguage } = useUI();
+  const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
   const { user } = useAuth();
 
   const [historySearchQuery, setHistorySearchQuery] = useState('');
@@ -94,21 +96,21 @@ export function HistoryView() {
             {isLoadingHistory ? (
               <div className="text-center py-24 bg-surface rounded-[2rem] border border-border shadow-sm flex flex-col items-center justify-center">
                 <div className="w-16 h-16 border-4 border-accent-light border-t-accent rounded-full animate-spin mb-6"></div>
-                <h3 className="text-xl font-bold text-text-main mb-2">Đang tải lịch sử...</h3>
-                <p className="text-text-muted max-w-sm mx-auto">Vui lòng đợi trong giây lát khi chúng tôi lấy dữ liệu của bạn.</p>
+                <h3 className="text-xl font-bold text-text-main mb-2">{t.historyLoadingTitle}</h3>
+                <p className="text-text-muted max-w-sm mx-auto">{t.historyLoadingDesc}</p>
               </div>
             ) : history.length === 0 ? (
               <div className="text-center py-24 bg-surface rounded-[2rem] border border-border shadow-sm">
                 <div className="w-20 h-20 bg-surface-secondary rounded-3xl flex items-center justify-center mx-auto mb-6">
                   <HistoryIcon className="w-10 h-10 text-text-light" />
                 </div>
-                <h3 className="text-xl font-bold text-text-main mb-2">Chưa có lịch sử</h3>
-                <p className="text-text-muted max-w-sm mx-auto">Hãy bắt đầu bằng cách tải lên CV và phân tích để lưu lại kết quả tại đây.</p>
+                <h3 className="text-xl font-bold text-text-main mb-2">{t.historyEmptyTitle}</h3>
+                <p className="text-text-muted max-w-sm mx-auto">{t.historyEmptyDesc}</p>
                 <button 
                   onClick={() => setActiveTab('analyze')}
                   className="mt-8 px-6 py-3 bg-accent text-white rounded-xl font-bold hover:bg-accent-hover transition-all shadow-lg shadow-accent-light cursor-pointer hover:scale-105 active:scale-95"
                 >
-                  Phân tích ngay
+                  {t.historyAnalyzeNow}
                 </button>
               </div>
             ) : (
@@ -124,13 +126,13 @@ export function HistoryView() {
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="font-bold text-text-main flex items-center gap-2">
                           <TrendingUp className="w-5 h-5 text-accent" />
-                          Xu hướng điểm số
+                          {t.historyScoreTrend}
                         </h3>
-                        <span className="text-[10px] font-black text-text-light uppercase tracking-widest">Gần đây</span>
+                        <span className="text-[10px] font-black text-text-light uppercase tracking-widest">{t.historyLabelRecent}</span>
                       </div>
                       <div className="h-48 min-h-[192px] w-full min-w-0 shrink-0">
                         <ResponsiveContainer width="100%" height={192} debounce={32}>
-                          <AreaChart data={[...history].reverse().slice(-10).map(h => ({ name: new Date(h.timestamp).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }), score: h.matchScore }))}>
+                          <AreaChart data={[...history].reverse().slice(-10).map(h => ({ name: new Date(h.timestamp).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit' }), score: h.matchScore }))}>
                             <defs>
                               <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
@@ -159,16 +161,16 @@ export function HistoryView() {
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="font-bold text-text-main flex items-center gap-2">
                           <BarChart3 className="w-5 h-5 text-success" />
-                          Phân bổ chất lượng CV
+                          {t.historyQualityDistribution}
                         </h3>
-                        <span className="text-[10px] font-black text-text-light uppercase tracking-widest">Tổng quan</span>
+                        <span className="text-[10px] font-black text-text-light uppercase tracking-widest">{t.historyLabelOverview}</span>
                       </div>
                       <div className="h-48 min-h-[192px] w-full min-w-0 shrink-0">
                         <ResponsiveContainer width="100%" height={192} debounce={32}>
                           <BarChart data={[
-                            { name: 'Thấp', count: history.filter(h => h.matchScore < 60).length, color: 'var(--color-warning)' },
-                            { name: 'T.Bình', count: history.filter(h => h.matchScore >= 60 && h.matchScore <= 80).length, color: 'var(--color-accent)' },
-                            { name: 'Cao', count: history.filter(h => h.matchScore > 80).length, color: 'var(--color-success)' }
+                            { name: t.historyChartLow, count: history.filter(h => h.matchScore < 60).length, color: 'var(--color-warning)' },
+                            { name: t.historyChartMedium, count: history.filter(h => h.matchScore >= 60 && h.matchScore <= 80).length, color: 'var(--color-accent)' },
+                            { name: t.historyChartHigh, count: history.filter(h => h.matchScore > 80).length, color: 'var(--color-success)' }
                           ]}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--color-text-light)' }} />
@@ -199,7 +201,7 @@ export function HistoryView() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-light" />
                     <input 
                       type="text"
-                      placeholder="Tìm kiếm theo tên CV hoặc vị trí công việc..."
+                      placeholder={t.historySearchPlaceholder}
                       value={historySearchQuery}
                       onChange={(e) => setHistorySearchQuery(e.target.value)}
                       className="w-full pl-10 pr-4 py-2 bg-surface-secondary border border-border rounded-xl text-sm focus:ring-2 focus:ring-accent focus:border-transparent transition-all text-text-main"
@@ -213,10 +215,10 @@ export function HistoryView() {
                         onChange={(e) => setHistoryScoreFilter(e.target.value as any)}
                         className="bg-transparent text-xs font-bold text-text-muted focus:outline-none cursor-pointer h-8 sm:h-auto"
                       >
-                        <option value="all">Tất cả điểm số</option>
-                        <option value="high">Điểm cao ({'>'}80)</option>
-                        <option value="medium">Trung bình (60-80)</option>
-                        <option value="low">Điểm thấp ({'<'}60)</option>
+                        <option value="all">{t.historyFilterAllScores}</option>
+                        <option value="high">{t.historyFilterHigh}</option>
+                        <option value="medium">{t.historyFilterMedium}</option>
+                        <option value="low">{t.historyFilterLow}</option>
                       </select>
                     </div>
                     <div className="flex items-center gap-2 bg-surface-secondary px-3 py-2 sm:py-1.5 rounded-xl border border-border">
@@ -226,10 +228,10 @@ export function HistoryView() {
                         onChange={(e) => setHistoryDateFilter(e.target.value as any)}
                         className="bg-transparent text-xs font-bold text-text-muted focus:outline-none cursor-pointer h-8 sm:h-auto"
                       >
-                        <option value="all">Mọi thời gian</option>
-                        <option value="today">Hôm nay</option>
-                        <option value="week">7 ngày qua</option>
-                        <option value="month">30 ngày qua</option>
+                        <option value="all">{t.historyFilterAllTime}</option>
+                        <option value="today">{t.historyFilterToday}</option>
+                        <option value="week">{t.historyFilterWeek}</option>
+                        <option value="month">{t.historyFilterMonth}</option>
                       </select>
                     </div>
                     {(historySearchQuery || historyScoreFilter !== 'all' || historyDateFilter !== 'all') && (
@@ -241,7 +243,7 @@ export function HistoryView() {
                         }}
                         className="text-xs font-bold text-accent hover:text-accent-hover px-2"
                       >
-                        Xóa bộ lọc
+                        {t.historyClearFilters}
                       </button>
                     )}
                   </div>
@@ -250,7 +252,7 @@ export function HistoryView() {
                 {/* Results Count */}
                 <div className="flex items-center justify-between px-2">
                   <p className="text-xs font-bold text-text-light uppercase tracking-widest">
-                    Hiển thị {filteredHistory.length} kết quả
+                    {formatLabel(t.historyShowingResults, { count: filteredHistory.length })}
                   </p>
                 </div>
 
@@ -258,7 +260,7 @@ export function HistoryView() {
                 {filteredHistory.length === 0 ? (
                   <div className="text-center py-20 bg-surface-secondary/50 rounded-3xl border border-dashed border-border">
                     <Search className="w-10 h-10 text-text-light mx-auto mb-4" />
-                    <p className="text-text-muted text-sm">Không tìm thấy kết quả phù hợp với bộ lọc.</p>
+                    <p className="text-text-muted text-sm">{t.historyNoFilterResults}</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
@@ -298,17 +300,17 @@ export function HistoryView() {
                               {item.matchScore > 85 && (
                                 <div className="bg-success-light text-success text-[8px] font-black uppercase px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
                                   <Sparkles className="w-2 h-2" />
-                                  Top Match
+                                  {t.historyTopMatch}
                                 </div>
                               )}
                             </div>
                             <p className="text-sm text-text-muted font-medium truncate">
-                              {(item.jobTitle || item.jdTitle || 'Không rõ vị trí').split('\n')[0]}
+                              {(item.jobTitle || item.jdTitle || t.historyUnknownPosition).split('\n')[0]}
                             </p>
                             <div className="flex items-center gap-4 mt-3">
                               <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-light uppercase tracking-wider">
                                 <Clock className="w-3 h-3" />
-                                {new Date(item.timestamp).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                {new Date(item.timestamp).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' })}
                               </div>
                               <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-light uppercase tracking-wider">
                                 <Target className="w-3 h-3" />
@@ -324,7 +326,12 @@ export function HistoryView() {
                             {item.categoryScores && (
                               <div 
                                 className="flex gap-1.5 cursor-help" 
-                                title={`Kỹ năng (K): ${item.categoryScores.skills}%\nKinh nghiệm (N): ${item.categoryScores.experience}%\nCông cụ (C): ${item.categoryScores.tools}%\nHọc văn (H): ${item.categoryScores.education}%`}
+                                title={formatLabel(t.historyCategoryTooltip, {
+                                  skills: item.categoryScores.skills,
+                                  experience: item.categoryScores.experience,
+                                  tools: item.categoryScores.tools,
+                                  education: item.categoryScores.education,
+                                })}
                               >
                                 {[
                                   { key: 'skills', label: 'K', color: 'bg-accent' },
@@ -357,7 +364,7 @@ export function HistoryView() {
                                 deleteHistoryItem(item.id);
                               }}
                               className="p-3 text-text-light hover:text-error hover:bg-error-light rounded-xl transition-all lg:opacity-0 lg:group-hover:opacity-100 cursor-pointer"
-                              title="Xóa kết quả"
+                              title={t.historyDeleteResult}
                             >
                               <Trash2 className="w-5 h-5" />
                             </button>

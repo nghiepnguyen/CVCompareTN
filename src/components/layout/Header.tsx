@@ -4,6 +4,7 @@ import { FileSearch, LayoutDashboard, History as HistoryIcon, ShieldCheck, LogOu
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { useAnalysis } from '../../context/AnalysisContext';
+import { trackEvent } from '../../lib/ga4';
 import { cn } from '../../lib/utils';
 
 export function Header() {
@@ -49,7 +50,7 @@ export function Header() {
                   onClick={() => { 
                     setActiveTab('history'); 
                     setSelectedResult(null); 
-                    if (window.gtag) window.gtag('event', 'view_history');
+                    trackEvent('view_history');
                   }}
                   className={cn(
                     "flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95",
