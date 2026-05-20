@@ -93,7 +93,7 @@ Sao chép `.env.example` → `.env` khi dev local. Chỉ `.env.example` được
 - `.vercel/` — liên kết project local
 - Khóa & credential: `*.pem`, `*.p12`, `id_rsa*`, `credentials.json`, `service-account*.json`
 - Backup local có thể chứa PII: `users_backup.json`, `*-backup.json`
-- **`graphify-out/cache/`** — cache AST của [Graphify](https://github.com/) (tái tạo bằng `graphify update .`). Có thể commit `graphify-out/GRAPH_REPORT.md`, `graph.json`, `graph.html` nếu team muốn chia sẻ báo cáo; **không** commit thư mục `cache/` (nhiều file JSON, thay đổi theo máy).
+- **`graphify-out/*`** — artifact Graphify (graph.json, cache, …) **không** commit; ngoại lệ: **`!graphify-out/GRAPH_REPORT.md`** (báo cáo đọc được cho agent/CI). Tái tạo local: `graphify update .`. Hook post-commit có thể ghi `~/.cache/graphify-rebuild.log` — lỗi sandbox không chặn push.
 
 Nếu đã commit nhầm secret: xoá khỏi lịch sử Git, **rotate** key trên Google / Supabase / Resend / Vercel, rồi cập nhật biến môi trường mới.
 

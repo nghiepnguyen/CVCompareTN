@@ -1,8 +1,10 @@
 # Structure Optimization — Design Spec
 
 **Date:** 2026-05-20  
-**Status:** Approved (user decisions locked)  
+**Status:** Implemented (merged to `main`, `daeddb6`)  
 **Scope:** Phased repo hygiene, App/Analysis refactor, API routing documentation. No UX or API behavior changes.
+
+> **Docs (2026-05):** `docs/3_frontend.md`, `AGENTS.md`, `README.md`, `docs/8_analytics.md` reflect `src/app/`, `context/analysis/`, and `landing/` sections.
 
 ---
 
@@ -12,7 +14,7 @@
 |-------|--------|
 | Graphify in Git | **Keep only** `graphify-out/GRAPH_REPORT.md`; untrack all other `graphify-out/*` |
 | Analysis context split | **B2 — two providers** (`AnalysisRunProvider` + `SavedJdProvider`) |
-| LandingView split | **Skipped (2c)** |
+| LandingView split | **Done** — `landing/*Section.tsx` + thin `LandingView.tsx` |
 | Execution | **Three sequential PRs** (Phase 1 → 2 → 3) |
 
 ---
@@ -158,17 +160,17 @@ export function useAnalysis(): AnalysisContextType {
 - Both providers may use `useAuth()`, `useUI()` (`reportLanguage` on run only).
 - `SavedJdProvider` uses `useGoogleReCaptcha` only if needed — today reCAPTCHA is in `handleAnalyze` (run only).
 
-**Delete:** `src/context/AnalysisContext.tsx` after migration (re-export from `context/analysis/index.ts` for one release optional — prefer direct import path update in `App.tsx` and views).
+**Shim:** `src/context/AnalysisContext.tsx` re-exports from `context/analysis/` (consumers may keep old import path).
 
 **Consumers (keep `useAnalysis()`):**
 
-- `App.tsx`, `Header.tsx`, `DashboardView`, `AnalysisInputView`, `HistoryView`, `ResultView`
+- `AppShell` / `AppContent`, `Header.tsx`, `DashboardView`, `AnalysisInputView`, `HistoryView`, `ResultView`
 
 **Optional later:** migrate hot paths to `useAnalysisRun()` / `useSavedJds()` — not required in this phase.
 
 ### 2c — LandingView
 
-**Out of scope** per user request.
+**Implemented** after initial scope lock: thin `LandingView.tsx` + `src/components/views/landing/*Section.tsx`.
 
 ### Phase 2 verification
 

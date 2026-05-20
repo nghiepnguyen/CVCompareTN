@@ -95,5 +95,5 @@ Organize the contents of a React component file in the following order:
 ## 9. Secrets & Environment
 
 -   Copy `.env.example` to `.env` for local work; never commit `.env` or real API keys.
--   Do not add `supabase/.temp/`, `.vercel/`, private keys (`*.pem`), `*-backup.json`, or `graphify-out/cache/` to Git (see root `.gitignore`).
+-   Do not add `supabase/.temp/`, `.vercel/`, private keys (`*.pem`), `*-backup.json`, or generated `graphify-out/*` to Git — except `graphify-out/GRAPH_REPORT.md` (see root `.gitignore`).
 -   Prefix only **public** client config with `VITE_`. Server secrets (`GEMINI_API_KEY`, `RECAPTCHA_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) stay server-side.

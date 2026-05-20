@@ -28,24 +28,33 @@
 
 ```text
 /
-├── server/                 # Backend Route Handlers
-│   ├── routes/
-│   │   ├── config.ts       # Public config delivery
-│   │   ├── recaptcha.ts    # ReCAPTCHA verification
-│   │   ├── feedback.ts     # Feedback submission
-│   │   ├── welcomeEmail.ts # Welcome email logic
-│   │   └── pdf.ts          # PDF text extraction
-├── src/                    # Frontend (React 19, Vite)
-│   ├── services/
-│   │   └── ai/             # Gemini AI + payload normalize + fullRewrittenCvMarkdown
-│   └── lib/
-│       └── supabase.ts     # Supabase Client configuration
+├── api/                    # Vercel serverless routes (e.g. extract-pdf)
+├── server/routes/          # Express handlers (pdf, feedback, config, …)
+├── src/
+│   ├── App.tsx             # Re-export → app/AppShell
+│   ├── app/                # Shell: providers, AppContent, modals, bottom nav
+│   ├── context/
+│   │   ├── analysis/       # AnalysisRun + SavedJd providers, useAnalysis()
+│   │   ├── AuthContext.tsx
+│   │   └── UIContext.tsx
+│   ├── components/views/
+│   │   ├── LandingView.tsx
+│   │   ├── landing/        # Hero, FAQ, CTA, … sections
+│   │   ├── DashboardView.tsx
+│   │   └── …
+│   ├── services/ai/        # Gemini + normalize + rewritten CV markdown
+│   └── lib/                # supabase, ga4, utils
+├── scripts/                # Dev utilities (e.g. test-resend.ts)
 ├── supabase/               # Migrations & Edge Functions (.temp/ ignored)
-├── docs/                   # Technical docs (vi) — see docs/1_overview.md
-├── server.ts               # Main Express Entry Point
-├── .env.example            # Env template (copy → .env, never commit .env)
-├── package.json            # Main project dependencies
+├── docs/                   # Technical docs (vi) — docs/1_overview.md
+├── graphify-out/
+│   └── GRAPH_REPORT.md     # Only this file tracked in Git
+├── server.ts
+├── .env.example
 └── README.md
+```
+
+API routing (Vercel vs Express vs Edge): [`docs/9_api_routes.md`](docs/9_api_routes.md).
 ```
 
 ## 3. Deployment
@@ -99,6 +108,6 @@ Secrets and machine-specific files are excluded via `.gitignore`:
 | `.vercel/` | Local Vercel project linkage |
 | `*.pem`, `id_rsa*`, `credentials.json`, `service-account*.json` | Keys and cloud credential dumps |
 | `users_backup.json`, `*-backup.json` | Local exports that may contain PII |
-| `graphify-out/cache/` | Graphify AST cache (regenerate with `graphify update .`) |
+| `graphify-out/*` (except `GRAPH_REPORT.md`) | Graphify artifacts — regenerate with `graphify update .` |
 
 Detailed deployment and Supabase setup: [`docs/7_deployment.md`](docs/7_deployment.md). Full documentation index: [`docs/1_overview.md`](docs/1_overview.md).

@@ -17,7 +17,7 @@
 
 | Công cụ | Mục đích | Consent | Cấu hình |
 |---------|----------|---------|----------|
-| **Vercel Analytics** | Lượt xem, Core Web Vitals trên dashboard Vercel | Không qua banner cookie GA | `<Analytics />` trong `src/App.tsx` |
+| **Vercel Analytics** | Lượt xem, Core Web Vitals trên dashboard Vercel | Không qua banner cookie GA | `<Analytics />` trong `src/app/AppShell.tsx` |
 | **GA4** | Funnel phân tích CV, JD, lịch sử | Bắt buộc — banner cookie | `VITE_GA_MEASUREMENT_ID` |
 
 **Measurement ID production:** `G-GVTPXY9S3D` (đặt qua biến môi trường, không hardcode trong mã nguồn).
@@ -33,7 +33,7 @@ GA4 được **nhúng vào `index.html` lúc build** (plugin Vite `inject-google
 1. Lần đầu truy cập (chưa có lựa chọn trong `localStorage`) → hiện `CookieConsentBanner`.
 2. **Chấp nhận** → `grantAnalyticsConsent()` → tải gtag, `gtag('config', …)`, gửi event đã xếp hàng.
 3. **Từ chối** → `denyAnalyticsConsent()` → không tải Google; xóa hàng đợi event.
-4. Lần sau → `restoreAnalyticsConsent()` trong `App.tsx` (nếu đã chấp nhận trước đó, tự load GA4).
+4. Lần sau → `restoreAnalyticsConsent()` qua `AnalyticsBootstrap` (mount từ `AppShell`; nếu đã chấp nhận trước đó, tự load GA4).
 5. **Đổi ý** → Footer → **Cài đặt cookie** → xóa consent → banner hiện lại.
 
 ### Lưu trữ consent
@@ -91,9 +91,9 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 
 | Event | Mô tả | Thuộc tính (params) | Trigger | File |
 |-------|--------|---------------------|---------|------|
-| `jd_create` | Người dùng có JD mới (trích URL hoặc lưu thủ công) | `method`: `'extract_url'` \| `'manual'` | Sau khi trích JD từ link thành công; sau khi lưu JD vào kho | `AnalysisContext.tsx` |
-| `analyze_cv` | Bắt đầu một lượt phân tích CV–JD | `input_mode`: `'file'` \| `'text'` — `jd_mode`: `'text'` \| `'link'` — `cv_count`: số file (khi upload) | Đầu `handleAnalyze`, sau bước reCAPTCHA (production) | `AnalysisContext.tsx` |
-| `analysis_success` | Một CV hoàn tất phân tích AI | `match_score`: điểm ATS — `jd_type`: chế độ JD — `input_mode`: `'file'` \| `'text'` | Sau mỗi `analyzeCV` thành công (từng file hoặc paste) | `AnalysisContext.tsx` |
+| `jd_create` | Người dùng có JD mới (trích URL hoặc lưu thủ công) | `method`: `'extract_url'` \| `'manual'` | Trích link thành công; lưu JD vào kho | `AnalysisRunContext.tsx` (`extract_url`) — `SavedJdContext.tsx` (`manual`) |
+| `analyze_cv` | Bắt đầu một lượt phân tích CV–JD | `input_mode`: `'file'` \| `'text'` — `jd_mode`: `'text'` \| `'link'` — `cv_count`: số file (khi upload) | Đầu `handleAnalyze`, sau reCAPTCHA (production) | `AnalysisRunContext.tsx` |
+| `analysis_success` | Một CV hoàn tất phân tích AI | `match_score`: điểm ATS — `jd_type`: chế độ JD — `input_mode`: `'file'` \| `'text'` | Sau mỗi `analyzeCV` thành công | `AnalysisRunContext.tsx` |
 | `view_history` | Mở tab Lịch sử | _(không có)_ | Click tab History trên Header | `Header.tsx` |
 
 ### Ghi chú quan trọng
@@ -117,7 +117,7 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 ## Vercel Analytics
 
 - Package: `@vercel/analytics` (`package.json`).
-- Component: `<Analytics />` trong `src/App.tsx` — **không** phụ thuộc consent GA4.
+- Component: `<Analytics />` trong `src/app/AppShell.tsx` — **không** phụ thuộc consent GA4.
 - Dữ liệu xem trên [Vercel Dashboard](https://vercel.com) → project **`cvcompare`** → Analytics.
 - Phù hợp: theo dõi traffic, performance; **không** thay thế funnel event tùy chỉnh của GA4.
 

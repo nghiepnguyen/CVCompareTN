@@ -6,7 +6,7 @@ This file contains custom instructions and context for the AI Studio Build agent
 - **Name:** CV Matcher & Optimizer
 - **Purpose:** A web application that analyzes user CVs against Job Descriptions (JDs) using AI (Gemini), provides ATS optimization feedback, and generates a rewritten CV.
 - **Primary Language:** Vietnamese (`vi`), with support for English (`en`).
-- **Architecture:** Full-stack React application. Frontend built with Vite, React 19, and Tailwind CSS. Backend is an Express server running on Node.js, handling API proxying (like PDF extraction and email sending) and serving the built frontend. Production hosting and serverless API routes use **Vercel** (`/api`, `vercel.json`).
+- **Architecture:** Full-stack React application. Frontend: Vite, React 19, Tailwind CSS. Entry: `src/App.tsx` → `src/app/AppShell.tsx` (providers + `AppContent`). Analysis state: `src/context/analysis/` (`AnalysisRunProvider` + `SavedJdProvider`). Landing: `src/components/views/LandingView.tsx` + `landing/*Section.tsx`. Backend: modular Express (`server.ts`, `server/routes/`). Production: **Vercel** (`/api`, `vercel.json`) — routing matrix in [`docs/9_api_routes.md`](docs/9_api_routes.md).
 - **Database/Auth:** **Supabase** (PostgreSQL, Authentication, Storage). Client setup lives in `src/lib/supabase.ts`; optional Edge Functions live under `supabase/functions/`.
 
 ## Core Directives
@@ -34,7 +34,7 @@ This file contains custom instructions and context for the AI Studio Build agent
 ### 6. Secrets & Repository Hygiene
 - **Never commit** `.env`, `.env.local`, private keys (`*.pem`, SSH keys), `credentials.json`, `service-account*.json`, or Supabase CLI cache (`supabase/.temp/`). See root `.gitignore` and `.env.example`.
 - **Local backups** (`users_backup.json`, `*-backup.json`) may contain PII — keep out of Git.
-- **Graphify:** Ignore `graphify-out/cache/` (AST cache); regenerate with `graphify update .` after clone.
+- **Graphify:** Only `graphify-out/GRAPH_REPORT.md` is tracked in Git (`graphify-out/*` ignored). Regenerate locally with `graphify update .` after clone; do not commit `graphify-out/cache/` or generated graphs.
 - **Vercel:** `.vercel/` is ignored locally; configure secrets in the Vercel Dashboard, not in tracked files.
 
 ### 4. Specific Workflows
@@ -42,5 +42,5 @@ This file contains custom instructions and context for the AI Studio Build agent
 - **Feedback System:** Feedback submission requires reCAPTCHA verification on the backend before sending an email via Resend.
 
 ### 5. Agent Behavior
-- **Proactive Verification:** After significant changes to `App.tsx` or `server.ts`, run **`npm run lint`** (TypeScript) and **`npm run build`** when you need to validate the full Vite bundle.
+- **Proactive Verification:** After significant changes to `src/app/*`, `src/context/analysis/*`, or `server.ts`, run **`npm run lint`** and **`npm run build`** when validating the full bundle.
 - **Targeted Edits:** When using `edit_file` or `multi_edit_file`, ensure the `TargetContent` is precise and unique to avoid "target content not found" errors. Use `view_file` immediately before editing if you are unsure of the exact current state.

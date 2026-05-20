@@ -36,5 +36,8 @@
 | [6_workflow.md](6_workflow.md) | Luồng phân tích, export, lịch sử |
 | [7_deployment.md](7_deployment.md) | Vercel, Supabase migrations, **bảo mật Git** |
 | [8_analytics.md](8_analytics.md) | GA4 + Vercel Analytics, cookie consent, **bảng event** |
+| [9_api_routes.md](9_api_routes.md) | Ma trận route: Vercel `/api`, Express, Supabase Edge |
+
+**Cấu trúc mã (2026-05):** `src/app/` (shell), `src/context/analysis/` (providers phân tích), `src/components/views/landing/` (section landing). Chi tiết: [3_frontend.md](3_frontend.md).
 
 *Hệ thống được thiết kế để biến quá trình tìm việc trở nên bớt áp lực và tăng cơ hội thành công cho mọi ứng viên.*
