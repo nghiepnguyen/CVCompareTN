@@ -54,6 +54,7 @@ export function AppContent() {
     setIsSaveJDNameModalOpen,
   } = useUI();
   const {
+    jd,
     setJd,
     selectedResult,
     setSelectedResult,
@@ -137,7 +138,7 @@ export function AppContent() {
 
   const onConfirmSaveJD = async () => {
     if (!jdSaveTitle.trim()) return;
-    await confirmSaveJD(jdSaveTitle);
+    await confirmSaveJD(jdSaveTitle, jd);
     setIsSaveJDNameModalOpen(false);
     setJdSaveTitle('');
   };
