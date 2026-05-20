@@ -1,5 +1,7 @@
 # Danh sách API Endpoints (CV Compare)
 
+> **Routing matrix (Vercel vs Express vs Edge):** [9_api_routes.md](./9_api_routes.md)
+
 Dưới đây là các API và dịch vụ chính. **Đường dẫn proxy có thể khác nhau** giữa **Express local** (`npm start`) và **Vercel** (`api/*.ts`).
 
 ## 1. Internal API (Backend Proxy)

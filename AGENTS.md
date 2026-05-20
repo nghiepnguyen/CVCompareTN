@@ -38,7 +38,7 @@ This file contains custom instructions and context for the AI Studio Build agent
 - **Vercel:** `.vercel/` is ignored locally; configure secrets in the Vercel Dashboard, not in tracked files.
 
 ### 4. Specific Workflows
-- **File Processing:** Simple text/images are handled client-side; PDF text extraction uses **`POST /api/extract-pdf`** on Vercel (`api/extract-pdf.ts`) and **`POST /api/extract-pdf/extract`** when running the Express server (`npm start` → `server/routes/pdf.ts`). Optional Supabase Edge Function `extract-pdf` may be used for some JD flows (`supabase.functions.invoke`).
+- **File Processing:** Simple text/images are handled client-side; PDF text extraction uses **`POST /api/extract-pdf`** on Vercel (`api/extract-pdf.ts`) and **`POST /api/extract-pdf/extract`** when running the Express server (`npm start` → `server/routes/pdf.ts`). Optional Supabase Edge Function `extract-pdf` may be used for some JD flows (`supabase.functions.invoke`). Full routing matrix: [`docs/9_api_routes.md`](docs/9_api_routes.md).
 - **Feedback System:** Feedback submission requires reCAPTCHA verification on the backend before sending an email via Resend.
 
 ### 5. Agent Behavior
