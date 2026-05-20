@@ -1,178 +1,153 @@
-# Graph Report - cv-compare-tn  (2026-05-16)
+# Graph Report - /Users/nghiepnguyen/My Files/cv-compare-tn  (2026-05-16)
 
 ## Corpus Check
-- 67 files · ~37,641 words
-- Verdict: corpus is large enough that graph structure adds value.
+- Corpus is ~47,571 words - fits in a single context window. You may not need a graph.
 
 ## Summary
-- 436 nodes · 888 edges · 41 communities (24 shown, 17 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 8 edges (avg confidence: 0.88)
-- Token cost: 0 input · 0 output
-
-## Graph Freshness
-- Built from commit: `ade9955f`
-- Run `git rev-parse HEAD` and compare to check if the graph is stale.
-- Run `graphify update .` after code changes (no API cost).
+- 349 nodes · 642 edges · 39 communities (21 shown, 18 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 10 edges (avg confidence: 0.79)
+- Token cost: 131,965 input · 6,899 output
 
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Gemini Service & Admin|Gemini Service & Admin]]
-- [[_COMMUNITY_UI Context & Main Views|UI Context & Main Views]]
-- [[_COMMUNITY_Auth & Firebase|Auth & Firebase]]
-- [[_COMMUNITY_App Layout & Legal|App Layout & Legal]]
-- [[_COMMUNITY_Backend API (Express)|Backend API (Express)]]
-- [[_COMMUNITY_Match Logic & Types|Match Logic & Types]]
-- [[_COMMUNITY_Firebase Functions|Firebase Functions]]
-- [[_COMMUNITY_App Entry & Server|App Entry & Server]]
-- [[_COMMUNITY_Core Application Logic|Core Application Logic]]
-- [[_COMMUNITY_Error Handling|Error Handling]]
-- [[_COMMUNITY_Email Testing|Email Testing]]
-- [[_COMMUNITY_Vite Configuration|Vite Configuration]]
-- [[_COMMUNITY_Server Logic|Server Logic]]
-- [[_COMMUNITY_API Documentation|API Documentation]]
-- [[_COMMUNITY_Main Entry|Main Entry]]
-- [[_COMMUNITY_Firebase Config|Firebase Config]]
-- [[_COMMUNITY_Header Component|Header Component]]
-- [[_COMMUNITY_Footer Component|Footer Component]]
-- [[_COMMUNITY_Match Score Component|Match Score Component]]
-- [[_COMMUNITY_Vite Tooling|Vite Tooling]]
-- [[_COMMUNITY_Functions Logic|Functions Logic]]
-- [[_COMMUNITY_Utility Utilities|Utility Utilities]]
-- [[_COMMUNITY_Frontend Docs|Frontend Docs]]
-- [[_COMMUNITY_Deployment Docs|Deployment Docs]]
-- [[_COMMUNITY_Community 29|Community 29]]
-- [[_COMMUNITY_Community 30|Community 30]]
-- [[_COMMUNITY_Community 31|Community 31]]
-- [[_COMMUNITY_Community 32|Community 32]]
-- [[_COMMUNITY_Community 33|Community 33]]
-- [[_COMMUNITY_Community 34|Community 34]]
-- [[_COMMUNITY_Community 35|Community 35]]
-- [[_COMMUNITY_Community 36|Community 36]]
-- [[_COMMUNITY_Community 37|Community 37]]
-- [[_COMMUNITY_Community 38|Community 38]]
-- [[_COMMUNITY_Community 39|Community 39]]
-- [[_COMMUNITY_Community 40|Community 40]]
+- [[_COMMUNITY_App Shell & Result UI|App Shell & Result UI]]
+- [[_COMMUNITY_AI Analysis & Types|AI Analysis & Types]]
+- [[_COMMUNITY_Express & Edge Functions|Express & Edge Functions]]
+- [[_COMMUNITY_Supabase Auth & Users|Supabase Auth & Users]]
+- [[_COMMUNITY_i18n Translations|i18n Translations]]
+- [[_COMMUNITY_CV Markdown & Optimization|CV Markdown & Optimization]]
+- [[_COMMUNITY_GA4 Analytics & Consent|GA4 Analytics & Consent]]
+- [[_COMMUNITY_Analysis Context & History|Analysis Context & History]]
+- [[_COMMUNITY_Landing Page Marketing|Landing Page Marketing]]
+- [[_COMMUNITY_Legacy Match Scoring|Legacy Match Scoring]]
+- [[_COMMUNITY_Gemini Extraction|Gemini Extraction]]
+- [[_COMMUNITY_Error Boundary|Error Boundary]]
+- [[_COMMUNITY_Vite Build & GA Tag|Vite Build & GA Tag]]
+- [[_COMMUNITY_Resend Test Script|Resend Test Script]]
+- [[_COMMUNITY_Vercel API Config|Vercel API Config]]
+- [[_COMMUNITY_Vercel Welcome Email|Vercel Welcome Email]]
+- [[_COMMUNITY_Vercel Feedback API|Vercel Feedback API]]
+- [[_COMMUNITY_Vercel reCAPTCHA API|Vercel reCAPTCHA API]]
+- [[_COMMUNITY_Vercel PDF Extract API|Vercel PDF Extract API]]
+- [[_COMMUNITY_Privacy Policy Page|Privacy Policy Page]]
+- [[_COMMUNITY_Terms of Service Page|Terms of Service Page]]
+- [[_COMMUNITY_Semantic Cluster 27|Semantic Cluster 27]]
+- [[_COMMUNITY_Semantic Cluster 28|Semantic Cluster 28]]
+- [[_COMMUNITY_Semantic Cluster 29|Semantic Cluster 29]]
+- [[_COMMUNITY_Semantic Cluster 30|Semantic Cluster 30]]
+- [[_COMMUNITY_Semantic Cluster 31|Semantic Cluster 31]]
+- [[_COMMUNITY_Semantic Cluster 32|Semantic Cluster 32]]
+- [[_COMMUNITY_Semantic Cluster 33|Semantic Cluster 33]]
+- [[_COMMUNITY_Semantic Cluster 34|Semantic Cluster 34]]
+- [[_COMMUNITY_Semantic Cluster 35|Semantic Cluster 35]]
+- [[_COMMUNITY_Semantic Cluster 36|Semantic Cluster 36]]
+- [[_COMMUNITY_Semantic Cluster 37|Semantic Cluster 37]]
+- [[_COMMUNITY_Semantic Cluster 38|Semantic Cluster 38]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `useUI()` - 39 edges
-2. `useAuth()` - 23 edges
-3. `LandingView` - 21 edges
-4. `cn()` - 21 edges
-5. `handleFirestoreError()` - 20 edges
-6. `cn()` - 19 edges
-7. `useAnalysis()` - 15 edges
-8. `AnalysisResult` - 14 edges
-9. `AnalysisInputView()` - 13 edges
-10. `AdminView` - 12 edges
+2. `cn()` - 23 edges
+3. `useAuth()` - 19 edges
+4. `useAnalysis()` - 13 edges
+5. `analyzeCV()` - 10 edges
+6. `initGa4Bootstrap()` - 8 edges
+7. `supabase` - 8 edges
+8. `coerceJsonField()` - 8 edges
+9. `normalizeAnalysisPayload()` - 8 edges
+10. `loadGA4()` - 7 edges
 
 ## Surprising Connections (you probably didn't know these)
-- ``extractJDFromUrl(url)`` --calls--> `ensureApiKey()`  [EXTRACTED]
-  docs/5_api.md → src/services/ai/geminiProvider.ts
-- ``extractJDFromUrl(url)`` --calls--> `getGeminiClient()`  [EXTRACTED]
-  docs/5_api.md → src/services/ai/geminiProvider.ts
-- `Admin Dashboard View` --calls--> `Express Backend Server`  [INFERRED]
-  src/components/views/AdminView.tsx → server.ts
-- `Express Backend Server` --conceptually_related_to--> `Resend Email Test Script`  [INFERRED]
-  server.ts → test-resend.ts
-- `AnalysisInputView Component` --calls--> `Match Service`  [INFERRED]
-  src/components/views/AnalysisInputView.tsx → src/services/matchService.ts
+- `Coding Conventions` --references--> `AppContent`  [INFERRED]
+  CODING_CONVENTIONS.md → src/App.tsx
+- `Analytics Documentation` --references--> `initGa4Bootstrap`  [EXTRACTED]
+  docs/8_analytics.md → src/lib/ga4.ts
+- `startServer` --references--> `defineConfig`  [INFERRED]
+  server.ts → vite.config.ts
+- `Project README` --conceptually_related_to--> `Render Blueprint`  [INFERRED]
+  README.md → render.yaml
+- `AnalysisProvider` --calls--> `verify-recaptcha`  [EXTRACTED]
+  src/context/AnalysisContext.tsx → supabase/functions/verify-recaptcha/index.ts
 
-## Communities (41 total, 17 thin omitted)
+## Communities (39 total, 18 thin omitted)
 
-### Community 0 - "Gemini Service & Admin"
+### Community 0 - "App Shell & Result UI"
+Cohesion: 0.13
+Nodes (31): useAnalysis(), useAuth(), Tab, UIContext, UIContextType, useUI(), CookieConsentBanner(), Header() (+23 more)
+
+### Community 1 - "AI Analysis & Types"
 Cohesion: 0.08
-Nodes (48): AnalysisContext, AnalysisContextType, AuthContext, AuthContextType, AuthProvider(), db, serviceAccount, supabase (+40 more)
+Nodes (29): SupabaseConfigError(), AnalysisContext, AnalysisContextType, AuthContext, AuthContextType, AuthProvider(), bootstrapSupabase(), createSupabaseClient() (+21 more)
 
-### Community 1 - "UI Context & Main Views"
-Cohesion: 0.12
-Nodes (40): AnalysisProvider(), useAnalysis(), useAuth(), Tab, UIContext, UIContextType, UIProvider(), useUI() (+32 more)
-
-### Community 2 - "Auth & Firebase"
-Cohesion: 0.11
-Nodes (32): analyzeCV(), parseGeminiJson(), extractJDFromUrl(), extractTextFromImage(), ensureApiKey(), getGeminiClient(), AnalysisResult, ATSEvaluation (+24 more)
-
-### Community 3 - "App Layout & Legal"
-Cohesion: 0.08
-Nodes (29): AnalysisInputView Component, 1. Code Style & Conventions, 2. Architecture & Data Flow, 3. UI/UX Guidelines, 4. Specific Workflows, 5. Agent Behavior, AI Studio Agent Instructions, Core Directives (+21 more)
-
-### Community 4 - "Backend API (Express)"
+### Community 2 - "Express & Edge Functions"
 Cohesion: 0.09
-Nodes (25): 1. Cấu hình (`/api/config`), 1. Phân phối cấu hình (`api/config.ts`), 1. Phân phối cấu hình bảo mật, 2. Trích xuất nội dung PDF, 2. Trích xuất nội dung PDF (`api/extract-pdf.ts`), 2. Trích xuất PDF (`/api/extract-pdf/extract`), 3. Xác thực reCAPTCHA, 3. Xác thực reCAPTCHA (`api/verify-recaptcha.ts`) (+17 more)
+Nodes (33): AnalysisProvider(), UIProvider(), CookieConsentBannerProps, Footer(), InAppBrowserWarning(), AnalyticsConsent, applyGrantedConsent(), denyAnalyticsConsent() (+25 more)
 
-### Community 5 - "Match Logic & Types"
-Cohesion: 0.09
-Nodes (22): 1. Triển khai trên Firebase (Khuyên dùng), 1. Triển khai trên Vercel, 2. Cấu hình Firebase (Bắt buộc), 2. Cấu hình Supabase (Bắt buộc), 2. Triển khai trên Render, 3. Các biến môi trường chi tiết, 3. Chế độ Phát triển (Local Development), 4. Cấu hình điều hướng (vercel.json) (+14 more)
-
-### Community 6 - "Firebase Functions"
-Cohesion: 0.1
-Nodes (21): 1. Prerequisites, 1. Vercel Deployment (Recommended), 2. Configuration (Secrets), 2. Firebase Setup (Auth & DB), 2. Folder Structure, 3. Deploy, 3. Deployment, 4. Deployment Flow (Firebase) (+13 more)
-
-### Community 7 - "App Entry & Server"
-Cohesion: 0.16
-Nodes (11): params, resendClient, params, resendClient, router, router, params, router (+3 more)
-
-### Community 8 - "Core Application Logic"
+### Community 3 - "Supabase Auth & Users"
 Cohesion: 0.14
-Nodes (13): apiRouter, app, axios_1, buffer, cors_1, express_1, https_1, parser (+5 more)
+Nodes (30): analyzeCV(), parseGeminiJson(), isRecord(), normalizeParsedCV(), coerceJsonField(), detailedComparisonHasRows(), IMPACTS, normalizeAnalysisPayload() (+22 more)
 
-### Community 9 - "Error Handling"
-Cohesion: 0.24
-Nodes (13): LandingView, BentoCard(), CtaSection(), DemoResultSection(), FaqSection(), FeatureIcon(), HeroSection(), HowItWorksSection() (+5 more)
+### Community 4 - "i18n Translations"
+Cohesion: 0.06
+Nodes (20): binaryString, bytes, corsHeaders, router, params, resendClient, router, buffer (+12 more)
 
-### Community 10 - "Email Testing"
+### Community 5 - "CV Markdown & Optimization"
+Cohesion: 0.11
+Nodes (14): admin, footer, history, LocaleEntry, SECTIONS, UI_LABELS, input, landing (+6 more)
+
+### Community 6 - "GA4 Analytics & Consent"
+Cohesion: 0.16
+Nodes (15): cvMarkdownHasHeadings(), fixMarkdownHeadingHashes(), fullRewrittenCvToPlainText(), isBulletLine(), isSectionLine(), normalizeSectionCandidate(), preprocessFullRewrittenCvMarkdown(), promotePlainTextCvToMarkdown() (+7 more)
+
+### Community 8 - "Landing Page Marketing"
 Cohesion: 0.18
-Nodes (14): 1. Tech Stack, Backend, Backend (Modular Express), Database & Auth, Frontend, Backend (Modular Express), Backend (Proxy Server), Backend (Serverless) (+6 more)
+Nodes (11): AnalysisProvider, AnalysisInputView, analyzeCV, extract-pdf, verify-recaptcha, extractJDFromUrl, trackEvent, getGeminiClient (+3 more)
 
-### Community 11 - "Vite Configuration"
-Cohesion: 0.15
-Nodes (12): 1. Internal API (Backend Proxy), 2. Dịch vụ lưu trữ (Firebase), 2. Dịch vụ lưu trữ & xác thực (Supabase), 3. Google Gemini AI Service, `analyzeCV(cvData, jdText, language, isBinary?)`, `analyzeCV(cvText, jdText, language)`, Danh sách API Endpoints (CV Compare), `extractTextFromImage(base64Data)` (+4 more)
-
-### Community 12 - "Server Logic"
-Cohesion: 0.18
-Nodes (10): binaryString, bytes, corsHeaders, api, apiRouter, app, buffer, params (+2 more)
-
-### Community 14 - "Main Entry"
-Cohesion: 0.25
-Nodes (4): router, corsHeaders, params, secretKey
-
-### Community 15 - "Firebase Config"
-Cohesion: 0.25
-Nodes (7): 1. Quản lý trạng thái tập trung, 2. Xử lý đa định dạng (Multi-format Support), 3. Hiển thị kết quả so sánh, Các luồng xử lý chính, Cấu trúc thư mục (Modular Architecture), Điểm nhấn UX, Kiến trúc Frontend (CV Compare)
-
-### Community 16 - "Header Component"
+### Community 9 - "Legacy Match Scoring"
 Cohesion: 0.29
-Nodes (8): Admin Dashboard View, Analysis Context Provider, App Root Component, Auth Context Provider, Landing Page View, Express Backend Server, Resend Email Test Script, UI Context Provider
+Nodes (5): Props, Candidate, JobDescription, MatchScoreBreakdown, Window
 
-### Community 17 - "Footer Component"
+### Community 10 - "Gemini Extraction"
+Cohesion: 0.25
+Nodes (8): useAnalysis, Analytics Documentation, AppContent, useAuth, Coding Conventions, initGa4Bootstrap, restoreAnalyticsConsent, useUI
+
+### Community 11 - "Error Boundary"
+Cohesion: 0.52
+Nodes (5): extractJDFromUrl(), extractTextFromImage(), ensureApiKey(), getGeminiClient(), loadKeyFromConfig()
+
+### Community 12 - "Vite Build & GA Tag"
 Cohesion: 0.29
-Nodes (6): 1. Luồng phân tích đồng thời (Batch Analysis Flow), 2. Luồng tối ưu hóa & Xuất bản, 3. Quản lý dữ liệu, Các bước trọng tâm:, code:mermaid (graph TD), Quy trình hoạt động (CV Compare Workflow)
+Nodes (7): cv-files Storage Bucket, History Table, increment_usage_count Function, is_admin Function, Profiles Table, Saved JDs Table, Auth Users
 
-### Community 18 - "Match Score Component"
-Cohesion: 0.33
-Nodes (3): resend, corsHeaders, resend
+### Community 14 - "Vercel API Config"
+Cohesion: 0.4
+Nodes (5): AuthProvider, send-email, rateAnalysis, RatingSection, getUserProfile
 
-### Community 20 - "Functions Logic"
-Cohesion: 0.5
-Nodes (3): Dự án CV Compare, Mục tiêu chính (Core Objectives), Tính năng nổi bật (Key Features)
+### Community 19 - "Privacy Policy Page"
+Cohesion: 0.67
+Nodes (3): startServer, defineConfig, googleTagHtmlPlugin
+
+### Community 20 - "Terms of Service Page"
+Cohesion: 0.67
+Nodes (3): CvMarkdownBody, preprocessFullRewrittenCvMarkdown, OptimizationTab
 
 ## Knowledge Gaps
-- **154 isolated node(s):** `env`, `resend`, `router`, `params`, `resendClient` (+149 more)
+- **97 isolated node(s):** `env`, `resend`, `router`, `params`, `resendClient` (+92 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Firebase Configuration` connect `Firebase Functions` to `Gemini Service & Admin`?**
-  _High betweenness centrality (0.113) - this node is a cross-community bridge._
-- **Why does `CV Matcher & Optimizer - Repository Overview` connect `Firebase Functions` to `Email Testing`?**
-  _High betweenness centrality (0.103) - this node is a cross-community bridge._
+- **Why does `useUI()` connect `App Shell & Result UI` to `AI Analysis & Types`, `Express & Edge Functions`, `GA4 Analytics & Consent`, `Analysis Context & History`?**
+  _High betweenness centrality (0.090) - this node is a cross-community bridge._
+- **Why does `cn()` connect `App Shell & Result UI` to `AI Analysis & Types`, `Express & Edge Functions`, `GA4 Analytics & Consent`, `Analysis Context & History`?**
+  _High betweenness centrality (0.035) - this node is a cross-community bridge._
+- **Why does `mapHistory()` connect `Supabase Auth & Users` to `AI Analysis & Types`?**
+  _High betweenness centrality (0.025) - this node is a cross-community bridge._
 - **What connects `env`, `resend`, `router` to the rest of the system?**
-  _154 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Gemini Service & Admin` be split into smaller, more focused modules?**
+  _97 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `App Shell & Result UI` be split into smaller, more focused modules?**
+  _Cohesion score 0.13 - nodes in this community are weakly interconnected._
+- **Should `AI Analysis & Types` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
-- **Should `UI Context & Main Views` be split into smaller, more focused modules?**
-  _Cohesion score 0.12 - nodes in this community are weakly interconnected._
-- **Should `Auth & Firebase` be split into smaller, more focused modules?**
-  _Cohesion score 0.11 - nodes in this community are weakly interconnected._
-- **Should `App Layout & Legal` be split into smaller, more focused modules?**
-  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
+- **Should `Express & Edge Functions` be split into smaller, more focused modules?**
+  _Cohesion score 0.09 - nodes in this community are weakly interconnected._
