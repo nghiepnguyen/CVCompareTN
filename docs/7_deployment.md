@@ -49,7 +49,7 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
 1.  **Tạo project Supabase:** Truy cập [Supabase Dashboard](https://supabase.com/dashboard).
 2.  **Authentication:** Bật nhà cung cấp **Google**. Trong URL Redirect / Site URL, thêm domain production (ví dụ `https://cv.thanhnghiep.top`) và URL preview của Vercel (`https://*.vercel.app`) cùng `http://localhost:5173` (hoặc cổng dev bạn dùng).
 3.  **Database:** Áp dụng migration mẫu trong `supabase/migrations/` (khuyến nghị: Supabase CLI `supabase db push`, hoặc chạy lần lượt trong SQL Editor). File `20260516120000_cv_matcher_core_schema.sql` tạo `profiles`, `history` (kèm cột **`parsed_cv` kiểu `jsonb`**), `saved_jds`, RPC `increment_usage_count`, RLS và bucket Storage **`cv-files`**. Nếu bạn đã có bảng `history` cũ, chạy thêm `20260516120100_history_add_parsed_cv.sql`.
-4.  **Storage:** Migration đã tạo bucket **`cv-files`** (public đọc; authenticated được upload/xóa). Đổi tên bucket chỉ khi bạn chỉnh `src/services/storageService.ts`.
+4.  **Storage:** Migration đã tạo bucket **`cv-files`** (public đọc; authenticated được upload/xóa). Đổi tên bucket chỉ khi bạn cập nhật cấu hình bucket tương ứng trong Supabase project.
 5.  **Biến môi trường:** Trên Vercel và trong `.env` local, thiết lập ít nhất `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY`. Với tác vụ server-side hoặc migration, dùng `SUPABASE_SERVICE_ROLE_KEY` (không đưa vào frontend).
 
 ### Edge Functions (tùy chọn)

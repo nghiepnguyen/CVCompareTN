@@ -13,13 +13,13 @@ const resend = new Resend(apiKey);
 
 async function sendTestEmail() {
   console.log('Sending test email via Resend...');
-  
+
   try {
     const { data, error } = await resend.emails.send({
       from: 'onboarding@resend.dev',
       to: 'thanhnghiep.top@gmail.com',
       subject: 'Hello World from CV Matcher',
-      html: '<p>Congrats on sending your <strong>first email</strong> from the CV Matcher project!</p>'
+      html: '<p>Congrats on sending your <strong>first email</strong> from the CV Matcher project!</p>',
     });
 
     if (error) {

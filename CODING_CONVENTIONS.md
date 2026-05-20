@@ -12,7 +12,7 @@ This document outlines the coding standards and conventions for the CV Matcher &
 ## 2. Naming Conventions
 
 ### Files and Directories
--   **React Components:** PascalCase (e.g., `MatchScoreDisplay.tsx`, `PrivacyPolicyPage.tsx`).
+-   **React Components:** PascalCase (e.g., `ResultView.tsx`, `PrivacyPolicyPage.tsx`).
 -   **Utility/Service Files:** camelCase (e.g., `geminiProvider.ts`, `supabase.ts`).
 -   **Service Modules:** For complex services, use a directory structure with an `index.ts` entry point (e.g., `src/services/ai/`).
 -   **Directories:** kebab-case or camelCase, but be consistent (e.g., `components`, `services`).

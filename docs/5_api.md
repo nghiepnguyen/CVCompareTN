@@ -51,7 +51,7 @@ Frontend dùng `src/lib/supabase.ts` (REST / Auth / Storage).
 
 - **Auth:** OAuth Google qua Supabase Auth (JWT).
 - **PostgreSQL:** `profiles`, `history` (JSON kết quả, có `parsed_cv`), `saved_jds`.
-- **Storage:** Bucket `cv-files` (`storageService.ts`).
+- **Storage:** Bucket `cv-files` (Supabase Storage; no dedicated TypeScript module; uploads not wired in current UI).
 
 ## 3. Google Gemini AI (`src/services/ai/`)
 
