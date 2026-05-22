@@ -68,4 +68,12 @@ export const system = {
     vi: "Đã xảy ra lỗi không xác định",
     en: "An unknown error occurred",
   },
+  monthlyUsageLimitExceeded: {
+    vi: "Bạn đã vượt quá số lượng sử dụng của tháng này.",
+    en: "You have exceeded your usage limit for this month.",
+  },
+  monthlyUsageLimitExceededDetail: {
+    vi: "(Đã dùng {used}/{limit} lượt phân tích)",
+    en: "(Used {used}/{limit} analyses)",
+  },
 } as const;

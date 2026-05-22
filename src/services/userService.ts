@@ -12,6 +12,9 @@ export interface UserProfile {
   isNew: boolean;
   hasPermission: boolean;
   usageCount: number;
+  /** NULL = unlimited analyses per month */
+  monthlyAnalyticsLimit: number | null;
+  usageMonth: string;
 }
 
 // Map database fields to UserProfile interface
@@ -25,7 +28,12 @@ function mapProfile(data: any): UserProfile {
     createdAt: data.created_at,
     isNew: data.is_new,
     hasPermission: data.has_permission,
-    usageCount: data.usage_count || 0
+    usageCount: data.usage_count || 0,
+    monthlyAnalyticsLimit:
+      data.monthly_analytics_limit === null || data.monthly_analytics_limit === undefined
+        ? null
+        : Number(data.monthly_analytics_limit),
+    usageMonth: data.usage_month || '',
   };
 }
 
@@ -78,6 +86,8 @@ export async function createUserProfile(user: any, recaptchaToken?: string): Pro
     role: isAdmin ? 'admin' : 'user',
     has_permission: true,
     usage_count: 0,
+    usage_month: new Date().toISOString().slice(0, 7),
+    monthly_analytics_limit: null,
     created_at: new Date().toISOString(),
     is_new: true,
   };
@@ -129,6 +139,18 @@ export async function updateUserPermission(uid: string, hasPermission: boolean):
     .update({ has_permission: hasPermission })
     .eq('id', uid);
   
+  if (error) throw error;
+}
+
+export async function updateUserMonthlyAnalyticsLimit(
+  uid: string,
+  limit: number | null
+): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ monthly_analytics_limit: limit })
+    .eq('id', uid);
+
   if (error) throw error;
 }
 

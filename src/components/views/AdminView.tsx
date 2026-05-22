@@ -5,7 +5,14 @@ import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
-import { markUserAsRead, updateUserRole, updateUserPermission, deleteUser } from '../../services/userService';
+import {
+  markUserAsRead,
+  updateUserRole,
+  updateUserPermission,
+  updateUserMonthlyAnalyticsLimit,
+  deleteUser,
+  type UserProfile,
+} from '../../services/userService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function AdminView() {
@@ -23,6 +30,51 @@ export function AdminView() {
   const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
   const [testEmailStatus, setTestEmailStatus] = useState<{success: boolean, message: string} | null>(null);
   const [testName, setTestName] = useState('');
+  const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
+  const [savingLimitUserId, setSavingLimitUserId] = useState<string | null>(null);
+
+  const getLimitDraft = (u: UserProfile) =>
+    limitDrafts[u.id] ??
+    (u.monthlyAnalyticsLimit === null ? '' : String(u.monthlyAnalyticsLimit));
+
+  const formatUsageLimit = (u: UserProfile) => {
+    const limitLabel =
+      u.monthlyAnalyticsLimit === null
+        ? '∞'
+        : String(u.monthlyAnalyticsLimit);
+    return formatLabel(t.adminAnalyticsUsedOfLimit, {
+      used: String(u.usageCount),
+      limit: limitLabel,
+    });
+  };
+
+  const handleSaveMonthlyLimit = async (u: UserProfile) => {
+    const raw = getLimitDraft(u).trim();
+    let limit: number | null = null;
+    if (raw !== '') {
+      const parsed = parseInt(raw, 10);
+      if (Number.isNaN(parsed) || parsed < 0) {
+        setError(t.adminInvalidAnalyticsLimit);
+        return;
+      }
+      limit = parsed;
+    }
+    setSavingLimitUserId(u.id);
+    setError(null);
+    try {
+      await updateUserMonthlyAnalyticsLimit(u.id, limit);
+      setLimitDrafts((prev) => {
+        const next = { ...prev };
+        delete next[u.id];
+        return next;
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+    } finally {
+      setSavingLimitUserId(null);
+    }
+  };
 
   const handleSendTestEmail = async () => {
     if (!testEmailRecipient || !testEmailRecipient.includes('@')) {
@@ -242,9 +294,38 @@ export function AdminView() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5">
-                          <Activity className="w-3.5 h-3.5 text-accent-light" />
-                          <span className="text-[11px] font-black text-text-main">{u.usageCount} <span className="text-[9px] text-text-light font-normal">{t.adminUsageAnalytic}</span></span>
+                        <div className="flex flex-col gap-2 min-w-[140px]">
+                          <div className="flex items-center gap-1.5">
+                            <Activity className="w-3.5 h-3.5 text-accent-light shrink-0" />
+                            <span className="text-[11px] font-black text-text-main">
+                              {formatUsageLimit(u)}
+                            </span>
+                          </div>
+                          <label className="flex flex-col gap-0.5">
+                            <span className="text-[9px] font-bold text-text-light uppercase tracking-wider">
+                              {t.adminAnalyticsLimitLabel}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min={0}
+                                value={getLimitDraft(u)}
+                                onChange={(e) =>
+                                  setLimitDrafts((prev) => ({
+                                    ...prev,
+                                    [u.id]: e.target.value,
+                                  }))
+                                }
+                                onBlur={() => void handleSaveMonthlyLimit(u)}
+                                placeholder={t.adminAnalyticsLimitPlaceholder}
+                                className="w-20 px-2 py-1 text-[11px] font-mono border border-border rounded-md bg-surface focus:outline-none focus:ring-1 focus:ring-accent"
+                                title={t.adminAnalyticsUnlimited}
+                              />
+                              {savingLimitUserId === u.id && (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
+                              )}
+                            </div>
+                          </label>
                         </div>
                       </td>
                       <td className="px-6 py-4">

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
+import { formatLabel } from '../../translations';
 import { trackEvent } from '../../lib/ga4';
 import { supabase } from '../../lib/supabase';
 import { AnalysisResult, analyzeCV, extractJDFromUrl } from '../../services/ai';
@@ -12,13 +13,14 @@ import {
   getUserHistory,
 } from '../../services/historyService';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
+import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import type { AnalysisRunContextType } from './types';
 
 const AnalysisRunContext = createContext<AnalysisRunContextType | undefined>(undefined);
 
 export function AnalysisRunProvider({ children }: { children: React.ReactNode }) {
-  const { user, setError } = useAuth();
-  const { reportLanguage } = useUI();
+  const { user, userProfile, setError, refreshUserProfile } = useAuth();
+  const { reportLanguage, t } = useUI();
   const { executeRecaptcha } = useGoogleReCaptcha();
 
   const [jd, setJd] = useState('');
@@ -132,6 +134,26 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     if (jdInputMode === 'link' && !jdUrl.trim()) return setError('Vui lòng cung cấp liên kết JD.');
     if (cvInputMode === 'file' && files.length === 0) return setError('Vui lòng tải lên ít nhất một CV.');
     if (cvInputMode === 'text' && !cvText.trim()) return setError('Vui lòng dán nội dung CV của bạn.');
+
+    const plannedRuns = cvInputMode === 'file' ? files.length : 1;
+    if (user?.id && userProfile?.role !== 'admin') {
+      try {
+        const quota = await checkAnalyticsQuota(user.id, plannedRuns);
+        if (!quota.allowed) {
+          const limitText =
+            quota.limit != null
+              ? formatLabel(t.monthlyUsageLimitExceededDetail, {
+                  used: String(quota.used),
+                  limit: String(quota.limit),
+                })
+              : '';
+          setError(limitText ? `${t.monthlyUsageLimitExceeded} ${limitText}` : t.monthlyUsageLimitExceeded);
+          return;
+        }
+      } catch (err) {
+        console.error('Quota check failed:', err);
+      }
+    }
 
     setIsAnalyzing(true);
     setAnalysisProgress(0);
@@ -261,6 +283,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       const message = err instanceof Error ? err.message : String(err);
       setError(message || 'Đã xảy ra lỗi trong quá trình phân tích.');
     } finally {
+      if (user?.id) void refreshUserProfile();
       setTimeout(() => {
         setIsAnalyzing(false);
         setAnalysisStatus(null);

@@ -15,6 +15,7 @@ interface AuthContextType {
   setError: React.Dispatch<React.SetStateAction<string | React.ReactNode | null>>;
   isAuthInitialized: boolean;
   isRedirectChecked: boolean;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -75,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) throw error;
       
-      const mappedUsers: UserProfile[] = data.map(u => ({
+      const mappedUsers: UserProfile[] = data.map((u) => ({
         id: u.id,
         email: u.email,
         displayName: u.display_name,
@@ -83,8 +84,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: u.role,
         hasPermission: u.has_permission,
         usageCount: u.usage_count,
+        monthlyAnalyticsLimit:
+          u.monthly_analytics_limit === null || u.monthly_analytics_limit === undefined
+            ? null
+            : Number(u.monthly_analytics_limit),
+        usageMonth: u.usage_month || '',
         createdAt: u.created_at,
-        isNew: u.is_new
+        isNew: u.is_new,
       }));
       
       setAllUsers(mappedUsers);
@@ -174,6 +180,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshUserProfile = async () => {
+    if (!user) return;
+    await loadUserProfileData(user);
+  };
+
   const logout = async () => {
     try {
       await supabase.auth.signOut();
@@ -186,7 +197,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, userProfile, isLoadingProfile, allUsers, login, logout, error, setError, isAuthInitialized, isRedirectChecked
+      user,
+      userProfile,
+      isLoadingProfile,
+      allUsers,
+      login,
+      logout,
+      error,
+      setError,
+      isAuthInitialized,
+      isRedirectChecked,
+      refreshUserProfile,
     }}>
       {children}
     </AuthContext.Provider>

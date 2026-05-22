@@ -125,7 +125,12 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 
 ## Admin nội bộ (không phải GA4)
 
-Trang **Admin** (`AdminView`) hiển thị cột « Analytics » là **`usage_count`** từ bảng Supabase `profiles` (RPC `increment_usage_count` sau mỗi phân tích thành công) — **không** liên quan Google Analytics hay Vercel Analytics.
+Trang **Admin** (`AdminView`) hiển thị cột « Phân tích / tháng »:
+
+- **`usage_count`** — số lượt phân tích **thành công trong tháng hiện tại** (UTC, khóa `usage_month` dạng `YYYY-MM`; tự reset khi sang tháng mới).
+- **`monthly_analytics_limit`** — admin chỉnh trên từng user (`NULL` = không giới hạn). Khi vượt hạn mức, app báo: *« Bạn đã vượt quá số lượng sử dụng của tháng này. »* (RPC `check_analytics_quota` trước `handleAnalyze`; `increment_usage_count` cũng chặn phía server).
+
+**Không** liên quan Google Analytics hay Vercel Analytics.
 
 ---
 

@@ -9,6 +9,10 @@ export interface UiLabels {
   admin: string;
   adminColActions: string;
   adminColAnalytics: string;
+  adminAnalyticsLimitLabel: string;
+  adminAnalyticsLimitPlaceholder: string;
+  adminAnalyticsUnlimited: string;
+  adminAnalyticsUsedOfLimit: string;
   adminColFormat: string;
   adminColInit: string;
   adminColMember: string;
@@ -22,6 +26,7 @@ export interface UiLabels {
   adminEmailSent: string;
   adminGuest: string;
   adminInvalidEmail: string;
+  adminInvalidAnalyticsLimit: string;
   adminLock: string;
   adminMailDesc: string;
   adminMailTitle: string;
@@ -56,6 +61,8 @@ export interface UiLabels {
   appLoadingContent: string;
   appRefresh: string;
   appUnknownError: string;
+  monthlyUsageLimitExceeded: string;
+  monthlyUsageLimitExceededDetail: string;
   atsCompatibilityScore: string;
   atsDesc: string;
   atsKeywords: string;

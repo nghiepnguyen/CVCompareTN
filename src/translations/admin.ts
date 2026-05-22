@@ -45,8 +45,24 @@ export const admin = {
     en: "Role",
   },
   adminColAnalytics: {
-    vi: "Analytics",
-    en: "Analytics",
+    vi: "Phân tích / tháng",
+    en: "Analyses / month",
+  },
+  adminAnalyticsUsedOfLimit: {
+    vi: "{used} / {limit}",
+    en: "{used} / {limit}",
+  },
+  adminAnalyticsUnlimited: {
+    vi: "Không giới hạn",
+    en: "Unlimited",
+  },
+  adminAnalyticsLimitLabel: {
+    vi: "Giới hạn tháng",
+    en: "Monthly limit",
+  },
+  adminAnalyticsLimitPlaceholder: {
+    vi: "Trống = không giới hạn",
+    en: "Empty = unlimited",
   },
   adminColStatus: {
     vi: "Tình trạng",
@@ -119,6 +135,10 @@ export const admin = {
   adminInvalidEmail: {
     vi: "Email không hợp lệ",
     en: "Invalid email address",
+  },
+  adminInvalidAnalyticsLimit: {
+    vi: "Giới hạn phải là số nguyên không âm hoặc để trống.",
+    en: "Limit must be a non-negative integer or empty.",
   },
   adminEmailSent: {
     vi: "Đã gửi thành công! ID: {id}",
