@@ -87,7 +87,7 @@ export async function createUserProfile(user: any, recaptchaToken?: string): Pro
     has_permission: true,
     usage_count: 0,
     usage_month: new Date().toISOString().slice(0, 7),
-    monthly_analytics_limit: null,
+    monthly_analytics_limit: 20,
     created_at: new Date().toISOString(),
     is_new: true,
   };
