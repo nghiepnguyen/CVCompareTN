@@ -1,9 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handlePaymentCreate } from '../../lib/payment/handlers';
-
-export const config = {
-  runtime: 'nodejs',
-};
+import { handlePaymentCreate } from './lib/handlers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

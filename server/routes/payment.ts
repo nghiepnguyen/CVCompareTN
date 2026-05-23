@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { handlePaymentCreate, handlePaymentWebhook } from '../../lib/payment/handlers';
+import { handlePaymentCreate, handlePaymentWebhook } from '../../api/payment/lib/handlers';
 
 const router = Router();
 

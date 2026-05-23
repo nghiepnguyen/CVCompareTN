@@ -1,9 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handlePaymentWebhook } from '../../lib/payment/handlers';
-
-export const config = {
-  runtime: 'nodejs',
-};
+import { handlePaymentWebhook } from './lib/handlers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
