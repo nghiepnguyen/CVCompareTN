@@ -25,6 +25,14 @@
       "destination": "/api/extract-pdf.ts"
     },
     {
+      "source": "/api/payment/create",
+      "destination": "/api/payment/create.ts"
+    },
+    {
+      "source": "/api/payment/webhook",
+      "destination": "/api/payment/webhook.ts"
+    },
+    {
       "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
       "destination": "/index.html"
     }

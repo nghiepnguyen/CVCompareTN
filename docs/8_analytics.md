@@ -5,7 +5,8 @@ Tài liệu này gồm **hai chủ đề tách biệt** (đừng nhầm tên):
 | Chủ đề | Mục đích | Công cụ / lưu trữ |
 |--------|----------|-------------------|
 | **Đo lường web (GA4 + Vercel)** | Traffic, funnel, Web Vitals | Google Analytics 4, `@vercel/analytics` |
-| **Hạn mức phân tích CV/tháng** | Giới hạn lượt so khớp CV–JD mỗi user | Supabase `app_settings` + `profiles` + RPC |
+| **Hạn mức phân tích CV/tháng** | Giới hạn lượt so khớp CV–JD mỗi user | Supabase `app_settings` + `profiles` + RPC + gói **Pro** |
+| **Gói Pro (PayOS)** | Thanh toán 69.000đ/tháng, nâng hạn mức & tính năng | `profiles.plan`, `payments`, PayOS webhook |
 
 Phần dưới mô tả lần lượt từng chủ đề.
 
@@ -132,7 +133,21 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 
 ## Hạn mức phân tích CV/tháng (Supabase — không phải GA4)
 
-Giới hạn số lượt **phân tích CV–JD thành công** mỗi user trong **tháng lịch UTC** (`YYYY-MM`). Mặc định hệ thống: **20** lượt/tháng (có thể đổi runtime).
+Giới hạn số lượt **phân tích CV–JD thành công** mỗi user trong **tháng lịch UTC** (`YYYY-MM`). Mặc định hệ thống: **20** lượt/tháng (có thể đổi runtime qua `app_settings`).
+
+### Gói Free vs Pro
+
+| | Free | Pro (PayOS) |
+|---|------|-------------|
+| Phân tích / tháng | `app_settings` (mặc định 20) hoặc override admin | **100** (trừ khi admin đặt unlimited) |
+| CV / lần | 1 | 5 |
+| Kho JD | 3 | Không giới hạn |
+| Lịch sử | 7 ngày | Toàn bộ |
+| Xuất CV tối ưu | Không | Có |
+
+- Cột `profiles.plan`, `plan_expires_at`; RPC `get_user_plan`, `activate_pro_plan` (webhook PayOS).
+- Migration: `supabase/migrations/20260601000000_add_plan_to_profiles.sql`.
+- UI: `/upgrade`, `/payment/success`, `/payment/cancel`.
 
 ### Kiến trúc
 
@@ -151,11 +166,13 @@ flowchart TD
     U[usage_count + usage_month]
   end
   subgraph resolve [Tinh han muc hieu luc]
+    PLAN[plan pro = 100]
     EFF[effective_monthly_analytics_limit]
     P -->|custom false| AS
     P -->|custom true| L
     AS --> EFF
     L --> EFF
+    PLAN --> CHK
   end
   subgraph enforce [Enforcement]
     CHK[check_analytics_quota]

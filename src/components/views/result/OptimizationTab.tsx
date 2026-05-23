@@ -2,6 +2,9 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, RefreshCcw, Copy, Check, FileText, Printer, AlignLeft } from 'lucide-react';
 import { useUI } from '../../../context/UIContext';
+import { useAuth } from '../../../context/AuthContext';
+import { UpgradePrompt } from '../../shared/UpgradePrompt';
+import { isProPlan } from '../../../lib/planLimits';
 import { AnalysisResult, RewriteSuggestion } from '../../../services/ai';
 import { CvMarkdownBody, markdownToPlainText } from './CvMarkdownBody';
 
@@ -11,6 +14,9 @@ interface OptimizationTabProps {
 
 export const OptimizationTab = React.memo(function OptimizationTab({ selectedResult }: OptimizationTabProps) {
   const { t, reportLanguage } = useUI();
+  const { effectivePlan, userProfile } = useAuth();
+  const canExportOptimized =
+    userProfile?.role === 'admin' || isProPlan(effectivePlan);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
   return (
@@ -144,53 +150,57 @@ export const OptimizationTab = React.memo(function OptimizationTab({ selectedRes
                     </div>
                   </div>
 
-                  <div className="no-print flex flex-wrap items-center gap-2 lg:justify-end">
-                    <span className="hidden h-8 w-px bg-border-strong sm:block lg:h-10" aria-hidden />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (selectedResult.fullRewrittenCV) {
-                          navigator.clipboard.writeText(selectedResult.fullRewrittenCV);
-                          setCopiedId('full-cv-md');
-                          setTimeout(() => setCopiedId(null), 2000);
-                        }
-                      }}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-[11px] font-black uppercase tracking-widest text-text-muted shadow-sm transition-all hover:scale-105 hover:bg-surface-secondary hover:shadow-md active:scale-95 sm:flex-none cursor-pointer"
-                    >
-                      {copiedId === 'full-cv-md' ? (
-                        <Check className="size-4 text-success" />
-                      ) : (
-                        <Copy className="size-4" />
-                      )}
-                      {copiedId === 'full-cv-md' ? t.copied : t.copyMarkdown}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (selectedResult.fullRewrittenCV) {
-                          navigator.clipboard.writeText(markdownToPlainText(selectedResult.fullRewrittenCV));
-                          setCopiedId('full-cv-plain');
-                          setTimeout(() => setCopiedId(null), 2000);
-                        }
-                      }}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-[11px] font-black uppercase tracking-widest text-text-muted shadow-sm transition-all hover:scale-105 hover:bg-surface-secondary hover:shadow-md active:scale-95 sm:flex-none cursor-pointer"
-                    >
-                      {copiedId === 'full-cv-plain' ? (
-                        <Check className="size-4 text-success" />
-                      ) : (
-                        <AlignLeft className="size-4" />
-                      )}
-                      {copiedId === 'full-cv-plain' ? t.copied : t.copyPlainText}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => window.print()}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-accent/25 bg-accent-light px-4 py-3 text-[11px] font-black uppercase tracking-widest text-accent shadow-sm transition-all hover:scale-105 hover:bg-accent/15 hover:shadow-md active:scale-95 sm:flex-none cursor-pointer"
-                    >
-                      <Printer className="size-4" />
-                      {t.printOptimized}
-                    </button>
-                  </div>
+                  {canExportOptimized ? (
+                    <div className="no-print flex flex-wrap items-center gap-2 lg:justify-end">
+                      <span className="hidden h-8 w-px bg-border-strong sm:block lg:h-10" aria-hidden />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedResult.fullRewrittenCV) {
+                            navigator.clipboard.writeText(selectedResult.fullRewrittenCV);
+                            setCopiedId('full-cv-md');
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }
+                        }}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-[11px] font-black uppercase tracking-widest text-text-muted shadow-sm transition-all hover:scale-105 hover:bg-surface-secondary hover:shadow-md active:scale-95 sm:flex-none cursor-pointer"
+                      >
+                        {copiedId === 'full-cv-md' ? (
+                          <Check className="size-4 text-success" />
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                        {copiedId === 'full-cv-md' ? t.copied : t.copyMarkdown}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedResult.fullRewrittenCV) {
+                            navigator.clipboard.writeText(markdownToPlainText(selectedResult.fullRewrittenCV));
+                            setCopiedId('full-cv-plain');
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }
+                        }}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-[11px] font-black uppercase tracking-widest text-text-muted shadow-sm transition-all hover:scale-105 hover:bg-surface-secondary hover:shadow-md active:scale-95 sm:flex-none cursor-pointer"
+                      >
+                        {copiedId === 'full-cv-plain' ? (
+                          <Check className="size-4 text-success" />
+                        ) : (
+                          <AlignLeft className="size-4" />
+                        )}
+                        {copiedId === 'full-cv-plain' ? t.copied : t.copyPlainText}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-accent/25 bg-accent-light px-4 py-3 text-[11px] font-black uppercase tracking-widest text-accent shadow-sm transition-all hover:scale-105 hover:bg-accent/15 hover:shadow-md active:scale-95 sm:flex-none cursor-pointer"
+                      >
+                        <Printer className="size-4" />
+                        {t.printOptimized}
+                      </button>
+                    </div>
+                  ) : (
+                    <UpgradePrompt feature={t.upgradeFeatureExportCv} className="no-print w-full lg:max-w-md lg:ml-auto" />
+                  )}
                 </div>
 
                 <div className="overflow-hidden rounded-[2.5rem] border border-border bg-surface-muted p-4 shadow-inner sm:p-10">

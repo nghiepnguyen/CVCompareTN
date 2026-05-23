@@ -14,12 +14,14 @@ import {
 } from '../../services/historyService';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
+import { MAX_BATCH_BY_PLAN } from '../../lib/planLimits';
+import type { UserPlan } from '../../services/userService';
 import type { AnalysisRunContextType } from './types';
 
 const AnalysisRunContext = createContext<AnalysisRunContextType | undefined>(undefined);
 
 export function AnalysisRunProvider({ children }: { children: React.ReactNode }) {
-  const { user, userProfile, setError, refreshUserProfile } = useAuth();
+  const { user, userProfile, effectivePlan, setError, refreshUserProfile } = useAuth();
   const { reportLanguage, t } = useUI();
   const { executeRecaptcha } = useGoogleReCaptcha();
 
@@ -43,7 +45,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     if (user?.id) {
       setIsLoadingHistory(true);
       try {
-        const userHistory = await getUserHistory(user.id);
+        const userHistory = await getUserHistory(user.id, effectivePlan);
         setHistory(userHistory);
       } catch (err) {
         console.error('Error loading history:', err);
@@ -51,7 +53,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         setIsLoadingHistory(false);
       }
     }
-  }, [user?.id]);
+  }, [user?.id, effectivePlan]);
 
   useEffect(() => {
     if (user?.id) {
@@ -59,7 +61,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     } else {
       setHistory([]);
     }
-  }, [user?.id, loadHistory]);
+  }, [user?.id, effectivePlan, loadHistory]);
 
   const cleanText = (text: string): string => {
     return text
@@ -136,6 +138,18 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     if (cvInputMode === 'text' && !cvText.trim()) return setError('Vui lòng dán nội dung CV của bạn.');
 
     const plannedRuns = cvInputMode === 'file' ? files.length : 1;
+    const planForLimits: UserPlan =
+      userProfile?.role === 'admin' ? 'pro' : effectivePlan;
+    const maxBatch = MAX_BATCH_BY_PLAN[planForLimits] ?? 1;
+    if (plannedRuns > maxBatch) {
+      setError(
+        planForLimits === 'free'
+          ? t.batchLimitFree.replace('{max}', String(maxBatch))
+          : t.batchLimitPro.replace('{max}', String(maxBatch))
+      );
+      return;
+    }
+
     if (user?.id && userProfile?.role !== 'admin') {
       try {
         const quota = await checkAnalyticsQuota(user.id, plannedRuns);

@@ -40,6 +40,15 @@ const SupportDevelopmentPage = React.lazy(() =>
 const PrintView = React.lazy(() =>
   import('../components/views/result/PrintView').then((m) => ({ default: m.PrintView }))
 );
+const UpgradeView = React.lazy(() =>
+  import('../components/views/UpgradeView').then((m) => ({ default: m.UpgradeView }))
+);
+const PaymentSuccessView = React.lazy(() =>
+  import('../components/views/PaymentSuccessView').then((m) => ({ default: m.PaymentSuccessView }))
+);
+const PaymentCancelView = React.lazy(() =>
+  import('../components/views/PaymentCancelView').then((m) => ({ default: m.PaymentCancelView }))
+);
 
 export function AppContent() {
   const { user, userProfile, error, setError, isAuthInitialized, isRedirectChecked } = useAuth();
@@ -195,6 +204,12 @@ export function AppContent() {
               <TermsOfServicePage onBack={() => setActiveTab('analyze')} />
             ) : activeTab === 'support' ? (
               <SupportDevelopmentPage onBack={() => setActiveTab('analyze')} language={reportLanguage} />
+            ) : activeTab === 'upgrade' ? (
+              <UpgradeView />
+            ) : activeTab === 'payment-success' ? (
+              <PaymentSuccessView />
+            ) : activeTab === 'payment-cancel' ? (
+              <PaymentCancelView />
             ) : !user ? (
               <LandingView />
             ) : user &&

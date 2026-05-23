@@ -10,6 +10,7 @@ import recaptchaRouter from './server/routes/recaptcha';
 import feedbackRouter from './server/routes/feedback';
 import welcomeEmailRouter from './server/routes/welcomeEmail';
 import pdfRouter from './server/routes/pdf';
+import paymentRouter from './server/routes/payment';
 
 async function startServer() {
   const app = express();
@@ -25,6 +26,7 @@ async function startServer() {
   app.use('/api/send-feedback', feedbackRouter);
   app.use('/api/send-welcome-email', welcomeEmailRouter);
   app.use('/api/extract-pdf', pdfRouter);
+  app.use('/api/payment', paymentRouter);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {

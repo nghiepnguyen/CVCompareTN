@@ -2,6 +2,8 @@ import { supabase } from "../lib/supabase";
 
 export const DEFAULT_AVATAR_URL = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
 
+export type UserPlan = 'free' | 'pro';
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -17,6 +19,8 @@ export interface UserProfile {
   /** false = inherit app_settings default_monthly_analytics_limit */
   monthlyAnalyticsLimitCustom: boolean;
   usageMonth: string;
+  plan: UserPlan;
+  planExpiresAt: string | null;
 }
 
 /** Effective limit for display/enforcement (pass global default from app_settings). */
@@ -48,7 +52,18 @@ function mapProfile(data: any): UserProfile {
         : Number(data.monthly_analytics_limit),
     monthlyAnalyticsLimitCustom: Boolean(data.monthly_analytics_limit_custom),
     usageMonth: data.usage_month || '',
+    plan: data.plan === 'pro' ? 'pro' : 'free',
+    planExpiresAt: data.plan_expires_at ?? null,
   };
+}
+
+export async function fetchEffectiveUserPlan(userId: string): Promise<UserPlan> {
+  const { data, error } = await supabase.rpc('get_user_plan', { p_user_id: userId });
+  if (error) {
+    console.error('get_user_plan failed:', error);
+    return 'free';
+  }
+  return data === 'pro' ? 'pro' : 'free';
 }
 
 export async function getUserProfile(id: string): Promise<UserProfile | null> {

@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { AnalysisResult, normalizeAnalysisPayload, normalizeParsedCV } from "./ai";
+import type { UserPlan } from "./userService";
+import { HISTORY_DAYS_BY_PLAN } from "../lib/planLimits";
 
 export interface SavedJD {
   id: string;
@@ -151,14 +153,23 @@ export async function incrementUsageCount(uid: string): Promise<void> {
   }
 }
 
-export async function getUserHistory(uid: string): Promise<AnalysisResult[]> {
+export async function getUserHistory(uid: string, plan: UserPlan = 'free'): Promise<AnalysisResult[]> {
   try {
-    const { data, error } = await supabase
+    const historyDays = HISTORY_DAYS_BY_PLAN[plan] ?? 7;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - historyDays);
+
+    let query = supabase
       .from('history')
       .select('*')
       .eq('user_id', uid)
-      .order('timestamp', { ascending: false })
-      .limit(20);
+      .order('timestamp', { ascending: false });
+
+    if (plan === 'free') {
+      query = query.gte('timestamp', cutoff.toISOString());
+    }
+
+    const { data, error } = await query.limit(plan === 'pro' ? 500 : 50);
 
     if (error) throw error;
     return data.map(mapHistory);

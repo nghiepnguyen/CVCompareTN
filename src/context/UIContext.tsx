@@ -1,7 +1,29 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UI_LABELS } from '../translations';
 
-export type Tab = 'analyze' | 'history' | 'admin' | 'privacy' | 'terms' | 'support';
+export type Tab =
+  | 'analyze'
+  | 'history'
+  | 'admin'
+  | 'privacy'
+  | 'terms'
+  | 'support'
+  | 'upgrade'
+  | 'payment-success'
+  | 'payment-cancel';
+
+function tabFromPath(path: string, params: URLSearchParams): Tab {
+  if (path.includes('/payment/success')) return 'payment-success';
+  if (path.includes('/payment/cancel')) return 'payment-cancel';
+  if (path.includes('/upgrade')) return 'upgrade';
+  if (path.includes('/privacy') || path.includes('/policy')) return 'privacy';
+  if (path.includes('/terms')) return 'terms';
+  if (path.includes('/support')) return 'support';
+  if (params.get('policy') === 'true' || params.get('privacy') === 'true') return 'privacy';
+  if (params.get('terms') === 'true') return 'terms';
+  if (params.get('support') === 'true') return 'support';
+  return 'analyze';
+}
 
 interface UIContextType {
   activeTab: Tab;
@@ -26,16 +48,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
-    
-    if (path.includes('/privacy') || path.includes('/policy')) return 'privacy';
-    if (path.includes('/terms')) return 'terms';
-    if (path.includes('/support')) return 'support';
-    
-    if (params.get('policy') === 'true' || params.get('privacy') === 'true') return 'privacy';
-    if (params.get('terms') === 'true') return 'terms';
-    if (params.get('support') === 'true') return 'support';
-    
-    return 'analyze';
+    return tabFromPath(path, params);
   });
 
   const [reportLanguage, setReportLanguage] = useState<'vi' | 'en'>(() => {
@@ -52,16 +65,34 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
 
   // Sync Language and Tab with Path
   useEffect(() => {
+    const currentPathname = window.location.pathname;
     const langPrefix = reportLanguage === 'en' ? '/en' : '/vi';
     let subPath = '';
     
+    if (activeTab === 'payment-success') {
+      const orderCode = new URLSearchParams(window.location.search).get('orderCode');
+      const qs = orderCode ? `?orderCode=${encodeURIComponent(orderCode)}` : '';
+      const newPath = `/payment/success${qs}`;
+      if (currentPathname !== newPath) {
+        window.history.pushState(null, '', newPath + window.location.hash);
+      }
+      return;
+    }
+    if (activeTab === 'payment-cancel') {
+      const newPath = '/payment/cancel';
+      if (currentPathname !== newPath) {
+        window.history.pushState(null, '', newPath + window.location.hash);
+      }
+      return;
+    }
+
     if (activeTab === 'privacy') subPath = '/privacy';
     else if (activeTab === 'terms') subPath = '/terms';
     else if (activeTab === 'support') subPath = '/support';
-    
+    else if (activeTab === 'upgrade') subPath = '/upgrade';
+
     const newPathname = langPrefix + subPath;
-    const currentPathname = window.location.pathname;
-    
+
     const url = new URL(window.location.href);
     const hadLegacyParams = url.searchParams.has('policy') || url.searchParams.has('privacy') || url.searchParams.has('terms') || url.searchParams.has('support');
     
@@ -86,24 +117,8 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         setReportLanguage('vi');
       }
 
-      if (path.includes('/privacy') || path.includes('/policy')) {
-        setActiveTab('privacy');
-      } else if (path.includes('/terms')) {
-        setActiveTab('terms');
-      } else if (path.includes('/support')) {
-        setActiveTab('support');
-      } else {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('support') === 'true') {
-          setActiveTab('support');
-        } else if (params.get('policy') === 'true' || params.get('privacy') === 'true') {
-          setActiveTab('privacy');
-        } else if (params.get('terms') === 'true') {
-          setActiveTab('terms');
-        } else {
-          setActiveTab('analyze');
-        }
-      }
+      const params = new URLSearchParams(window.location.search);
+      setActiveTab(tabFromPath(path, params));
     };
 
     window.addEventListener('popstate', handlePopState);

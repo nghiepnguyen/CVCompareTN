@@ -8,10 +8,11 @@ import { history } from './history';
 import { admin } from './admin';
 import { system } from './system';
 import { legal } from './legal';
+import { billing } from './billing';
 
 export type { ReportLanguage, UiLabels, FaqItem } from './types';
 
-const SECTIONS = [result, nav, landing, input, footer, history, admin, system, legal] as const;
+const SECTIONS = [result, nav, landing, input, footer, history, admin, system, legal, billing] as const;
 
 type LocaleEntry = { readonly vi: string; readonly en: string } | { readonly vi: readonly import('./types').FaqItem[]; readonly en: readonly import('./types').FaqItem[] };
 

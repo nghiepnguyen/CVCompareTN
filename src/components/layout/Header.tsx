@@ -1,14 +1,17 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileSearch, LayoutDashboard, History as HistoryIcon, ShieldCheck, LogOut, LogIn, ExternalLink, User as UserIcon } from 'lucide-react';
+import { FileSearch, LayoutDashboard, History as HistoryIcon, ShieldCheck, LogOut, LogIn, ExternalLink, User as UserIcon, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { isProPlan } from '../../lib/planLimits';
 import { useUI } from '../../context/UIContext';
 import { useAnalysis } from '../../context/AnalysisContext';
 import { trackEvent } from '../../lib/ga4';
 import { cn } from '../../lib/utils';
 
 export function Header() {
-  const { user, userProfile, allUsers, login, logout } = useAuth();
+  const { user, userProfile, effectivePlan, allUsers, login, logout } = useAuth();
+  const showProBadge =
+    user && (userProfile?.role === 'admin' || isProPlan(effectivePlan));
   const { activeTab, setActiveTab, reportLanguage, setReportLanguage, isUserMenuOpen, setIsUserMenuOpen, t } = useUI();
   const { selectedResult, setSelectedResult } = useAnalysis();
 
@@ -135,9 +138,30 @@ export function Header() {
                         className="absolute top-full right-0 mt-2 bg-surface border border-border rounded-2xl shadow-2xl p-2 z-[60] min-w-[200px]"
                       >
                         <div className="px-4 py-3 border-b border-border mb-1 bg-surface-secondary/50 rounded-t-2xl">
-                          <div className="text-sm font-bold text-text-main truncate">{user.user_metadata?.full_name || user.email}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-bold text-text-main truncate">{user.user_metadata?.full_name || user.email}</div>
+                            {showProBadge && (
+                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                                {t.planBadgePro}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[10px] text-text-light truncate font-medium">{user.email}</div>
                         </div>
+                        {!showProBadge && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveTab('upgrade');
+                              setIsUserMenuOpen(false);
+                              setSelectedResult(null);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-400/10 rounded-xl transition-colors cursor-pointer"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            {t.menuUpgrade}
+                          </button>
+                        )}
                         <button 
                           onClick={handleLogout}
                           className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-error hover:bg-error-light rounded-xl transition-colors cursor-pointer"

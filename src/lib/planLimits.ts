@@ -1,0 +1,20 @@
+import type { UserPlan } from '../services/userService';
+
+export const MAX_BATCH_BY_PLAN: Record<UserPlan, number> = {
+  free: 1,
+  pro: 5,
+};
+
+export const MAX_SAVED_JD_BY_PLAN: Record<UserPlan, number> = {
+  free: 3,
+  pro: Number.POSITIVE_INFINITY,
+};
+
+export const HISTORY_DAYS_BY_PLAN: Record<UserPlan, number> = {
+  free: 7,
+  pro: 36500,
+};
+
+export function isProPlan(plan: UserPlan): boolean {
+  return plan === 'pro';
+}

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../AuthContext';
+import { useUI } from '../UIContext';
 import { trackEvent } from '../../lib/ga4';
 import {
   saveJDToProfile,
@@ -8,11 +9,13 @@ import {
   type SavedJD,
 } from '../../services/historyService';
 import type { SavedJdContextType } from './types';
+import { MAX_SAVED_JD_BY_PLAN } from '../../lib/planLimits';
 
 const SavedJdContext = createContext<SavedJdContextType | undefined>(undefined);
 
 export function SavedJdProvider({ children }: { children: React.ReactNode }) {
-  const { user, setError } = useAuth();
+  const { user, effectivePlan, userProfile, setError } = useAuth();
+  const { t, setActiveTab } = useUI();
   const [savedJDs, setSavedJDs] = useState<SavedJD[]>([]);
   const [isSavingJD, setIsSavingJD] = useState(false);
   const [isLoadingSavedJDs, setIsLoadingSavedJDs] = useState(false);
@@ -41,6 +44,13 @@ export function SavedJdProvider({ children }: { children: React.ReactNode }) {
 
   const confirmSaveJD = async (title: string, jdContent: string) => {
     if (!user) return;
+    const planForLimits = userProfile?.role === 'admin' ? 'pro' : effectivePlan;
+    const maxJd = MAX_SAVED_JD_BY_PLAN[planForLimits] ?? 3;
+    if (Number.isFinite(maxJd) && savedJDs.length >= maxJd) {
+      setError(t.savedJdLimitFree);
+      setActiveTab('upgrade');
+      return;
+    }
     setIsSavingJD(true);
     try {
       await saveJDToProfile(user.id, title, jdContent);

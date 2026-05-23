@@ -11,8 +11,12 @@ Canonical reference for **which runtime handles each capability**. The frontend 
 | reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha/verify` | `verify-recaptcha` (analyze flow in `AnalysisRunContext`) |
 | Feedback email | `POST /api/send-feedback` → `api/send-feedback.ts` | mirror under `server/routes/` | — |
 | Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | `send-email` (if configured) |
+| PayOS — tạo link Pro | `POST /api/payment/create` → `api/payment/create.ts` | `POST /api/payment/create` → `server/routes/payment.ts` | — |
+| PayOS — webhook | `POST /api/payment/webhook` → `api/payment/webhook.ts` | `POST /api/payment/webhook` | — |
 
 Rewrites are defined in [`vercel.json`](../vercel.json).
+
+**PayOS:** `POST /api/payment/create` yêu cầu `Authorization: Bearer <supabase_access_token>`. Webhook không dùng JWT; xác thực chữ ký PayOS trên `data`. Biến môi trường: `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`.
 
 ## Request flow (high level)
 

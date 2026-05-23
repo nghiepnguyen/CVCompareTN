@@ -1,6 +1,9 @@
 import React from 'react';
 import { AnalysisResult } from '../../../services/ai/types';
 import { useUI } from '../../../context/UIContext';
+import { useAuth } from '../../../context/AuthContext';
+import { UpgradePrompt } from '../../shared/UpgradePrompt';
+import { isProPlan } from '../../../lib/planLimits';
 import { CvMarkdownBody } from './CvMarkdownBody';
 
 interface PrintViewProps {
@@ -9,6 +12,17 @@ interface PrintViewProps {
 
 export const PrintView: React.FC<PrintViewProps> = ({ selectedResult }) => {
   const { reportLanguage, t } = useUI();
+  const { effectivePlan, userProfile } = useAuth();
+  const canExportOptimized =
+    userProfile?.role === 'admin' || isProPlan(effectivePlan);
+
+  if (!canExportOptimized) {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center p-8">
+        <UpgradePrompt feature={t.upgradeFeatureExportCv} className="max-w-md w-full" />
+      </div>
+    );
+  }
 
   return (
     <div id="cv-print-root" className="min-h-screen bg-white">

@@ -1,12 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { UserProfile, getUserProfile, createUserProfile, subscribeToAllUsers } from '../services/userService';
+import {
+  UserProfile,
+  UserPlan,
+  getUserProfile,
+  createUserProfile,
+  subscribeToAllUsers,
+  fetchEffectiveUserPlan,
+} from '../services/userService';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
+  /** Effective tier (expiry-aware); admins treated as pro for limits */
+  effectivePlan: UserPlan;
   isLoadingProfile: boolean;
   allUsers: UserProfile[];
   login: () => Promise<void>;
@@ -23,6 +32,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [effectivePlan, setEffectivePlan] = useState<UserPlan>('free');
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [error, setError] = useState<string | React.ReactNode | null>(null);
@@ -59,6 +69,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       setUserProfile(profile);
+      if (profile) {
+        const plan =
+          profile.role === 'admin' ? 'pro' : await fetchEffectiveUserPlan(currentUser.id);
+        setEffectivePlan(plan);
+      } else {
+        setEffectivePlan('free');
+      }
     } catch (err: any) {
       console.error("Lỗi khi tải thông tin người dùng:", err);
       setError("Không thể tải thông tin hồ sơ: " + err.message);
@@ -90,6 +107,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             : Number(u.monthly_analytics_limit),
         monthlyAnalyticsLimitCustom: Boolean(u.monthly_analytics_limit_custom),
         usageMonth: u.usage_month || '',
+        plan: u.plan === 'pro' ? 'pro' : 'free',
+        planExpiresAt: u.plan_expires_at ?? null,
         createdAt: u.created_at,
         isNew: u.is_new,
       }));
@@ -135,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loadUserProfileData(currentUser);
       } else {
         setUserProfile(null);
+        setEffectivePlan('free');
         setIsLoadingProfile(false);
       }
       setIsAuthInitialized(true);
@@ -191,15 +211,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
       setUser(null);
       setUserProfile(null);
+      setEffectivePlan('free');
     } catch (err: any) {
       console.error("Logout Error:", err);
     }
   };
 
+  const resolvedPlan: UserPlan =
+    userProfile?.role === 'admin' ? 'pro' : effectivePlan;
+
   return (
     <AuthContext.Provider value={{
       user,
       userProfile,
+      effectivePlan: resolvedPlan,
       isLoadingProfile,
       allUsers,
       login,
