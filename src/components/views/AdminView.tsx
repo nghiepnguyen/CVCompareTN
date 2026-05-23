@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Mail, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, Send, AlertCircle, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, Activity } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
@@ -6,10 +6,16 @@ import { formatLabel } from '../../translations';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import {
+  getDefaultMonthlyAnalyticsLimit,
+  updateDefaultMonthlyAnalyticsLimit,
+} from '../../services/appSettingsService';
+import {
   markUserAsRead,
   updateUserRole,
   updateUserPermission,
   updateUserMonthlyAnalyticsLimit,
+  resetUserToGlobalAnalyticsLimit,
+  resolveEffectiveMonthlyAnalyticsLimit,
   deleteUser,
   type UserProfile,
 } from '../../services/userService';
@@ -32,24 +38,86 @@ export function AdminView() {
   const [testName, setTestName] = useState('');
   const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
   const [savingLimitUserId, setSavingLimitUserId] = useState<string | null>(null);
+  const [globalDefaultLimit, setGlobalDefaultLimit] = useState(20);
+  const [globalLimitDraft, setGlobalLimitDraft] = useState('20');
+  const [isSavingGlobalLimit, setIsSavingGlobalLimit] = useState(false);
+  const [globalLimitMessage, setGlobalLimitMessage] = useState<string | null>(null);
 
-  const getLimitDraft = (u: UserProfile) =>
-    limitDrafts[u.id] ??
-    (u.monthlyAnalyticsLimit === null ? '' : String(u.monthlyAnalyticsLimit));
+  const loadGlobalDefaultLimit = useCallback(async () => {
+    try {
+      const value = await getDefaultMonthlyAnalyticsLimit();
+      setGlobalDefaultLimit(value);
+      setGlobalLimitDraft(String(value));
+    } catch (err: unknown) {
+      console.error('Failed to load global analytics limit:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (adminSubTab === 'users') {
+      void loadGlobalDefaultLimit();
+    }
+  }, [adminSubTab, loadGlobalDefaultLimit]);
+
+  const getLimitDraft = (u: UserProfile) => {
+    if (limitDrafts[u.id] !== undefined) return limitDrafts[u.id];
+    if (!u.monthlyAnalyticsLimitCustom) return '';
+    return u.monthlyAnalyticsLimit === null ? '' : String(u.monthlyAnalyticsLimit);
+  };
 
   const formatUsageLimit = (u: UserProfile) => {
-    const limitLabel =
-      u.monthlyAnalyticsLimit === null
-        ? '∞'
-        : String(u.monthlyAnalyticsLimit);
+    const effective = resolveEffectiveMonthlyAnalyticsLimit(u, globalDefaultLimit);
+    const limitLabel = effective === null ? '∞' : String(effective);
     return formatLabel(t.adminAnalyticsUsedOfLimit, {
       used: String(u.usageCount),
       limit: limitLabel,
     });
   };
 
+  const handleSaveGlobalDefaultLimit = async () => {
+    const parsed = parseInt(globalLimitDraft.trim(), 10);
+    if (Number.isNaN(parsed) || parsed < 0) {
+      setError(t.adminInvalidAnalyticsLimit);
+      return;
+    }
+    setIsSavingGlobalLimit(true);
+    setError(null);
+    setGlobalLimitMessage(null);
+    try {
+      await updateDefaultMonthlyAnalyticsLimit(parsed);
+      setGlobalDefaultLimit(parsed);
+      setGlobalLimitMessage(t.adminGlobalAnalyticsSaved);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+    } finally {
+      setIsSavingGlobalLimit(false);
+    }
+  };
+
+  const handleResetToGlobalLimit = async (u: UserProfile) => {
+    setSavingLimitUserId(u.id);
+    setError(null);
+    try {
+      await resetUserToGlobalAnalyticsLimit(u.id);
+      setLimitDrafts((prev) => {
+        const next = { ...prev };
+        delete next[u.id];
+        return next;
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+    } finally {
+      setSavingLimitUserId(null);
+    }
+  };
+
   const handleSaveMonthlyLimit = async (u: UserProfile) => {
     const raw = getLimitDraft(u).trim();
+    if (raw === '' && !u.monthlyAnalyticsLimitCustom) {
+      return;
+    }
     let limit: number | null = null;
     if (raw !== '') {
       const parsed = parseInt(raw, 10);
@@ -214,6 +282,47 @@ export function AdminView() {
             )}
           </AnimatePresence>
 
+          <div className="bg-surface border-2 border-border rounded-2xl p-6 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div className="space-y-1 max-w-lg">
+                <h3 className="text-sm font-black text-text-main uppercase tracking-wider flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-accent" />
+                  {t.adminGlobalAnalyticsTitle}
+                </h3>
+                <p className="text-xs text-text-muted">{t.adminGlobalAnalyticsDesc}</p>
+                {globalLimitMessage && (
+                  <p className="text-xs font-bold text-success flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {globalLimitMessage}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={globalLimitDraft}
+                  onChange={(e) => setGlobalLimitDraft(e.target.value)}
+                  className="w-24 px-3 py-2 text-sm font-mono border-2 border-border rounded-xl bg-surface focus:border-accent focus:outline-none"
+                  aria-label={t.adminGlobalAnalyticsTitle}
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleSaveGlobalDefaultLimit()}
+                  disabled={isSavingGlobalLimit}
+                  className="px-4 py-2 bg-accent text-white text-xs font-black uppercase tracking-wider rounded-xl hover:scale-105 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSavingGlobalLimit ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  {t.adminGlobalAnalyticsSave}
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Users Table Controls */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <h3 className="text-xl font-black text-text-main flex items-center gap-2">
@@ -301,11 +410,18 @@ export function AdminView() {
                               {formatUsageLimit(u)}
                             </span>
                           </div>
+                          {!u.monthlyAnalyticsLimitCustom && (
+                            <span className="text-[9px] font-bold text-accent uppercase tracking-wider">
+                              {formatLabel(t.adminAnalyticsUsingDefault, {
+                                limit: String(globalDefaultLimit),
+                              })}
+                            </span>
+                          )}
                           <label className="flex flex-col gap-0.5">
                             <span className="text-[9px] font-bold text-text-light uppercase tracking-wider">
                               {t.adminAnalyticsLimitLabel}
                             </span>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 flex-wrap">
                               <input
                                 type="number"
                                 min={0}
@@ -317,10 +433,26 @@ export function AdminView() {
                                   }))
                                 }
                                 onBlur={() => void handleSaveMonthlyLimit(u)}
-                                placeholder={t.adminAnalyticsLimitPlaceholder}
+                                placeholder={
+                                  u.monthlyAnalyticsLimitCustom
+                                    ? t.adminAnalyticsLimitPlaceholder
+                                    : formatLabel(t.adminAnalyticsLimitPlaceholderInherit, {
+                                        limit: String(globalDefaultLimit),
+                                      })
+                                }
                                 className="w-20 px-2 py-1 text-[11px] font-mono border border-border rounded-md bg-surface focus:outline-none focus:ring-1 focus:ring-accent"
                                 title={t.adminAnalyticsUnlimited}
                               />
+                              {u.monthlyAnalyticsLimitCustom && (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleResetToGlobalLimit(u)}
+                                  disabled={savingLimitUserId === u.id}
+                                  className="text-[9px] font-black text-accent uppercase tracking-wider hover:underline cursor-pointer disabled:opacity-50"
+                                >
+                                  {t.adminResetToGlobalLimit}
+                                </button>
+                              )}
                               {savingLimitUserId === u.id && (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
                               )}

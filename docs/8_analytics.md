@@ -1,6 +1,13 @@
 # Phân tích & Đo lường (Analytics)
 
-Ứng dụng dùng **hai lớp đo lường độc lập**: Vercel Analytics (hiệu năng, luôn bật) và Google Analytics 4 — GA4 (hành vi sản phẩm, **chỉ sau khi người dùng đồng ý cookie**).
+Tài liệu này gồm **hai chủ đề tách biệt** (đừng nhầm tên):
+
+| Chủ đề | Mục đích | Công cụ / lưu trữ |
+|--------|----------|-------------------|
+| **Đo lường web (GA4 + Vercel)** | Traffic, funnel, Web Vitals | Google Analytics 4, `@vercel/analytics` |
+| **Hạn mức phân tích CV/tháng** | Giới hạn lượt so khớp CV–JD mỗi user | Supabase `app_settings` + `profiles` + RPC |
+
+Phần dưới mô tả lần lượt từng chủ đề.
 
 ## Tổng quan kiến trúc
 
@@ -123,12 +130,149 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 
 ---
 
-## Admin nội bộ (không phải GA4)
+## Hạn mức phân tích CV/tháng (Supabase — không phải GA4)
 
-Trang **Admin** (`AdminView`) hiển thị cột « Phân tích / tháng »:
+Giới hạn số lượt **phân tích CV–JD thành công** mỗi user trong **tháng lịch UTC** (`YYYY-MM`). Mặc định hệ thống: **20** lượt/tháng (có thể đổi runtime).
 
-- **`usage_count`** — số lượt phân tích **thành công trong tháng hiện tại** (UTC, khóa `usage_month` dạng `YYYY-MM`; tự reset khi sang tháng mới).
-- **`monthly_analytics_limit`** — mặc định **20** lượt/tháng/user; admin chỉnh trên từng user (`NULL` = không giới hạn). Khi vượt hạn mức, app báo: *« Bạn đã vượt quá số lượng sử dụng của tháng này. »* (RPC `check_analytics_quota` trước `handleAnalyze`; `increment_usage_count` cũng chặn phía server).
+### Kiến trúc
+
+```mermaid
+flowchart TD
+  subgraph config [Cau hinh runtime]
+    AS[app_settings.default_monthly_analytics_limit]
+    AdminUI[AdminView - Luu mac dinh]
+    SQL[Supabase SQL / Table Editor]
+    AdminUI --> AS
+    SQL --> AS
+  end
+  subgraph profile [profiles]
+    P[monthly_analytics_limit_custom]
+    L[monthly_analytics_limit]
+    U[usage_count + usage_month]
+  end
+  subgraph resolve [Tinh han muc hieu luc]
+    EFF[effective_monthly_analytics_limit]
+    P -->|custom false| AS
+    P -->|custom true| L
+    AS --> EFF
+    L --> EFF
+  end
+  subgraph enforce [Enforcement]
+    CHK[check_analytics_quota]
+    INC[increment_usage_count]
+    EFF --> CHK
+    EFF --> INC
+  end
+  Client[AnalysisRunContext.handleAnalyze] --> CHK
+  CHK -->|allowed| AI[Gemini analyze]
+  AI --> INC
+```
+
+### Bảng & cột
+
+| Đối tượng | Cột / key | Ý nghĩa |
+|-----------|-----------|---------|
+| **`app_settings`** | `key = 'default_monthly_analytics_limit'`, `value` (jsonb số) | Hạn mức **mặc định toàn hệ thống**. Đổi tại đây **không cần deploy** Vercel. |
+| **`profiles`** | `monthly_analytics_limit_custom` | `false` → theo `app_settings`. `true` → dùng override cột dưới. |
+| **`profiles`** | `monthly_analytics_limit` | Chỉ khi `custom = true`: số ≥ 0, hoặc `NULL` = **không giới hạn**. |
+| **`profiles`** | `usage_count`, `usage_month` | Số lượt **thành công** trong tháng UTC; `sync_profile_usage_month` reset `usage_count` khi sang tháng mới. |
+
+### Hàm SQL (Supabase)
+
+| Hàm | Vai trò |
+|-----|---------|
+| `get_default_monthly_analytics_limit()` | Đọc `app_settings` (fallback **20**). |
+| `effective_monthly_analytics_limit(custom, stored_limit)` | `custom = false` → global default; `custom = true` → `stored_limit` (`NULL` = unlimited). |
+| `check_analytics_quota(user_id, additional?)` | Trả JSON `allowed`, `used`, `limit`, `month`, `reason`. Gọi **trước** khi chạy batch analyze. |
+| `increment_usage_count(user_id)` | Tăng `usage_count` sau mỗi CV thành công; chặn nếu đã đạt limit. |
+| `sync_profile_usage_month(user_id)` | Reset usage khi `usage_month` ≠ tháng UTC hiện tại. |
+| `current_usage_month()` | Chuỗi `YYYY-MM` (UTC). |
+
+### Migration (thứ tự)
+
+Chạy **theo thứ tự timestamp** trong `supabase/migrations/`:
+
+| File | Nội dung |
+|------|----------|
+| `20260520120000_profiles_monthly_analytics_limit.sql` | Cột `monthly_analytics_limit`, `usage_month`, RPC quota cơ bản. |
+| `20260520130000_profiles_default_monthly_limit_20.sql` | `DEFAULT 20` trên cột profile (thế hệ cũ — trước `app_settings`). |
+| `20260523100000_app_settings_analytics_default.sql` | Bảng `app_settings`, cột `monthly_analytics_limit_custom`, hàm effective limit, cập nhật RPC, RLS, backfill. |
+
+Áp dụng: `supabase db push` hoặc chạy từng file trong SQL Editor.
+
+**Backfill** (migration `20260523100000`):
+
+- `monthly_analytics_limit = 20` → `monthly_analytics_limit_custom = false` (theo mặc định hệ thống).
+- `NULL` hoặc giá trị **khác 20** → `custom = true` (giữ override / unlimited như trước).
+
+User mới (`createUserProfile`): `monthly_analytics_limit_custom = false`, **không** ghi cứng `20` trên client.
+
+### Luồng ứng dụng
+
+1. User bấm phân tích → `AnalysisRunContext.handleAnalyze` gọi `checkAnalyticsQuota(userId, plannedRuns)` (`src/services/analyticsQuotaService.ts`).
+2. Nếu `allowed = false` → hiển thị `monthlyUsageLimitExceeded` / `monthlyUsageLimitExceededDetail` (không gọi Gemini).
+3. Mỗi CV thành công → `increment_usage_count` (server-side, qua service hiện có).
+
+### Admin UI (`AdminView`)
+
+| Thao tác | Hành vi |
+|----------|---------|
+| **Hạn mức phân tích mặc định / tháng** (đầu tab Users) | Ghi `app_settings` qua `updateDefaultMonthlyAnalyticsLimit` — áp dụng cho mọi user `custom = false`. |
+| Cột « Phân tích / tháng » | Hiển thị `usage_count / effectiveLimit` (`resolveEffectiveMonthlyAnalyticsLimit` + global default đã load). |
+| Nhập số + blur | `updateUserMonthlyAnalyticsLimit` → `custom = true`, lưu limit. |
+| Ô trống + blur (khi đã custom) | `monthly_analytics_limit = NULL` → **không giới hạn**. |
+| **Dùng mặc định** | `resetUserToGlobalAnalyticsLimit` → `custom = false` (nhận lại giá trị từ `app_settings`). |
+| Blur ô trống khi **chưa** custom | Không gọi API (tránh vô tình set unlimited). |
+
+### File mã nguồn
+
+| File | Vai trò |
+|------|---------|
+| `src/services/appSettingsService.ts` | `getDefaultMonthlyAnalyticsLimit`, `updateDefaultMonthlyAnalyticsLimit` |
+| `src/services/userService.ts` | Profile map, `resolveEffectiveMonthlyAnalyticsLimit`, `resetUserToGlobalAnalyticsLimit` |
+| `src/services/analyticsQuotaService.ts` | Client gọi RPC `check_analytics_quota` |
+| `src/context/analysis/AnalysisRunContext.tsx` | Kiểm tra quota trước analyze |
+| `src/components/views/AdminView.tsx` | UI cấu hình global + override từng user |
+| `src/translations/admin.ts` | Nhãn VI/EN cho cấu hình global |
+
+### Đổi hạn mức **không deploy** Vercel
+
+**Cách 1 — Admin UI:** Tab Users → « Hạn mức phân tích mặc định / tháng » → nhập số → **Lưu mặc định**.
+
+**Cách 2 — Supabase Dashboard:** Table Editor → `app_settings` → sửa `value` của row `default_monthly_analytics_limit`.
+
+**Cách 3 — SQL:**
+
+```sql
+UPDATE public.app_settings
+SET value = '30'::jsonb,
+    updated_at = now()
+WHERE key = 'default_monthly_analytics_limit';
+```
+
+Chỉ user có `monthly_analytics_limit_custom = false` nhận giá trị mới. User admin đã set override (`custom = true`) **không** đổi theo global.
+
+### RLS `app_settings`
+
+- **SELECT:** mọi user `authenticated` (client đọc default để hiển thị Admin).
+- **INSERT/UPDATE/DELETE:** chỉ `public.is_admin()`.
+
+### Kiểm tra (quota)
+
+1. User `custom = false`, global = 20, `usage_count = 20` → lượt 21 bị `check_analytics_quota` từ chối.
+2. `UPDATE app_settings` → 30 → cùng user được thêm quota (không redeploy frontend).
+3. User `custom = true`, `monthly_analytics_limit = 5` → vẫn 5 dù global = 30.
+4. User `custom = true`, `monthly_analytics_limit IS NULL` → unlimited.
+5. Sang tháng UTC mới → `usage_count` reset về 0 (giữ limit).
+
+### Thông báo lỗi (UI)
+
+| Key dịch | Khi nào |
+|----------|---------|
+| `monthlyUsageLimitExceeded` | Vượt hạn mức (tiêu đề ngắn) |
+| `monthlyUsageLimitExceededDetail` | `{used} / {limit}` chi tiết |
+
+Định nghĩa trong `src/translations/system.ts`.
 
 **Không** liên quan Google Analytics hay Vercel Analytics.
 
@@ -170,4 +314,6 @@ trackEvent('signup_completed', { method: 'google' });
 
 - [2_tech_stack.md](2_tech_stack.md) — Stack tổng quan
 - [3_frontend.md](3_frontend.md) — Context và component UI
-- [7_deployment.md](7_deployment.md) — Biến môi trường Vercel
+- [5_api.md](5_api.md) — RPC Supabase (`check_analytics_quota`, …)
+- [6_workflow.md](6_workflow.md) — Luồng phân tích có bước kiểm tra quota
+- [7_deployment.md](7_deployment.md) — Migration Supabase & biến môi trường Vercel

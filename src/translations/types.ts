@@ -27,6 +27,13 @@ export interface UiLabels {
   adminGuest: string;
   adminInvalidEmail: string;
   adminInvalidAnalyticsLimit: string;
+  adminGlobalAnalyticsTitle: string;
+  adminGlobalAnalyticsDesc: string;
+  adminGlobalAnalyticsSave: string;
+  adminGlobalAnalyticsSaved: string;
+  adminAnalyticsUsingDefault: string;
+  adminAnalyticsLimitPlaceholderInherit: string;
+  adminResetToGlobalLimit: string;
   adminLock: string;
   adminMailDesc: string;
   adminMailTitle: string;

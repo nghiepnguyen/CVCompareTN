@@ -88,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           u.monthly_analytics_limit === null || u.monthly_analytics_limit === undefined
             ? null
             : Number(u.monthly_analytics_limit),
+        monthlyAnalyticsLimitCustom: Boolean(u.monthly_analytics_limit_custom),
         usageMonth: u.usage_month || '',
         createdAt: u.created_at,
         isNew: u.is_new,

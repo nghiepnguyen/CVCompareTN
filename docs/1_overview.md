@@ -21,7 +21,7 @@
 -   **Gợi ý chỉnh sửa (Rewrite Suggestions):** Đề xuất cách viết lại từng phần trong CV để tăng tính thuyết phục.
 -   **CV Tối ưu (Optimized CV):** AI tự động tạo ra một bản thảo CV mới đã được tối ưu hóa hoàn toàn dựa trên thông tin gốc của ứng viên.
 -   **Kho lưu trữ JD cá nhân (JD Store):** Lưu lại các mô tả công việc mẫu để tái sử dụng nhanh chóng cho nhiều đợt tuyển dụng khác nhau.
--   **Lịch sử & Quản trị:** Người dùng có thể xem lại lịch sử phân tích, và admin có thể quản lý người dùng hệ thống.
+-   **Lịch sử & Quản trị:** Người dùng xem lại lịch sử phân tích; admin quản lý user, quyền, và **hạn mức phân tích/tháng** (mặc định **20** lượt, cấu hình runtime qua `app_settings` — không cần deploy lại khi đổi default).
 
 ---
 
@@ -35,7 +35,7 @@
 | [5_api.md](5_api.md) | Endpoint Vercel vs Express, Gemini |
 | [6_workflow.md](6_workflow.md) | Luồng phân tích, export, lịch sử |
 | [7_deployment.md](7_deployment.md) | Vercel, Supabase migrations, **bảo mật Git** |
-| [8_analytics.md](8_analytics.md) | GA4 + Vercel Analytics, cookie consent, **bảng event** |
+| [8_analytics.md](8_analytics.md) | GA4 + Vercel Analytics, cookie consent, **bảng event**, **hạn mức phân tích/tháng** (`app_settings`) |
 | [9_api_routes.md](9_api_routes.md) | Ma trận route: Vercel `/api`, Express, Supabase Edge |
 
 **Cấu trúc mã (2026-05):** `src/app/` (shell), `src/context/analysis/` (providers phân tích), `src/components/views/landing/` (section landing). Chi tiết: [3_frontend.md](3_frontend.md).

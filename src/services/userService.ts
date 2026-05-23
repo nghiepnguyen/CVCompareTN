@@ -12,9 +12,22 @@ export interface UserProfile {
   isNew: boolean;
   hasPermission: boolean;
   usageCount: number;
-  /** NULL = unlimited analyses per month */
+  /** Stored override when monthlyAnalyticsLimitCustom; NULL = unlimited */
   monthlyAnalyticsLimit: number | null;
+  /** false = inherit app_settings default_monthly_analytics_limit */
+  monthlyAnalyticsLimitCustom: boolean;
   usageMonth: string;
+}
+
+/** Effective limit for display/enforcement (pass global default from app_settings). */
+export function resolveEffectiveMonthlyAnalyticsLimit(
+  profile: Pick<UserProfile, 'monthlyAnalyticsLimitCustom' | 'monthlyAnalyticsLimit'>,
+  globalDefault: number
+): number | null {
+  if (profile.monthlyAnalyticsLimitCustom) {
+    return profile.monthlyAnalyticsLimit;
+  }
+  return globalDefault;
 }
 
 // Map database fields to UserProfile interface
@@ -33,6 +46,7 @@ function mapProfile(data: any): UserProfile {
       data.monthly_analytics_limit === null || data.monthly_analytics_limit === undefined
         ? null
         : Number(data.monthly_analytics_limit),
+    monthlyAnalyticsLimitCustom: Boolean(data.monthly_analytics_limit_custom),
     usageMonth: data.usage_month || '',
   };
 }
@@ -87,7 +101,7 @@ export async function createUserProfile(user: any, recaptchaToken?: string): Pro
     has_permission: true,
     usage_count: 0,
     usage_month: new Date().toISOString().slice(0, 7),
-    monthly_analytics_limit: 20,
+    monthly_analytics_limit_custom: false,
     created_at: new Date().toISOString(),
     is_new: true,
   };
@@ -148,7 +162,19 @@ export async function updateUserMonthlyAnalyticsLimit(
 ): Promise<void> {
   const { error } = await supabase
     .from('profiles')
-    .update({ monthly_analytics_limit: limit })
+    .update({
+      monthly_analytics_limit: limit,
+      monthly_analytics_limit_custom: true,
+    })
+    .eq('id', uid);
+
+  if (error) throw error;
+}
+
+export async function resetUserToGlobalAnalyticsLimit(uid: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ monthly_analytics_limit_custom: false })
     .eq('id', uid);
 
   if (error) throw error;

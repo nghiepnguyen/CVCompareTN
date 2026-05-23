@@ -48,7 +48,17 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
 
 1.  **Tạo project Supabase:** Truy cập [Supabase Dashboard](https://supabase.com/dashboard).
 2.  **Authentication:** Bật nhà cung cấp **Google**. Trong URL Redirect / Site URL, thêm domain production (ví dụ `https://cv.thanhnghiep.top`) và URL preview của Vercel (`https://*.vercel.app`) cùng `http://localhost:5173` (hoặc cổng dev bạn dùng).
-3.  **Database:** Áp dụng migration mẫu trong `supabase/migrations/` (khuyến nghị: Supabase CLI `supabase db push`, hoặc chạy lần lượt trong SQL Editor). File `20260516120000_cv_matcher_core_schema.sql` tạo `profiles`, `history` (kèm cột **`parsed_cv` kiểu `jsonb`**), `saved_jds`, RPC `increment_usage_count`, RLS và bucket Storage **`cv-files`**. Nếu bạn đã có bảng `history` cũ, chạy thêm `20260516120100_history_add_parsed_cv.sql`.
+3.  **Database:** Áp dụng migration trong `supabase/migrations/` (khuyến nghị: `supabase db push`, hoặc chạy lần lượt trong SQL Editor):
+
+    | Migration | Nội dung chính |
+    |-----------|----------------|
+    | `20260516120000_cv_matcher_core_schema.sql` | `profiles`, `history`, `saved_jds`, RPC `increment_usage_count`, RLS, bucket **`cv-files`** |
+    | `20260516120100_history_add_parsed_cv.sql` | Cột `history.parsed_cv` (jsonb) — nếu DB cũ thiếu cột |
+    | `20260520120000_profiles_monthly_analytics_limit.sql` | Hạn mức phân tích/tháng trên `profiles`, `check_analytics_quota` |
+    | `20260520130000_profiles_default_monthly_limit_20.sql` | `DEFAULT 20` trên cột limit (thế hệ trước `app_settings`) |
+    | `20260523100000_app_settings_analytics_default.sql` | Bảng **`app_settings`** (default **20**, đổi runtime), `monthly_analytics_limit_custom`, RPC effective limit |
+
+    Chi tiết hạn mức phân tích (Admin, SQL, không cần redeploy Vercel): [8_analytics.md § Hạn mức phân tích CV/tháng](8_analytics.md#hạn-mức-phân-tích-cvtháng-supabase--không-phải-ga4).
 4.  **Storage:** Migration đã tạo bucket **`cv-files`** (public đọc; authenticated được upload/xóa). Đổi tên bucket chỉ khi bạn cập nhật cấu hình bucket tương ứng trong Supabase project.
 5.  **Biến môi trường:** Trên Vercel và trong `.env` local, thiết lập ít nhất `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY`. Với tác vụ server-side hoặc migration, dùng `SUPABASE_SERVICE_ROLE_KEY` (không đưa vào frontend).
 

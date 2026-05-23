@@ -35,7 +35,7 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 
 -   **Supabase:**
     -   **Authentication:** Quản lý đăng nhập người dùng qua Google OAuth.
-    -   **PostgreSQL:** Cơ sở dữ liệu quan hệ mạnh mẽ lưu trữ Profile, Lịch sử và JDs đã lưu.
+    -   **PostgreSQL:** Profile, lịch sử, JDs; bảng **`app_settings`** (hạn mức phân tích mặc định/tháng, đổi runtime); RPC `check_analytics_quota`, `increment_usage_count`.
     -   **Edge Functions:** (Tùy chọn) Triển khai logic serverless trên hạ tầng toàn cầu của Supabase.
 -   **Email Service:** [Resend](https://resend.com/) - Gửi email phản hồi và email chào mừng tự động.
 

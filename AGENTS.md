@@ -7,7 +7,7 @@ This file contains custom instructions and context for the AI Studio Build agent
 - **Purpose:** A web application that analyzes user CVs against Job Descriptions (JDs) using AI (Gemini), provides ATS optimization feedback, and generates a rewritten CV.
 - **Primary Language:** Vietnamese (`vi`), with support for English (`en`).
 - **Architecture:** Full-stack React application. Frontend: Vite, React 19, Tailwind CSS. Entry: `src/App.tsx` → `src/app/AppShell.tsx` (providers + `AppContent`). Analysis state: `src/context/analysis/` (`AnalysisRunProvider` + `SavedJdProvider`). Landing: `src/components/views/LandingView.tsx` + `landing/*Section.tsx`. Backend: modular Express (`server.ts`, `server/routes/`). Production: **Vercel** (`/api`, `vercel.json`) — routing matrix in [`docs/9_api_routes.md`](docs/9_api_routes.md).
-- **Database/Auth:** **Supabase** (PostgreSQL, Authentication, Storage). Client setup lives in `src/lib/supabase.ts`; optional Edge Functions live under `supabase/functions/`.
+- **Database/Auth:** **Supabase** (PostgreSQL, Authentication, Storage). Client setup lives in `src/lib/supabase.ts`; optional Edge Functions live under `supabase/functions/`. Monthly CV analysis quota: `app_settings.default_monthly_analytics_limit` (runtime config, default 20), `profiles.monthly_analytics_limit_custom` + RPC `check_analytics_quota` — see [`docs/8_analytics.md`](docs/8_analytics.md).
 
 ## Core Directives
 

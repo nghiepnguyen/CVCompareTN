@@ -140,6 +140,34 @@ export const admin = {
     vi: "Giới hạn phải là số nguyên không âm hoặc để trống.",
     en: "Limit must be a non-negative integer or empty.",
   },
+  adminGlobalAnalyticsTitle: {
+    vi: "Hạn mức phân tích mặc định / tháng",
+    en: "Default monthly analysis limit",
+  },
+  adminGlobalAnalyticsDesc: {
+    vi: "Áp dụng cho mọi user đang dùng mặc định hệ thống. Đổi tại đây hoặc trong Supabase — không cần deploy lại.",
+    en: "Applies to users on the system default. Change here or in Supabase — no redeploy needed.",
+  },
+  adminGlobalAnalyticsSave: {
+    vi: "Lưu mặc định",
+    en: "Save default",
+  },
+  adminGlobalAnalyticsSaved: {
+    vi: "Đã cập nhật hạn mức mặc định.",
+    en: "Default limit updated.",
+  },
+  adminAnalyticsUsingDefault: {
+    vi: "Mặc định ({limit}/tháng)",
+    en: "Default ({limit}/mo)",
+  },
+  adminAnalyticsLimitPlaceholderInherit: {
+    vi: "Mặc định: {limit}",
+    en: "Default: {limit}",
+  },
+  adminResetToGlobalLimit: {
+    vi: "Dùng mặc định",
+    en: "Use default",
+  },
   adminEmailSent: {
     vi: "Đã gửi thành công! ID: {id}",
     en: "Sent successfully! ID: {id}",

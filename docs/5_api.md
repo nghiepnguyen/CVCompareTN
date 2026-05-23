@@ -52,8 +52,18 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 Frontend dùng `src/lib/supabase.ts` (REST / Auth / Storage).
 
 - **Auth:** OAuth Google qua Supabase Auth (JWT).
-- **PostgreSQL:** `profiles`, `history` (JSON kết quả, có `parsed_cv`), `saved_jds`.
+- **PostgreSQL:** `profiles`, `history` (JSON kết quả, có `parsed_cv`), `saved_jds`, **`app_settings`** (cấu hình runtime, ví dụ `default_monthly_analytics_limit`).
 - **Storage:** Bucket `cv-files` (Supabase Storage; no dedicated TypeScript module; uploads not wired in current UI).
+
+### RPC & quota phân tích (client gọi qua `supabase.rpc`)
+
+| RPC | Gọi từ | Mô tả |
+|-----|---------|--------|
+| `check_analytics_quota(p_user_id, p_additional?)` | `analyticsQuotaService.ts` | Kiểm tra còn quota trước batch analyze; trả `allowed`, `used`, `limit`. |
+| `increment_usage_count(user_id)` | Service sau analyze thành công | Tăng `usage_count`; enforce limit server-side. |
+| `get_default_monthly_analytics_limit()` | (SQL nội bộ / có thể gọi từ client) | Đọc default từ `app_settings`. |
+
+Chi tiết semantics, Admin UI, migration: [8_analytics.md](8_analytics.md).
 
 ## 3. Google Gemini AI (`src/services/ai/`)
 
