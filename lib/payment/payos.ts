@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import { createHmac } from 'node:crypto';
 
 export const PRO_PRICE_VND = 69000;
 export const PRO_DURATION_DAYS = 30;
@@ -49,7 +49,7 @@ export function createPaymentRequestSignature(body: {
     `&orderCode=${body.orderCode}` +
     `&returnUrl=${body.returnUrl}`;
 
-  return crypto.createHmac('sha256', getChecksumKey()).update(checksumData).digest('hex');
+  return createHmac('sha256', getChecksumKey()).update(checksumData).digest('hex');
 }
 
 /** Webhook: sign the `data` object (sorted keys, PayOS SDK convention). */
@@ -65,8 +65,7 @@ function objectToSignString(obj: Record<string, unknown>): string {
 }
 
 export function createSignatureFromObject(data: Record<string, unknown>): string {
-  return crypto
-    .createHmac('sha256', getChecksumKey())
+  return createHmac('sha256', getChecksumKey())
     .update(objectToSignString(data))
     .digest('hex');
 }
@@ -91,6 +90,25 @@ export function getAppBaseUrl(): string {
     process.env.VITE_APP_URL?.trim() ||
     'https://cv.thanhnghiep.top';
   return url.replace(/\/$/, '');
+}
+
+async function parsePayosJson(response: Response): Promise<{
+  code?: string;
+  desc?: string;
+  data?: { checkoutUrl?: string };
+}> {
+  const text = await response.text();
+  try {
+    return JSON.parse(text) as {
+      code?: string;
+      desc?: string;
+      data?: { checkoutUrl?: string };
+    };
+  } catch {
+    throw new Error(
+      `PayOS returned non-JSON (HTTP ${response.status}): ${text.slice(0, 120)}`
+    );
+  }
 }
 
 export async function createPayosPaymentLink(params: {
@@ -128,14 +146,10 @@ export async function createPayosPaymentLink(params: {
     body: JSON.stringify({ ...payosBody, signature }),
   });
 
-  const data = (await response.json()) as {
-    code?: string;
-    desc?: string;
-    data?: { checkoutUrl?: string };
-  };
+  const data = await parsePayosJson(response);
 
   if (data.code !== '00' || !data.data?.checkoutUrl) {
-    throw new Error(data.desc || 'PayOS create payment failed');
+    throw new Error(data.desc || `PayOS create payment failed (HTTP ${response.status})`);
   }
 
   return { checkoutUrl: data.data.checkoutUrl, orderCode };

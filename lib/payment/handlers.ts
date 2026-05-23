@@ -5,14 +5,19 @@ import {
   PRO_PRICE_VND,
   verifyWebhookPayload,
 } from './payos';
+import { getMissingPaymentEnv, paymentConfigErrorBody } from './paymentEnv';
 import { getSupabaseAdmin, getUserFromBearerToken } from './supabaseAdmin';
 
-export type PaymentHandlerResult =
-  | { status: number; body: Record<string, unknown> };
+export type PaymentHandlerResult = { status: number; body: Record<string, unknown> };
 
 export async function handlePaymentCreate(
   authHeader: string | undefined
 ): Promise<PaymentHandlerResult> {
+  const missingEnv = getMissingPaymentEnv();
+  if (missingEnv) {
+    return { status: 503, body: paymentConfigErrorBody(missingEnv) };
+  }
+
   const user = await getUserFromBearerToken(authHeader);
   if (!user) {
     return { status: 401, body: { error: 'Unauthorized' } };
@@ -40,7 +45,11 @@ export async function handlePaymentCreate(
 
   if (insertError) {
     console.error('payments insert failed:', insertError);
-    return { status: 500, body: { error: 'Không lưu được đơn thanh toán' } };
+    const detail =
+      insertError.code === '23503'
+        ? 'Tài khoản chưa có hồ sơ (profiles). Đăng xuất và đăng nhập lại.'
+        : insertError.message;
+    return { status: 500, body: { error: 'Không lưu được đơn thanh toán', detail } };
   }
 
   return { status: 200, body: { checkoutUrl, orderCode: confirmedCode } };
@@ -49,6 +58,11 @@ export async function handlePaymentCreate(
 export async function handlePaymentWebhook(
   body: unknown
 ): Promise<PaymentHandlerResult> {
+  const missingEnv = getMissingPaymentEnv();
+  if (missingEnv) {
+    return { status: 503, body: paymentConfigErrorBody(missingEnv) };
+  }
+
   const payload = body as {
     code?: string;
     data?: Record<string, unknown> & { orderCode?: number };

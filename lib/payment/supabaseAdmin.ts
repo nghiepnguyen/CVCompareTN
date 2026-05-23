@@ -6,8 +6,8 @@ export function getSupabaseAdmin(): SupabaseClient {
   if (adminClient) return adminClient;
 
   const url =
-    process.env.VITE_SUPABASE_URL?.trim() ||
     process.env.SUPABASE_URL?.trim() ||
+    process.env.VITE_SUPABASE_URL?.trim() ||
     '';
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || '';
 

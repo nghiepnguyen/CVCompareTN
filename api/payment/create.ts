@@ -1,5 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handlePaymentCreate } from '../../server/lib/paymentHandlers';
+import { handlePaymentCreate } from '../../lib/payment/handlers';
+
+export const config = {
+  runtime: 'nodejs',
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -15,8 +19,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('payment/create error:', err);
     const message = err instanceof Error ? err.message : 'Server error';
     if (message.includes('not configured')) {
-      return res.status(500).json({ error: 'Cấu hình thanh toán chưa sẵn sàng' });
+      return res.status(503).json({
+        error: 'Cấu hình thanh toán chưa sẵn sàng trên server',
+        detail: message,
+      });
     }
-    return res.status(500).json({ error: 'Không tạo được link thanh toán' });
+    return res.status(500).json({
+      error: 'Không tạo được link thanh toán',
+      detail: message,
+    });
   }
 }
