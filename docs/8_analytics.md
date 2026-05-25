@@ -149,6 +149,12 @@ Giới hạn số lượt **phân tích CV–JD thành công** mỗi user trong 
 - Migration: `supabase/migrations/20260601000000_add_plan_to_profiles.sql`.
 - UI: `/upgrade`, `/payment/success`, `/payment/cancel`.
 
+### Bảo mật RPC (Security Advisor)
+
+- Client đăng nhập (`authenticated` JWT) gọi: `check_analytics_quota`, `get_user_plan`, `increment_usage_count`, `sync_profile_usage_month`.
+- **`activate_pro_plan`** chỉ backend PayOS webhook (`SUPABASE_SERVICE_ROLE_KEY`) — không gọi từ browser.
+- Role **`anon`** đã bị revoke execute trên các RPC trên (migrations `20260601110000`–`20260601140000`).
+
 ### Kiến trúc
 
 ```mermaid

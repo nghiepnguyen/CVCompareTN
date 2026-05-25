@@ -64,9 +64,10 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
     | `20260520130000_profiles_default_monthly_limit_20.sql` | `DEFAULT 20` trên cột limit (thế hệ trước `app_settings`) |
     | `20260523100000_app_settings_analytics_default.sql` | Bảng **`app_settings`** (default **20**, đổi runtime), `monthly_analytics_limit_custom`, RPC effective limit |
     | `20260601000000_add_plan_to_profiles.sql` | Gói Pro: cột `plan`, `plan_expires_at`, `plan_updated_at` trên `profiles`; bảng `payments`; RPC `activate_pro_plan`, `get_user_plan`; cập nhật `check_analytics_quota` plan-aware |
+    | `20260601110000`–`20260601150000_security_*.sql` | Security Advisor: revoke `anon` trên RPC nhạy cảm; `activate_pro_plan` chỉ `service_role`; SELECT bucket `cv-files` theo folder user; `search_path` cố định |
 
     Chi tiết hạn mức phân tích (Admin, SQL, không cần redeploy Vercel): [8_analytics.md § Hạn mức phân tích CV/tháng](8_analytics.md#hạn-mức-phân-tích-cvtháng-supabase--không-phải-ga4).
-4.  **Storage:** Migration đã tạo bucket **`cv-files`** (public đọc; authenticated được upload/xóa). Đổi tên bucket chỉ khi bạn cập nhật cấu hình bucket tương ứng trong Supabase project.
+4.  **Storage:** Bucket **`cv-files`** — sau migration security, user **authenticated** chỉ SELECT object trong path `{user_id}/...`. Cân nhắc tắt Public bucket trên Dashboard nếu không cần URL công khai.
 5.  **Biến môi trường:** Trên Vercel và trong `.env` local, thiết lập ít nhất `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY`. Với tác vụ server-side hoặc migration, dùng `SUPABASE_SERVICE_ROLE_KEY` (không đưa vào frontend).
 
 ### Edge Functions (tùy chọn)
