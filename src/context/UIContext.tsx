@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect } from 'react';
 import { UI_LABELS } from '../translations';
 
 export type Tab =
@@ -28,6 +28,8 @@ function tabFromPath(path: string, params: URLSearchParams): Tab {
 interface UIContextType {
   activeTab: Tab;
   setActiveTab: React.Dispatch<React.SetStateAction<Tab>>;
+  /** Opens upgrade page: updates tab, URL, and scrolls to top */
+  navigateToUpgrade: () => void;
   reportLanguage: 'vi' | 'en';
   setReportLanguage: React.Dispatch<React.SetStateAction<'vi' | 'en'>>;
   isInAppBrowser: boolean;
@@ -136,9 +138,26 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
 
   const t = UI_LABELS[reportLanguage];
 
+  const navigateToUpgrade = useCallback(() => {
+    const langPrefix = reportLanguage === 'en' ? '/en' : '/vi';
+    const newPathname = `${langPrefix}/upgrade`;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('policy');
+    url.searchParams.delete('privacy');
+    url.searchParams.delete('terms');
+    url.searchParams.delete('support');
+
+    if (window.location.pathname !== newPathname) {
+      window.history.pushState(null, '', newPathname + url.search + window.location.hash);
+    }
+
+    setActiveTab('upgrade');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [reportLanguage]);
+
   return (
     <UIContext.Provider value={{
-      activeTab, setActiveTab, reportLanguage, setReportLanguage, 
+      activeTab, setActiveTab, navigateToUpgrade, reportLanguage, setReportLanguage, 
       isInAppBrowser, showInAppWarning, setShowInAppWarning,
       isUserMenuOpen, setIsUserMenuOpen,
       isSavedJDsModalOpen, setIsSavedJDsModalOpen,

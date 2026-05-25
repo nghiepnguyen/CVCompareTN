@@ -12,7 +12,7 @@ export function Header() {
   const { user, userProfile, effectivePlan, allUsers, login, logout } = useAuth();
   const showProBadge =
     user && (userProfile?.role === 'admin' || isProPlan(effectivePlan));
-  const { activeTab, setActiveTab, reportLanguage, setReportLanguage, isUserMenuOpen, setIsUserMenuOpen, t } = useUI();
+  const { activeTab, setActiveTab, navigateToUpgrade, reportLanguage, setReportLanguage, isUserMenuOpen, setIsUserMenuOpen, t } = useUI();
   const { selectedResult, setSelectedResult } = useAnalysis();
 
   const newUsersCount = allUsers.filter(u => u.isNew && u.role !== 'admin').length;
@@ -152,9 +152,9 @@ export function Header() {
                           <button
                             type="button"
                             onClick={() => {
-                              setActiveTab('upgrade');
                               setIsUserMenuOpen(false);
                               setSelectedResult(null);
+                              navigateToUpgrade();
                             }}
                             className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-400/10 rounded-xl transition-colors cursor-pointer"
                           >
