@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { createProCheckout } from '../../services/paymentService';
 import { cn } from '../../lib/utils';
-import { isProPlan } from '../../lib/planLimits';
+import { formatPlanExpiryDate, isProPlan } from '../../lib/planLimits';
+import { formatLabel } from '../../translations';
 
 const ROWS = [
   { key: 'analyses', freeKey: 'upgradeFreeAnalyses', proKey: 'upgradeProAnalyses' },
@@ -24,10 +25,16 @@ const ROW_LABEL_KEYS = {
 
 export function UpgradeView() {
   const { user, effectivePlan, userProfile } = useAuth();
-  const { t, setActiveTab } = useUI();
+  const { t, setActiveTab, reportLanguage } = useUI();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const alreadyPro = userProfile?.role === 'admin' || isProPlan(effectivePlan);
+  const planExpiryLabel =
+    alreadyPro && userProfile?.planExpiresAt
+      ? formatLabel(t.planExpiresUntil, {
+          date: formatPlanExpiryDate(userProfile.planExpiresAt, reportLanguage) ?? '',
+        })
+      : null;
 
   const handleUpgrade = async () => {
     if (!user) {
@@ -58,6 +65,12 @@ export function UpgradeView() {
         </div>
         <h1 className="text-3xl font-black tracking-tight text-text-main">{t.upgradePageTitle}</h1>
         <p className="text-text-muted max-w-lg mx-auto">{t.upgradePageDesc}</p>
+        {planExpiryLabel && (
+          <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{planExpiryLabel}</p>
+        )}
+        {!alreadyPro && (
+          <p className="text-xs text-text-muted max-w-md mx-auto">{t.planStackingNote}</p>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-sm">

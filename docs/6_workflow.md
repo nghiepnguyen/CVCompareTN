@@ -48,20 +48,31 @@ graph TD
     D -->|redirect| E[PayOS checkout page]
     E -->|success| F[/payment/success]
     E -->|cancel| G[/payment/cancel]
-    F -->|poll 2s / max 15 lần| H{plan === 'pro'?}
+    F -->|confirm + poll 2s| H{plan === 'pro'?}
     H -->|chưa| F
     H -->|rồi| I[Hiển thị thành công → redirect Dashboard]
     D -.->|webhook async| J[POST /api/payment/webhook]
     J -->|verify HMAC-SHA256| K[activate_pro_plan RPC]
-    K --> L[profiles.plan='pro', payments.status='paid']
-    L -.->|poll phát hiện| H
+    K --> L[Chỉ khi payments pending→paid: gia hạn Pro]
+    L -.->|poll / confirm phát hiện| H
 ```
 
-- **UpgradeView** (`src/components/views/UpgradeView.tsx`): Bảng so sánh Free vs Pro, nút "Nâng cấp ngay — 69.000đ/tháng".
-- **paymentService** (`src/services/paymentService.ts`): Gọi `POST /api/payment/create` với Bearer token, nhận `checkoutUrl`, redirect.
-- **PaymentSuccessView** (`src/components/views/PaymentSuccessView.tsx`): Polling Supabase mỗi 2s kiểm tra `plan`, tối đa 30s. Khi phát hiện `plan='pro'`, hiển thị xác nhận và auto-redirect về Dashboard sau 4s.
+- **UpgradeView** (`src/components/views/UpgradeView.tsx`): Bảng so sánh Free vs Pro, nút "Nâng cấp ngay — 69.000đ/tháng"; user Pro thấy ngày hết hạn (`plan_expires_at`).
+- **paymentService** (`src/services/paymentService.ts`): `POST /api/payment/create` (Bearer), `POST /api/payment/confirm` (fallback sau checkout).
+- **PaymentSuccessView** (`src/components/views/PaymentSuccessView.tsx`): Gọi confirm với `orderCode` từ URL, poll `get_user_plan` mỗi 2s (tối đa ~40s).
 - **PaymentCancelView** (`src/components/views/PaymentCancelView.tsx`): Thông báo hủy, nút "Quay lại phân tích".
-- **Enforcement:** Các feature gate (export, batch > 1, JD unlimited) kiểm tra `isProPlan()` từ `planLimits.ts`. Nếu Free, hiển thị `UpgradePrompt` (`src/components/shared/UpgradePrompt.tsx`).
+- **Enforcement:** Feature gate qua `isProPlan()` / `get_user_plan` (có `plan_expires_at`).
+
+### Gia hạn cộng dồn (nhiều lần mua Pro)
+
+Mỗi lần thanh toán thành công = một `order_code` trong `payments`. RPC `activate_pro_plan`:
+
+1. **Idempotent theo đơn:** `UPDATE payments SET status='paid' WHERE status='pending' AND order_code=…` — chỉ khi cập nhật được 1 dòng mới gia hạn `profiles` (tránh webhook + confirm cộng đôi cùng một đơn).
+2. **Cộng dồn hạn:** Nếu đang Pro và `plan_expires_at` còn hiệu lực (hoặc NULL), cộng thêm `payments.duration_days` (mặc định 30) vào ngày hết hạn hiện tại.
+3. **Hết hạn rồi mua lại:** `plan_expires_at` mới = `now() + duration_days` (không cộng vào ngày đã quá hạn).
+4. **Quota tháng:** Mỗi lần kích hoạt thành công reset `usage_count` về 0 cho `usage_month` hiện tại (coi như chu kỳ Pro mới).
+
+Admin có thể gia hạn thủ công qua `admin_set_user_plan` (cùng quy tắc cộng dồn).
 
 ## 5. Quản lý dữ liệu
 

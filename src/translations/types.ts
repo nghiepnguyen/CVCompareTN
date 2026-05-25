@@ -392,6 +392,8 @@ export interface UiLabels {
   planFree: string;
   planPro: string;
   planBadgePro: string;
+  planExpiresUntil: string;
+  planStackingNote: string;
   upgradeCompareAnalyses: string;
   upgradeCompareBatch: string;
   upgradeCompareJd: string;
@@ -418,5 +420,8 @@ export interface UiLabels {
   paymentCancelDesc: string;
   paymentBackToApp: string;
   menuUpgrade: string;
+  menuQuotaLabel: string;
+  menuQuotaUnlimited: string;
+  menuQuotaUsedOf: string;
   checkoutError: string;
 }

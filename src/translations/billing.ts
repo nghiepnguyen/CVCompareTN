@@ -26,6 +26,14 @@ export const billing = {
   planFree: { vi: 'Miễn phí', en: 'Free' },
   planPro: { vi: 'Pro', en: 'Pro' },
   planBadgePro: { vi: 'PRO', en: 'PRO' },
+  planExpiresUntil: {
+    vi: 'Pro đến {date}',
+    en: 'Pro until {date}',
+  },
+  planStackingNote: {
+    vi: 'Mua thêm gói được cộng thêm 30 ngày vào hạn hiện tại.',
+    en: 'Each purchase adds 30 more days to your current expiry.',
+  },
   upgradeCompareAnalyses: {
     vi: 'Lượt phân tích / tháng',
     en: 'Analyses / month',
@@ -99,6 +107,18 @@ export const billing = {
   menuUpgrade: {
     vi: 'Nâng cấp Pro',
     en: 'Upgrade to Pro',
+  },
+  menuQuotaLabel: {
+    vi: 'Lượt phân tích / tháng',
+    en: 'Analyses this month',
+  },
+  menuQuotaUnlimited: {
+    vi: 'Không giới hạn',
+    en: 'Unlimited',
+  },
+  menuQuotaUsedOf: {
+    vi: '{used} / {limit} lượt',
+    en: '{used} / {limit} runs',
   },
   checkoutError: {
     vi: 'Không thể bắt đầu thanh toán. Vui lòng thử lại sau.',

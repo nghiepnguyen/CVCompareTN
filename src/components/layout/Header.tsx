@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileSearch, LayoutDashboard, History as HistoryIcon, ShieldCheck, LogOut, LogIn, ExternalLink, User as UserIcon, Sparkles } from 'lucide-react';
+import { FileSearch, LayoutDashboard, History as HistoryIcon, ShieldCheck, LogOut, LogIn, ExternalLink, User as UserIcon, Sparkles, Activity, Loader2 } from 'lucide-react';
+import { checkAnalyticsQuota, type AnalyticsQuota } from '../../services/analyticsQuotaService';
 import { useAuth } from '../../context/AuthContext';
-import { isProPlan } from '../../lib/planLimits';
+import { formatPlanExpiryDate, isProPlan } from '../../lib/planLimits';
+import { formatLabel } from '../../translations';
 import { useUI } from '../../context/UIContext';
 import { useAnalysis } from '../../context/AnalysisContext';
 import { trackEvent } from '../../lib/ga4';
@@ -16,6 +18,47 @@ export function Header() {
   const { selectedResult, setSelectedResult } = useAnalysis();
 
   const newUsersCount = allUsers.filter(u => u.isNew && u.role !== 'admin').length;
+  const planExpiryInMenu =
+    showProBadge && userProfile?.planExpiresAt
+      ? formatLabel(t.planExpiresUntil, {
+          date: formatPlanExpiryDate(userProfile.planExpiresAt, reportLanguage) ?? '',
+        })
+      : null;
+
+  const [menuQuota, setMenuQuota] = useState<AnalyticsQuota | null>(null);
+  const [isLoadingMenuQuota, setIsLoadingMenuQuota] = useState(false);
+
+  useEffect(() => {
+    if (!isUserMenuOpen || !user?.id) {
+      return;
+    }
+    let cancelled = false;
+    setIsLoadingMenuQuota(true);
+    void checkAnalyticsQuota(user.id, 0)
+      .then((quota) => {
+        if (!cancelled) setMenuQuota(quota);
+      })
+      .catch((err) => {
+        console.error('menu quota fetch failed:', err);
+        if (!cancelled) setMenuQuota(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingMenuQuota(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isUserMenuOpen, user?.id, userProfile?.usageCount, effectivePlan]);
+
+  const menuQuotaText =
+    menuQuota == null
+      ? null
+      : menuQuota.limit == null
+        ? `${menuQuota.used} · ${t.menuQuotaUnlimited}`
+        : formatLabel(t.menuQuotaUsedOf, {
+            used: String(menuQuota.used),
+            limit: String(menuQuota.limit),
+          });
 
   const handleLogout = async () => {
     await logout();
@@ -147,6 +190,31 @@ export function Header() {
                             )}
                           </div>
                           <div className="text-[10px] text-text-light truncate font-medium">{user.email}</div>
+                          {planExpiryInMenu && (
+                            <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-1">
+                              {planExpiryInMenu}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/60">
+                            <Activity className="w-3 h-3 text-accent shrink-0" />
+                            <span className="text-[9px] font-black uppercase tracking-wider text-text-light">
+                              {t.menuQuotaLabel}
+                            </span>
+                            {isLoadingMenuQuota ? (
+                              <Loader2 className="w-3 h-3 animate-spin text-accent ml-auto" />
+                            ) : (
+                              <span
+                                className={cn(
+                                  'text-[10px] font-bold ml-auto tabular-nums',
+                                  menuQuota?.allowed === false
+                                    ? 'text-error'
+                                    : 'text-text-main'
+                                )}
+                              >
+                                {menuQuotaText ?? '—'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         {!showProBadge && (
                           <button

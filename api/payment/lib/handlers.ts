@@ -34,19 +34,20 @@ async function activateProForOrder(
   supabase: SupabaseClient,
   userId: string,
   orderCode: number,
-  payosData: Record<string, unknown> | null
-): Promise<string | null> {
-  const { error } = await supabase.rpc('activate_pro_plan', {
+  payosData: Record<string, unknown> | null,
+  durationDays: number = PRO_DURATION_DAYS
+): Promise<{ activated: boolean; error: string | null }> {
+  const { data, error } = await supabase.rpc('activate_pro_plan', {
     p_user_id: userId,
     p_order_code: orderCode,
-    p_duration_days: PRO_DURATION_DAYS,
+    p_duration_days: durationDays,
     p_payos_data: payosData,
   });
   if (error) {
     console.error('activate_pro_plan failed:', error);
-    return error.message;
+    return { activated: false, error: error.message };
   }
-  return null;
+  return { activated: data === true, error: null };
 }
 
 export async function handlePaymentCreate(
@@ -126,7 +127,7 @@ export async function handlePaymentWebhook(
 
   const { data: payment, error: fetchError } = await supabase
     .from('payments')
-    .select('user_id, status')
+    .select('user_id, status, duration_days')
     .eq('order_code', orderCode)
     .maybeSingle();
 
@@ -138,15 +139,25 @@ export async function handlePaymentWebhook(
     return { status: 200, body: { success: true, alreadyPaid: true } };
   }
 
-  const activateError = await activateProForOrder(
+  const durationDays =
+    typeof payment.duration_days === 'number' && payment.duration_days > 0
+      ? payment.duration_days
+      : PRO_DURATION_DAYS;
+
+  const { activated, error: activateError } = await activateProForOrder(
     supabase,
     payment.user_id,
     orderCode,
-    (payload.data as Record<string, unknown>) ?? null
+    (payload.data as Record<string, unknown>) ?? null,
+    durationDays
   );
 
   if (activateError) {
     return { status: 500, body: { error: 'Kích hoạt Pro thất bại', detail: activateError } };
+  }
+
+  if (!activated) {
+    return { status: 200, body: { success: true, alreadyPaid: true } };
   }
 
   return { status: 200, body: { success: true } };
@@ -178,7 +189,7 @@ export async function handlePaymentConfirm(
 
   const { data: payment, error: fetchError } = await supabase
     .from('payments')
-    .select('user_id, status, amount')
+    .select('user_id, status, duration_days')
     .eq('order_code', orderCode)
     .eq('user_id', user.id)
     .maybeSingle();
@@ -202,15 +213,25 @@ export async function handlePaymentConfirm(
     };
   }
 
-  const activateError = await activateProForOrder(
+  const durationDays =
+    typeof payment.duration_days === 'number' && payment.duration_days > 0
+      ? payment.duration_days
+      : PRO_DURATION_DAYS;
+
+  const { activated, error: activateError } = await activateProForOrder(
     supabase,
     payment.user_id,
     orderCode,
-    payosInfo as unknown as Record<string, unknown>
+    payosInfo as unknown as Record<string, unknown>,
+    durationDays
   );
 
   if (activateError) {
     return { status: 500, body: { error: 'Kích hoạt Pro thất bại', detail: activateError } };
+  }
+
+  if (!activated) {
+    return { status: 200, body: { success: true, alreadyPaid: true, plan: 'pro' } };
   }
 
   return { status: 200, body: { success: true, plan: 'pro' } };
