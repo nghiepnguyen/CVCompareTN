@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Mail, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, Send, AlertCircle, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, Activity } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Users, Mail, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, Send, AlertCircle, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -44,6 +44,8 @@ export function AdminView() {
   const [globalLimitDraft, setGlobalLimitDraft] = useState('20');
   const [isSavingGlobalLimit, setIsSavingGlobalLimit] = useState(false);
   const [globalLimitMessage, setGlobalLimitMessage] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const loadGlobalDefaultLimit = useCallback(async () => {
     try {
@@ -60,6 +62,20 @@ export function AdminView() {
       void loadGlobalDefaultLimit();
     }
   }, [adminSubTab, loadGlobalDefaultLimit]);
+
+  const filteredUsers = useMemo(
+    () => allUsers.filter(u => u.email.toLowerCase().includes(userSearchTerm.toLowerCase())),
+    [allUsers, userSearchTerm]
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const paginatedUsers = useMemo(
+    () => filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filteredUsers, currentPage, pageSize]
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [userSearchTerm]);
 
   const getLimitDraft = (u: UserProfile) => {
     if (limitDrafts[u.id] !== undefined) return limitDrafts[u.id];
@@ -366,9 +382,7 @@ export function AdminView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {allUsers
-                    .filter(u => u.email.toLowerCase().includes(userSearchTerm.toLowerCase()))
-                    .map((u) => (
+                  {paginatedUsers.map((u) => (
                     <tr key={u.id} className={cn(
                       "group hover:bg-surface-secondary/80 transition-all duration-200", 
                       u.isNew && "bg-accent-light/40"
@@ -521,9 +535,74 @@ export function AdminView() {
                   ))}
                 </tbody>
               </table>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm px-1">
+              <p className="text-xs font-bold text-text-muted">
+                {formatLabel(t.adminPaginationInfo, {
+                  start: String((currentPage - 1) * pageSize + 1),
+                  end: String(Math.min(currentPage * pageSize, filteredUsers.length)),
+                  total: String(filteredUsers.length),
+                })}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(1)}
+                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronsLeft className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .map((p, idx, arr) => (
+                    <React.Fragment key={p}>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && (
+                        <span className="px-1 text-text-light">…</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        className={cn(
+                          'min-w-[32px] px-2 py-1.5 rounded-lg text-xs font-black transition-all',
+                          p === currentPage
+                            ? 'bg-accent text-white'
+                            : 'text-text-light hover:text-text-main hover:bg-surface-secondary'
+                        )}
+                      >
+                        {p}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(totalPages)}
+                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronsRight className="size-4" />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
       ) : (
         <div className="max-w-xl mx-auto py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="bg-surface rounded-3xl border border-border p-10 text-center space-y-6">

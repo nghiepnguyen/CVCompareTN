@@ -8,6 +8,7 @@ export type FaqItem = {
 export interface UiLabels {
   admin: string;
   adminColActions: string;
+  adminPaginationInfo: string;
   adminColAnalytics: string;
   adminAnalyticsLimitLabel: string;
   adminAnalyticsLimitPlaceholder: string;

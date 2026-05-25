@@ -188,4 +188,8 @@ export const admin = {
     vi: "Guest",
     en: "Guest",
   },
+  adminPaginationInfo: {
+    vi: "Hiển thị {start}–{end} / {total} người dùng",
+    en: "Showing {start}–{end} of {total} users",
+  },
 } as const;
