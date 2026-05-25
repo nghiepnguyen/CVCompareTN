@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
       const { data, error } = await resendClient.emails.send({
         from: `CV Matcher <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
         to: [userEmail],
-        subject: 'Welcome! Optimize your CV and conquer your dream job 🚀',
+        subject: 'Chào mừng bạn! Cùng tối ưu CV để chinh phục công việc mơ ước 🚀',
         html: `
           <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px;">
             <h2 style="color: #4f46e5; margin-bottom: 24px;">Hi ${userName || 'there'},</h2>

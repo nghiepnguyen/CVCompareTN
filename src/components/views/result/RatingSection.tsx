@@ -3,6 +3,7 @@ import { Star, MessageSquare, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
 import { rateAnalysis } from '../../../services/historyService';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 interface RatingSectionProps {
   userId: string;
@@ -11,6 +12,7 @@ interface RatingSectionProps {
 
 export function RatingSection({ userId, analysisId }: RatingSectionProps) {
   const { t } = useUI();
+  const { executeRecaptcha } = useGoogleReCaptcha();
   const [userRating, setUserRating] = React.useState<number>(0);
   const [userFeedback, setUserFeedback] = React.useState('');
   const [isRatingSubmitted, setIsRatingSubmitted] = React.useState(false);
@@ -20,7 +22,15 @@ export function RatingSection({ userId, analysisId }: RatingSectionProps) {
     if (userRating === 0) return;
     setIsSubmittingRating(true);
     try {
-      await rateAnalysis(userId, analysisId, userRating, userFeedback);
+      let recaptchaToken: string | undefined;
+      if (executeRecaptcha) {
+        try {
+          recaptchaToken = await executeRecaptcha('feedback');
+        } catch (e) {
+          console.error('reCAPTCHA feedback error:', e);
+        }
+      }
+      await rateAnalysis(userId, analysisId, userRating, userFeedback, recaptchaToken);
       setIsRatingSubmitted(true);
     } catch (err) {
       console.error('Lỗi khi gửi đánh giá:', err);

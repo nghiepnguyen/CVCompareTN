@@ -20,10 +20,12 @@ import {
   type UserProfile,
 } from '../../services/userService';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 
 export function AdminView() {
   const { user, userProfile, allUsers } = useAuth();
   const { t, reportLanguage } = useUI();
+  const { executeRecaptcha } = useGoogleReCaptcha();
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
   const newRegularUsers = allUsers.filter(u => u.isNew && u.role !== 'admin');
   const newUsersCount = newRegularUsers.length;
@@ -153,20 +155,28 @@ export function AdminView() {
     setIsSendingTestEmail(true);
     setTestEmailStatus(null);
     try {
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: {
-          type: 'welcome',
-          data: {
-            userEmail: testEmailRecipient,
-            userName: testName || t.adminGuest
-          }
+      let recaptchaToken: string | undefined;
+      if (executeRecaptcha) {
+        try {
+          recaptchaToken = await executeRecaptcha('welcome_email');
+        } catch (e) {
+          console.error('reCAPTCHA admin test error:', e);
         }
+      }
+      const res = await fetch('/api/send-welcome-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: recaptchaToken,
+          userEmail: testEmailRecipient,
+          userName: testName || t.adminGuest,
+        }),
       });
-      
-      if (error) throw error;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Unknown error');
       setTestEmailStatus({
         success: true,
-        message: formatLabel(t.adminEmailSent, { id: data.id || 'OK' }),
+        message: formatLabel(t.adminEmailSent, { id: data.success ? 'OK' : 'FAIL' }),
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown';

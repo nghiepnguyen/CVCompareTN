@@ -27,7 +27,22 @@ Hệ thống sử dụng **Express** module hoá (`server/routes/`) khi chạy *
 
 Tự động bypass trên localhost để thuận tiện phát triển.
 
-### 4. Hệ thống Email (`/api/send-feedback` & `/api/send-welcome-email`)
+### 4. Thanh toán PayOS (`/api/payment/create` & `/api/payment/webhook`)
+
+-   **Files:** `server/routes/payment.ts` (Express), `api/payment/` (Vercel serverless), shared logic trong `api/payment/lib/`.
+-   Dùng **shared handlers** (`api/payment/lib/handlers.ts`) cho cả Express và Vercel — logic đồng nhất.
+-   **`POST /api/payment/create`:**
+    -   Xác thực Bearer token (Supabase session).
+    -   Gọi PayOS API tạo link thanh toán (HMAC-SHA256 signed).
+    -   Ghi bản ghi `payments` (status = `pending`) vào Supabase.
+    -   Trả về `{ checkoutUrl }` → frontend redirect.
+-   **`POST /api/payment/webhook`:**
+    -   Xác thực chữ ký PayOS qua `verifyWebhookPayload()` (sorted-key object signing).
+    -   Tra cứu payment theo `orderCode`.
+    -   Gọi RPC `activate_pro_plan` -> cập nhật `profiles.plan = 'pro'`, cập nhật `payments.status = 'paid'`.
+    -   Idempotent: đã `paid` thì bỏ qua.
+
+### 5. Hệ thống Email (`/api/send-feedback` & `/api/send-welcome-email`)
 -   **Files:** `server/routes/feedback.ts`, `server/routes/welcomeEmail.ts`
 -   Tích hợp với dịch vụ **Resend**.
 -   Tự động xác thực reCAPTCHA trước khi gửi email để chống spam.
@@ -42,6 +57,13 @@ RECAPTCHA_SECRET_KEY=    # Google reCAPTCHA v3 Secret
 RESEND_API_KEY=          # Resend Platform API Key
 RESEND_FROM_EMAIL=       # Email gửi đi (ví dụ: noreply@thanhnghiep.top)
 FEEDBACK_RECIPIENT_EMAIL= # Email nhận phản hồi admin
+
+# PayOS (thanh toán Pro)
+PAYOS_CLIENT_ID=         # PayOS Client ID
+PAYOS_API_KEY=           # PayOS API Key
+PAYOS_CHECKSUM_KEY=      # PayOS Checksum Key (HMAC-SHA256)
+SUPABASE_SERVICE_ROLE_KEY= # Service role key (để webhook ghi DB)
+APP_URL=                 # URL ứng dụng (vd: https://cv.thanhnghiep.top)
 ```
 
 ## Security & Middleware

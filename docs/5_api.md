@@ -33,6 +33,19 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 - **Body:** `{ token: string }`
 - **Ghi chú:** Localhost thường được bypass (xem code route).
 
+### Thanh toán PayOS
+
+| Môi trường | Method & path | File |
+|------------|----------------|------|
+| **Vercel** | `POST /api/payment/create` | `api/payment/create.ts` |
+| **Express** | `POST /api/payment/create` | `server/routes/payment.ts` → shared `api/payment/lib/handlers.ts` |
+| **Vercel** | `POST /api/payment/webhook` | `api/payment/webhook.ts` |
+| **Express** | `POST /api/payment/webhook` | `server/routes/payment.ts` → shared `api/payment/lib/handlers.ts` |
+
+- **`POST /api/payment/create`** — Tạo link thanh toán PayOS. Body (do PayOS sinh): `{ orderCode, amount, description, items, returnUrl, cancelUrl }`. Response: `{ checkoutUrl: string }`.
+- **`POST /api/payment/webhook`** — PayOS gọi callback khi có kết quả thanh toán. Xác thực HMAC-SHA256, gọi RPC `activate_pro_plan` nếu thành công.
+- **Yêu cầu:** `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`.
+
 ### `POST /api/send-feedback`
 
 - **Mục đích:** Gửi phản hồi qua email (Resend).

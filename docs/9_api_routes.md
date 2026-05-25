@@ -10,7 +10,7 @@ Canonical reference for **which runtime handles each capability**. The frontend 
 | PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` | `POST /api/extract-pdf/extract` → `server/routes/pdf.ts` | `extract-pdf` (optional; some JD flows) |
 | reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha/verify` | `verify-recaptcha` (analyze flow in `AnalysisRunContext`) |
 | Feedback email | `POST /api/send-feedback` → `api/send-feedback.ts` | mirror under `server/routes/` | — |
-| Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | `send-email` (if configured) |
+| Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | — |
 | PayOS — tạo link Pro | `POST /api/payment/create` → `api/payment/create.ts` | `POST /api/payment/create` → `server/routes/payment.ts` | — |
 | PayOS — webhook | `POST /api/payment/webhook` → `api/payment/webhook.ts` | `POST /api/payment/webhook` | — |
 
@@ -52,7 +52,6 @@ flowchart TB
 - Invoked from the browser with the user's session JWT where applicable.
 - **`verify-recaptcha`:** Called before CV analysis in non-localhost environments (`AnalysisRunContext`).
 - **`extract-pdf`:** Optional alternative for PDF/JD extraction in some UI flows (see `AnalysisInputView` and related code).
-- **`send-email`:** Welcome or transactional email if wired to Edge instead of Vercel.
 
 Do **not** assume one Edge function replaces Express and Vercel handlers without checking call sites.
 

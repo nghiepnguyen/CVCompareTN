@@ -38,7 +38,32 @@ graph TD
 3.  **Export:** In (`PrintView` / `window.print()`) xuất CV Markdown đã tối ưu; có sao chép Markdown / plain text từ tab Optimization.
 4.  **Hiển thị CV tối ưu:** `fullRewrittenCV` (Markdown GFM từ Gemini) được chuẩn hoá bởi `fullRewrittenCvMarkdown.ts` và render qua `CvMarkdownBody.tsx` (sanitize + typography `.cv-markdown-specimen`).
 
-## 3. Quản lý dữ liệu
+## 4. Luồng thanh toán Pro (PayOS Flow)
+
+```mermaid
+graph TD
+    A[Người dùng Free] -->|Nâng cấp| B[UpgradeView]
+    B -->|createProCheckout| C[POST /api/payment/create]
+    C --> D[PayOS: tạo link thanh toán]
+    D -->|redirect| E[PayOS checkout page]
+    E -->|success| F[/payment/success]
+    E -->|cancel| G[/payment/cancel]
+    F -->|poll 2s / max 15 lần| H{plan === 'pro'?}
+    H -->|chưa| F
+    H -->|rồi| I[Hiển thị thành công → redirect Dashboard]
+    D -.->|webhook async| J[POST /api/payment/webhook]
+    J -->|verify HMAC-SHA256| K[activate_pro_plan RPC]
+    K --> L[profiles.plan='pro', payments.status='paid']
+    L -.->|poll phát hiện| H
+```
+
+- **UpgradeView** (`src/components/views/UpgradeView.tsx`): Bảng so sánh Free vs Pro, nút "Nâng cấp ngay — 69.000đ/tháng".
+- **paymentService** (`src/services/paymentService.ts`): Gọi `POST /api/payment/create` với Bearer token, nhận `checkoutUrl`, redirect.
+- **PaymentSuccessView** (`src/components/views/PaymentSuccessView.tsx`): Polling Supabase mỗi 2s kiểm tra `plan`, tối đa 30s. Khi phát hiện `plan='pro'`, hiển thị xác nhận và auto-redirect về Dashboard sau 4s.
+- **PaymentCancelView** (`src/components/views/PaymentCancelView.tsx`): Thông báo hủy, nút "Quay lại phân tích".
+- **Enforcement:** Các feature gate (export, batch > 1, JD unlimited) kiểm tra `isProPlan()` từ `planLimits.ts`. Nếu Free, hiển thị `UpgradePrompt` (`src/components/shared/UpgradePrompt.tsx`).
+
+## 5. Quản lý dữ liệu
 
 -   **History:** Kết quả so sánh được lưu trữ theo tài khoản người dùng, cho phép xem lại các lần so sánh trước đó.
 -   **Admin:** Theo dõi `usageCount` / hạn mức tháng; cấu hình **mặc định hệ thống** (`app_settings`, ví dụ 20 lượt/tháng); override hoặc unlimited từng user. Chi tiết: [8_analytics.md](8_analytics.md).

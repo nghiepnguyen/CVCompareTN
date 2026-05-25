@@ -203,10 +203,10 @@ router.post('/create', async (req, res) => {
 
   const payosBody = {
     orderCode,
-    amount: 39000,
+    amount: 69000,
     description: `CV Compare Pro`, // tối đa 25 ký tự
     buyerEmail: userEmail,
-    items: [{ name: 'CV Compare Pro 30 ngày', quantity: 1, price: 39000 }],
+    items: [{ name: 'CV Compare Pro 30 ngày', quantity: 1, price: 69000 }],
     returnUrl: `${process.env.APP_URL}/payment/success?orderCode=${orderCode}`,
     cancelUrl: `${process.env.APP_URL}/payment/cancel`,
     expiredAt: Math.floor(Date.now() / 1000) + 15 * 60, // hết hạn sau 15 phút
@@ -417,7 +417,7 @@ File: `src/components/views/UpgradeView.tsx`
 **Nội dung cần có:**
 
 - Bảng so sánh Free vs Pro
-- Nút "Nâng cấp ngay — 39.000đ/tháng" → gọi `POST /api/payment/create` → redirect đến `checkoutUrl`
+- Nút "Nâng cấp ngay — 69.000đ/tháng" → gọi `POST /api/payment/create` → redirect đến `checkoutUrl`
 - Trang `/payment/success` — hiển thị xác nhận, polling Supabase để detect plan đã active
 - Trang `/payment/cancel` — quay lại, không mất gì
 

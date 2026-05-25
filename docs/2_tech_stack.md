@@ -38,6 +38,7 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
     -   **PostgreSQL:** Profile, lịch sử, JDs; bảng **`app_settings`** (hạn mức phân tích mặc định/tháng, đổi runtime); RPC `check_analytics_quota`, `increment_usage_count`.
     -   **Edge Functions:** (Tùy chọn) Triển khai logic serverless trên hạ tầng toàn cầu của Supabase.
 -   **Email Service:** [Resend](https://resend.com/) - Gửi email phản hồi và email chào mừng tự động.
+-   **Payment Gateway:** [PayOS](https://payos.vn/) - Cổng thanh toán cho gói Pro; xử lý tạo link thanh toán, webhook xác thực HMAC-SHA256. Shared handler dùng chung cho cả Express (`server/routes/payment.ts`) và Vercel (`api/payment/`).
 
 ## Quản lý mã nguồn & Triển khai
 

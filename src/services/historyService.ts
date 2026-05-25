@@ -51,7 +51,7 @@ function mapHistory(data: Record<string, unknown>): AnalysisResult {
   };
 }
 
-export async function rateAnalysis(userId: string, analysisId: string, rating: number, feedback: string): Promise<void> {
+export async function rateAnalysis(userId: string, analysisId: string, rating: number, feedback: string, recaptchaToken?: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase
     .from('history')
@@ -64,18 +64,18 @@ export async function rateAnalysis(userId: string, analysisId: string, rating: n
   
   if (error) throw error;
 
-  // Gửi email thông báo feedback cho Admin
+  // Gửi email thông báo feedback cho Admin (qua API có reCAPTCHA)
   if (feedback || rating > 0) {
-    supabase.functions.invoke('send-email', {
-      body: {
-        type: 'feedback',
-        data: {
-          rating,
-          content: feedback,
-          userEmail: user?.email || 'Ẩn danh',
-          title: `Đánh giá ${rating} sao cho analysis ${analysisId.substring(0, 8)}`
-        }
-      }
+    fetch('/api/send-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: recaptchaToken,
+        rating,
+        title: `Đánh giá ${rating} sao cho analysis ${analysisId.substring(0, 8)}`,
+        content: feedback,
+        userEmail: user?.email || 'Ẩn danh',
+      }),
     }).catch(e => console.error("Lỗi gửi email feedback:", e));
   }
 }

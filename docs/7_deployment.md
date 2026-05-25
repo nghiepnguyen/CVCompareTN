@@ -37,6 +37,12 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
     -   `VITE_ADMIN_EMAIL`: Email có quyền truy cập trang Admin.
     -   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`: Project Supabase (client).
     -   `VITE_GA_MEASUREMENT_ID`: Google Analytics 4 (ví dụ `G-GVTPXY9S3D`) — bắt buộc nếu bật theo dõi hành vi GA4.
+-   **PayOS (Pro plan):** Thêm các biến sau để kích hoạt thanh toán:
+    -   `PAYOS_CLIENT_ID`: Client ID từ cổng PayOS.
+    -   `PAYOS_API_KEY`: API Key từ PayOS.
+    -   `PAYOS_CHECKSUM_KEY`: Checksum Key để xác thực webhook (HMAC-SHA256).
+    -   `SUPABASE_SERVICE_ROLE_KEY`: Service role key — webhook cần quyền ghi `profiles` và `payments`.
+    -   `APP_URL`: URL đầy đủ của ứng dụng (vd: `https://cv.thanhnghiep.top`), dùng cho `returnUrl`/`cancelUrl` của PayOS.
 3.  **Cấu hình Frontend (Client-side):** Các biến có tiền tố `VITE_` sẽ được nhúng vào mã nguồn khi build.
 4.  **Tự động triển khai:** Vercel sẽ tự động nhận diện thư mục `/api` và triển khai chúng dưới dạng Serverless Functions dựa trên cấu hình trong `vercel.json`.
 
@@ -57,6 +63,7 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
     | `20260520120000_profiles_monthly_analytics_limit.sql` | Hạn mức phân tích/tháng trên `profiles`, `check_analytics_quota` |
     | `20260520130000_profiles_default_monthly_limit_20.sql` | `DEFAULT 20` trên cột limit (thế hệ trước `app_settings`) |
     | `20260523100000_app_settings_analytics_default.sql` | Bảng **`app_settings`** (default **20**, đổi runtime), `monthly_analytics_limit_custom`, RPC effective limit |
+    | `20260601000000_add_plan_to_profiles.sql` | Gói Pro: cột `plan`, `plan_expires_at`, `plan_updated_at` trên `profiles`; bảng `payments`; RPC `activate_pro_plan`, `get_user_plan`; cập nhật `check_analytics_quota` plan-aware |
 
     Chi tiết hạn mức phân tích (Admin, SQL, không cần redeploy Vercel): [8_analytics.md § Hạn mức phân tích CV/tháng](8_analytics.md#hạn-mức-phân-tích-cvtháng-supabase--không-phải-ga4).
 4.  **Storage:** Migration đã tạo bucket **`cv-files`** (public đọc; authenticated được upload/xóa). Đổi tên bucket chỉ khi bạn cập nhật cấu hình bucket tương ứng trong Supabase project.
