@@ -13,6 +13,7 @@ Canonical reference for **which runtime handles each capability**. The frontend 
 | Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | — |
 | PayOS — tạo link Pro | `POST /api/payment/create` → `api/payment/create.ts` | `POST /api/payment/create` → `server/routes/payment.ts` | — |
 | PayOS — webhook | `POST /api/payment/webhook` → `api/payment/webhook.ts` | `POST /api/payment/webhook` | — |
+| PayOS — xác nhận Pro (fallback) | `POST /api/payment/confirm` → `api/payment/confirm.ts` | `POST /api/payment/confirm` | — |
 
 Rewrites are defined in [`vercel.json`](../vercel.json).
 

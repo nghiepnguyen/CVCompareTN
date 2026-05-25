@@ -15,6 +15,7 @@ export interface UiLabels {
   adminAnalyticsUnlimited: string;
   adminAnalyticsUsedOfLimit: string;
   adminColFormat: string;
+  adminColPlan: string;
   adminColInit: string;
   adminColMember: string;
   adminColStatus: string;
@@ -39,6 +40,13 @@ export interface UiLabels {
   adminMailDesc: string;
   adminMailTitle: string;
   adminMarkReadError: string;
+  adminPlanChangeError: string;
+  adminPlanFree: string;
+  adminPlanGrantFree: string;
+  adminPlanGrantPro30: string;
+  adminPlanGrantPro90: string;
+  adminPlanGrantPro365: string;
+  adminPlanPro: string;
   adminNewProfilesSubtitle: string;
   adminNewProfilesTitle: string;
   adminPageDesc: string;

@@ -33,6 +33,10 @@
       "destination": "/api/payment/webhook.ts"
     },
     {
+      "source": "/api/payment/confirm",
+      "destination": "/api/payment/confirm.ts"
+    },
+    {
       "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
       "destination": "/index.html"
     }

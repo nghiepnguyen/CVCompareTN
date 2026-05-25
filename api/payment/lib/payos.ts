@@ -52,22 +52,88 @@ export function createPaymentRequestSignature(body: {
   return createHmac('sha256', getChecksumKey()).update(checksumData).digest('hex');
 }
 
-/** Webhook: sign the `data` object (sorted keys, PayOS SDK convention). */
-function objectToSignString(obj: Record<string, unknown>): string {
-  const keys = Object.keys(obj).sort();
-  return keys
-    .filter((key) => {
-      const v = obj[key];
-      return v !== undefined && v !== null && v !== '';
+/** Matches payOSHQ/payos-lib-node sortObjDataByKey + convertObjToQueryStr. */
+export function sortObjDataByKey(
+  object: Record<string, unknown>
+): Record<string, unknown> {
+  return Object.keys(object)
+    .sort()
+    .reduce<Record<string, unknown>>((obj, key) => {
+      obj[key] = object[key];
+      return obj;
+    }, {});
+}
+
+export function convertObjToQueryStr(object: Record<string, unknown>): string {
+  return Object.keys(object)
+    .filter((key) => object[key] !== undefined)
+    .map((key) => {
+      let value: unknown = object[key];
+      if (Array.isArray(value)) {
+        value = JSON.stringify(
+          value.map((val) =>
+            typeof val === 'object' && val !== null
+              ? sortObjDataByKey(val as Record<string, unknown>)
+              : val
+          )
+        );
+      }
+      if (
+        value === null ||
+        value === undefined ||
+        value === 'undefined' ||
+        value === 'null'
+      ) {
+        value = '';
+      }
+      return `${key}=${value}`;
     })
-    .map((key) => `${key}=${obj[key]}`)
     .join('&');
 }
 
 export function createSignatureFromObject(data: Record<string, unknown>): string {
-  return createHmac('sha256', getChecksumKey())
-    .update(objectToSignString(data))
-    .digest('hex');
+  const sorted = sortObjDataByKey(data);
+  const dataQueryStr = convertObjToQueryStr(sorted);
+  return createHmac('sha256', getChecksumKey()).update(dataQueryStr).digest('hex');
+}
+
+export type PayosPaymentRequestInfo = {
+  status?: string;
+  amount?: number;
+  amountPaid?: number;
+  orderCode?: number;
+};
+
+export function isPayosPaymentPaid(info: PayosPaymentRequestInfo): boolean {
+  const status = (info.status ?? '').toUpperCase();
+  if (status === 'PAID' || status === 'COMPLETED') return true;
+  if (
+    typeof info.amount === 'number' &&
+    typeof info.amountPaid === 'number' &&
+    info.amount > 0
+  ) {
+    return info.amountPaid >= info.amount;
+  }
+  return false;
+}
+
+export async function fetchPaymentRequestInfo(
+  orderCode: number
+): Promise<PayosPaymentRequestInfo | null> {
+  const response = await fetch(`${PAYOS_API_URL}/${orderCode}`, {
+    method: 'GET',
+    headers: getPayosHeaders(),
+  });
+  const parsed = await parsePayosJson(response);
+  if (parsed.code !== '00' || !parsed.data) return null;
+  const data = parsed.data as Record<string, unknown>;
+  return {
+    status: typeof data.status === 'string' ? data.status : undefined,
+    amount: typeof data.amount === 'number' ? data.amount : undefined,
+    amountPaid: typeof data.amountPaid === 'number' ? data.amountPaid : undefined,
+    orderCode:
+      typeof data.orderCode === 'number' ? data.orderCode : Number(orderCode),
+  };
 }
 
 export function verifyWebhookPayload(body: {

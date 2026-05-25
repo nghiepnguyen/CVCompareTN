@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
+import { confirmProPayment } from '../../services/paymentService';
 import { fetchEffectiveUserPlan } from '../../services/userService';
 import { isProPlan } from '../../lib/planLimits';
 
@@ -13,11 +14,25 @@ export function PaymentSuccessView() {
   useEffect(() => {
     if (!user?.id) return;
 
+    const orderCodeParam = new URLSearchParams(window.location.search).get('orderCode');
+    const orderCode = orderCodeParam ? Number(orderCodeParam) : NaN;
+
     let attempts = 0;
-    const maxAttempts = 15;
+    const maxAttempts = 20;
+    let cancelled = false;
 
     const poll = async () => {
+      if (cancelled) return;
       attempts += 1;
+
+      if (Number.isFinite(orderCode)) {
+        try {
+          await confirmProPayment(orderCode);
+        } catch (err) {
+          console.warn('confirmProPayment:', err);
+        }
+      }
+
       await refreshUserProfile();
       const plan = await fetchEffectiveUserPlan(user.id);
       if (isProPlan(plan)) {
@@ -30,6 +45,9 @@ export function PaymentSuccessView() {
     };
 
     void poll();
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, refreshUserProfile]);
 
   useEffect(() => {

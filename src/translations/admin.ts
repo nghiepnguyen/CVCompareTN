@@ -44,6 +44,38 @@ export const admin = {
     vi: "Định dạng",
     en: "Role",
   },
+  adminColPlan: {
+    vi: "Gói",
+    en: "Plan",
+  },
+  adminPlanFree: {
+    vi: "Free",
+    en: "Free",
+  },
+  adminPlanPro: {
+    vi: "Pro",
+    en: "Pro",
+  },
+  adminPlanGrantFree: {
+    vi: "Chuyển Free",
+    en: "Set Free",
+  },
+  adminPlanGrantPro30: {
+    vi: "Pro 30 ngày",
+    en: "Pro 30 days",
+  },
+  adminPlanGrantPro90: {
+    vi: "Pro 90 ngày",
+    en: "Pro 90 days",
+  },
+  adminPlanGrantPro365: {
+    vi: "Pro 1 năm",
+    en: "Pro 1 year",
+  },
+  adminPlanChangeError: {
+    vi: "Không cập nhật được gói: {message}",
+    en: "Could not update plan: {message}",
+  },
   adminColAnalytics: {
     vi: "Phân tích / tháng",
     en: "Analyses / month",

@@ -64,3 +64,37 @@ export async function createProCheckout(): Promise<CreateCheckoutResponse> {
 
   return { checkoutUrl: body.checkoutUrl, orderCode: body.orderCode as number };
 }
+
+export type ConfirmPaymentResponse = {
+  success?: boolean;
+  alreadyPaid?: boolean;
+  plan?: string;
+  error?: string;
+  payosStatus?: string | null;
+};
+
+export async function confirmProPayment(orderCode: number): Promise<ConfirmPaymentResponse> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) {
+    throw new Error('Bạn cần đăng nhập để xác nhận thanh toán');
+  }
+
+  const response = await fetch('/api/payment/confirm', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ orderCode }),
+  });
+
+  const body = await parsePaymentApiResponse(response);
+
+  if (!response.ok) {
+    const parts = [body.error, body.detail].filter(Boolean);
+    throw new Error(parts.join(' ') || 'Chưa xác nhận được thanh toán');
+  }
+
+  return body as ConfirmPaymentResponse;
+}

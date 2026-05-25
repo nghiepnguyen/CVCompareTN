@@ -204,6 +204,46 @@ export async function updateUserRole(uid: string, role: 'admin' | 'user'): Promi
   if (error) throw error;
 }
 
+export type AdminPlanGrant = 'free' | 'pro_30' | 'pro_90' | 'pro_365';
+
+/** Effective tier for UI (expiry-aware; admins always pro for limits). */
+export function getDisplayEffectivePlan(
+  profile: Pick<UserProfile, 'plan' | 'planExpiresAt' | 'role'>
+): UserPlan {
+  if (profile.role === 'admin') return 'pro';
+  if (profile.plan !== 'pro') return 'free';
+  if (!profile.planExpiresAt) return 'pro';
+  return new Date(profile.planExpiresAt) > new Date() ? 'pro' : 'free';
+}
+
+export function adminPlanSelectValue(profile: UserProfile): AdminPlanGrant {
+  if (getDisplayEffectivePlan(profile) === 'free') return 'free';
+  if (!profile.planExpiresAt) return 'pro_30';
+  const daysLeft = Math.ceil(
+    (new Date(profile.planExpiresAt).getTime() - Date.now()) / 86_400_000
+  );
+  if (daysLeft > 180) return 'pro_365';
+  if (daysLeft > 45) return 'pro_90';
+  return 'pro_30';
+}
+
+export async function adminUpdateUserPlan(
+  uid: string,
+  grant: AdminPlanGrant
+): Promise<void> {
+  const plan = grant === 'free' ? 'free' : 'pro';
+  const durationDays =
+    grant === 'pro_90' ? 90 : grant === 'pro_365' ? 365 : grant === 'pro_30' ? 30 : 30;
+
+  const { error } = await supabase.rpc('admin_set_user_plan', {
+    p_user_id: uid,
+    p_plan: plan,
+    p_duration_days: plan === 'free' ? 30 : durationDays,
+  });
+
+  if (error) throw error;
+}
+
 export async function deleteUser(id: string): Promise<void> {
   const { error } = await supabase
     .from('profiles')

@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { handlePaymentCreate, handlePaymentWebhook } from '../../api/payment/lib/handlers';
+import {
+  handlePaymentConfirm,
+  handlePaymentCreate,
+  handlePaymentWebhook,
+} from '../../api/payment/lib/handlers';
 
 const router = Router();
 
@@ -24,6 +28,16 @@ router.post('/webhook', async (req, res) => {
   } catch (err) {
     console.error('payment/webhook error:', err);
     return res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+router.post('/confirm', async (req, res) => {
+  try {
+    const result = await handlePaymentConfirm(req.headers.authorization, req.body);
+    return res.status(result.status).json(result.body);
+  } catch (err) {
+    console.error('payment/confirm error:', err);
+    return res.status(500).json({ error: 'Xác nhận thanh toán thất bại' });
   }
 });
 

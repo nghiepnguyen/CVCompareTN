@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Mail, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, Send, AlertCircle, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity } from 'lucide-react';
+import { Users, Mail, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, Send, AlertCircle, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -16,7 +16,11 @@ import {
   updateUserMonthlyAnalyticsLimit,
   resetUserToGlobalAnalyticsLimit,
   resolveEffectiveMonthlyAnalyticsLimit,
+  adminUpdateUserPlan,
+  adminPlanSelectValue,
+  getDisplayEffectivePlan,
   deleteUser,
+  type AdminPlanGrant,
   type UserProfile,
 } from '../../services/userService';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,6 +44,7 @@ export function AdminView() {
   const [testName, setTestName] = useState('');
   const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
   const [savingLimitUserId, setSavingLimitUserId] = useState<string | null>(null);
+  const [savingPlanUserId, setSavingPlanUserId] = useState<string | null>(null);
   const [globalDefaultLimit, setGlobalDefaultLimit] = useState(20);
   const [globalLimitDraft, setGlobalLimitDraft] = useState('20');
   const [isSavingGlobalLimit, setIsSavingGlobalLimit] = useState(false);
@@ -159,6 +164,20 @@ export function AdminView() {
       setError(message);
     } finally {
       setSavingLimitUserId(null);
+    }
+  };
+
+  const handleAdminPlanChange = async (u: UserProfile, grant: AdminPlanGrant) => {
+    if (grant === adminPlanSelectValue(u)) return;
+    setSavingPlanUserId(u.id);
+    setError(null);
+    try {
+      await adminUpdateUserPlan(u.id, grant);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(formatLabel(t.adminPlanChangeError, { message }));
+    } finally {
+      setSavingPlanUserId(null);
     }
   };
 
@@ -375,6 +394,7 @@ export function AdminView() {
                   <tr className="bg-surface-secondary/50 border-b border-border">
                     <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColMember}</th>
                     <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColFormat}</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColPlan}</th>
                     <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColAnalytics}</th>
                     <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColStatus}</th>
                     <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColInit}</th>
@@ -423,6 +443,55 @@ export function AdminView() {
                             >
                               <UserCog className="w-3.5 h-3.5" />
                             </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1.5 min-w-[148px]">
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border',
+                              getDisplayEffectivePlan(u) === 'pro'
+                                ? 'bg-accent-light border-accent/20 text-accent'
+                                : 'bg-surface-secondary border-border text-text-muted'
+                            )}
+                          >
+                            {getDisplayEffectivePlan(u) === 'pro' ? (
+                              <Crown className="w-3 h-3" />
+                            ) : null}
+                            {getDisplayEffectivePlan(u) === 'pro' ? t.adminPlanPro : t.adminPlanFree}
+                          </span>
+                          {u.role !== 'admin' && u.id !== user?.id && (
+                            <div className="flex items-center gap-1">
+                              <select
+                                value={adminPlanSelectValue(u)}
+                                disabled={savingPlanUserId === u.id}
+                                onChange={(e) =>
+                                  void handleAdminPlanChange(u, e.target.value as AdminPlanGrant)
+                                }
+                                className={cn(
+                                  'flex-1 min-w-0 px-2 py-1 text-[10px] font-bold uppercase tracking-wide',
+                                  'border border-border rounded-md bg-surface text-text-main',
+                                  'cursor-pointer hover:scale-105 active:scale-95 transition-transform',
+                                  'focus:outline-none focus:ring-1 focus:ring-accent',
+                                  savingPlanUserId === u.id && 'opacity-50 cursor-not-allowed'
+                                )}
+                                aria-label={t.adminColPlan}
+                              >
+                                <option value="free">{t.adminPlanGrantFree}</option>
+                                <option value="pro_30">{t.adminPlanGrantPro30}</option>
+                                <option value="pro_90">{t.adminPlanGrantPro90}</option>
+                                <option value="pro_365">{t.adminPlanGrantPro365}</option>
+                              </select>
+                              {savingPlanUserId === u.id && (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-accent shrink-0" />
+                              )}
+                            </div>
+                          )}
+                          {u.planExpiresAt && getDisplayEffectivePlan(u) === 'pro' && (
+                            <span className="text-[9px] text-text-light font-mono">
+                              {new Date(u.planExpiresAt).toLocaleDateString(dateLocale)}
+                            </span>
                           )}
                         </div>
                       </td>
