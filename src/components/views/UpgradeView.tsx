@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Loader2, Sparkles } from 'lucide-react';
+import { AlertCircle, Check, Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { createProCheckout } from '../../services/paymentService';
@@ -23,9 +23,10 @@ const ROW_LABEL_KEYS = {
 } as const;
 
 export function UpgradeView() {
-  const { user, effectivePlan, userProfile, setError } = useAuth();
+  const { user, effectivePlan, userProfile } = useAuth();
   const { t, setActiveTab } = useUI();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const alreadyPro = userProfile?.role === 'admin' || isProPlan(effectivePlan);
 
   const handleUpgrade = async () => {
@@ -37,6 +38,7 @@ export function UpgradeView() {
       setActiveTab('analyze');
       return;
     }
+    setError(null);
     setIsCheckingOut(true);
     try {
       const { checkoutUrl } = await createProCheckout();
@@ -78,6 +80,13 @@ export function UpgradeView() {
           </div>
         ))}
       </div>
+
+      {error && (
+        <div className="flex items-start gap-3 p-4 bg-error-light border border-error/20 rounded-2xl">
+          <AlertCircle className="size-5 text-error shrink-0 mt-0.5" />
+          <p className="text-sm font-bold text-error">{error}</p>
+        </div>
+      )}
 
       <div className="flex flex-col items-center gap-4">
         <p className="text-2xl font-black text-accent">{t.upgradePriceLabel}</p>
