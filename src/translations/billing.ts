@@ -108,17 +108,13 @@ export const billing = {
     vi: 'Nâng cấp Pro',
     en: 'Upgrade to Pro',
   },
-  menuQuotaLabel: {
-    vi: 'Lượt phân tích / tháng',
-    en: 'Analyses this month',
+  menuQuotaLine: {
+    vi: 'Phân tích - {used}/{limit}',
+    en: 'Analysis - {used}/{limit}',
   },
-  menuQuotaUnlimited: {
-    vi: 'Không giới hạn',
-    en: 'Unlimited',
-  },
-  menuQuotaUsedOf: {
-    vi: '{used} / {limit} lượt',
-    en: '{used} / {limit} runs',
+  menuQuotaLineUnlimited: {
+    vi: 'Phân tích - {used}/∞',
+    en: 'Analysis - {used}/∞',
   },
   checkoutError: {
     vi: 'Không thể bắt đầu thanh toán. Vui lòng thử lại sau.',

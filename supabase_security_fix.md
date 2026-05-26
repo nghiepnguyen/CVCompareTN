@@ -1,11 +1,46 @@
 # Kế hoạch khắc phục lỗi bảo mật Supabase
 
-> Nguồn: Supabase Security Advisor report  
-> Tất cả script chạy trong **Supabase Dashboard → SQL Editor**
+> Nguồn: Supabase Security Advisor report (project `pgchcnmpuknbgyljdlyp`)
+
+## Trạng thái (đã triển khai trong repo + remote)
+
+| Hạng mục | Trạng thái |
+|----------|------------|
+| Fix 1–5 (SQL revoke RPC, bucket, `search_path`) | Đã gộp vào `supabase/migrations/20260601110000`–`20260601150000` |
+| Re-apply grants sau `activate_pro_plan` idempotent | `20260602100000_security_reapply_function_grants.sql` — **đã apply remote** |
+| `resolve_monthly_analytics_limit` + PUBLIC execute | `20260602110000_security_revoke_resolve_limit_public.sql` — **đã apply remote** |
+| Cảnh báo `anon_security_definer_*` | **Đã hết** trên Security Advisor (2026-05-26) |
+| Cảnh báo `authenticated_security_definer_*` | Còn — **chấp nhận** (RPC client có guard `auth.uid()` / `is_admin()`) |
+| Leaked password protection | **Thủ công Dashboard** — xem mục Auth bên dưới |
+
+**Không** chạy lại các block SQL `fix_01`…`fix_05` trong SQL Editor nếu migration timestamp ở trên đã có trên DB. Dùng `supabase db push` hoặc MCP `apply_migration` cho migration mới.
+
+### Auth — Leaked password protection (bạn cần bật một lần)
+
+1. [Supabase Dashboard](https://supabase.com/dashboard) → project → **Authentication**
+2. **Providers** hoặc **Password security**
+3. Bật **Leaked password protection** (Have I Been Pwned)
+
+### Xác minh nhanh sau migrate
+
+```sql
+SELECT p.proname, r.rolname,
+       has_function_privilege(r.oid, p.oid, 'EXECUTE') AS can_execute
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+JOIN pg_roles r ON r.rolname IN ('anon', 'authenticated', 'service_role')
+WHERE n.nspname = 'public'
+  AND p.proname IN ('activate_pro_plan', 'admin_set_user_plan', 'resolve_monthly_analytics_limit')
+ORDER BY 1, 2;
+```
+
+Kỳ vọng: `activate_pro_plan` — chỉ `service_role` = true; `admin_set_user_plan` — `anon` = false; `resolve_monthly_analytics_limit` — `anon` = false.
+
+Anon gọi RPC (phải bị từ chối): HTTP 401 / `permission denied for function activate_pro_plan`.
 
 ---
 
-## Thứ tự ưu tiên
+## Thứ tự ưu tiên (lịch sử / tham khảo)
 
 | # | Vấn đề | Mức độ | File migration |
 |---|--------|--------|----------------|

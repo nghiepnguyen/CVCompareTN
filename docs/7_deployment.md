@@ -65,6 +65,12 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
     | `20260523100000_app_settings_analytics_default.sql` | Bảng **`app_settings`** (default **20**, đổi runtime), `monthly_analytics_limit_custom`, RPC effective limit |
     | `20260601000000_add_plan_to_profiles.sql` | Gói Pro: cột `plan`, `plan_expires_at`, `plan_updated_at` trên `profiles`; bảng `payments`; RPC `activate_pro_plan`, `get_user_plan`; cập nhật `check_analytics_quota` plan-aware |
     | `20260601110000`–`20260601150000_security_*.sql` | Security Advisor: revoke `anon` trên RPC nhạy cảm; `activate_pro_plan` chỉ `service_role`; SELECT bucket `cv-files` theo folder user; `search_path` cố định |
+    | `20260601200000_admin_set_user_plan.sql` | RPC admin đổi plan free/pro (guard `is_admin()`) |
+    | `20260601210000_activate_pro_plan_idempotent.sql` | `activate_pro_plan` idempotent (claim payment trước); **cần** migration security tiếp theo để giữ revoke EXECUTE |
+    | `20260602100000_security_reapply_function_grants.sql` | Re-apply revoke `anon`/`authenticated` sau recreate `activate_pro_plan`; revoke `anon` trên `admin_set_user_plan`, `get_default_monthly_analytics_limit` |
+    | `20260602110000_security_revoke_resolve_limit_public.sql` | Revoke `PUBLIC` execute trên `resolve_monthly_analytics_limit` (anon kế thừa qua `=X/postgres`) |
+
+    **Auth (Dashboard, không qua SQL):** Bật **Leaked password protection** tại Authentication → Password security ([hướng dẫn](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)).
 
     Chi tiết hạn mức phân tích (Admin, SQL, không cần redeploy Vercel): [8_analytics.md § Hạn mức phân tích CV/tháng](8_analytics.md#hạn-mức-phân-tích-cvtháng-supabase--không-phải-ga4).
 4.  **Storage:** Bucket **`cv-files`** — sau migration security, user **authenticated** chỉ SELECT object trong path `{user_id}/...`. Cân nhắc tắt Public bucket trên Dashboard nếu không cần URL công khai.

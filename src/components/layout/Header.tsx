@@ -54,8 +54,8 @@ export function Header() {
     menuQuota == null
       ? null
       : menuQuota.limit == null
-        ? `${menuQuota.used} · ${t.menuQuotaUnlimited}`
-        : formatLabel(t.menuQuotaUsedOf, {
+        ? formatLabel(t.menuQuotaLineUnlimited, { used: String(menuQuota.used) })
+        : formatLabel(t.menuQuotaLine, {
             used: String(menuQuota.used),
             limit: String(menuQuota.limit),
           });
@@ -197,15 +197,12 @@ export function Header() {
                           )}
                           <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/60">
                             <Activity className="w-3 h-3 text-accent shrink-0" />
-                            <span className="text-[9px] font-black uppercase tracking-wider text-text-light">
-                              {t.menuQuotaLabel}
-                            </span>
                             {isLoadingMenuQuota ? (
-                              <Loader2 className="w-3 h-3 animate-spin text-accent ml-auto" />
+                              <Loader2 className="w-3 h-3 animate-spin text-accent" />
                             ) : (
                               <span
                                 className={cn(
-                                  'text-[10px] font-bold ml-auto tabular-nums',
+                                  'text-[10px] font-bold tabular-nums',
                                   menuQuota?.allowed === false
                                     ? 'text-error'
                                     : 'text-text-main'

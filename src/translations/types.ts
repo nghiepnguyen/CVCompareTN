@@ -420,8 +420,7 @@ export interface UiLabels {
   paymentCancelDesc: string;
   paymentBackToApp: string;
   menuUpgrade: string;
-  menuQuotaLabel: string;
-  menuQuotaUnlimited: string;
-  menuQuotaUsedOf: string;
+  menuQuotaLine: string;
+  menuQuotaLineUnlimited: string;
   checkoutError: string;
 }
