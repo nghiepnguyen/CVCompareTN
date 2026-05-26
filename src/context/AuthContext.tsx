@@ -61,7 +61,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (createErr: any) {
           // Nếu báo lỗi trùng ID (23505), nghĩa là hồ sơ vừa được tạo hoặc đã tồn tại
           if (createErr.code === '23505') {
-            console.log("AuthProvider: [RETRY] Hồ sơ đã tồn tại, đang thử tải lại...");
             profile = await getUserProfile(currentUser.id);
           } else {
             throw createErr;
@@ -121,15 +120,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
-    console.log("AuthProvider: [INIT] Bắt đầu khởi tạo Supabase Auth...");
 
     const initAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!isMounted) return;
 
       const currentUser = session?.user ?? null;
-      console.log("AuthProvider: [SESSION] User:", currentUser ? currentUser.email : "Trống");
-      console.log("AuthProvider: [SESSION] Full Session Object:", session);
       setUser(currentUser);
       
       if (currentUser) {
@@ -144,10 +140,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return;
-      console.log("AuthProvider: [EVENT] Auth state changed:", _event);
       
       const currentUser = session?.user ?? null;
-      console.log("AuthProvider: [EVENT] Auth event:", _event, "User:", currentUser?.email);
       setUser(currentUser);
       
       if (currentUser) {
@@ -186,7 +180,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async () => {
     try {
-      console.log("AuthProvider: Bắt đầu đăng nhập với Google OAuth...");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
