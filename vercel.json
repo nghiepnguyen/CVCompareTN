@@ -25,6 +25,10 @@
       "destination": "/api/extract-pdf.ts"
     },
     {
+      "source": "/api/scrape-url",
+      "destination": "/api/scrape-url.ts"
+    },
+    {
       "source": "/api/payment/create",
       "destination": "/api/payment/create.ts"
     },

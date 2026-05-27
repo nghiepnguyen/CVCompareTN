@@ -13,6 +13,7 @@ import recaptchaRouter from './server/routes/recaptcha';
 import feedbackRouter from './server/routes/feedback';
 import welcomeEmailRouter from './server/routes/welcomeEmail';
 import pdfRouter from './server/routes/pdf';
+import scrapeRouter from './server/routes/scrape';
 import paymentRouter from './server/routes/payment';
 
 async function startServer() {
@@ -33,6 +34,7 @@ async function startServer() {
   app.use('/api/send-feedback', emailLimiter, feedbackRouter); // Resend email — 5 req / hour
   app.use('/api/send-welcome-email', emailLimiter, welcomeEmailRouter); // Resend email — 5 req / hour
   app.use('/api/extract-pdf', strictLimiter, pdfRouter); // PDF parsing — 10 req / 15 min
+  app.use('/api/scrape-url', strictLimiter, scrapeRouter); // URL scrape — 10 req / 15 min
   app.use('/api/payment', strictLimiter, paymentRouter); // Payment ops — 10 req / 15 min
 
   // Vite middleware for development
