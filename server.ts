@@ -4,6 +4,9 @@ import cors from 'cors';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 
+// Rate limiters
+import { apiLimiter, strictLimiter, emailLimiter } from './server/lib/rateLimiter';
+
 // Routes
 import configRouter from './server/routes/config';
 import recaptchaRouter from './server/routes/recaptcha';
@@ -21,12 +24,16 @@ async function startServer() {
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // API Routes
+  // Apply global rate limiting to all /api routes (100 req / 15 min per IP)
+  app.use('/api', apiLimiter);
+
+  // Apply route-specific stricter limits for expensive operations
   app.use('/api/config', configRouter);
   app.use('/api/verify-recaptcha', recaptchaRouter);
-  app.use('/api/send-feedback', feedbackRouter);
-  app.use('/api/send-welcome-email', welcomeEmailRouter);
-  app.use('/api/extract-pdf', pdfRouter);
-  app.use('/api/payment', paymentRouter);
+  app.use('/api/send-feedback', emailLimiter, feedbackRouter); // Resend email — 5 req / hour
+  app.use('/api/send-welcome-email', emailLimiter, welcomeEmailRouter); // Resend email — 5 req / hour
+  app.use('/api/extract-pdf', strictLimiter, pdfRouter); // PDF parsing — 10 req / 15 min
+  app.use('/api/payment', strictLimiter, paymentRouter); // Payment ops — 10 req / 15 min
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
