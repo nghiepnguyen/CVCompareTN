@@ -1,5 +1,7 @@
 import { Router } from "express";
 import axios from "axios";
+import { validateScrapeUrl } from "../lib/urlValidator.js";
+import { htmlToText } from "../lib/htmlToText.js";
 
 const router = Router();
 
@@ -14,10 +16,10 @@ router.post("/extract", async (req, res) => {
     return res.status(400).json({ error: "Missing or invalid 'url' field" });
   }
 
-  try {
-    new URL(url);
-  } catch {
-    return res.status(400).json({ error: "Invalid URL format" });
+  // SSRF-safe validation: block internal/private hosts, non-HTTP schemes, path traversal
+  const validation = validateScrapeUrl(url);
+  if (!validation.valid) {
+    return res.status(400).json({ error: validation.error });
   }
 
   try {
@@ -82,31 +84,6 @@ router.post("/extract", async (req, res) => {
   }
 });
 
-/* ── HTML Entity Decoder ── */
-const HTML_ENTITIES: Record<string, string> = {
-  nbsp: " ",
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: '"',
-  "#39": "'",
-  apos: "'",
-  "#x2F": "/",
-};
-
-function decodeHTMLEntities(s: string): string {
-  return s
-    .replace(/&([a-z]+);/gi, (_m: string, name: string) => {
-      return HTML_ENTITIES[name.toLowerCase()] || _m;
-    })
-    .replace(/&#(\d+);/g, (_m: string, n: string) =>
-      String.fromCharCode(parseInt(n, 10))
-    )
-    .replace(/&#x([0-9a-f]+);/gi, (_m: string, h: string) =>
-      String.fromCharCode(parseInt(h, 16))
-    );
-}
-
 /* ── Smart HTML → JD text extractor ── */
 function extractTextFromHtml(html: string): string {
   // 1. Try JSON-LD JobPosting structured data (most accurate)
@@ -118,23 +95,31 @@ function extractTextFromHtml(html: string): string {
       const json = block.replace(/<\/?script[^>]*>/gi, "");
       try {
         const parsed = JSON.parse(json);
-        const job =
-          (Array.isArray(parsed)
-            ? parsed.find(
-                (o: any) =>
-                  o["@type"] === "JobPosting" || o["@type"]?.includes("Job")
-              )
-            : parsed["@type"] === "JobPosting" ||
-                parsed["@type"]?.includes("Job")
-              ? parsed
-              : null) || parsed;
+
+        // Find the JobPosting object — avoid `|| parsed` pattern (CodeQL "replacement with itself")
+        let job: any = parsed;
+        if (Array.isArray(parsed)) {
+          const found = parsed.find(
+            (o: any) =>
+              o["@type"] === "JobPosting" || o["@type"]?.includes("Job")
+          );
+          if (found) {
+            job = found;
+          }
+        } else if (
+          parsed["@type"] === "JobPosting" ||
+          parsed["@type"]?.includes("Job")
+        ) {
+          job = parsed;
+        }
+
         const desc =
           job?.description ||
           job?.responsibilities ||
           job?.qualifications ||
           "";
         if (desc && typeof desc === "string" && desc.trim().length > 100) {
-          return stripHtmlTags(desc);
+          return htmlToText(desc);
         }
       } catch {
         // Not valid JSON, continue
@@ -142,112 +127,8 @@ function extractTextFromHtml(html: string): string {
     }
   }
 
-  // 2. Try to isolate main content area
-  let body = html;
-
-  // Remove <head> entirely
-  body = body.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "");
-
-  // Try to find <main>, <article>, or common JD container
-  const mainMatch =
-    body.match(/<main[^>]*>([\s\S]*?)<\/main>/gi) ||
-    body.match(/<article[^>]*>([\s\S]*?)<\/article>/gi) ||
-    body.match(
-      /<(?:div|section)[^>]*(?:class|id)="[^"]*(?:job|jd|description|detail|content|post)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|section)>/gi
-    );
-
-  if (mainMatch) {
-    body = mainMatch.join("\n---\n");
-  }
-
-  // 3. Strip noise elements (nav, header, footer, sidebar, ads)
-  const noiseTags = [
-    "nav",
-    "header",
-    "footer",
-    "aside",
-    "noscript",
-    "iframe",
-    "svg",
-  ];
-  for (const tag of noiseTags) {
-    body = body.replace(
-      new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi"),
-      ""
-    );
-  }
-  body = body.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "");
-  body = body.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
-  body = body.replace(/<!--[\s\S]*?-->/g, "");
-
-  // 4. Convert HTML to structured text
-  return stripHtmlTags(body);
-}
-
-function stripHtmlTags(html: string): string {
-  let text = html;
-
-  // Paragraph-level: double newline
-  const paragraphTags = [
-    "p",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "section",
-    "article",
-    "blockquote",
-    "pre",
-    "hr",
-    "figure",
-    "figcaption",
-    "table",
-    "dl",
-  ];
-  for (const tag of paragraphTags) {
-    text = text.replace(new RegExp(`<\\/${tag}[^>]*>`, "gi"), "\n\n");
-    text = text.replace(new RegExp(`<${tag}[^>]*>`, "gi"), "\n\n");
-  }
-
-  // Line-break level: single newline
-  const lineBreakTags = [
-    "br",
-    "li",
-    "tr",
-    "dt",
-    "dd",
-    "div",
-    "main",
-    "header",
-    "footer",
-    "nav",
-    "aside",
-    "ul",
-    "ol",
-    "tbody",
-    "thead",
-    "tfoot",
-  ];
-  for (const tag of lineBreakTags) {
-    text = text.replace(new RegExp(`<\\/${tag}[^>]*>`, "gi"), "\n");
-    text = text.replace(new RegExp(`<${tag}[^>]*>`, "gi"), "\n");
-  }
-
-  // Remove remaining tags (inline: span, a, strong, etc.)
-  text = text.replace(/<[^>]+>/g, "");
-
-  // Decode entities
-  text = decodeHTMLEntities(text);
-
-  // Clean up whitespace — preserve paragraph breaks
-  text = text.replace(/[ \t]+/g, " ");
-  text = text.replace(/\n{3,}/g, "\n\n");
-  text = text.replace(/^[ \t]+|[ \t]+$/gm, "");
-  text = text.replace(/\n[ \t]*\n[ \t]*\n/g, "\n\n");
-
-  return text.trim();
+  // 2. Fall back to cheerio-based htmlToText on the full document
+  return htmlToText(html);
 }
 
 export default router;

@@ -19,6 +19,9 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 
 -   **Runtime:** [Node.js](https://nodejs.org/).
 -   **Architecture:** **Modular Express Server** với các Route Handler được tách biệt, tích hợp trực tiếp với Vite Middleware trong môi trường phát triển.
+-   **HTML Processing:** [Cheerio](https://cheerio.js.org/) (jQuery-like HTML parser cho Node.js) + [he](https://github.com/mathiasbynens/he) (HTML entity decoder chuẩn) — dùng để trích xuất văn bản thuần túy từ HTML an toàn, thay thế regex-based approach (tránh CodeQL "Bad HTML filtering regexp" alerts). Shared module: `server/lib/htmlToText.ts`.
+-   **SSRF Protection:** `server/lib/urlValidator.ts` — chặn request tới private IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x), localhost metadata endpoints (AWS 169.254.169.254, GCP metadata.google.internal), IPv6 loopback/link-local, non-HTTP(S) schemes, và path traversal.
+-   **Rate Limiting:** `server/lib/rateLimiter.ts` — 3 mức: `apiLimiter` (100 req/15ph toàn cục), `strictLimiter` (10 req/15ph cho PDF, scrape, payment), `emailLimiter` (5 req/h cho email).
 -   **PDF/Docx Processing:**
     -   `Google Gemini AI`: Xử lý đa phương thức (Vision) trực tiếp cho các file PDF/Hình ảnh từ Frontend.
     -   `mammoth`: Chuyển đổi tệp .docx sang văn bản thuần túy (Lazy-loaded để tối ưu bundle).

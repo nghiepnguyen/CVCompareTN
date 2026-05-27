@@ -34,7 +34,7 @@ async function startServer() {
   app.use('/api/send-feedback', emailLimiter, feedbackRouter); // Resend email — 5 req / hour
   app.use('/api/send-welcome-email', emailLimiter, welcomeEmailRouter); // Resend email — 5 req / hour
   app.use('/api/extract-pdf', strictLimiter, pdfRouter); // PDF parsing — 10 req / 15 min
-  app.use('/api/scrape-url', scrapeRouter);
+  app.use('/api/scrape-url', strictLimiter, scrapeRouter); // URL scraping — 10 req / 15 min (SSRF-sensitive)
   app.use('/api/payment', strictLimiter, paymentRouter); // Payment ops — 10 req / 15 min
 
   // Vite middleware for development

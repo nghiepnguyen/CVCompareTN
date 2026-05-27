@@ -58,16 +58,18 @@ export async function extractJDFromUrl(url: string): Promise<string> {
 
     throw new Error(data.error || `HTTP ${response.status}`);
   } catch (error: any) {
-    const backendMsg = error?.message || "";
-    console.warn("Backend scrape failed:", backendMsg);
+    const rawMsg = error?.message || "";
+    console.warn("Backend scrape failed:", rawMsg);
 
-    // Don't try Gemini fallback if backend returned a clear error —
-    // Gemini can't browse URLs and will give useless/no output.
-    // Better to fail fast and tell the user to paste manually.
+    // Sanitize: only use rawMsg to decide error category, never expose raw content to UI.
+    // CodeQL flagged the old pattern of including backendMsg directly in the Error string.
+    const isBlocked =
+      rawMsg.includes("403") || rawMsg.includes("từ chối");
+
     throw new Error(
-      backendMsg.includes("403") || backendMsg.includes("từ chối")
+      isBlocked
         ? "Trang tuyển dụng chặn truy cập tự động. Vui lòng sao chép nội dung JD và dán vào ô văn bản."
-        : backendMsg || "Không thể trích xuất nội dung từ liên kết này. Vui lòng sao chép nội dung JD và dán vào ô văn bản."
+        : "Không thể trích xuất nội dung từ liên kết này. Vui lòng sao chép nội dung JD và dán vào ô văn bản."
     );
   }
 }

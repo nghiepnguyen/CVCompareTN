@@ -46,6 +46,20 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 - **`POST /api/payment/webhook`** — PayOS gọi callback khi có kết quả thanh toán. Xác thực HMAC-SHA256, gọi RPC `activate_pro_plan` nếu thành công.
 - **Yêu cầu:** `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`.
 
+### Trích xuất JD từ URL (Scrape)
+
+| Môi trường | Method & path | File |
+|------------|----------------|------|
+| **Vercel** | `POST /api/scrape-url` | `api/scrape-url.ts` |
+| **Express** | `POST /api/scrape-url/extract` | `server/routes/scrape.ts` |
+
+- **Body:** `{ url: string }`
+- **Response:** `{ text: string }` | `{ error: string }`
+- **SSRF Protection:** `server/lib/urlValidator.ts` — chặn private IP (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x), metadata endpoints (AWS `169.254.169.254`, GCP `metadata.google.internal`), IPv6 loopback/link-local, non-HTTP(S) schemes, và path traversal (`../`).
+- **HTML Processing:** Dùng [Cheerio](https://cheerio.js.org/) + [he](https://github.com/mathiasbynens/he) (shared: `server/lib/htmlToText.ts`, inline trong `api/scrape-url.ts`) — thay thế regex-based `stripHtmlTags()` + `decodeHTMLEntities()` cũ.
+- **Rate Limit:** `strictLimiter` trên Express (10 req / 15 phút / IP). Trên Vercel, rate limiting do Vercel infrastructure xử lý.
+- **Smart Extraction:** Thử JSON-LD `JobPosting` structured data trước; nếu không thấy thì fallback cheerio-based htmlToText trên toàn bộ document.
+
 ### `POST /api/send-feedback`
 
 - **Mục đích:** Gửi phản hồi qua email (Resend).
@@ -77,13 +91,3 @@ Frontend dùng `src/lib/supabase.ts` (REST / Auth / Storage).
 | `get_default_monthly_analytics_limit()` | (SQL nội bộ / có thể gọi từ client) | Đọc default từ `app_settings`. |
 
 Chi tiết semantics, Admin UI, migration: [8_analytics.md](8_analytics.md).
-
-## 3. Google Gemini AI (`src/services/ai/`)
-
-### `analyzeCV(jd, cvData, cvMimeType, cvName?, jdUrl?, language?)`
-
-- Phân tích CV so với JD; PDF/ảnh gửi multimodal tới Gemini khi `cvMimeType` phù hợp.
-- **Model:** Cấu hình trong `geminiProvider.ts` (`gemini-3.5-flash`).
-- **Kết quả:** `AnalysisResult` — gồm `fullRewrittenCV` (chuỗi Markdown GFM theo prompt; client thêm `fullRewrittenCvMarkdown.ts` khi thiếu cấu trúc heading).
-
-Các hàm trích xuất / OCR khác nằm trong `extractionService.ts` và module liên quan.
