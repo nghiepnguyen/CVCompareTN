@@ -6,7 +6,6 @@ import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
-import { deleteFromHistory } from '../../services/historyService';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell, Tooltip } from 'recharts';
 
 export function HistoryView() {
@@ -14,6 +13,7 @@ export function HistoryView() {
     history, 
     setHistory, 
     clearHistory, 
+    deleteHistoryItem,
     setSelectedResult, 
     setResults,
     isLoadingHistory 
@@ -31,7 +31,7 @@ export function HistoryView() {
       // Search filter
       const matchesSearch = 
         !historySearchQuery || 
-        item.cvName.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
+        (item.cvName || '').toLowerCase().includes(historySearchQuery.toLowerCase()) ||
         (item.jobTitle || '').toLowerCase().includes(historySearchQuery.toLowerCase()) ||
         (item.jdTitle || '').toLowerCase().includes(historySearchQuery.toLowerCase());
         
@@ -62,17 +62,6 @@ export function HistoryView() {
       return matchesSearch && matchesScore && matchesDate;
     });
   }, [history, historySearchQuery, historyScoreFilter, historyDateFilter]);
-
-  const deleteHistoryItem = async (id: string) => {
-    setHistory(prev => prev.filter(item => item.id !== id));
-    if (user?.id) {
-      try {
-        await deleteFromHistory(user.id, id);
-      } catch (err) {
-        console.error('Error deleting history item:', err);
-      }
-    }
-  };
 
   return (
     <>

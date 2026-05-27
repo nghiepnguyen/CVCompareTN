@@ -7,7 +7,7 @@ import {
   getSavedJDs,
   deleteSavedJD,
   type SavedJD,
-} from '../../services/historyService';
+} from '../../services/jdService';
 import type { SavedJdContextType } from './types';
 import { MAX_SAVED_JD_BY_PLAN } from '../../lib/planLimits';
 

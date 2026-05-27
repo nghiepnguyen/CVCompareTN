@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
-
-export type UserPlan = 'free' | 'pro';
+import type { UserPlan } from './userService';
 
 export type AnalyticsQuota = {
   allowed: boolean;
