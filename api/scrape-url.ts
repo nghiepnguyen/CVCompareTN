@@ -20,7 +20,6 @@ export default async function handler(
     return res.status(400).json({ error: "Missing or invalid 'url' field" });
   }
 
-  // Basic URL validation
   try {
     new URL(url);
   } catch {
@@ -28,22 +27,34 @@ export default async function handler(
   }
 
   try {
-    // Fetch the page HTML
     const response = await axios.get(url, {
       timeout: 15000,
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; CVCompare/1.0; +https://thanhnghiep.top)",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "vi,en-US;q=0.9,en;q=0.8",
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        "Sec-Ch-Ua":
+          '"Chromium";v="132", "Google Chrome";v="132", "Not_A Brand";v="99"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"macOS"',
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        Referer: "https://www.google.com/",
       },
       responseType: "text",
       maxRedirects: 5,
+      decompress: true,
     });
 
     const html = response.data as string;
-
-    // Extract meaningful text from HTML
     const text = extractTextFromHtml(html);
 
     if (!text.trim()) {
@@ -71,76 +82,31 @@ export default async function handler(
         .status(504)
         .json({ error: "Hết thời gian chờ khi tải trang web." });
     }
-    return res
-      .status(500)
-      .json({ error: `Không thể tải nội dung: ${error.message || "Unknown error"}` });
+    return res.status(500).json({
+      error: `Không thể tải nội dung: ${error.message || "Unknown error"}`,
+    });
   }
 }
 
-/**
- * Extract human-readable text from raw HTML.
- * Removes scripts, styles, HTML tags, and collapses whitespace.
- */
 function extractTextFromHtml(html: string): string {
-  // Remove script and style elements with their content
-  let text = html.replace(
-    /<script[^>]*>[\s\S]*?<\/script>/gi,
-    ""
-  );
-  text = text.replace(
-    /<style[^>]*>[\s\S]*?<\/style>/gi,
-    ""
-  );
+  let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "");
+  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
   text = text.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, "");
-
-  // Remove HTML comments
   text = text.replace(/<!--[\s\S]*?-->/g, "");
 
-  // Replace common block elements with newlines to preserve structure
   const blockTags = [
-    "div",
-    "p",
-    "br",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "li",
-    "tr",
-    "section",
-    "article",
-    "header",
-    "footer",
-    "main",
-    "nav",
-    "aside",
-    "blockquote",
-    "pre",
-    "hr",
-    "table",
-    "tbody",
-    "thead",
-    "tfoot",
-    "ul",
-    "ol",
-    "dl",
-    "dt",
-    "dd",
-    "figcaption",
-    "figure",
+    "div", "p", "br", "h1", "h2", "h3", "h4", "h5", "h6",
+    "li", "tr", "section", "article", "header", "footer", "main",
+    "nav", "aside", "blockquote", "pre", "hr", "table", "tbody",
+    "thead", "tfoot", "ul", "ol", "dl", "dt", "dd", "figcaption", "figure",
   ];
   const blockTagRegex = new RegExp(
     `<\\/?(?:${blockTags.join("|")})[^>]*>`,
     "gi"
   );
   text = text.replace(blockTagRegex, "\n");
-
-  // Remove all remaining HTML tags
   text = text.replace(/<[^>]+>/g, "");
 
-  // Decode common HTML entities
   text = text
     .replace(/&nbsp;/g, " ")
     .replace(/&/g, "&")
@@ -152,7 +118,6 @@ function extractTextFromHtml(html: string): string {
     .replace(/&#x2F;/g, "/")
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)));
 
-  // Collapse multiple whitespace/newlines
   text = text.replace(/[ \t]+/g, " ");
   text = text.replace(/\n{3,}/g, "\n\n");
   text = text.replace(/^\s+|\s+$/gm, "");
