@@ -27,7 +27,7 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 
 ## Trí tuệ nhân tạo (AI)
 
--   **Engine:** [Google Gemini AI](https://deepmind.google/technologies/gemini/) - Sử dụng model **Gemini 3.0 Flash** cho tốc độ và trí tuệ vượt trội.
+-   **Engine:** [Google Gemini AI](https://deepmind.google/technologies/gemini/) - Sử dụng model **Gemini 3.5 Flash** cho tốc độ và trí tuệ vượt trội.
 -   **Modular Service:** Logic AI được module hóa hoàn toàn trong `src/services/ai/` giúp dễ dàng bảo trì và mở rộng.
 -   **Multimodal capabilities:** Khả năng hiểu trực tiếp layout CV phức tạp qua hình ảnh và URL.
 

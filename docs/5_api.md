@@ -83,7 +83,7 @@ Chi tiết semantics, Admin UI, migration: [8_analytics.md](8_analytics.md).
 ### `analyzeCV(jd, cvData, cvMimeType, cvName?, jdUrl?, language?)`
 
 - Phân tích CV so với JD; PDF/ảnh gửi multimodal tới Gemini khi `cvMimeType` phù hợp.
-- **Model:** Cấu hình trong `geminiProvider.ts` (ví dụ Gemini Flash preview).
+- **Model:** Cấu hình trong `geminiProvider.ts` (`gemini-3.5-flash`).
 - **Kết quả:** `AnalysisResult` — gồm `fullRewrittenCV` (chuỗi Markdown GFM theo prompt; client thêm `fullRewrittenCvMarkdown.ts` khi thiếu cấu trúc heading).
 
 Các hàm trích xuất / OCR khác nằm trong `extractionService.ts` và module liên quan.

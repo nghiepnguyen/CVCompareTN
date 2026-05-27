@@ -44,4 +44,4 @@ export async function getGeminiClient() {
   return new GoogleGenAI({ apiKey });
 }
 
-export const GEMINI_MODEL = "gemini-3-flash-preview";
+export const GEMINI_MODEL = "gemini-3.5-flash";
