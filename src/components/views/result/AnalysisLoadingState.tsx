@@ -12,7 +12,13 @@ interface AnalysisLoadingStateProps {
 
 export function AnalysisLoadingState({ analysisStatus, analysisProgress }: AnalysisLoadingStateProps) {
   const { t } = useUI();
-  const estSeconds = Math.max(0, Math.round((100 - analysisProgress) * 0.15));
+  const progressRounded = Math.round(analysisProgress);
+  const estLabel =
+    analysisProgress < 15
+      ? formatLabel(t.progressEstLeft, { seconds: Math.max(1, Math.round((15 - analysisProgress) * 0.3)) })
+      : analysisProgress >= 95
+        ? formatLabel(t.progressEstLeft, { seconds: Math.max(0, Math.round((100 - analysisProgress) * 0.15)) })
+        : t.progressEstLeftApprox;
 
   return (
     <motion.div 
@@ -41,7 +47,7 @@ export function AnalysisLoadingState({ analysisStatus, analysisProgress }: Analy
             </p>
           </div>
           <div className="text-right">
-            <span className="text-2xl font-black text-indigo-600">{Math.round(analysisProgress)}%</span>
+            <span className="text-2xl font-black text-indigo-600">{progressRounded}%</span>
           </div>
         </div>
         
@@ -56,7 +62,7 @@ export function AnalysisLoadingState({ analysisStatus, analysisProgress }: Analy
         
         <div className="flex justify-between mt-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
           <span>{t.progressStart}</span>
-          <span>{formatLabel(t.progressEstLeft, { seconds: estSeconds })}</span>
+          <span>{estLabel}</span>
           <span>{t.progressDone}</span>
         </div>
       </div>
@@ -64,8 +70,8 @@ export function AnalysisLoadingState({ analysisStatus, analysisProgress }: Analy
       <div className="grid grid-cols-4 gap-4 w-full max-w-md">
         {[
           { step: 1, label: t.loadingStepReadCv, min: 15 },
-          { step: 2, label: t.loadingStepAnalyze, min: 40 },
-          { step: 3, label: t.loadingStepMatch, min: 70 },
+          { step: 2, label: t.loadingStepAnalyze, min: 38 },
+          { step: 3, label: t.loadingStepMatch, min: 68 },
           { step: 4, label: t.loadingStepReport, min: 95 }
         ].map((s) => (
           <div key={s.step} className="flex flex-col items-center gap-2">

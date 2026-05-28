@@ -274,6 +274,7 @@ export interface UiLabels {
   partial: string;
   progressDone: string;
   progressEstLeft: string;
+  progressEstLeftApprox: string;
   progressStart: string;
   passProb: string;
   placeholderCV: string;

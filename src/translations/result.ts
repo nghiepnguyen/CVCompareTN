@@ -404,6 +404,10 @@ export const result = {
     vi: "Ước tính: {seconds}s còn lại",
     en: "Est: {seconds}s left",
   },
+  progressEstLeftApprox: {
+    vi: "Khoảng 10-20 giây",
+    en: "About 10-20 seconds",
+  },
   progressDone: {
     vi: "Hoàn tất",
     en: "Done",

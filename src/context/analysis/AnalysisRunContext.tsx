@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
 import { formatLabel } from '../../translations';
@@ -59,6 +59,35 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       setHistory([]);
     }
   }, [user?.id, effectivePlan, loadHistory]);
+
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startFakeProgress = useCallback(
+    (from: number, to: number, durationMs: number) => {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      const steps = 30;
+      const stepMs = Math.round(durationMs / steps);
+      let step = 0;
+      progressIntervalRef.current = setInterval(() => {
+        step++;
+        const t = step / steps;
+        const eased = 1 - Math.pow(1 - t, 2); // ease-out
+        const current = from + (to - from) * eased;
+        setAnalysisProgress(Math.min(to, Math.round(current)));
+        if (step >= steps && progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+      }, stepMs);
+      return () => {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+      };
+    },
+    [],
+  );
 
   const cleanText = (text: string): string => {
     return text
@@ -202,6 +231,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           );
           setAnalysisProgress(fileBaseProgress + 15);
 
+          const fakeStart = fileBaseProgress + 15;
+          const fakeEnd = fileBaseProgress + 65;
+          const stopFake = startFakeProgress(fakeStart, fakeEnd, 15000);
           const analysis = await analyzeCV(
             jd,
             data,
@@ -209,6 +241,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             file.name,
             reportLanguage
           );
+          stopFake();
+          setAnalysisProgress(fakeEnd);
           newResults.push({ ...analysis, userId: user?.id });
 
           trackEvent('analysis_success', {
@@ -228,6 +262,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         );
         setAnalysisProgress(45);
 
+        const stopFake = startFakeProgress(45, 75, 15000);
         const analysis = await analyzeCV(
           jd,
           cvText,
@@ -235,6 +270,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           'CV_Pasted.txt',
           reportLanguage
         );
+        stopFake();
+        setAnalysisProgress(75);
         newResults.push({ ...analysis, userId: user?.id });
 
         trackEvent('analysis_success', {
@@ -261,6 +298,10 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       const message = err instanceof Error ? err.message : String(err);
       setError(message || 'Đã xảy ra lỗi trong quá trình phân tích.');
     } finally {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
       if (user?.id) void refreshUserProfile();
       setTimeout(() => {
         setIsAnalyzing(false);

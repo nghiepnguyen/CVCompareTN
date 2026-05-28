@@ -1,16 +1,16 @@
-# Graph Report - cv-compare-tn  (2026-05-27)
+# Graph Report - cv-compare-tn  (2026-05-28)
 
 ## Corpus Check
-- 153 files · ~70,881 words
+- 149 files · ~68,035 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 472 nodes · 732 edges · 27 communities (26 shown, 1 thin omitted)
+- 473 nodes · 734 edges · 27 communities (26 shown, 1 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `08f150ae`
+- Built from commit: `b6b7b08b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -61,10 +61,10 @@
   src/components/views/PaymentCancelView.tsx → context/UIContext.tsx
 - `handler()` --calls--> `handlePaymentCreate()`  [EXTRACTED]
   api/payment/create.ts → lib/payment/handlers.ts
+- `handler()` --calls--> `handlePaymentWebhook()`  [EXTRACTED]
+  api/payment/webhook.ts → lib/payment/handlers.ts
 - `SavedJdProvider()` --calls--> `useAuth()`  [EXTRACTED]
   src/context/analysis/SavedJdContext.tsx → AuthContext.tsx
-- `SavedJdProvider()` --calls--> `useUI()`  [EXTRACTED]
-  src/context/analysis/SavedJdContext.tsx → context/UIContext.tsx
 
 ## Communities (27 total, 1 thin omitted)
 
@@ -77,8 +77,8 @@ Cohesion: 0.04
 Nodes (44): 1.1 File migration, 1.2 Cập nhật check_analytics_quota, 2.1 `POST /api/payment/create`, 2.2 `POST /api/payment/webhook`, 2.3 Đăng ký route trong `server.ts`, 2.4 Thêm vào `vercel.json`, 3.1 `analyticsQuotaService.ts` — đọc plan từ response, 3.2 Giới hạn batch CV (+36 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.12
-Nodes (34): activateProForOrder(), handlePaymentConfirm(), handlePaymentCreate(), handlePaymentWebhook(), isWebhookPaymentSuccess(), normalizeOrderCode(), PaymentHandlerResult, getMissingPaymentEnv() (+26 more)
+Cohesion: 0.13
+Nodes (33): activateProForOrder(), handlePaymentConfirm(), handlePaymentCreate(), handlePaymentWebhook(), isWebhookPaymentSuccess(), normalizeOrderCode(), PaymentHandlerResult, getMissingPaymentEnv() (+25 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.06
@@ -90,11 +90,11 @@ Nodes (23): AuthContext, AuthContextType, getDefaultMonthlyAnalyticsLimit(), par
 
 ### Community 5 - "Community 5"
 Cohesion: 0.11
-Nodes (18): htmlToText(), apiLimiter, emailLimiter, strictLimiter, BLOCKED_HOSTNAME_PATTERNS, BLOCKED_HOSTNAMES, hasPathTraversal(), ipv4ToNumber() (+10 more)
+Nodes (19): htmlToText(), apiLimiter, emailLimiter, staticLimiter, strictLimiter, BLOCKED_HOSTNAME_PATTERNS, BLOCKED_HOSTNAMES, hasPathTraversal() (+11 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.2
-Nodes (17): handlePaymentCreate(), PaymentHandlerResult, getMissingPaymentEnv(), paymentConfigErrorBody(), createPaymentRequestSignature(), createPayosPaymentLink(), createSignatureFromObject(), generateOrderCode() (+9 more)
+Nodes (18): handlePaymentCreate(), handlePaymentWebhook(), PaymentHandlerResult, getMissingPaymentEnv(), paymentConfigErrorBody(), createPaymentRequestSignature(), createPayosPaymentLink(), createSignatureFromObject() (+10 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.1
@@ -187,6 +187,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.04 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.12 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.13 - nodes in this community are weakly interconnected._
 - **Should `Community 3` be split into smaller, more focused modules?**
   _Cohesion score 0.06 - nodes in this community are weakly interconnected._
