@@ -5,7 +5,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 
 // Rate limiters
-import { apiLimiter, strictLimiter, emailLimiter } from './server/lib/rateLimiter';
+import { apiLimiter, strictLimiter, emailLimiter, staticLimiter } from './server/lib/rateLimiter';
 
 // Routes
 import configRouter from './server/routes/config';
@@ -44,8 +44,9 @@ app.use('/api/payment', strictLimiter, paymentRouter); // Payment ops — 10 req
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    app.use(staticLimiter);
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    app.get('*', staticLimiter, (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

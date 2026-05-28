@@ -32,6 +32,21 @@ export const strictLimiter = rateLimit({
 });
 
 /**
+ * Rate limiter for static file serving (SPA assets + fallback).
+ * Generous limit to accommodate multiple asset requests per page load
+ * while preventing filesystem DoS attacks.
+ */
+export const staticLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500, // 500 requests per window per IP — enough for normal SPA browsing
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many requests. Please try again after 15 minutes.',
+  },
+});
+
+/**
  * Very strict rate limiter for endpoints that invoke external APIs
  * with cost/quota implications (e.g., Resend emails).
  */
