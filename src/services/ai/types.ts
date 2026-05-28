@@ -122,7 +122,6 @@ export interface AnalysisResult {
   rewriteSuggestions: RewriteSuggestion[];
   fullRewrittenCV?: string;
   cvUrl?: string;
-  jdUrl?: string;
   detailedComparison: DetailedComparison;
   userId?: string;
   rating?: number;

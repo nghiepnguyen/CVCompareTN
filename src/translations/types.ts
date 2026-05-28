@@ -221,7 +221,6 @@ export interface UiLabels {
   jdStoreNoMatch: string;
   jdStoreSearchPlaceholder: string;
   jdTitle: string;
-  linkMode: string;
   login: string;
   loginErrorInApp: string;
   logout: string;
@@ -279,7 +278,6 @@ export interface UiLabels {
   passProb: string;
   placeholderCV: string;
   placeholderJD: string;
-  placeholderLink: string;
   premiumOptimizedBadge: string;
   printOptimized: string;
   legalBackHome: string;

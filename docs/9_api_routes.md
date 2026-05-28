@@ -7,7 +7,7 @@ Canonical reference for **which runtime handles each capability**. The frontend 
 | Capability | Vercel (`api/`) | Express (`server/routes/`) | Supabase Edge |
 |------------|-----------------|---------------------------|---------------|
 | Public config (e.g. Gemini key) | `GET /api/config` → `api/config.ts` | `server/routes/config` | — |
-| PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` | `POST /api/extract-pdf/extract` → `server/routes/pdf.ts` | `extract-pdf` (optional; some JD flows) |
+| PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` | `POST /api/extract-pdf/extract` → `server/routes/pdf.ts` | `extract-pdf` (legacy; không còn dùng) |
 | reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha/verify` | `verify-recaptcha` (analyze flow in `AnalysisRunContext`) |
 | Feedback email | `POST /api/send-feedback` → `api/send-feedback.ts` | mirror under `server/routes/` | — |
 | Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | — |
@@ -52,7 +52,7 @@ flowchart TB
 
 - Invoked from the browser with the user's session JWT where applicable.
 - **`verify-recaptcha`:** Called before CV analysis in non-localhost environments (`AnalysisRunContext`).
-- **`extract-pdf`:** Optional alternative for PDF/JD extraction in some UI flows (see `AnalysisInputView` and related code).
+- **`extract-pdf`:** Legacy Supabase Edge Function — không còn được gọi từ frontend. PDF extraction cho cả CV và JD đều dùng backend API (xem `AnalysisInputView.tsx` và `AnalysisRunContext.tsx`).
 
 Do **not** assume one Edge function replaces Express and Vercel handlers without checking call sites.
 

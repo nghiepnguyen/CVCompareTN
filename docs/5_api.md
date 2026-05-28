@@ -46,20 +46,6 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 - **`POST /api/payment/webhook`** — PayOS gọi callback khi có kết quả thanh toán. Xác thực HMAC-SHA256, gọi RPC `activate_pro_plan` nếu thành công.
 - **Yêu cầu:** `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`.
 
-### Trích xuất JD từ URL (Scrape)
-
-| Môi trường | Method & path | File |
-|------------|----------------|------|
-| **Vercel** | `POST /api/scrape-url` | `api/scrape-url.ts` |
-| **Express** | `POST /api/scrape-url/extract` | `server/routes/scrape.ts` |
-
-- **Body:** `{ url: string }`
-- **Response:** `{ text: string }` | `{ error: string }`
-- **SSRF Protection:** `server/lib/urlValidator.ts` — chặn private IP (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x), metadata endpoints (AWS `169.254.169.254`, GCP `metadata.google.internal`), IPv6 loopback/link-local, non-HTTP(S) schemes, và path traversal (`../`).
-- **HTML Processing:** Dùng [Cheerio](https://cheerio.js.org/) + [he](https://github.com/mathiasbynens/he) (shared: `server/lib/htmlToText.ts`, inline trong `api/scrape-url.ts`) — thay thế regex-based `stripHtmlTags()` + `decodeHTMLEntities()` cũ.
-- **Rate Limit:** `strictLimiter` trên Express (10 req / 15 phút / IP). Trên Vercel, rate limiting do Vercel infrastructure xử lý.
-- **Smart Extraction:** Thử JSON-LD `JobPosting` structured data trước; nếu không thấy thì fallback cheerio-based htmlToText trên toàn bộ document.
-
 ### `POST /api/send-feedback`
 
 - **Mục đích:** Gửi phản hồi qua email (Resend).
@@ -72,7 +58,7 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 
 ### Edge Function (tùy chọn — Supabase)
 
-- **`extract-pdf`:** Một số luồng (ví dụ JD) có thể gọi `supabase.functions.invoke('extract-pdf', …)` — xem `AnalysisInputView.tsx` và `supabase/functions/extract-pdf/`.
+- **`extract-pdf`:** Edge function không còn được gọi trực tiếp từ frontend cho JD. PDF extraction hiện dùng backend API `/api/extract-pdf` (Vercel) hoặc `/api/extract-pdf/extract` (Express). File source: `supabase/functions/extract-pdf/` giữ lại để dùng trong tương lai.
 
 ## 2. Dịch vụ lưu trữ & xác thực (Supabase)
 

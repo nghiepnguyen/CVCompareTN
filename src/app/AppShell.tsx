@@ -1,5 +1,6 @@
 import React from 'react';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AuthProvider } from '../context/AuthContext';
 import { UIProvider } from '../context/UIContext';
 import { AnalysisProvider } from '../context/AnalysisContext';
@@ -16,6 +17,7 @@ export default function AppShell() {
             <AppContent />
             <AnalyticsBootstrap />
             <Analytics />
+            <SpeedInsights />
           </AnalysisProvider>
         </UIProvider>
       </AuthProvider>

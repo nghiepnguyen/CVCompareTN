@@ -56,16 +56,12 @@ export async function analyzeCV(
   cvData: string,
   cvMimeType: string,
   cvName?: string,
-  jdUrl?: string,
   language: "vi" | "en" = "vi"
 ): Promise<AnalysisResult> {
   const client = await getGeminiClient();
 
-  const jdSection = jdUrl
-    ? language === "vi"
-      ? `Mô tả công việc (JD) nằm trong liên kết sau: ${jdUrl}. Hãy truy cập liên kết này để lấy nội dung JD.`
-      : `The Job Description (JD) is located at the following link: ${jdUrl}. Please access this link to retrieve the JD content.`
-    : language === "vi"
+  const jdSection =
+    language === "vi"
       ? `Mô tả công việc (JD):\n${jd}`
       : `Job Description (JD):\n${jd}`;
 
@@ -133,7 +129,7 @@ export async function analyzeCV(
       id: Math.random().toString(36).substring(7),
       timestamp: Date.now(),
       cvName: cvName || "Unnamed CV",
-      jdTitle: jdUrl || jd.substring(0, 100) + "...",
+      jdTitle: jd.substring(0, 100) + "...",
       language,
     };
 

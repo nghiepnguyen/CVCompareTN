@@ -4,7 +4,7 @@ import { useUI } from '../UIContext';
 import { formatLabel } from '../../translations';
 import { trackEvent } from '../../lib/ga4';
 import { supabase } from '../../lib/supabase';
-import { AnalysisResult, analyzeCV, extractJDFromUrl } from '../../services/ai';
+import { AnalysisResult, analyzeCV } from '../../services/ai';
 import {
   saveToHistory,
   deleteFromHistory,
@@ -26,8 +26,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const { executeRecaptcha } = useGoogleReCaptcha();
 
   const [jd, setJd] = useState('');
-  const [jdInputMode, setJdInputMode] = useState<'text' | 'link'>('text');
-  const [jdUrl, setJdUrl] = useState('');
   const [cvText, setCvText] = useState('');
   const [cvInputMode, setCvInputMode] = useState<'file' | 'text'>('file');
   const [files, setFiles] = useState<File[]>([]);
@@ -38,7 +36,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [history, setHistory] = useState<AnalysisResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<AnalysisResult | null>(null);
-  const [isExtractingJD, setIsExtractingJD] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const loadHistory = useCallback(async () => {
@@ -104,36 +101,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     return { data: cleanText(text), mimeType: 'text/plain' };
   };
 
-  const handleExtractJD = async () => {
-    if (!jdUrl.trim()) {
-      setError('Vui lòng nhập liên kết JD.');
-      return;
-    }
-    try {
-      new URL(jdUrl);
-    } catch {
-      setError('Liên kết không hợp lệ. Vui lòng kiểm tra lại.');
-      return;
-    }
-
-    setIsExtractingJD(true);
-    setError(null);
-    try {
-      const extractedText = await extractJDFromUrl(jdUrl);
-      setJd(extractedText);
-      setJdInputMode('text');
-      trackEvent('jd_create', { method: 'extract_url' });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message || 'Không thể trích xuất nội dung từ liên kết này.');
-    } finally {
-      setIsExtractingJD(false);
-    }
-  };
-
   const handleAnalyze = async () => {
-    if (jdInputMode === 'text' && !jd.trim()) return setError('Vui lòng cung cấp Mô tả công việc (JD).');
-    if (jdInputMode === 'link' && !jdUrl.trim()) return setError('Vui lòng cung cấp liên kết JD.');
+    if (!jd.trim()) return setError('Vui lòng cung cấp Mô tả công việc (JD).');
     if (cvInputMode === 'file' && files.length === 0) return setError('Vui lòng tải lên ít nhất một CV.');
     if (cvInputMode === 'text' && !cvText.trim()) return setError('Vui lòng dán nội dung CV của bạn.');
 
@@ -207,7 +176,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
     trackEvent('analyze_cv', {
       input_mode: cvInputMode,
-      jd_mode: jdInputMode,
       cv_count: cvInputMode === 'file' ? files.length : 1,
     });
 
@@ -239,14 +207,12 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             data,
             mimeType,
             file.name,
-            jdInputMode === 'link' ? jdUrl : undefined,
             reportLanguage
           );
           newResults.push({ ...analysis, userId: user?.id });
 
           trackEvent('analysis_success', {
             match_score: analysis.matchScore,
-            jd_type: jdInputMode,
             input_mode: 'file',
           });
           setAnalysisProgress(fileBaseProgress + (1 / totalFiles) * 75);
@@ -267,14 +233,12 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           cvText,
           'text/plain',
           'CV_Pasted.txt',
-          jdInputMode === 'link' ? jdUrl : undefined,
           reportLanguage
         );
         newResults.push({ ...analysis, userId: user?.id });
 
         trackEvent('analysis_success', {
           match_score: analysis.matchScore,
-          jd_type: jdInputMode,
           input_mode: 'text',
         });
         setAnalysisProgress(90);
@@ -335,10 +299,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       value={{
         jd,
         setJd,
-        jdInputMode,
-        setJdInputMode,
-        jdUrl,
-        setJdUrl,
         cvText,
         setCvText,
         cvInputMode,
@@ -354,10 +314,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         setHistory,
         selectedResult,
         setSelectedResult,
-        isExtractingJD,
         isLoadingHistory,
         handleAnalyze,
-        handleExtractJD,
         clearHistory,
         deleteHistoryItem,
       }}

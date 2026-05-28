@@ -12,10 +12,6 @@ export const input = {
     vi: 'VĂN BẢN',
     en: 'TEXT',
   },
-  linkMode: {
-    vi: 'LINK',
-    en: 'LINK',
-  },
   jdStore: {
     vi: 'Kho JD',
     en: 'JD Store',
@@ -51,10 +47,6 @@ export const input = {
   placeholderCV: {
     vi: 'Dán nội dung CV của bạn vào đây...',
     en: 'Paste your CV content here...',
-  },
-  placeholderLink: {
-    vi: 'Dán link tuyển dụng (LinkedIn, TopCV,...)',
-    en: 'Paste job link (LinkedIn, Indeed,...)',
   },
   uploadCV: {
     vi: 'Tải CV lên',

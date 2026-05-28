@@ -36,7 +36,6 @@ function mapHistory(data: Record<string, unknown>): AnalysisResult {
     fullRewrittenCV:
       data.full_rewritten_cv != null ? String(data.full_rewritten_cv) : undefined,
     cvUrl: data.cv_url != null ? String(data.cv_url) : undefined,
-    jdUrl: data.jd_url != null ? String(data.jd_url) : undefined,
     detailedComparison: normalized.detailedComparison,
     userId: data.user_id != null ? String(data.user_id) : undefined,
     rating: typeof data.rating === "number" ? data.rating : undefined,
@@ -100,7 +99,6 @@ export async function saveToHistory(results: AnalysisResult | AnalysisResult[]):
     rewrite_suggestions: h.rewriteSuggestions,
     full_rewritten_cv: h.fullRewrittenCV,
     cv_url: h.cvUrl,
-    jd_url: h.jdUrl,
     detailed_comparison: h.detailedComparison,
     rating: h.rating,
     feedback: h.feedback,

@@ -5,10 +5,6 @@ import type { SavedJD } from '../../services/historyService';
 export interface AnalysisRunContextType {
   jd: string;
   setJd: React.Dispatch<React.SetStateAction<string>>;
-  jdInputMode: 'text' | 'link';
-  setJdInputMode: React.Dispatch<React.SetStateAction<'text' | 'link'>>;
-  jdUrl: string;
-  setJdUrl: React.Dispatch<React.SetStateAction<string>>;
   cvText: string;
   setCvText: React.Dispatch<React.SetStateAction<string>>;
   cvInputMode: 'file' | 'text';
@@ -26,11 +22,9 @@ export interface AnalysisRunContextType {
   selectedResult: AnalysisResult | null;
   setSelectedResult: React.Dispatch<React.SetStateAction<AnalysisResult | null>>;
 
-  isExtractingJD: boolean;
   isLoadingHistory: boolean;
 
   handleAnalyze: () => Promise<void>;
-  handleExtractJD: () => Promise<void>;
   clearHistory: () => Promise<void>;
   deleteHistoryItem: (id: string) => Promise<void>;
 }
