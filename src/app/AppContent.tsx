@@ -12,6 +12,7 @@ import { cn } from '../lib/utils';
 import { MobileBottomNav } from './MobileBottomNav';
 import { SavedJdsListModal } from './SavedJdsListModal';
 import { SaveJdNameModal } from './SaveJdNameModal';
+import { SavedCvsListModal } from './SavedCvsListModal';
 
 const LandingView = React.lazy(() =>
   import('../components/views/LandingView').then((m) => ({ default: m.LandingView }))
@@ -61,6 +62,8 @@ export function AppContent() {
     setIsSavedJDsModalOpen,
     isSaveJDNameModalOpen,
     setIsSaveJDNameModalOpen,
+    isSavedCVsModalOpen,
+    setIsSavedCVsModalOpen,
   } = useUI();
   const {
     jd,
@@ -72,10 +75,18 @@ export function AppContent() {
     confirmSaveJD,
     isSavingJD,
     isLoadingSavedJDs,
+    savedCVs,
+    handleDeleteSavedCV,
+    loadCVFromSaved,
+    isLoadingSavedCVs,
+    files,
+    setFiles,
   } = useAnalysis();
 
   const [savedJDSearchTerm, setSavedJDSearchTerm] = useState('');
   const [jdSaveTitle, setJdSaveTitle] = useState('');
+  const [savedCVSearchTerm, setSavedCVSearchTerm] = useState('');
+  const [isLoadingCV, setIsLoadingCV] = useState(false);
 
   useEffect(() => {
     const isPolicyPage =
@@ -150,6 +161,23 @@ export function AppContent() {
     await confirmSaveJD(jdSaveTitle, jd);
     setIsSaveJDNameModalOpen(false);
     setJdSaveTitle('');
+  };
+
+  const handleLoadSavedCV = async (cv: { cvId: string; fileName: string; filePath: string; fileType: string }) => {
+    setIsLoadingCV(true);
+    try {
+      const file = await loadCVFromSaved(cv as any);
+      if (file) {
+        setFiles(prev => [...prev, file]);
+        setIsSavedCVsModalOpen(false);
+      }
+    } finally {
+      setIsLoadingCV(false);
+    }
+  };
+
+  const handleDeleteCV = async (cvId: string, filePath: string) => {
+    await handleDeleteSavedCV(cvId, filePath);
   };
 
   if (!isAuthInitialized || !isRedirectChecked) {
@@ -320,6 +348,31 @@ export function AppContent() {
             saveJdHint: t.saveJdHint,
             saveJdSaving: t.saveJdSaving,
             saveJdConfirm: t.saveJdConfirm,
+          }}
+        />
+
+        <SavedCvsListModal
+          isOpen={isSavedCVsModalOpen}
+          onClose={() => setIsSavedCVsModalOpen(false)}
+          savedCVs={savedCVs}
+          isLoading={isLoadingSavedCVs}
+          searchTerm={savedCVSearchTerm}
+          onSearchTermChange={setSavedCVSearchTerm}
+          reportLanguage={reportLanguage}
+          onLoadCV={handleLoadSavedCV}
+          onDeleteCV={handleDeleteCV}
+          isLoadingCV={isLoadingCV}
+          t={{
+            cvStoreModalTitle: t.cvStoreModalTitle,
+            cvStoreModalSubtitle: t.cvStoreModalSubtitle,
+            cvStoreSearchPlaceholder: t.cvStoreSearchPlaceholder,
+            cvStoreLoading: t.cvStoreLoading,
+            cvStoreEmptyTitle: t.cvStoreEmptyTitle,
+            cvStoreEmptyDesc: t.cvStoreEmptyDesc,
+            cvStoreNoMatch: t.cvStoreNoMatch,
+            cvStoreDeleteTitle: t.cvStoreDeleteTitle,
+            cvStoreClose: t.cvStoreClose,
+            cvStoreLoad: t.cvStoreLoad,
           }}
         />
 

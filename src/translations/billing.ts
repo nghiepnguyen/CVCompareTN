@@ -42,6 +42,10 @@ export const billing = {
     vi: 'CV mỗi lần phân tích',
     en: 'CVs per run',
   },
+  upgradeCompareCV: {
+    vi: 'Kho CV',
+    en: 'Saved CVs',
+  },
   upgradeCompareJd: {
     vi: 'Kho JD mẫu',
     en: 'Saved JD templates',
@@ -57,7 +61,9 @@ export const billing = {
   upgradeFreeAnalyses: { vi: 'Theo gói Free', en: 'Per Free tier' },
   upgradeProAnalyses: { vi: '100', en: '100' },
   upgradeFreeBatch: { vi: '1', en: '1' },
+  upgradeFreeCV: { vi: '1 CV', en: '1 CV' },
   upgradeProBatch: { vi: '5', en: '5' },
+  upgradeProCV: { vi: '10 CV', en: '10 CVs' },
   upgradeFreeJd: { vi: '3 mẫu', en: '3 templates' },
   upgradeProJd: { vi: 'Không giới hạn', en: 'Unlimited' },
   upgradeFreeHistory: { vi: '7 ngày', en: '7 days' },

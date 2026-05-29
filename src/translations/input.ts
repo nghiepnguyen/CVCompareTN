@@ -124,4 +124,60 @@ export const input = {
     vi: "Đang lưu...",
     en: "Saving...",
   },
+  saveCV: {
+    vi: "Lưu CV",
+    en: "Save CV",
+  },
+  savingCV: {
+    vi: "Đang lưu...",
+    en: "Saving...",
+  },
+  cvStore: {
+    vi: "Kho CV",
+    en: "CV Store",
+  },
+  mobileCvStore: {
+    vi: "Kho CV",
+    en: "CV Store",
+  },
+  cvStoreModalTitle: {
+    vi: "Kho CV đã lưu",
+    en: "Saved CV library",
+  },
+  cvStoreModalSubtitle: {
+    vi: "Chọn CV từ kho để sử dụng lại",
+    en: "Pick a saved CV to reuse",
+  },
+  cvStoreSearchPlaceholder: {
+    vi: "Tìm kiếm CV theo tên...",
+    en: "Search CV by name...",
+  },
+  cvStoreLoading: {
+    vi: "Đang tải dữ liệu...",
+    en: "Loading data...",
+  },
+  cvStoreEmptyTitle: {
+    vi: "Chưa có CV nào được lưu",
+    en: "No saved CVs yet",
+  },
+  cvStoreEmptyDesc: {
+    vi: "Lưu CV để sử dụng lại mà không cần tải lên nhiều lần.",
+    en: "Save CVs to reuse without uploading repeatedly.",
+  },
+  cvStoreNoMatch: {
+    vi: 'Không tìm thấy CV nào khớp với từ khóa "{term}"',
+    en: 'No CV matches "{term}"',
+  },
+  cvStoreDeleteTitle: {
+    vi: "Xóa CV này",
+    en: "Delete this CV",
+  },
+  cvStoreClose: {
+    vi: "Đóng",
+    en: "Close",
+  },
+  cvStoreLoad: {
+    vi: "Sử dụng",
+    en: "Use",
+  },
 } as const;

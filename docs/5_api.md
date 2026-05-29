@@ -67,8 +67,8 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 Frontend dùng `src/lib/supabase.ts` (REST / Auth / Storage).
 
 - **Auth:** OAuth Google qua Supabase Auth (JWT).
-- **PostgreSQL:** `profiles`, `history` (JSON kết quả, có `parsed_cv`), `saved_jds`, **`app_settings`** (cấu hình runtime, ví dụ `default_monthly_analytics_limit`).
-- **Storage:** Bucket `cv-files` (Supabase Storage; no dedicated TypeScript module; uploads not wired in current UI).
+- **PostgreSQL:** `profiles`, `history` (JSON kết quả, có `parsed_cv`), `saved_jds`, `saved_cvs` (kho CV: metadata file CV đã upload), **`app_settings`** (cấu hình runtime, ví dụ `default_monthly_analytics_limit`).
+- **Storage:** Bucket `cv-files` (Supabase Storage) — được dùng bởi `cvService.ts` để upload/download/delete CV trong tính năng **Kho CV** (Free: 1 CV, Pro: 10 CV).
 
 ### RPC & quota phân tích (client gọi qua `supabase.rpc`)
 

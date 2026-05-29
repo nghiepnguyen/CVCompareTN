@@ -10,6 +10,11 @@ export const MAX_SAVED_JD_BY_PLAN: Record<UserPlan, number> = {
   pro: Number.POSITIVE_INFINITY,
 };
 
+export const MAX_SAVED_CV_BY_PLAN: Record<UserPlan, number> = {
+  free: 1,
+  pro: 10,
+};
+
 export const HISTORY_DAYS_BY_PLAN: Record<UserPlan, number> = {
   free: 7,
   pro: 36500,

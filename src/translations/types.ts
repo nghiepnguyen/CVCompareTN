@@ -79,6 +79,8 @@ export interface UiLabels {
   appUnknownError: string;
   monthlyUsageLimitExceeded: string;
   monthlyUsageLimitExceededDetail: string;
+  savedCvLimitFree: string;
+  savedCvLimitPro: string;
   atsCompatibilityScore: string;
   atsDesc: string;
   atsKeywords: string;
@@ -334,6 +336,20 @@ export interface UiLabels {
   saveJdNameLabel: string;
   saveJdNamePlaceholder: string;
   saveJdSaving: string;
+  saveCV: string;
+  savingCV: string;
+  cvStore: string;
+  mobileCvStore: string;
+  cvStoreModalTitle: string;
+  cvStoreModalSubtitle: string;
+  cvStoreSearchPlaceholder: string;
+  cvStoreLoading: string;
+  cvStoreEmptyTitle: string;
+  cvStoreEmptyDesc: string;
+  cvStoreNoMatch: string;
+  cvStoreDeleteTitle: string;
+  cvStoreClose: string;
+  cvStoreLoad: string;
   scoreDistribution: string;
   sectionOther: string;
   seoDescription: string;
@@ -395,6 +411,7 @@ export interface UiLabels {
   planStackingNote: string;
   upgradeCompareAnalyses: string;
   upgradeCompareBatch: string;
+  upgradeCompareCV: string;
   upgradeCompareJd: string;
   upgradeCompareHistory: string;
   upgradeCompareExport: string;
@@ -402,6 +419,8 @@ export interface UiLabels {
   upgradeProAnalyses: string;
   upgradeFreeBatch: string;
   upgradeProBatch: string;
+  upgradeFreeCV: string;
+  upgradeProCV: string;
   upgradeFreeJd: string;
   upgradeProJd: string;
   upgradeFreeHistory: string;

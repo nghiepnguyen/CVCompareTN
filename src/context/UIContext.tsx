@@ -41,6 +41,8 @@ interface UIContextType {
   setIsSavedJDsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   isSaveJDNameModalOpen: boolean;
   setIsSaveJDNameModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isSavedCVsModalOpen: boolean;
+  setIsSavedCVsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   t: typeof UI_LABELS['vi'];
 }
 
@@ -64,6 +66,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSavedJDsModalOpen, setIsSavedJDsModalOpen] = useState(false);
   const [isSaveJDNameModalOpen, setIsSaveJDNameModalOpen] = useState(false);
+  const [isSavedCVsModalOpen, setIsSavedCVsModalOpen] = useState(false);
 
   // Sync Language and Tab with Path
   useEffect(() => {
@@ -162,6 +165,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
       isUserMenuOpen, setIsUserMenuOpen,
       isSavedJDsModalOpen, setIsSavedJDsModalOpen,
       isSaveJDNameModalOpen, setIsSaveJDNameModalOpen,
+      isSavedCVsModalOpen, setIsSavedCVsModalOpen,
       t
     }}>
       {children}

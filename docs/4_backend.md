@@ -50,6 +50,21 @@ Tự động bypass trên localhost để thuận tiện phát triển.
 -   Tích hợp với dịch vụ **Resend**.
 -   Tự động xác thực reCAPTCHA trước khi gửi email để chống spam.
 
+## Supabase Database Schema
+
+Các bảng chính trong PostgreSQL (Supabase):
+
+| Table | Mô tả |
+|-------|-------|
+| `profiles` | Hồ sơ người dùng (plan, usage_count, role...) |
+| `history` | Lịch sử phân tích (kết quả JSON, parsed_cv) |
+| `saved_jds` | Kho JD đã lưu (Free: 3, Pro: không giới hạn) |
+| `saved_cvs` | **Kho CV đã lưu** (Free: 1, Pro: 10) — metadata file CV đã upload lên Storage |
+| `payments` | Bản ghi thanh toán PayOS |
+| `app_settings` | Cấu hình runtime (default_monthly_analytics_limit...) |
+
+Storage bucket: `cv-files` — dùng cho upload CV (kho CV) và lưu file phân tích.
+
 ## Biến môi trường (Environment Variables)
 
 Cần cấu hình các biến sau trong file `.env` hoặc hệ thống CI/CD:

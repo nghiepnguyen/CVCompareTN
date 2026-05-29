@@ -1,6 +1,7 @@
 import type React from 'react';
 import type { AnalysisResult } from '../../services/ai';
 import type { SavedJD } from '../../services/historyService';
+import type { SavedCV } from '../../services/cvService';
 
 export interface AnalysisRunContextType {
   jd: string;
@@ -39,4 +40,16 @@ export interface SavedJdContextType {
   handleDeleteSavedJD: (jdId: string) => Promise<void>;
 }
 
-export type AnalysisContextType = AnalysisRunContextType & SavedJdContextType;
+export interface SavedCvContextType {
+  savedCVs: SavedCV[];
+  setSavedCVs: React.Dispatch<React.SetStateAction<SavedCV[]>>;
+  isSavingCV: boolean;
+  isLoadingSavedCVs: boolean;
+  savedCVFileName: string | null;
+  loadSavedCVs: () => Promise<void>;
+  saveCV: (file: File) => Promise<void>;
+  handleDeleteSavedCV: (cvId: string, filePath: string) => Promise<void>;
+  loadCVFromSaved: (cv: SavedCV) => Promise<File | null>;
+}
+
+export type AnalysisContextType = AnalysisRunContextType & SavedJdContextType & SavedCvContextType;

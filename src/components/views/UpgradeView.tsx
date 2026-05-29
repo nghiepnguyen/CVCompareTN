@@ -10,6 +10,7 @@ import { formatLabel } from '../../translations';
 const ROWS = [
   { key: 'analyses', freeKey: 'upgradeFreeAnalyses', proKey: 'upgradeProAnalyses' },
   { key: 'batch', freeKey: 'upgradeFreeBatch', proKey: 'upgradeProBatch' },
+  { key: 'cv', freeKey: 'upgradeFreeCV', proKey: 'upgradeProCV' },
   { key: 'jd', freeKey: 'upgradeFreeJd', proKey: 'upgradeProJd' },
   { key: 'history', freeKey: 'upgradeFreeHistory', proKey: 'upgradeProHistory' },
   { key: 'export', freeKey: 'upgradeFreeExport', proKey: 'upgradeProExport' },
@@ -18,6 +19,7 @@ const ROWS = [
 const ROW_LABEL_KEYS = {
   analyses: 'upgradeCompareAnalyses',
   batch: 'upgradeCompareBatch',
+  cv: 'upgradeCompareCV',
   jd: 'upgradeCompareJd',
   history: 'upgradeCompareHistory',
   export: 'upgradeCompareExport',

@@ -76,4 +76,12 @@ export const system = {
     vi: "(Đã dùng {used}/{limit} lượt phân tích)",
     en: "(Used {used}/{limit} analyses)",
   },
+  savedCvLimitFree: {
+    vi: "Gói Free chỉ lưu được 1 CV. Nâng cấp Pro để lưu tối đa 10 CV.",
+    en: "Free plan allows only 1 saved CV. Upgrade to Pro to save up to 10 CVs.",
+  },
+  savedCvLimitPro: {
+    vi: "Bạn đã đạt giới hạn lưu 10 CV. Vui lòng xóa bớt CV cũ để lưu CV mới.",
+    en: "You've reached the limit of 10 saved CVs. Please delete old CVs to save new ones.",
+  },
 } as const;
