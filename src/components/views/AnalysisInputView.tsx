@@ -47,14 +47,7 @@ export function AnalysisInputView() {
           reader.readAsDataURL(file);
         });
 
-        const isLocal =
-          window.location.hostname === 'localhost' ||
-          window.location.hostname === '127.0.0.1';
-        const endpoint = isLocal
-          ? '/api/extract-pdf/extract'
-          : '/api/extract-pdf';
-
-        const response = await fetch(endpoint, {
+        const response = await fetch('/api/extract-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ base64Data: pdfBase64 }),

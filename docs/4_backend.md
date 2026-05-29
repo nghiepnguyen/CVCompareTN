@@ -7,8 +7,11 @@ Hệ thống sử dụng **Express** module hoá (`server/routes/`) khi chạy *
 -   **Route Handlers:** `server/routes/*.ts` (Ví dụ: `config.ts`, `pdf.ts`, `feedback.ts`).
 -   **Runtime:** Node.js 20.x+.
 -   **Ngôn ngữ:** TypeScript.
+-   **CI/CD:** GitHub Actions (`.github/workflows/ci.yml`) — lint → test → build trên mỗi push/PR lên `main`.
 
 ## Các chức năng chính (Routes)
+
+> **API path đã được thống nhất (2026-05):** Express và Vercel giờ dùng cùng path gốc (e.g., `POST /api/extract-pdf`, `POST /api/verify-recaptcha`). Frontend không còn phân biệt `isLocal` để chọn path suffix khác nhau. Xem [9_api_routes.md](9_api_routes.md) để có ma trận đầy đủ.
 
 ### 1. Cấu hình (`/api/config`)
 -   **File:** `server/routes/config.ts`
@@ -17,12 +20,12 @@ Hệ thống sử dụng **Express** module hoá (`server/routes/`) khi chạy *
 
 ### 2. Trích xuất PDF
 
--   **Express (`npm start`, `server.ts`):** `server/routes/pdf.ts` mount tại `/api/extract-pdf`, route thực tế **`POST /api/extract-pdf/extract`** — body `{ base64Data: string }`, response `{ text: string }`.
--   **Vercel Serverless:** **`POST /api/extract-pdf`** (file `api/extract-pdf.ts`) — cùng body/response, không có suffix `/extract`.
+-   **Express (`npm start`, `server.ts`):** `server/routes/pdf.ts` mount tại `/api/extract-pdf`, route **`POST /api/extract-pdf`** (unified path, không còn suffix `/extract`) — body `{ base64Data: string }`, response `{ text: string }`.
+-   **Vercel Serverless:** **`POST /api/extract-pdf`** (file `api/extract-pdf.ts`) — cùng body/response.
 
 ### 3. Xác thực reCAPTCHA
 
--   **Express:** **`POST /api/verify-recaptcha/verify`** (`server/routes/recaptcha.ts`).
+-   **Express:** **`POST /api/verify-recaptcha`** (`server/routes/recaptcha.ts`) — unified path, không còn suffix `/verify`.
 -   **Vercel:** **`POST /api/verify-recaptcha`** (`api/verify-recaptcha.ts`).
 
 Tự động bypass trên localhost để thuận tiện phát triển.

@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const router = Router();
 
-router.post('/verify', async (req, res) => {
+router.post('/', async (req, res) => {
   const { token } = req.body;
   const secretKey = process.env.RECAPTCHA_SECRET_KEY;
   const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');

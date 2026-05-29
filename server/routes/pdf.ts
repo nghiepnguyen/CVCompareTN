@@ -3,7 +3,7 @@ import { PDFParse } from 'pdf-parse';
 
 const router = Router();
 
-router.post('/extract', async (req, res) => {
+router.post('/', async (req, res) => {
   const { base64Data } = req.body;
   if (!base64Data) {
     return res.status(400).json({ error: 'Missing base64Data' });

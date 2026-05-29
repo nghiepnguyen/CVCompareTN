@@ -7,8 +7,8 @@ Canonical reference for **which runtime handles each capability**. The frontend 
 | Capability | Vercel (`api/`) | Express (`server/routes/`) | Supabase Edge |
 |------------|-----------------|---------------------------|---------------|
 | Public config (e.g. Gemini key) | `GET /api/config` → `api/config.ts` | `server/routes/config` | — |
-| PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` | `POST /api/extract-pdf/extract` → `server/routes/pdf.ts` | `extract-pdf` (legacy; không còn dùng) |
-| reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha/verify` | `verify-recaptcha` (analyze flow in `AnalysisRunContext`) |
+| PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` | `POST /api/extract-pdf` → `server/routes/pdf.ts` (unified path, no suffix) | `extract-pdf` (legacy; không còn dùng) |
+| reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` (unified path, no suffix) | `verify-recaptcha` (analyze flow in `AnalysisRunContext`) |
 | Feedback email | `POST /api/send-feedback` → `api/send-feedback.ts` | mirror under `server/routes/` | — |
 | Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | — |
 | PayOS — tạo link Pro | `POST /api/payment/create` → `api/payment/create.ts` | `POST /api/payment/create` → `server/routes/payment.ts` | — |

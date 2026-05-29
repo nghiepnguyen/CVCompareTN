@@ -17,6 +17,8 @@ import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { MAX_BATCH_BY_PLAN } from '../../lib/planLimits';
 import type { UserPlan } from '../../services/userService';
 import type { AnalysisRunContextType } from './types';
+import { cleanText, processFile } from '../../hooks/useFileProcessor';
+import { createProgressSimulator } from '../../hooks/useProgressSimulator';
 
 const AnalysisRunContext = createContext<AnalysisRunContextType | undefined>(undefined);
 
@@ -60,75 +62,22 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     }
   }, [user?.id, effectivePlan, loadHistory]);
 
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const progressStopRef = useRef<(() => void) | null>(null);
 
   const startFakeProgress = useCallback(
     (from: number, to: number, durationMs: number) => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      const steps = 30;
-      const stepMs = Math.round(durationMs / steps);
-      let step = 0;
-      progressIntervalRef.current = setInterval(() => {
-        step++;
-        const t = step / steps;
-        const eased = 1 - Math.pow(1 - t, 2); // ease-out
-        const current = from + (to - from) * eased;
-        setAnalysisProgress(Math.min(to, Math.round(current)));
-        if (step >= steps && progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = null;
-        }
-      }, stepMs);
-      return () => {
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = null;
-        }
-      };
+      progressStopRef.current?.();
+      const { stop } = createProgressSimulator({
+        from,
+        to,
+        durationMs,
+        onProgress: setAnalysisProgress,
+      });
+      progressStopRef.current = stop;
+      return stop;
     },
     [],
   );
-
-  const cleanText = (text: string): string => {
-    return text
-      .replace(/\r\n/g, '\n')
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n\s*\n/g, '\n\n')
-      .trim();
-  };
-
-  const processFile = async (file: File): Promise<{ data: string; mimeType: string }> => {
-    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
-    const isDocx = file.name.endsWith('.docx');
-    const isImage = file.type.startsWith('image/');
-
-    if (isPdf) {
-      const reader = new FileReader();
-      const pdfBase64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      return { data: await pdfBase64Promise, mimeType: 'application/pdf' };
-    }
-    if (isDocx) {
-      const arrayBuffer = await file.arrayBuffer();
-      const mammoth = (await import('mammoth')).default;
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      return { data: cleanText(result.value), mimeType: 'text/plain' };
-    }
-    if (isImage) {
-      const reader = new FileReader();
-      const imageBase64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      return { data: await imageBase64Promise, mimeType: file.type };
-    }
-    const text = await file.text();
-    return { data: cleanText(text), mimeType: 'text/plain' };
-  };
 
   const handleAnalyze = async () => {
     if (!jd.trim()) return setError('Vui lòng cung cấp Mô tả công việc (JD).');
@@ -298,10 +247,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       const message = err instanceof Error ? err.message : String(err);
       setError(message || 'Đã xảy ra lỗi trong quá trình phân tích.');
     } finally {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
+      progressStopRef.current?.();
+      progressStopRef.current = null;
       if (user?.id) void refreshUserProfile();
       setTimeout(() => {
         setIsAnalyzing(false);

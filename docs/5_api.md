@@ -1,6 +1,8 @@
 # Danh sách API Endpoints (CV Compare)
 
 > **Routing matrix (Vercel vs Express vs Edge):** [9_api_routes.md](./9_api_routes.md)
+>
+> **Path đã được thống nhất (2026-05):** Express và Vercel dùng cùng path gốc cho PDF và reCAPTCHA. Xem [4_backend.md](4_backend.md) để biết chi tiết.
 
 Dưới đây là các API và dịch vụ chính. **Đường dẫn proxy có thể khác nhau** giữa **Express local** (`npm start`) và **Vercel** (`api/*.ts`).
 
@@ -13,22 +15,22 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 - **Mục đích:** Cấu hình công khai cho frontend.
 - **Response:** `{ GEMINI_API_KEY: string }` (và các khóa public khác nếu được thêm trong `server/routes/config.ts` / `api/config.ts`).
 
-### Trích xuất PDF (hai biến thể)
+### Trích xuất PDF (path thống nhất)
 
 | Môi trường | Method & path | File |
 |------------|----------------|------|
 | **Vercel** | `POST /api/extract-pdf` | `api/extract-pdf.ts` |
-| **Express** | `POST /api/extract-pdf/extract` | `server/routes/pdf.ts` |
+| **Express** | `POST /api/extract-pdf` | `server/routes/pdf.ts` |
 
 - **Body:** `{ base64Data: string }`
 - **Response:** `{ text: string }`
 
-### Xác thực reCAPTCHA
+### Xác thực reCAPTCHA (path thống nhất)
 
 | Môi trường | Method & path |
 |------------|----------------|
 | **Vercel** | `POST /api/verify-recaptcha` |
-| **Express** | `POST /api/verify-recaptcha/verify` |
+| **Express** | `POST /api/verify-recaptcha` |
 
 - **Body:** `{ token: string }`
 - **Ghi chú:** Localhost thường được bypass (xem code route).
@@ -58,7 +60,7 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 
 ### Edge Function (tùy chọn — Supabase)
 
-- **`extract-pdf`:** Edge function không còn được gọi trực tiếp từ frontend cho JD. PDF extraction hiện dùng backend API `/api/extract-pdf` (Vercel) hoặc `/api/extract-pdf/extract` (Express). File source: `supabase/functions/extract-pdf/` giữ lại để dùng trong tương lai.
+- **`extract-pdf`:** Edge function không còn được gọi trực tiếp từ frontend cho JD. PDF extraction hiện dùng backend API thống nhất `POST /api/extract-pdf` (Vercel hoặc Express — cùng path). File source: `supabase/functions/extract-pdf/` giữ lại để dùng trong tương lai.
 
 ## 2. Dịch vụ lưu trữ & xác thực (Supabase)
 
