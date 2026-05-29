@@ -232,8 +232,10 @@ export function AppContent() {
               <TermsOfServicePage onBack={() => setActiveTab('analyze')} />
             ) : activeTab === 'support' ? (
               <SupportDevelopmentPage onBack={() => setActiveTab('analyze')} language={reportLanguage} />
-            ) : activeTab === 'upgrade' ? (
+            ) : activeTab === 'upgrade' && user ? (
               <UpgradeView />
+            ) : activeTab === 'upgrade' && !user ? (
+              <LandingView />
             ) : activeTab === 'payment-success' ? (
               <PaymentSuccessView />
             ) : activeTab === 'payment-cancel' ? (
