@@ -6,7 +6,7 @@ export function Footer() {
   const { setActiveTab, t } = useUI();
 
   return (
-    <footer className="relative z-10 border-t border-border bg-surface pt-12 pb-24 lg:py-20">
+    <footer className="relative z-10 border-t border-white/[0.06] bg-primary-light pt-12 pb-24 lg:py-20">
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-4 md:grid-cols-2">
           <div className="lg:col-span-2">
@@ -60,7 +60,7 @@ export function Footer() {
                   setActiveTab('support');
                   window.scrollTo(0, 0);
                 }}
-                className="group flex items-center gap-3 rounded-2xl bg-surface-secondary px-5 py-3 text-sm font-bold text-text-main transition-all hover:bg-accent-light hover:text-accent active:scale-95 cursor-pointer"
+                className="group flex items-center gap-3 rounded-2xl bg-white/[0.03] px-5 py-3 text-sm font-bold text-text-main transition-all hover:bg-accent/10 hover:text-accent active:scale-95 cursor-pointer border border-white/[0.05]"
               >
                 <Heart className="h-4 w-4 fill-accent/10 text-accent transition-transform group-hover:scale-125" />
                 <span>{t.footerSupportDev}</span>
@@ -69,7 +69,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 lg:mt-20 flex flex-col items-center justify-between gap-6 border-t border-border pt-10 md:flex-row">
+        <div className="mt-10 lg:mt-20 flex flex-col items-center justify-between gap-6 border-t border-white/[0.06] pt-10 md:flex-row">
           <div className="flex flex-wrap gap-8 justify-center md:justify-start text-xs font-bold text-text-light">
             <button
               type="button"

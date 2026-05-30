@@ -114,8 +114,8 @@ export function AnalysisInputView() {
         {/* Left Column: Job Description */}
         <section 
           className={cn(
-            "bg-surface p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] shadow-sm border transition-all relative flex flex-col h-full",
-            isDraggingJD ? "border-accent bg-accent-light/30 ring-4 ring-accent/10" : "border-border"
+            "bg-white/[0.02] backdrop-blur-xl p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border transition-all relative flex flex-col h-full",
+            isDraggingJD ? "border-accent bg-accent/10 ring-4 ring-accent/10" : "border-white/[0.06]"
           )}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingJD(true); }}
           onDragLeave={(e) => { e.stopPropagation(); setIsDraggingJD(false); }}
@@ -138,11 +138,11 @@ export function AnalysisInputView() {
           <div className="flex flex-col gap-5 h-full">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-accent-light flex items-center justify-center text-accent">
+                <div className="w-10 h-10 rounded-2xl bg-accent/10 flex items-center justify-center text-accent">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-text-main tracking-tight">{t.jdTitle}</h3>
+                  <h3 className="text-lg font-bold text-text-main tracking-tight">{t.jdTitle}</h3>
                   <p className="text-[10px] text-text-light font-bold uppercase tracking-widest">
                     {t.jdDesc}
                   </p>
@@ -151,7 +151,7 @@ export function AnalysisInputView() {
               <button
                 onClick={() => jdFileInputRef.current?.click()}
                 disabled={isExtractingJDFile}
-                className="h-9 px-4 rounded-xl bg-accent-light text-accent hover:bg-accent-light/80 transition-all flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-9 px-4 rounded-xl bg-accent/10 text-accent border border-accent/20 hover:bg-accent/15 transition-all flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={reportLanguage === 'vi' ? 'Tải lên file JD (PDF, DOCX, TXT, IMG)' : 'Upload JD file (PDF, DOCX, TXT, IMG)'}
               >
                 {isExtractingJDFile ? (
@@ -171,12 +171,12 @@ export function AnalysisInputView() {
                     value={jd}
                     onChange={(e) => setJd(e.target.value)}
                     placeholder={t.placeholderJD}
-                    className="flex-1 w-full p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-border focus:ring-4 focus:ring-accent/10 focus:border-accent transition-all resize-none text-text-main bg-surface-secondary/30 text-sm font-medium leading-relaxed"
+                    className="flex-1 w-full p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-white/[0.08] focus:ring-4 focus:ring-accent/10 focus:border-accent/50 transition-all resize-none text-text-main bg-white/[0.03] text-sm font-medium leading-relaxed placeholder:text-text-light/40"
                   />
                   {jd && (
                     <button 
                       onClick={() => setJd('')}
-                      className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-surface/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] font-black text-text-muted hover:text-error transition-all uppercase tracking-widest cursor-pointer shadow-sm border border-border hover:scale-105 active:scale-95 flex items-center gap-1.5 z-10"
+                      className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-primary-light/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] font-bold text-text-muted hover:text-error transition-all uppercase tracking-widest cursor-pointer border border-white/[0.08] hover:scale-105 active:scale-95 flex items-center gap-1.5 z-10"
                     >
                       <X className="w-3 h-3" />
                       {t.clearBtn}
@@ -191,7 +191,7 @@ export function AnalysisInputView() {
                 <>
                   <button 
                     onClick={() => setIsSavedJDsModalOpen(true)}
-                    className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-text-muted bg-surface-secondary hover:bg-surface-muted rounded-2xl transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                    className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted bg-white/[0.03] hover:bg-white/[0.06] rounded-2xl transition-all cursor-pointer hover:scale-[1.02] active:scale-95 border border-white/[0.04]"
                   >
                     <FolderOpen className="w-4 h-4" />
                     {t.jdStore}
@@ -200,7 +200,7 @@ export function AnalysisInputView() {
                     <button 
                       onClick={handleSaveJD}
                       disabled={isSavingJD}
-                      className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest text-accent bg-accent-light hover:bg-accent-light/80 rounded-2xl transition-all disabled:opacity-50 cursor-pointer hover:scale-[1.02] active:scale-95 border border-accent-light"
+                      className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-accent bg-accent/10 hover:bg-accent/15 rounded-2xl transition-all disabled:opacity-50 cursor-pointer hover:scale-[1.02] active:scale-95 border border-accent/20"
                     >
                       {isSavingJD ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookmarkPlus className="w-4 h-4" />}
                       {t.saveJd}
@@ -220,15 +220,15 @@ export function AnalysisInputView() {
         </section>
 
         {/* Right Column: CV Upload */}
-        <section className="bg-surface p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] shadow-sm border border-border flex flex-col h-full">
+        <section className="bg-white/[0.02] backdrop-blur-xl p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-white/[0.06] flex flex-col h-full">
           <div className="flex flex-col gap-5 h-full">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-accent-light flex items-center justify-center text-accent">
-                  <Upload className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-text-main tracking-tight">{t.cvTitle}</h3>
+                  <div className="w-10 h-10 rounded-2xl bg-accent/10 flex items-center justify-center text-accent">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-text-main tracking-tight">{t.cvTitle}</h3>
                   <p className="text-[10px] text-text-light font-bold uppercase tracking-widest">
                     {reportLanguage === 'vi' ? 'Tải lên hồ sơ ứng tuyển' : 'Upload application profile'}
                   </p>
@@ -239,14 +239,14 @@ export function AnalysisInputView() {
                 {user && (
                   <button
                     onClick={() => setIsSavedCVsModalOpen(true)}
-                    className="h-9 px-4 rounded-xl bg-accent-light text-accent hover:bg-accent-light/80 transition-all flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
+                    className="h-9 px-4 rounded-xl bg-accent/10 text-accent border border-accent/20 hover:bg-accent/15 transition-all flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95"
                     title={t.cvStore}
                   >
                     <Archive className="w-4 h-4" />
                     <span className="text-[10px] font-black uppercase tracking-widest">{t.cvStore}</span>
                   </button>
                 )}
-                <div className="flex bg-surface-secondary p-1 rounded-xl">
+                    <div className="flex bg-white/[0.03] p-1 rounded-xl">
                   <button 
                     onClick={() => setCvInputMode('file')}
                     className={cn(

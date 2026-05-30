@@ -1,58 +1,65 @@
 import React from 'react';
-import { motion } from 'motion/react';
-import { AlertCircle, Clock, Search } from 'lucide-react';
+import { AlertCircle, Clock, Search, ShieldAlert } from 'lucide-react';
 import type { LandingLabels } from './types';
-import { BentoCard, FeatureIcon } from './shared';
+import { GlassCard, FeatureIcon, SectionHeading } from './shared';
 
 export function ProblemSection({ t }: { t: LandingLabels }) {
   return (
-  <section className="w-full py-32">
-    <div className="container mx-auto max-w-6xl px-4">
-      <div className="mb-20 text-center">
-        <motion.h2
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="font-sans text-4xl font-extrabold tracking-tight text-text-main sm:text-5xl"
-        >
-          {t.problemTitle}
-        </motion.h2>
-      </div>
+    <section className="relative w-full section-padding overflow-hidden">
+      <div className="container-premium relative z-10">
+        <SectionHeading goldLine>{t.problemTitle}</SectionHeading>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <BentoCard className="lg:col-span-2">
-          <FeatureIcon icon={AlertCircle} color="accent" />
-          <h3 className="mb-4 font-sans text-2xl font-bold text-text-main">{t.problemItem1}</h3>
-          <p className="text-text-muted">{t.problemItem2}. Hệ thống ATS tự động loại bỏ các hồ sơ không chứa đúng từ khóa hoặc định dạng không chuẩn.</p>
-        </BentoCard>
-
-        <BentoCard>
-          <FeatureIcon icon={Clock} />
-          <h3 className="mb-4 font-sans text-2xl font-bold text-text-main">6–10 Giây</h3>
-          <p className="text-text-muted">{t.problemItem4}. Bạn cần làm nổi bật giá trị của mình ngay lập tức.</p>
-        </BentoCard>
-
-        <BentoCard>
-          <FeatureIcon icon={Search} />
-          <h3 className="mb-4 font-sans text-2xl font-bold text-text-main">{t.problemItem3}</h3>
-          <p className="text-text-muted">Kỹ năng không khớp khiến AI đánh giá thấp hồ sơ của bạn.</p>
-        </BentoCard>
-
-        <BentoCard className="lg:col-span-2 bg-text-main text-white border-none shadow-xl shadow-slate-900/20">
-          <div className="flex h-full flex-col justify-center">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="h-2 w-12 rounded-full bg-accent" />
-              <span className="text-xs font-black uppercase tracking-widest text-accent">Critical Insight</span>
-            </div>
-            <h3 className="mb-4 font-sans text-3xl font-extrabold leading-tight">
-              {t.problemResult}
+        <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
+          {/* Card 1 - span 2 */}
+          <GlassCard className="lg:col-span-2" delay={0}>
+            <FeatureIcon icon={AlertCircle} size="md" />
+            <h3 className="mb-3 font-sans text-xl md:text-2xl font-bold text-text-main">
+              {t.problemItem1}
             </h3>
-            <p className="text-slate-400">Đừng để nỗ lực của bạn trở nên vô ích chỉ vì thiếu sự chuẩn bị về mặt kỹ thuật.</p>
-          </div>
-        </BentoCard>
-      </div>
-    </div>
-  </section>
-);
+            <p className="text-text-muted leading-relaxed">
+              {t.problemItem2}. Hệ thống ATS tự động loại bỏ hồ sơ không chứa đúng từ khóa hoặc định dạng không chuẩn.
+            </p>
+          </GlassCard>
 
+          {/* Card 2 */}
+          <GlassCard className="lg:col-span-1" delay={0.1}>
+            <FeatureIcon icon={Clock} size="md" />
+            <h3 className="mb-3 font-sans text-xl md:text-2xl font-bold text-text-main">
+              6–10 Giây
+            </h3>
+            <p className="text-text-muted leading-relaxed">
+              {t.problemItem4}. Bạn cần làm nổi bật giá trị của mình ngay lập tức.
+            </p>
+          </GlassCard>
+
+          {/* Card 3 */}
+          <GlassCard className="lg:col-span-1" delay={0.15}>
+            <FeatureIcon icon={Search} size="md" />
+            <h3 className="mb-3 font-sans text-xl md:text-2xl font-bold text-text-main">
+              {t.problemItem3}
+            </h3>
+            <p className="text-text-muted leading-relaxed">
+              Kỹ năng không khớp khiến AI đánh giá thấp hồ sơ của bạn.
+            </p>
+          </GlassCard>
+
+          {/* Card 4 - highlight */}
+          <GlassCard className="lg:col-span-2 border-accent/20 animate-border-glow" delay={0.2} hover={false}>
+            <div className="flex h-full flex-col justify-center">
+              <FeatureIcon icon={ShieldAlert} size="md" />
+              <h3 className="mb-4 font-serif text-2xl md:text-3xl font-bold leading-tight text-white">
+                {t.problemResult}
+              </h3>
+              <p className="text-text-muted leading-relaxed">
+                Đừng để nỗ lực của bạn trở nên vô ích chỉ vì thiếu sự chuẩn bị về mặt kỹ thuật.
+              </p>
+            </div>
+          </GlassCard>
+        </div>
+      </div>
+
+      {/* Background decoration */}
+      <div className="pointer-events-none absolute top-1/2 right-0 h-96 w-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-accent/3 blur-[150px]" />
+    </section>
+  );
 }

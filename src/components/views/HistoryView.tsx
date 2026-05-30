@@ -132,8 +132,9 @@ export function HistoryView() {
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--color-text-light)' }} />
                             <YAxis domain={[0, 100]} hide />
                             <Tooltip 
-                              contentStyle={{ borderRadius: '1rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
-                              itemStyle={{ fontWeight: 'bold', color: 'var(--color-accent)' }}
+                              contentStyle={{ borderRadius: '1rem', background: '#1F2937', border: '1px solid #374151', fontSize: '12px' }}
+                              labelStyle={{ color: '#F9FAFB', fontWeight: 'bold' }}
+                              itemStyle={{ fontWeight: 'bold', color: '#059669' }}
                             />
                             <Area type="monotone" dataKey="score" stroke="var(--color-accent)" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
                           </AreaChart>
@@ -166,7 +167,9 @@ export function HistoryView() {
                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--color-text-light)' }} />
                             <Tooltip 
                               cursor={{ fill: 'var(--color-surface-secondary)' }}
-                              contentStyle={{ borderRadius: '1rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+                              contentStyle={{ borderRadius: '1rem', background: '#1F2937', border: '1px solid #374151', fontSize: '12px' }}
+                              labelStyle={{ color: '#F9FAFB', fontWeight: 'bold' }}
+                              itemStyle={{ color: '#F9FAFB' }}
                             />
                             <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                               {[

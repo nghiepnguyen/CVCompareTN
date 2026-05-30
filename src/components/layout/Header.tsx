@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileSearch, LayoutDashboard, History as HistoryIcon, ShieldCheck, LogOut, LogIn, ExternalLink, User as UserIcon, Sparkles, Activity, Loader2 } from 'lucide-react';
-import { checkAnalyticsQuota, type AnalyticsQuota } from '../../services/analyticsQuotaService';
+import { FileSearch, LayoutDashboard, History as HistoryIcon, ShieldCheck, LogOut, LogIn, ExternalLink, User as UserIcon, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { formatPlanExpiryDate, isProPlan } from '../../lib/planLimits';
 import { formatLabel } from '../../translations';
@@ -25,48 +24,13 @@ export function Header() {
         })
       : null;
 
-  const [menuQuota, setMenuQuota] = useState<AnalyticsQuota | null>(null);
-  const [isLoadingMenuQuota, setIsLoadingMenuQuota] = useState(false);
-
-  useEffect(() => {
-    if (!isUserMenuOpen || !user?.id) {
-      return;
-    }
-    let cancelled = false;
-    setIsLoadingMenuQuota(true);
-    void checkAnalyticsQuota(user.id, 0)
-      .then((quota) => {
-        if (!cancelled) setMenuQuota(quota);
-      })
-      .catch((err) => {
-        console.error('menu quota fetch failed:', err);
-        if (!cancelled) setMenuQuota(null);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingMenuQuota(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isUserMenuOpen, user?.id, userProfile?.usageCount, effectivePlan]);
-
-  const menuQuotaText =
-    menuQuota == null
-      ? null
-      : menuQuota.limit == null
-        ? formatLabel(t.menuQuotaLineUnlimited, { used: String(menuQuota.used) })
-        : formatLabel(t.menuQuotaLine, {
-            used: String(menuQuota.used),
-            limit: String(menuQuota.limit),
-          });
-
   const handleLogout = async () => {
     await logout();
     setIsUserMenuOpen(false);
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md border-b border-border">
+    <header className="sticky top-0 z-50 bg-primary/80 backdrop-blur-2xl border-b border-white/[0.06]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setActiveTab('analyze'); setSelectedResult(null); }}>
           <div className="relative w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-xl transition-transform group-hover:scale-110">
@@ -79,14 +43,14 @@ export function Header() {
         </div>
           
         <div className="flex items-center gap-2 sm:gap-4">
-          <nav className="hidden lg:flex items-center gap-1 bg-surface-secondary p-1 rounded-xl">
+          <nav className="hidden lg:flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl backdrop-blur-md">
             {user && (
               <>
                 <button 
                   onClick={() => { setActiveTab('analyze'); setSelectedResult(null); }}
                   className={cn(
-                    "flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95",
-                    activeTab === 'analyze' && !selectedResult ? "bg-surface text-accent shadow-sm" : "text-text-muted hover:text-text-main"
+                    "flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer",
+                    activeTab === 'analyze' && !selectedResult ? "bg-white/[0.06] text-accent" : "text-text-muted hover:text-text-main"
                   )}
                 >
                   <LayoutDashboard className="w-4 h-4" />
@@ -99,8 +63,8 @@ export function Header() {
                     trackEvent('view_history');
                   }}
                   className={cn(
-                    "flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95",
-                    activeTab === 'history' && !selectedResult ? "bg-surface text-accent shadow-sm" : "text-text-muted hover:text-text-main"
+                    "flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer",
+                    activeTab === 'history' && !selectedResult ? "bg-white/[0.06] text-accent" : "text-text-muted hover:text-text-main"
                   )}
                 >
                   <HistoryIcon className="w-4 h-4" />
@@ -112,8 +76,8 @@ export function Header() {
               <button 
                 onClick={() => { setActiveTab('admin'); setSelectedResult(null); }}
                 className={cn(
-                  "flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-lg text-sm font-bold transition-all relative cursor-pointer hover:scale-105 active:scale-95",
-                  activeTab === 'admin' && !selectedResult ? "bg-surface text-accent shadow-sm" : "text-text-muted hover:text-text-main"
+                    "flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-lg text-sm font-bold transition-all relative cursor-pointer",
+                    activeTab === 'admin' && !selectedResult ? "bg-white/[0.06] text-accent" : "text-text-muted hover:text-text-main"
                 )}
               >
                 <ShieldCheck className="w-4 h-4" />
@@ -127,15 +91,15 @@ export function Header() {
             )}
           </nav>
 
-          <div className="h-8 w-px bg-border mx-1 hidden md:block" />
+          <div className="h-8 w-px bg-white/[0.06] mx-1 hidden md:block" />
 
           {/* Language Switcher */}
-          <div className="flex items-center gap-1 bg-surface-secondary p-1 rounded-xl">
+          <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl">
             <button 
               onClick={() => setReportLanguage('vi')}
               className={cn(
-                "px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer hover:scale-110 active:scale-90",
-                reportLanguage === 'vi' ? "bg-surface text-accent shadow-sm" : "text-text-light hover:text-text-muted"
+                  "px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer",
+                  reportLanguage === 'vi' ? "bg-white/[0.06] text-accent" : "text-text-light hover:text-text-muted"
               )}
             >
               VI
@@ -143,15 +107,15 @@ export function Header() {
             <button 
               onClick={() => setReportLanguage('en')}
               className={cn(
-                "px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer hover:scale-110 active:scale-90",
-                reportLanguage === 'en' ? "bg-surface text-accent shadow-sm" : "text-text-light hover:text-text-muted"
+                  "px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer",
+                  reportLanguage === 'en' ? "bg-white/[0.06] text-accent" : "text-text-light hover:text-text-muted"
               )}
             >
               EN
             </button>
           </div>
 
-          <div className="h-8 w-px bg-border mx-1 hidden md:block" />
+          <div className="h-8 w-px bg-white/[0.06] mx-1 hidden md:block" />
 
           {user ? (
             <div className="flex items-center gap-2 sm:gap-3">
@@ -161,9 +125,9 @@ export function Header() {
                   className="flex items-center focus:outline-none cursor-pointer"
                 >
                   {(userProfile?.photoURL || user.user_metadata?.avatar_url) ? (
-                    <img src={userProfile?.photoURL || user.user_metadata?.avatar_url || ''} alt={user.user_metadata?.full_name || ''} className="w-9 h-9 rounded-full border-2 border-surface shadow-sm hover:border-accent-light transition-all" />
+                    <img src={userProfile?.photoURL || user.user_metadata?.avatar_url || ''} alt={user.user_metadata?.full_name || ''} className="w-9 h-9 rounded-full border-2 border-white/[0.1] hover:border-accent/50 transition-all" />
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-accent-light flex items-center justify-center text-accent border-2 border-surface shadow-sm hover:border-accent transition-all">
+                    <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center text-accent border-2 border-white/[0.1] hover:border-accent/50 transition-all">
                       <UserIcon className="w-5 h-5" />
                     </div>
                   )}
@@ -178,41 +142,36 @@ export function Header() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute top-full right-0 mt-2 bg-surface border border-border rounded-2xl shadow-2xl p-2 z-[60] min-w-[200px]"
+                        className="absolute top-full right-0 mt-2 bg-primary-light/95 backdrop-blur-2xl border border-white/[0.08] rounded-2xl shadow-2xl p-2 z-[60] min-w-[200px]"
                       >
-                        <div className="px-4 py-3 border-b border-border mb-1 bg-surface-secondary/50 rounded-t-2xl">
+                        <div className="px-4 py-3 border-b border-white/[0.06] mb-1 rounded-t-2xl">
                           <div className="flex items-center gap-2">
                             <div className="text-sm font-bold text-text-main truncate">{user.user_metadata?.full_name || user.email}</div>
                             {showProBadge && (
-                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/20 shrink-0">
                                 {t.planBadgePro}
                               </span>
                             )}
                           </div>
                           <div className="text-[10px] text-text-light truncate font-medium">{user.email}</div>
                           {planExpiryInMenu && (
-                            <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-1">
+                            <div className="text-[10px] font-bold text-accent mt-1">
                               {planExpiryInMenu}
                             </div>
                           )}
-                          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/60">
-                            <Activity className="w-3 h-3 text-accent shrink-0" />
-                            {isLoadingMenuQuota ? (
-                              <Loader2 className="w-3 h-3 animate-spin text-accent" />
-                            ) : (
-                              <span
-                                className={cn(
-                                  'text-[10px] font-bold tabular-nums',
-                                  menuQuota?.allowed === false
-                                    ? 'text-error'
-                                    : 'text-text-main'
-                                )}
-                              >
-                                {menuQuotaText ?? '—'}
-                              </span>
-                            )}
-                          </div>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            setSelectedResult(null);
+                            setActiveTab('profile');
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-text-main hover:bg-white/[0.05] rounded-xl transition-colors cursor-pointer"
+                        >
+                          <UserIcon className="w-4 h-4" />
+                          {t.profile}
+                        </button>
                         {!showProBadge && (
                           <button
                             type="button"
@@ -221,7 +180,7 @@ export function Header() {
                               setSelectedResult(null);
                               navigateToUpgrade();
                             }}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-400/10 rounded-xl transition-colors cursor-pointer"
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-accent hover:bg-accent/10 rounded-xl transition-colors cursor-pointer"
                           >
                             <Sparkles className="w-4 h-4" />
                             {t.menuUpgrade}
@@ -229,7 +188,7 @@ export function Header() {
                         )}
                         <button 
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-error hover:bg-error-light rounded-xl transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-3 px-4 py-3.5 text-sm font-bold text-error hover:bg-error/10 rounded-xl transition-colors cursor-pointer"
                         >
                           <LogOut className="w-4 h-4" />
                           {t.logout}
@@ -244,7 +203,7 @@ export function Header() {
             <div className="flex items-center gap-2">
               <button 
                 onClick={login}
-                className="flex items-center gap-2 px-5 py-3 sm:px-4 sm:py-2 bg-accent text-white rounded-xl text-sm font-bold hover:bg-accent-hover transition-all shadow-lg shadow-accent-light sm:bg-surface sm:text-text-main sm:border sm:border-border sm:shadow-sm sm:hover:bg-surface-secondary cursor-pointer"
+                className="flex items-center gap-2 px-5 py-3 sm:px-4 sm:py-2 bg-accent text-white rounded-xl text-sm font-bold hover:bg-accent-hover transition-all sm:bg-white/[0.03] sm:text-text-main sm:border sm:border-white/[0.08] sm:hover:bg-white/[0.06] cursor-pointer"
               >
                 <LogIn className="w-4 h-4 sm:text-accent" />
                 <span className="hidden xs:inline sm:inline">{t.login}</span>
@@ -252,7 +211,7 @@ export function Header() {
               {window.self !== window.top && (
                 <button 
                   onClick={() => window.open(window.location.href, '_blank')}
-                  className="p-2 bg-surface-secondary text-text-light rounded-xl hover:bg-surface-muted transition-all cursor-pointer"
+                  className="p-2 bg-white/[0.03] text-text-light rounded-xl hover:bg-white/[0.06] transition-all cursor-pointer"
                   title="Mở trong tab mới để đăng nhập dễ hơn"
                 >
                   <ExternalLink className="w-4 h-4" />

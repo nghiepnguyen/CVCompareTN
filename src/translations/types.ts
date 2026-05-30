@@ -440,5 +440,17 @@ export interface UiLabels {
   menuUpgrade: string;
   menuQuotaLine: string;
   menuQuotaLineUnlimited: string;
+  profile: string;
+  profileTitle: string;
+  profileNameLabel: string;
+  profileEmailLabel: string;
+  profilePlanLabel: string;
+  profilePlanFree: string;
+  profilePlanPro: string;
+  profileExpiryLabel: string;
+  profileExpiryNone: string;
+  profileAnalyticsLabel: string;
+  profileAnalyticsUnlimited: string;
+  profileBack: string;
   checkoutError: string;
 }

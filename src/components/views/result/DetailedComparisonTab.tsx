@@ -108,9 +108,9 @@ export function DetailedComparisonTab({ selectedResult }: DetailedComparisonTabP
                         </div>
                         
                         {item.cvEvidence && (
-                          <div className="mb-6 p-5 bg-white/60 backdrop-blur-sm rounded-2xl border border-border/50 text-[13px] text-text-muted leading-relaxed shadow-sm group-hover:bg-white/80 transition-colors">
-                            <span className="font-black text-[10px] uppercase tracking-[0.15em] text-text-light block mb-3 flex items-center gap-2">
-                              <div className="w-1.5 h-[2px] bg-border" />
+                          <div className="mb-6 p-5 bg-white/[0.06] backdrop-blur-sm rounded-2xl border border-white/[0.08] text-[13px] text-text-main leading-relaxed group-hover:bg-white/[0.08] transition-colors">
+                            <span className="font-black text-[10px] uppercase tracking-[0.15em] text-accent block mb-3 flex items-center gap-2">
+                              <div className="w-1.5 h-[2px] bg-accent/40" />
                               {t.evidence}
                             </span>
                             <span className="italic">"{item.cvEvidence}"</span>

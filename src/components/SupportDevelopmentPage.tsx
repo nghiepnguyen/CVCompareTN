@@ -81,7 +81,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <button 
           onClick={onBack}
-          className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors font-bold text-sm"
+          className="flex items-center gap-2 text-text-muted hover:text-accent transition-colors font-bold text-sm cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           {t.back}
@@ -89,7 +89,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
 
         <button 
           onClick={handleCopyLink}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-white/[0.03] border border-white/[0.08] text-text-muted rounded-xl text-sm font-bold hover:bg-white/[0.06] transition-all cursor-pointer"
         >
           {copied ? (
             <>
@@ -105,9 +105,9 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
         </button>
       </div>
 
-      <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+      <div className="bg-white/[0.02] backdrop-blur-xl rounded-[2rem] border border-white/[0.08] overflow-hidden">
         {/* Hero Section */}
-        <div className="bg-indigo-600 p-8 md:p-12 text-white relative overflow-hidden">
+        <div className="bg-accent p-8 md:p-12 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
           
           <div className="relative z-10">
@@ -115,7 +115,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
               <Heart className="w-6 h-6 md:w-8 md:h-8 fill-white/20" />
             </div>
             <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-4 leading-tight">{t.title}</h1>
-            <p className="text-indigo-100 text-base md:text-lg max-w-2xl leading-relaxed font-medium">
+            <p className="text-white/80 text-base md:text-lg max-w-2xl leading-relaxed font-medium">
               {t.heroDesc}
             </p>
           </div>
@@ -123,50 +123,50 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
 
         <div className="p-6 md:p-12">
           {/* Why Support Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-12">
             {[
               { icon: Rocket, title: t.feature1Title, desc: t.feature1Desc },
               { icon: ShieldCheck, title: t.feature2Title, desc: t.feature2Desc },
               { icon: Sparkles, title: t.feature3Title, desc: t.feature3Desc }
             ].map((item, idx) => (
-              <div key={idx} className="bg-slate-50 p-6 rounded-3xl border border-slate-100 hover:border-indigo-200 transition-all group">
-                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform">
-                  <item.icon className="w-6 h-6 text-indigo-600" />
+              <div key={idx} className="bg-white/[0.03] backdrop-blur-sm p-6 rounded-3xl border border-white/[0.06] hover:border-accent/20 transition-all group">
+                <div className="w-12 h-12 bg-white/[0.05] rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <item.icon className="w-6 h-6 text-accent" />
                 </div>
-                <h3 className="font-black text-slate-800 mb-2">{item.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
+                <h3 className="font-bold text-text-main mb-2">{item.title}</h3>
+                <p className="text-sm text-text-muted leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
 
           {/* Donation Info Section */}
-          <div className="bg-indigo-50/50 rounded-[1.5rem] md:rounded-[2rem] p-6 md:p-10 border border-indigo-100">
+          <div className="bg-white/[0.03] rounded-[1.5rem] md:rounded-[2rem] p-6 md:p-10 border border-white/[0.06]">
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-8 h-8 md:w-10 md:h-10 bg-indigo-600 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-accent rounded-lg md:rounded-xl flex items-center justify-center">
                 <CreditCard className="w-4 h-4 md:w-5 md:h-5 text-white" />
               </div>
-              <h2 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">{t.bankInfo}</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-text-main tracking-tight">{t.bankInfo}</h2>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10">
               {/* Bank Details */}
               <div className="space-y-6">
                 {bankAccounts.map((bank, idx) => (
-                  <div key={idx} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                  <div key={idx} className="bg-white/[0.02] p-6 rounded-3xl border border-white/[0.06]">
                     <div className="space-y-4">
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{t.bankLabel}</label>
-                        <p className="font-bold text-slate-800">{bank.bankName}</p>
+                        <label className="text-[10px] font-semibold text-text-light uppercase tracking-widest block mb-1">{t.bankLabel}</label>
+                        <p className="font-bold text-text-main">{bank.bankName}</p>
                       </div>
                       
                       <div className="flex items-start justify-between group">
                         <div>
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{t.accountLabel}</label>
-                          <p className="text-xl md:text-2xl font-black text-indigo-600 tracking-tight break-all">{bank.accountNumber}</p>
+                          <label className="text-[10px] font-semibold text-text-light uppercase tracking-widest block mb-1">{t.accountLabel}</label>
+                          <p className="text-xl md:text-2xl font-black text-accent tracking-tight break-all">{bank.accountNumber}</p>
                         </div>
                         <button 
                           onClick={() => handleCopyAccount(bank.accountNumber)}
-                          className="p-2 md:p-3 bg-slate-50 text-slate-400 rounded-xl md:rounded-2xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm flex-shrink-0 ml-2"
+                          className="p-2 md:p-3 bg-white/[0.03] text-text-muted rounded-xl md:rounded-2xl hover:bg-accent hover:text-white transition-all flex-shrink-0 ml-2 cursor-pointer"
                           title={t.copyAccount}
                         >
                           {copiedAccount === bank.accountNumber ? <Check className="w-4 h-4 md:w-5 md:h-5" /> : <Copy className="w-4 h-4 md:w-5 md:h-5" />}
@@ -174,11 +174,11 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{t.holderLabel}</label>
-                        <p className="font-black text-slate-800 uppercase">{bank.accountName}</p>
+                        <label className="text-[10px] font-semibold text-text-light uppercase tracking-widest block mb-1">{t.holderLabel}</label>
+                        <p className="font-bold text-text-main uppercase">{bank.accountName}</p>
                       </div>
 
-                      <div className="pt-4 border-t border-slate-50 flex items-center gap-2 text-slate-400 text-xs italic">
+                      <div className="pt-4 border-t border-white/[0.06] flex items-center gap-2 text-text-light text-xs italic">
                         <Coffee className="w-3 h-3" />
                         {t.motivation}
                       </div>
@@ -189,8 +189,8 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
 
               {/* QR Code */}
               <div className="flex flex-col items-center justify-center space-y-4">
-                <div className="bg-white p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-indigo-100 border-4 border-indigo-100 relative group w-full max-w-[320px]">
-                  <div className="absolute -top-3 -right-3 md:-top-4 md:-right-4 w-10 h-10 md:w-12 md:h-12 bg-indigo-600 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 z-10">
+                <div className="bg-white/[0.02] p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border border-white/[0.1] relative group w-full max-w-[320px]">
+                  <div className="absolute -top-3 -right-3 md:-top-4 md:-right-4 w-10 h-10 md:w-12 md:h-12 bg-accent rounded-xl md:rounded-2xl flex items-center justify-center z-10">
                     <QrCode className="w-5 h-5 md:w-6 md:h-6 text-white" />
                   </div>
                   <div className="aspect-square w-full overflow-hidden rounded-xl md:rounded-2xl">
@@ -202,10 +202,10 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
                     />
                   </div>
                   <div className="mt-4 text-center">
-                    <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest">{t.scanToSupport}</p>
+                    <p className="text-[10px] md:text-xs font-semibold text-text-light uppercase tracking-widest">{t.scanToSupport}</p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500 text-center max-w-xs italic px-4">
+                <p className="text-xs text-text-muted text-center max-w-xs italic px-4">
                   {t.scanDesc}
                 </p>
               </div>
@@ -214,7 +214,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
 
           {/* Footer Message */}
           <div className="mt-12 text-center">
-            <p className="text-slate-400 text-sm">
+            <p className="text-text-light text-sm">
               {t.thanks}
             </p>
           </div>

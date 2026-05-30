@@ -41,6 +41,9 @@ const SupportDevelopmentPage = React.lazy(() =>
 const PrintView = React.lazy(() =>
   import('../components/views/result/PrintView').then((m) => ({ default: m.PrintView }))
 );
+const ProfileView = React.lazy(() =>
+  import('../components/views/ProfileView').then((m) => ({ default: m.ProfileView }))
+);
 const UpgradeView = React.lazy(() =>
   import('../components/views/UpgradeView').then((m) => ({ default: m.UpgradeView }))
 );
@@ -253,6 +256,8 @@ export function AppContent() {
               <DashboardView />
             ) : activeTab === 'history' ? (
               <HistoryView />
+            ) : activeTab === 'profile' ? (
+              <ProfileView />
             ) : null}
           </React.Suspense>
         </main>

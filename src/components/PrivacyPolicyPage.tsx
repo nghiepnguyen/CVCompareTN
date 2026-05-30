@@ -29,7 +29,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors font-bold text-sm cursor-pointer hover:scale-105 active:scale-95"
+          className="flex items-center gap-2 text-text-muted hover:text-accent transition-colors font-bold text-sm cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           {t.legalBackHome}
@@ -38,7 +38,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
         <button
           type="button"
           onClick={handleCopyLink}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all shadow-sm cursor-pointer hover:scale-105 active:scale-95"
+          className="flex items-center gap-2 px-4 py-2 bg-white/[0.03] border border-white/[0.08] text-text-muted rounded-xl text-sm font-bold hover:bg-white/[0.06] transition-all cursor-pointer"
         >
           {copied ? (
             <>
@@ -54,21 +54,21 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
         </button>
       </div>
 
-      <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-        <div className="bg-indigo-600 p-12 text-white relative overflow-hidden">
+      <div className="bg-white/[0.02] backdrop-blur-xl rounded-[2rem] border border-white/[0.08] overflow-hidden">
+        <div className="bg-accent p-12 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
           <div className="relative z-10">
             <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6">
               <Shield className="w-8 h-8" />
             </div>
             <h1 className="text-4xl font-black tracking-tight mb-4">{t.privacyPolicyPageTitle}</h1>
-            <p className="text-indigo-100 text-lg max-w-xl leading-relaxed">{t.privacyHeroSubtitle}</p>
+            <p className="text-white/80 text-lg max-w-xl leading-relaxed">{t.privacyHeroSubtitle}</p>
           </div>
         </div>
 
-        <div className="p-12 text-slate-700 space-y-10">
+        <div className="p-12 text-text-muted space-y-10">
           <section className="space-y-4">
-            <div className="flex items-center gap-3 text-indigo-600 mb-2">
+            <div className="flex items-center gap-3 text-accent mb-2">
               <Eye className="w-6 h-6" />
               <h2 className="text-2xl font-black tracking-tight">{t.privacyS1Title}</h2>
             </div>
@@ -81,7 +81,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
           </section>
 
           <section className="space-y-4">
-            <div className="flex items-center gap-3 text-indigo-600 mb-2">
+            <div className="flex items-center gap-3 text-accent mb-2">
               <Lock className="w-6 h-6" />
               <h2 className="text-2xl font-black tracking-tight">{t.privacyS2Title}</h2>
             </div>
@@ -91,11 +91,11 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
                 <li key={item}>{item}</li>
               ))}
             </ul>
-            <p className="bg-slate-50 p-4 rounded-xl border-l-4 border-indigo-500 italic text-sm">{t.privacyS2Note}</p>
+            <p className="bg-white/[0.03] p-4 rounded-xl border-l-4 border-accent italic text-sm">{t.privacyS2Note}</p>
           </section>
 
           <section className="space-y-4">
-            <div className="flex items-center gap-3 text-indigo-600 mb-2">
+            <div className="flex items-center gap-3 text-accent mb-2">
               <Shield className="w-6 h-6" />
               <h2 className="text-2xl font-black tracking-tight">{t.privacyS3Title}</h2>
             </div>
@@ -103,7 +103,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
           </section>
 
           <section className="space-y-4">
-            <div className="flex items-center gap-3 text-indigo-600 mb-2">
+            <div className="flex items-center gap-3 text-accent mb-2">
               <Cookie className="w-6 h-6" />
               <h2 className="text-2xl font-black tracking-tight">{t.privacyS4Title}</h2>
             </div>
@@ -115,14 +115,14 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
           </section>
 
           <section className="space-y-4">
-            <div className="flex items-center gap-3 text-indigo-600 mb-2">
+            <div className="flex items-center gap-3 text-accent mb-2">
               <FileText className="w-6 h-6" />
               <h2 className="text-2xl font-black tracking-tight">{t.privacyS5Title}</h2>
             </div>
             <p className="leading-relaxed">{t.privacyS5Body}</p>
           </section>
 
-          <div className="pt-8 border-t border-slate-100 text-sm text-slate-400 text-center">
+          <div className="pt-8 border-t border-white/[0.06] text-sm text-text-light text-center">
             {t.privacyLastUpdated}
           </div>
         </div>

@@ -124,7 +124,7 @@ export const CvMarkdownBody = React.memo(function CvMarkdownBody({
 
   return (
     <div
-      className={cn('cv-markdown-specimen break-words', density === 'screen' && 'mx-auto max-w-[62ch]', className)}
+      className={cn('cv-markdown-specimen break-words', className)}
     >
       <Markdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw, rehypeSanitize]} components={components}>
         {processed}

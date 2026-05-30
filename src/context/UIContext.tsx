@@ -5,6 +5,7 @@ export type Tab =
   | 'analyze'
   | 'history'
   | 'admin'
+  | 'profile'
   | 'privacy'
   | 'terms'
   | 'support'

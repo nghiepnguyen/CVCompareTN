@@ -18,27 +18,29 @@ export function LandingView() {
   const { login } = useAuth();
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const { scrollYProgress } = useScroll();
-  const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
-  const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95]);
+  const opacity = useTransform(scrollYProgress, [0, 0.15], [1, 0]);
+  const scale = useTransform(scrollYProgress, [0, 0.15], [1, 0.97]);
 
   return (
-    <div className="relative flex w-full flex-col items-center overflow-hidden bg-surface-secondary font-body">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-[10%] -left-[10%] h-[40%] w-[40%] rounded-full bg-accent/10 blur-[120px]" />
-        <div className="absolute top-[20%] -right-[5%] h-[30%] w-[30%] rounded-full bg-accent/10 blur-[100px]" />
-        <div className="absolute bottom-[10%] left-[20%] h-[25%] w-[25%] rounded-full bg-accent/10 blur-[80px]" />
+    <div className="relative flex w-full flex-col items-center overflow-hidden bg-primary font-body">
+      {/* Global ambient background */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute top-0 left-1/4 h-96 w-96 rounded-full bg-accent/3 blur-[150px]" />
+        <div className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-accent/2 blur-[150px]" />
       </div>
 
-      <HeroSection t={t} login={login} opacity={opacity} scale={scale} />
-      <TrustSection t={t} />
-      <ProblemSection t={t} />
-      <WhyChooseSection t={t} />
-      <HowItWorksSection t={t} />
-      <DemoResultSection t={t} />
-      <StatsSection t={t} />
-      <TargetUsersSection t={t} />
-      <CtaSection t={t} login={login} />
-      <FaqSection t={t} openFaqIndex={openFaqIndex} setOpenFaqIndex={setOpenFaqIndex} />
+      <div className="relative z-10 w-full">
+        <HeroSection t={t} login={login} opacity={opacity} scale={scale} />
+        <TrustSection t={t} />
+        <ProblemSection t={t} />
+        <WhyChooseSection t={t} />
+        <HowItWorksSection t={t} />
+        <DemoResultSection t={t} />
+        <StatsSection t={t} />
+        <TargetUsersSection t={t} />
+        <CtaSection t={t} login={login} />
+        <FaqSection t={t} openFaqIndex={openFaqIndex} setOpenFaqIndex={setOpenFaqIndex} />
+      </div>
     </div>
   );
 }

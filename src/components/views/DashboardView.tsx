@@ -25,8 +25,8 @@ export function DashboardView() {
       {/* Hero Section - Hide if viewing focused result */}
       {!selectedResult && !isAnalyzing && (
         <section className="text-center max-w-3xl mx-auto mb-6 lg:mb-10">
-          <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-text-main mb-4 leading-tight">
-            {t.heroTitle} <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-accent">Smart Insights</span>
+          <h2 className="font-serif text-2xl sm:text-4xl font-bold tracking-tight text-text-main mb-4 leading-tight">
+            {t.heroTitle} <span className="text-green-accent">Smart Insights</span>
           </h2>
           <p className="text-sm sm:text-base text-text-muted leading-relaxed max-w-2xl mx-auto">
             {t.atsOptimizationDesc}

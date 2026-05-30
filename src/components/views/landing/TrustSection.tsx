@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import type { LandingLabels } from './types';
 
 export function TrustSection({ t }: { t: LandingLabels }) {
@@ -12,24 +13,29 @@ export function TrustSection({ t }: { t: LandingLabels }) {
   ];
 
   return (
-    <section className="w-full border-y border-border bg-surface-secondary/50 py-12 backdrop-blur-sm">
-      <div className="container mx-auto px-4">
-        <p className="mb-8 text-center text-xs font-black uppercase tracking-[0.2em] text-text-light">
+    <section className="relative w-full border-y border-white/[0.06] py-10 overflow-hidden">
+      <div className="container-premium">
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-8 text-center text-xs font-semibold uppercase tracking-[0.2em] text-text-light/60"
+        >
           {t.trustedBy}
-        </p>
-        <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
+        </motion.p>
+        <div className="flex flex-wrap justify-center items-center gap-x-10 gap-y-6 md:gap-x-20">
           {experts.map((expert) => (
             <a
               key={expert.name}
               href={expert.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative cursor-pointer hover:scale-105 active:scale-95"
+              className="group relative cursor-pointer"
             >
-              <span className="font-sans text-xl md:text-2xl font-black italic tracking-tighter text-text-light transition-all duration-300 group-hover:text-text-main group-hover:scale-110 block">
+              <span className="font-sans text-lg md:text-xl font-bold italic tracking-tight text-text-light/40 transition-all duration-500 group-hover:text-accent group-hover:scale-110 inline-block">
                 {expert.name}
               </span>
-              <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-accent transition-all duration-300 group-hover:w-full" />
+              <div className="absolute -bottom-1 left-0 h-px w-0 bg-gradient-to-r from-accent to-accent-light transition-all duration-500 group-hover:w-full" />
             </a>
           ))}
         </div>

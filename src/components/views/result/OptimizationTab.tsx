@@ -203,26 +203,26 @@ export const OptimizationTab = React.memo(function OptimizationTab({ selectedRes
                   )}
                 </div>
 
-                <div className="overflow-hidden rounded-[2.5rem] border border-border bg-surface-muted p-4 shadow-inner sm:p-10">
-                  <div className="relative mx-auto min-h-[min(297mm,80vh)] max-w-[210mm] overflow-hidden rounded-sm bg-surface p-8 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.12)] ring-1 ring-border sm:p-14">
+                <div className="overflow-hidden rounded-[2.5rem] border border-white/[0.08] bg-white/[0.02] p-4 sm:p-10">
+                  <div className="relative mx-auto min-h-[min(297mm,80vh)] max-w-[210mm] overflow-hidden rounded-sm bg-white p-8 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.12)] ring-1 ring-slate-200 sm:p-14">
                     <span
-                      className="pointer-events-none absolute left-4 top-4 size-6 border-l-2 border-t-2 border-text-muted/35 sm:left-6 sm:top-6"
+                      className="pointer-events-none absolute left-4 top-4 size-6 border-l-2 border-t-2 border-slate-300 sm:left-6 sm:top-6"
                       aria-hidden
                     />
                     <span
-                      className="pointer-events-none absolute right-4 top-4 size-6 border-r-2 border-t-2 border-text-muted/35 sm:right-6 sm:top-6"
+                      className="pointer-events-none absolute right-4 top-4 size-6 border-r-2 border-t-2 border-slate-300 sm:right-6 sm:top-6"
                       aria-hidden
                     />
                     <span
-                      className="pointer-events-none absolute bottom-4 left-4 size-6 border-b-2 border-l-2 border-text-muted/35 sm:bottom-6 sm:left-6"
+                      className="pointer-events-none absolute bottom-4 left-4 size-6 border-b-2 border-l-2 border-slate-300 sm:bottom-6 sm:left-6"
                       aria-hidden
                     />
                     <span
-                      className="pointer-events-none absolute bottom-4 right-4 size-6 border-b-2 border-r-2 border-text-muted/35 sm:bottom-6 sm:right-6"
+                      className="pointer-events-none absolute bottom-4 right-4 size-6 border-b-2 border-r-2 border-slate-300 sm:bottom-6 sm:right-6"
                       aria-hidden
                     />
 
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-surface via-surface to-surface-secondary" />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white via-white to-slate-50" />
                     <div className="pointer-events-none absolute right-0 top-0 p-8 opacity-[0.06]">
                       <FileText className="size-48" />
                     </div>
@@ -231,7 +231,7 @@ export const OptimizationTab = React.memo(function OptimizationTab({ selectedRes
                       <CvMarkdownBody markdown={selectedResult.fullRewrittenCV} locale={reportLanguage} density="screen" />
                     </div>
 
-                    <div className="relative z-10 mt-16 border-t border-border pt-6 text-center font-cv-header text-[9px] font-bold uppercase tracking-[0.25em] text-text-light">
+                    <div className="relative z-10 mt-16 border-t border-slate-200 pt-6 text-center font-cv-header text-[9px] font-bold uppercase tracking-[0.25em] text-slate-400">
                       {t.fullCvDraftFooter}
                     </div>
                   </div>

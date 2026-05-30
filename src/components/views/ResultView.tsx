@@ -113,8 +113,8 @@ export function ResultView() {
               <div ref={topAnchorRef} className="scroll-mt-32" />
 
               {/* Tab Navigation - Sticky Header */}
-              <div id="tab-navigation" className="sticky top-16 z-40 bg-surface/90 backdrop-blur-xl py-4 -mx-4 px-4 mb-10 border-b border-border flex items-center justify-between shadow-sm transition-all duration-500">
-                <div className="flex items-center gap-2 p-1.5 bg-surface-muted backdrop-blur-md rounded-[2.5rem] w-full sm:w-fit shadow-inner overflow-x-auto scrollbar-hide no-scrollbar border border-white/40 snap-x snap-mandatory">
+              <div id="tab-navigation" className="sticky top-16 z-40 bg-primary/90 backdrop-blur-2xl py-4 -mx-4 px-4 mb-10 border-b border-white/[0.06] flex items-center justify-between transition-all duration-500">
+                <div className="flex items-center gap-2 p-1.5 bg-white/[0.03] backdrop-blur-md rounded-[2.5rem] w-full sm:w-fit shadow-inner overflow-x-auto scrollbar-hide no-scrollbar border border-white/[0.08] snap-x snap-mandatory">
                   {[
                     { id: 'analysis', icon: Activity, label: t.analyze },
                     { id: 'parsed', icon: User, label: t.tabParsedCv },
@@ -134,7 +134,7 @@ export function ResultView() {
                       {resultTab === tab.id && (
                         <motion.div
                           layoutId="activeTab"
-                          className="absolute inset-0 bg-surface shadow-xl shadow-accent-light border border-border rounded-[2rem]"
+                          className="absolute inset-0 bg-white/[0.06] border border-white/[0.1] rounded-[2rem]"
                           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                         />
                       )}
@@ -148,7 +148,7 @@ export function ResultView() {
 
                 {/* Animated Scan Line - Bottom of header */}
                 <motion.div 
-                  className="absolute bottom-0 left-0 h-[2px] bg-accent shadow-[0_0_8px_rgba(79,70,229,0.5)]"
+                  className="absolute bottom-0 left-0 h-[2px] bg-accent shadow-[0_0_8px_rgba(5,150,105,0.5)]"
                   initial={{ width: "25%" }}
                   animate={{ 
                     width: resultTab === 'analysis' ? '25%' : 

@@ -25,8 +25,8 @@ export const system = {
     en: "We use Google Analytics (GA4) to understand how you use the CV comparison tool — only after you consent. Vercel Analytics (performance, no marketing cookies) runs independently. You can decline or change your choice anytime in the Privacy Policy.",
   },
   cookieAccept: {
-    vi: "Chấp nhận phân tích",
-    en: "Accept analytics",
+    vi: "Đồng ý",
+    en: "Accept",
   },
   cookieAcceptLoading: {
     vi: "Đang tải…",
@@ -83,5 +83,49 @@ export const system = {
   savedCvLimitPro: {
     vi: "Bạn đã đạt giới hạn lưu 10 CV. Vui lòng xóa bớt CV cũ để lưu CV mới.",
     en: "You've reached the limit of 10 saved CVs. Please delete old CVs to save new ones.",
+  },
+  profileTitle: {
+    vi: "Thông tin cá nhân",
+    en: "Profile",
+  },
+  profileNameLabel: {
+    vi: "Họ tên",
+    en: "Full Name",
+  },
+  profileEmailLabel: {
+    vi: "Email",
+    en: "Email",
+  },
+  profilePlanLabel: {
+    vi: "Loại tài khoản",
+    en: "Account Type",
+  },
+  profilePlanFree: {
+    vi: "Miễn phí",
+    en: "Free",
+  },
+  profilePlanPro: {
+    vi: "Pro",
+    en: "Pro",
+  },
+  profileExpiryLabel: {
+    vi: "Hạn sử dụng",
+    en: "Expiry Date",
+  },
+  profileExpiryNone: {
+    vi: "Không giới hạn",
+    en: "Unlimited",
+  },
+  profileAnalyticsLabel: {
+    vi: "Số lượt phân tích",
+    en: "Analytics Usage",
+  },
+  profileAnalyticsUnlimited: {
+    vi: "Không giới hạn",
+    en: "Unlimited",
+  },
+  profileBack: {
+    vi: "Quay lại",
+    en: "Back",
   },
 } as const;

@@ -94,10 +94,10 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
                 { label: t.tools, score: selectedResult.categoryScores?.tools || 0 },
                 { label: t.education, score: selectedResult.categoryScores?.education || 0 },
               ]}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" fontSize={10} />
-                <YAxis fontSize={10} />
-                <Tooltip cursor={{fill: 'transparent'}} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
+                <XAxis dataKey="label" fontSize={10} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#374151' }} />
+                <YAxis fontSize={10} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#374151' }} />
+                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#F9FAFB' }} />
                 <Bar dataKey="score" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

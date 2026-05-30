@@ -36,6 +36,10 @@ export const nav = {
     vi: "Tiếng Việt",
     en: "Vietnamese",
   },
+  profile: {
+    vi: "Cá nhân",
+    en: "Profile",
+  },
   english: {
     vi: "Tiếng Anh",
     en: "English",

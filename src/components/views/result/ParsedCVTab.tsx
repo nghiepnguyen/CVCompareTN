@@ -20,8 +20,8 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
 
   if (!parsedCV) {
     return (
-      <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center">
-        <p className="text-slate-500 italic">
+      <div className="bg-white/[0.02] backdrop-blur-sm p-12 rounded-3xl border border-white/[0.06] text-center">
+        <p className="text-text-muted italic">
           {t.parsedCvEmpty}
         </p>
       </div>
