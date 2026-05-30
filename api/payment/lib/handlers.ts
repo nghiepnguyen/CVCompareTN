@@ -10,6 +10,7 @@ import {
 } from './payos.js';
 import { getMissingPaymentEnv, paymentConfigErrorBody } from './paymentEnv.js';
 import { getSupabaseAdmin, getUserFromBearerToken } from './supabaseAdmin.js';
+import { sendVipUpgradeEmail } from './vipUpgradeEmail.js';
 
 export type PaymentHandlerResult = { status: number; body: Record<string, unknown> };
 
@@ -48,6 +49,60 @@ async function activateProForOrder(
     return { activated: false, error: error.message };
   }
   return { activated: data === true, error: null };
+}
+
+/**
+ * Fetch user profile to get display_name and plan_expires_at for email.
+ * Returns null if the profile doesn't exist (shouldn't happen after activation).
+ */
+async function fetchProfileForEmail(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<{ displayName: string | null; planExpiresAt: string | null } | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('display_name, plan_expires_at')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error('fetchProfileForEmail failed:', error);
+    return null;
+  }
+
+  return {
+    displayName: typeof data.display_name === 'string' ? data.display_name : null,
+    planExpiresAt: typeof data.plan_expires_at === 'string' ? data.plan_expires_at : null,
+  };
+}
+
+/**
+ * After successful Pro activation, send VIP upgrade notification email.
+ * This is non-blocking — email failures don't affect payment success.
+ */
+async function notifyVipUpgrade(
+  supabase: SupabaseClient,
+  userId: string,
+  userEmail: string,
+  durationDays: number
+): Promise<void> {
+  try {
+    const profile = await fetchProfileForEmail(supabase, userId);
+    const planExpiresAt = profile?.planExpiresAt
+      ? profile.planExpiresAt
+      : new Date(Date.now() + durationDays * 86_400_000).toISOString();
+
+    await sendVipUpgradeEmail({
+      userEmail,
+      userName: profile?.displayName ?? null,
+      planName: 'Pro',
+      durationDays,
+      planExpiresAt,
+    });
+  } catch (err) {
+    // Email is non-critical — log and continue
+    console.error('notifyVipUpgrade failed:', err);
+  }
 }
 
 export async function handlePaymentCreate(
@@ -160,6 +215,15 @@ export async function handlePaymentWebhook(
     return { status: 200, body: { success: true, alreadyPaid: true } };
   }
 
+  // Send VIP upgrade email (non-blocking, fire-and-forget)
+  // Webhook has user_id from payment record; look up email via admin API
+  const { data: userData } = await supabase.auth.admin.getUserById(payment.user_id);
+  if (userData?.user?.email) {
+    notifyVipUpgrade(supabase, payment.user_id, userData.user.email, durationDays).catch((err) =>
+      console.error('Webhook email notification failed:', err)
+    );
+  }
+
   return { status: 200, body: { success: true } };
 }
 
@@ -232,6 +296,13 @@ export async function handlePaymentConfirm(
 
   if (!activated) {
     return { status: 200, body: { success: true, alreadyPaid: true, plan: 'pro' } };
+  }
+
+  // Send VIP upgrade email (non-blocking, fire-and-forget)
+  if (user.email) {
+    notifyVipUpgrade(supabase, payment.user_id, user.email, durationDays).catch((err) =>
+      console.error('Confirm email notification failed:', err)
+    );
   }
 
   return { status: 200, body: { success: true, plan: 'pro' } };
