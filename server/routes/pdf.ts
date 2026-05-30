@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PDFParse } from 'pdf-parse';
+import { extractText } from 'unpdf';
 
 const router = Router();
 
@@ -28,15 +28,13 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'File is not a valid PDF' });
     }
 
-    const parser = new PDFParse({ data: buffer });
-    const result = await parser.getText();
+    const { text } = await extractText(new Uint8Array(buffer), { mergePages: true });
 
-    await parser.destroy();
-
-    res.json({ text: result.text });
-  } catch (error: any) {
+    res.json({ text });
+  } catch (error: unknown) {
     console.error('PDF extraction error:', error);
-    res.status(500).json({ error: `Failed to extract PDF: ${error.message}` });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: `Failed to extract PDF: ${message}` });
   }
 });
 

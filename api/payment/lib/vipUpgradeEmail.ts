@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { escapeHtml } from '../../lib/escapeHtml';
+import { escapeHtml } from '../../lib/escapeHtml.js';
 
 export interface VipUpgradeEmailParams {
   userEmail: string;

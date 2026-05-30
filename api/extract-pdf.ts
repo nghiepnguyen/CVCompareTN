@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { PDFParse } from 'pdf-parse';
+import { extractText } from 'unpdf';
 
 const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB decoded
 const PDF_HEADER = Buffer.from('%PDF-');
@@ -30,13 +30,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'File is not a valid PDF' });
     }
 
-    const parser = new PDFParse({ data: buffer });
-    const result = await parser.getText();
-    await parser.destroy();
+    const { text } = await extractText(new Uint8Array(buffer), { mergePages: true });
 
-    return res.status(200).json({ text: result.text });
-  } catch (error: any) {
+    return res.status(200).json({ text });
+  } catch (error: unknown) {
     console.error('PDF extraction error:', error);
-    return res.status(500).json({ error: `Failed to extract PDF: ${error.message}` });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ error: `Failed to extract PDF: ${message}` });
   }
 }

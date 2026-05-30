@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { Resend } from 'resend';
-import { escapeHtml } from './lib/escapeHtml';
-import { validateFeedbackInput } from './lib/validate';
+import { escapeHtml } from './lib/escapeHtml.js';
+import { validateFeedbackInput } from './lib/validate.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
