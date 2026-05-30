@@ -80,7 +80,7 @@ export function HeroSection({
             {t.startNow}
           </AccentButton>
           <OutlineButton
-            href="#"
+            href="https://recuiter.cvfit.pro/"
             target="_blank"
             rel="noopener noreferrer"
             icon={ArrowRight}
