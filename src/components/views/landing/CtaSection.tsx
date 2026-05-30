@@ -38,7 +38,7 @@ export function CtaSection({ t, login }: { t: LandingLabels; login: () => void }
                 {t.ctaBtn}
               </AccentButton>
               <OutlineButton
-                href="#"
+                href="https://recuiter.cvfit.pro/"
                 target="_blank"
                 rel="noopener noreferrer"
                 icon={ArrowRight}
