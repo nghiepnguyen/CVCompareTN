@@ -41,6 +41,11 @@
       "destination": "/index.html"
     }
   ],
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
   "redirects": [
     {
       "source": "/privacy",
