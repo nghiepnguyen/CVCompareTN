@@ -114,7 +114,7 @@ export function HeroSection({
           {/* Scan line */}
           <div className="absolute left-0 right-0 z-20 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent animate-scan pointer-events-none" />
           <img
-            src="https://thanhnghiep.top/CVMatcher/cv-dash.jpg"
+            src="https://data.cvfit.pro/img/cvfit.jpg"
             alt={t.seoTitle || 'CV Matcher & Optimizer Dashboard'}
             className="relative z-10 w-full rounded-[1.5rem] md:rounded-[2.5rem] shadow-lg transition-transform duration-700 group-hover:scale-[1.005]"
             referrerPolicy="no-referrer"

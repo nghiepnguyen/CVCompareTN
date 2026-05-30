@@ -242,6 +242,8 @@ export function AppContent() {
               <TermsOfServicePage onBack={() => setActiveTab('analyze')} />
             ) : activeTab === 'support' ? (
               <SupportDevelopmentPage onBack={() => setActiveTab('analyze')} language={reportLanguage} />
+            ) : activeTab === 'about' ? (
+              <AboutPage onBack={() => setActiveTab('analyze')} />
             ) : activeTab === 'upgrade' && user ? (
               <UpgradeView />
             ) : activeTab === 'upgrade' && !user ? (
@@ -265,8 +267,6 @@ export function AppContent() {
               <HistoryView />
             ) : activeTab === 'profile' ? (
               <ProfileView />
-            ) : activeTab === 'about' ? (
-              <AboutPage onBack={() => setActiveTab('analyze')} />
             ) : null}
           </React.Suspense>
         </main>
