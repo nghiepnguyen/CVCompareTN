@@ -126,7 +126,7 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 
 - Package: `@vercel/analytics` (`package.json`).
 - Component: `<Analytics />` trong `src/app/AppShell.tsx` — **không** phụ thuộc consent GA4.
-- Dữ liệu xem trên [Vercel Dashboard](https://vercel.com) → project **`cvcompare`** → Analytics.
+- Dữ liệu xem trên [Vercel Dashboard](https://vercel.com) → project **`cvfit`** → Analytics.
 - Phù hợp: theo dõi traffic, performance; **không** thay thế funnel event tùy chỉnh của GA4.
 
 ---
@@ -312,7 +312,7 @@ Chỉ user có `monthly_analytics_limit_custom = false` nhận giá trị mới.
 
 ### Vercel
 
-- Deploy lên `cvcompare` → tab Analytics trên Vercel sau vài phút có pageview.
+- Deploy lên `cvfit` → tab Analytics trên Vercel sau vài phút có pageview.
 
 ---
 

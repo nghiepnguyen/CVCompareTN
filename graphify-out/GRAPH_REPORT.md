@@ -1,16 +1,16 @@
 # Graph Report - cv-compare-tn  (2026-05-30)
 
 ## Corpus Check
-- 160 files · ~74,479 words
+- 160 files · ~74,693 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 853 nodes · 1657 edges · 40 communities (36 shown, 4 thin omitted)
+- 853 nodes · 1657 edges · 41 communities (37 shown, 4 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 10 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e120ba2d`
+- Built from commit: `3ac9f85b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -45,7 +45,8 @@
 - [[_COMMUNITY_Community 27|Community 27]]
 - [[_COMMUNITY_Community 28|Community 28]]
 - [[_COMMUNITY_Community 29|Community 29]]
-- [[_COMMUNITY_Community 35|Community 35]]
+- [[_COMMUNITY_Community 30|Community 30]]
+- [[_COMMUNITY_Community 36|Community 36]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `useUI()` - 67 edges
@@ -60,26 +61,26 @@
 10. `handlePaymentWebhook()` - 11 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `handlePaymentWebhook()` --calls--> `verifyWebhookPayload()`  [EXTRACTED]
+  server/lib/paymentHandlers.ts → api/payment/lib/payos.ts
+- `handlePaymentCreate()` --calls--> `generateOrderCode()`  [EXTRACTED]
+  server/lib/paymentHandlers.ts → api/payment/lib/payos.ts
+- `handlePaymentCreate()` --calls--> `createPayosPaymentLink()`  [EXTRACTED]
+  server/lib/paymentHandlers.ts → api/payment/lib/payos.ts
 - `DetailedComparisonTab()` --calls--> `detailedComparisonHasRows()`  [INFERRED]
   src/components/views/result/DetailedComparisonTab.tsx → src/services/ai/resultPayloadNormalize.ts
 - `handler()` --calls--> `handlePaymentWebhook()`  [EXTRACTED]
   api/payment/webhook.ts → lib/payment/handlers.ts
-- `handler()` --calls--> `handlePaymentWebhook()`  [EXTRACTED]
-  api/payment/webhook.ts → server/lib/paymentHandlers.ts
-- `handler()` --calls--> `handlePaymentCreate()`  [EXTRACTED]
-  api/payment/create.ts → lib/payment/handlers.ts
-- `handler()` --calls--> `handlePaymentCreate()`  [EXTRACTED]
-  api/payment/create.ts → server/lib/paymentHandlers.ts
 
-## Communities (40 total, 4 thin omitted)
+## Communities (41 total, 4 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.05
-Nodes (88): useAnalysis(), SavedCvProvider(), SavedJdProvider(), AdminView, AppContent(), DashboardView, HistoryView, LandingView (+80 more)
+Cohesion: 0.06
+Nodes (69): useAnalysis(), SavedCvProvider(), SavedJdProvider(), useSavedJds(), AppContent(), MobileBottomNav(), MobileBottomNavProps, PrivacyPolicyPage() (+61 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.06
-Nodes (49): AnalysisRunContext, AnalysisRunProvider(), useAnalysisRun(), SupabaseConfigError(), AuthContext, AuthContextType, AuthProvider(), cleanText() (+41 more)
+Cohesion: 0.05
+Nodes (64): AnalysisRunContext, AnalysisRunProvider(), useAnalysisRun(), SavedCvContext, useSavedCvs(), SavedJdContext, AnalysisContextType, AnalysisRunContextType (+56 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.08
@@ -106,20 +107,20 @@ Cohesion: 0.06
 Nodes (36): Admin UI (`AdminView`), API theo dõi sự kiện, Bảng & cột, Bảng event đang track, Bảo mật RPC (Security Advisor), Biến môi trường, Cấu hình privacy trên GA4, code:text (┌───────────────────────────────────────────────────────────) (+28 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.1
-Nodes (23): SavedCvContext, useSavedCvs(), SavedJdContext, useSavedJds(), AnalysisContextType, AnalysisRunContextType, SavedCvContextType, SavedJdContextType (+15 more)
-
-### Community 9 - "Community 9"
 Cohesion: 0.09
 Nodes (16): getMatchingCategoryLabel(), admin, billing, footer, history, LocaleEntry, SECTIONS, input (+8 more)
 
-### Community 10 - "Community 10"
+### Community 9 - "Community 9"
 Cohesion: 0.19
 Nodes (18): CtaSection(), DemoResultSection(), FaqSection(), HeroSection(), HowItWorksSection(), ProblemSection(), AccentButton(), AnimatedCounter() (+10 more)
 
-### Community 11 - "Community 11"
+### Community 10 - "Community 10"
 Cohesion: 0.12
 Nodes (20): AppErrorBoundary, AnalyticsBootstrap(), AnalyticsConsent, applyGrantedConsent(), denyAnalyticsConsent(), ensureDataLayer(), eventQueue, flushEventQueue() (+12 more)
+
+### Community 11 - "Community 11"
+Cohesion: 0.11
+Nodes (21): AdminView, DashboardView, HistoryView, LandingView, NoPermissionView, PaymentCancelView, PaymentSuccessView, PrintView (+13 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.07
@@ -155,7 +156,7 @@ Nodes (12): BLOCKED_HOSTNAME_PATTERNS, BLOCKED_HOSTNAMES, extractTextFromHtml(),
 
 ### Community 20 - "Community 20"
 Cohesion: 0.17
-Nodes (11): 1. Internal API (Backend Proxy), 2. Dịch vụ lưu trữ & xác thực (Supabase), Danh sách API Endpoints (CV Compare), Edge Function (tùy chọn — Supabase), `GET /api/config`, `POST /api/send-feedback`, `POST /api/send-welcome-email`, RPC & quota phân tích (client gọi qua `supabase.rpc`) (+3 more)
+Nodes (11): 1. Internal API (Backend Proxy), 2. Dịch vụ lưu trữ & xác thực (Supabase), Danh sách API Endpoints (cvFit), Edge Function (tùy chọn — Supabase), `GET /api/config`, `POST /api/send-feedback`, `POST /api/send-welcome-email`, RPC & quota phân tích (client gọi qua `supabase.rpc`) (+3 more)
 
 ### Community 21 - "Community 21"
 Cohesion: 0.17
@@ -163,43 +164,47 @@ Nodes (11): Adding a new endpoint, API routing matrix (Vercel · Express · Supa
 
 ### Community 22 - "Community 22"
 Cohesion: 0.2
-Nodes (9): 1. Code Style & Conventions, 2. Architecture & Data Flow, 3. UI/UX Guidelines, 4. Specific Workflows, 5. Agent Behavior, 6. Secrets & Repository Hygiene, AI Studio Agent Instructions, Core Directives (+1 more)
+Nodes (9): 1. Luồng phân tích đồng thời (Batch Analysis Flow), 2. Luồng tối ưu hóa & Xuất bản, 4. Luồng thanh toán Pro (PayOS Flow), 5. Quản lý dữ liệu, Các bước trọng tâm:, code:mermaid (graph TD), code:mermaid (graph TD), Gia hạn cộng dồn (nhiều lần mua Pro) (+1 more)
 
 ### Community 23 - "Community 23"
 Cohesion: 0.2
-Nodes (9): 1. Luồng phân tích đồng thời (Batch Analysis Flow), 2. Luồng tối ưu hóa & Xuất bản, 4. Luồng thanh toán Pro (PayOS Flow), 5. Quản lý dữ liệu, Các bước trọng tâm:, code:mermaid (graph TD), code:mermaid (graph TD), Gia hạn cộng dồn (nhiều lần mua Pro) (+1 more)
+Nodes (9): 1. Code Style & Conventions, 2. Architecture & Data Flow, 3. UI/UX Guidelines, 4. Specific Workflows, 5. Agent Behavior, 6. Secrets & Repository Hygiene, AI Studio Agent Instructions, Core Directives (+1 more)
 
 ### Community 24 - "Community 24"
 Cohesion: 0.25
-Nodes (7): 1. Tech Stack, 2. Folder Structure, Backend (Modular Express), code:text (/), CV Matcher & Optimizer - Repository Overview, Database & Auth, Frontend
+Nodes (7): 1. Tech Stack, 2. Folder Structure, Backend (Modular Express), code:text (/), cvFit - Repository Overview, Database & Auth, Frontend
 
 ### Community 25 - "Community 25"
 Cohesion: 0.29
-Nodes (6): Backend (Modular Express), Công nghệ sử dụng (CV Matcher & Optimizer), Dịch vụ & Cơ sở dữ liệu (Cloud Services), Frontend, Quản lý mã nguồn & Triển khai, Trí tuệ nhân tạo (AI)
+Nodes (6): createProgressSimulator(), ProgressSimulatorOptions, calls, lastCalled, maxCalled, { stop }
 
 ### Community 26 - "Community 26"
+Cohesion: 0.29
+Nodes (6): Backend (Modular Express), Công nghệ sử dụng (cvFit), Dịch vụ & Cơ sở dữ liệu (Cloud Services), Frontend, Quản lý mã nguồn & Triển khai, Trí tuệ nhân tạo (AI)
+
+### Community 27 - "Community 27"
 Cohesion: 0.4
-Nodes (4): Dự án CV Compare, Mục tiêu chính (Core Objectives), Tài liệu kỹ thuật, Tính năng nổi bật (Key Features)
+Nodes (4): Dự án cvFit, Mục tiêu chính (Core Objectives), Tài liệu kỹ thuật, Tính năng nổi bật (Key Features)
 
 ## Knowledge Gaps
-- **266 isolated node(s):** `Entry & shell (`src/app/`)`, `Global state (`src/context/`)`, `Custom hooks (`src/hooks/`)`, `Test suite (`src/__tests__/`)`, `Views (`src/components/views/`)` (+261 more)
+- **266 isolated node(s):** `Frontend`, `Backend (Modular Express)`, `Database & Auth`, `code:text (/)`, `PayosPaymentRequestInfo` (+261 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `useUI()` connect `Community 0` to `Community 8`, `Community 1`, `Community 10`?**
+- **Why does `useUI()` connect `Community 0` to `Community 1`, `Community 11`, `Community 9`?**
   _High betweenness centrality (0.041) - this node is a cross-community bridge._
-- **Why does `useAuth()` connect `Community 0` to `Community 8`, `Community 1`, `Community 10`?**
+- **Why does `useAuth()` connect `Community 0` to `Community 1`, `Community 11`, `Community 9`?**
   _High betweenness centrality (0.017) - this node is a cross-community bridge._
-- **Why does `cn()` connect `Community 0` to `Community 1`, `Community 10`, `Community 15`?**
+- **Why does `cn()` connect `Community 0` to `Community 1`, `Community 11`, `Community 9`, `Community 15`?**
   _High betweenness centrality (0.014) - this node is a cross-community bridge._
-- **What connects `Entry & shell (`src/app/`)`, `Global state (`src/context/`)`, `Custom hooks (`src/hooks/`)` to the rest of the system?**
+- **What connects `Frontend`, `Backend (Modular Express)`, `Database & Auth` to the rest of the system?**
   _266 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
-- **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.06 - nodes in this community are weakly interconnected._
+- **Should `Community 1` be split into smaller, more focused modules?**
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
