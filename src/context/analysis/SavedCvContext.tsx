@@ -63,7 +63,7 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
       try {
         await saveCVToStorage(user.id, file);
         await loadSavedCVs();
-        trackEvent('cv_save', { file_name: file.name });
+        trackEvent('cv_save');
         setSavedCVFileName(file.name);
         setTimeout(() => setSavedCVFileName(null), 3000);
       } catch (err: unknown) {

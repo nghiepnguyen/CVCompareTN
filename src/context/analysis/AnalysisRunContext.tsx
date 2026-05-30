@@ -154,6 +154,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
     trackEvent('analyze_cv', {
       input_mode: cvInputMode,
+      jd_mode: 'text',
       cv_count: cvInputMode === 'file' ? files.length : 1,
     });
 
