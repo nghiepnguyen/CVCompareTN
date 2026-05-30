@@ -78,6 +78,12 @@
       "permanent": true
     }
   ],
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs22.x",
+      "maxDuration": 30
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",
