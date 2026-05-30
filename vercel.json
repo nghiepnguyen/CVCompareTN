@@ -78,12 +78,6 @@
       "permanent": true
     }
   ],
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node@3.x",
-      "maxDuration": 30
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
