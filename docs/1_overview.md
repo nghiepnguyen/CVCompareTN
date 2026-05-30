@@ -5,10 +5,10 @@
 ## Mục tiêu chính (Core Objectives)
 
 1.  **Tối ưu hóa ATS (ATS Optimization):** Phân tích và chấm điểm CV dựa trên các tiêu chí mà hệ thống ATS thường sử dụng (từ khóa, cấu trúc, định dạng).
-2.  **Thông minh hóa quy trình (AI-Powered Analysis):** Tận dụng sức mạnh của Google Gemini AI để "đọc" và "hiểu" nội dung CV cũng như yêu cầu của JD như một chuyên gia tuyển dụng thực thụ.
+2.  **Thông minh hóa quy trình (AI-Powered Analysis):** Tận dụng sức mạnh AI Engine để "đọc" và "hiểu" nội dung CV cũng như yêu cầu của JD như một chuyên gia tuyển dụng thực thụ.
 3.  **Hỗ trợ đa ngôn ngữ (Multilingual Support):** Hỗ trợ tốt cả tiếng Việt và tiếng Anh, phù hợp cho cả thị trường trong nước và quốc tế.
 4.  **Trải nghiệm người dùng cao cấp (Premium UX/UI):** Giao diện Landing Page phong cách Bento Grid hiện đại, mượt mà với các hiệu ứng chuyển động ([Motion](https://motion.dev/), import `motion/react`).
-5.  **Tối ưu hóa SEO (Dynamic SEO):** Metadata tự động thay đổi theo ngôn ngữ, hỗ trợ Social Tags (OG/Twitter) và Schema Markup (JSON-LD) giúp website hiển thị chuyên nghiệp trên Google và mạng xã hội.
+5.  **Tối ưu hóa SEO (Pre-hydration + Dynamic Sync):** Pre-hydration `<script>` trong `index.html` chạy trước React — set đúng title, meta, OG, Twitter, canonical, hreflang (`vi`/`en`/`x-default`), Schema.org (`FAQPage`, `HowTo`, `BreadcrumbList`), và `noindex` cho payment/admin. Hỗ trợ 6 route x 2 ngôn ngữ. `AppContent.tsx` đồng bộ sau mỗi SPA navigation. Sitemap 14 URL với `xhtml:link` hreflang. Legacy paths redirect 301. Xem chi tiết: [3_frontend.md](3_frontend.md).
 6.  **Bảo mật & Riêng tư (Security & Privacy):** Dữ liệu CV qua Supabase (RLS, Auth, Storage); API proxy giữ secret phía server (Gemini, reCAPTCHA, Resend). Không commit `.env`, khóa riêng, cache CLI (`supabase/.temp/`) — xem `.gitignore` và [Triển khai §5](7_deployment.md#5-bảo-mật-mã-nguồn-và-bi-mật).
 7. **Kiến trúc Mobile-First (Mobile-First Design):** Tối ưu hóa trải nghiệm trên thiết bị di động với Bottom Navigation, Bottom Sheets và giao diện thích ứng linh hoạt, đảm bảo tính ergonomic cho người dùng.
 

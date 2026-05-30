@@ -101,6 +101,16 @@ export function Footer() {
             >
               {t.footerCookieSettings}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('about');
+                window.scrollTo(0, 0);
+              }}
+              className="hover:text-accent transition-colors cursor-pointer"
+            >
+              {t.aboutPageTitle}
+            </button>
           </div>
           <p className="text-xs font-bold text-text-light text-center md:text-right">
             © {new Date().getFullYear()} {t.appBrandName}. {t.footerCopyright}

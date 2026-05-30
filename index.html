@@ -3,50 +3,305 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>cvFit - Tối ưu CV thông minh với AI</title>
-    <meta name="description" content="Tải lên CV và so sánh với bất kỳ Job Description nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu và ước lượng khả năng được tuyển dụng." />
-    <meta name="keywords" content="cvFit, Công cụ so sánh CV, ATS resume checker, CV và job description, Cải thiện CV cho hệ thống ATS, phân tích CV, tối ưu CV" />
-    <link rel="canonical" href="https://cvfit.pro/" />
-    
-    <link rel="icon" href="https://thanhnghiep.top/wp-content/uploads/2021/10/cropped-logo-fav-32x32.png" sizes="32x32" />
-    <link rel="icon" href="https://thanhnghiep.top/wp-content/uploads/2021/10/cropped-logo-fav-192x192.png" sizes="192x192" />
-    <link rel="apple-touch-icon" href="https://thanhnghiep.top/wp-content/uploads/2021/10/cropped-logo-fav-180x180.png" />
-    <meta name="msapplication-TileImage" content="https://thanhnghiep.top/wp-content/uploads/2021/10/cropped-logo-fav-270x270.png" />
-    
-    <!-- Open Graph / Facebook -->
+
+    <!-- Default meta (overridden by pre-hydration script before crawlers see it) -->
+    <title>cvFit - Phân tích & Tối ưu CV bằng AI | So khớp ATS Miễn Phí</title>
+    <meta name="description" content="Tải lên CV và so sánh với bất kỳ JD nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu, gợi ý tối ưu CV và ước lượng khả năng trúng tuyển. Hoàn toàn miễn phí." />
+    <meta name="keywords" content="phân tích CV, tối ưu CV, so sánh CV với JD, kiểm tra CV ATS, cvfit, công cụ so sánh CV" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://cvfit.pro/vi" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="https://data.cvfit.pro/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="https://data.cvfit.pro/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="https://data.cvfit.pro/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="https://data.cvfit.pro/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="https://data.cvfit.pro/android-chrome-512x512.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="https://data.cvfit.pro/apple-touch-icon.png" />
+    <link rel="manifest" href="https://data.cvfit.pro/site.webmanifest" />
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="fb:app_id" content="1339934464104295" />
-    <meta property="og:url" content="https://cvfit.pro" />
-    <meta property="og:title" content="cvFit - Tối ưu CV thông minh với AI" />
-    <meta property="og:description" content="Tải lên CV và so sánh với bất kỳ Job Description nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu và ước lượng khả năng được tuyển dụng." />
-    <meta property="og:image" content="https://thanhnghiep.top/CVMatcher/cvthumb.jpeg" />
-    <meta property="og:image:width" content="1024" />
-    <meta property="og:image:height" content="683" />
-    <meta property="og:image:alt" content="cvFit" />
+    <meta property="og:url" content="https://cvfit.pro/vi" />
+    <meta property="og:title" content="cvFit - Phân tích & Tối ưu CV bằng AI | So khớp ATS Miễn Phí" />
+    <meta property="og:description" content="Tải lên CV và so sánh với bất kỳ JD nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu, gợi ý tối ưu CV và ước lượng khả năng trúng tuyển. Hoàn toàn miễn phí." />
+    <meta property="og:image" content="https://data.cvfit.pro/img/thumb.jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="cvFit - AI CV Analyzer" />
     <meta property="og:image:type" content="image/jpeg" />
- 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://cvfit.pro" />
-    <meta property="twitter:title" content="cvFit - Tối ưu CV thông minh với AI" />
-    <meta property="twitter:description" content="Tải lên CV và so sánh với bất kỳ Job Description nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu và ước lượng khả năng được tuyển dụng." />
-    <meta property="twitter:image" content="https://thanhnghiep.top/CVMatcher/cvthumb.jpeg" />
+    <meta property="og:locale" content="vi_VN" />
+    <meta property="og:locale:alternate" content="en_US" />
 
-    <!-- Schema Markup -->
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://cvfit.pro/vi" />
+    <meta name="twitter:title" content="cvFit - Phân tích & Tối ưu CV bằng AI | So khớp ATS Miễn Phí" />
+    <meta name="twitter:description" content="Tải lên CV và so sánh với bất kỳ JD nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu, gợi ý tối ưu CV và ước lượng khả năng trúng tuyển. Hoàn toàn miễn phí." />
+    <meta name="twitter:image" content="https://data.cvfit.pro/img/thumb.jpeg" />
+
+    <!-- Hreflang - Default to Vietnamese homepage -->
+    <link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi" />
+    <link rel="alternate" hreflang="en" href="https://cvfit.pro/en" />
+    <link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi" />
+
+    <!-- Schema.org -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "cvFit",
-      "description": "Tải lên CV và so sánh với bất kỳ Job Description nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu và ước lượng khả năng được tuyển dụng.",
-      "applicationCategory": "BusinessApplication",
-      "operatingSystem": "Web",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "VND"
-      }
+      "@graph": [
+        {
+          "@type": "SoftwareApplication",
+          "name": "cvFit",
+          "description": "Tải lên CV và so sánh với bất kỳ JD nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu và ước lượng khả năng được tuyển dụng.",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "url": "https://cvfit.pro",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "VND"
+          }
+        },
+        {
+          "@type": "Organization",
+          "name": "cvFit",
+          "url": "https://cvfit.pro",
+          "logo": "https://data.cvfit.pro/android-chrome-192x192.png"
+        }
+      ]
     }
+    </script>
+
+    <!-- Pre-hydration SEO script: sets correct meta, hreflang, canonical, schema before React loads -->
+    <script>
+    (function(){
+      var DOMAIN = 'https://cvfit.pro';
+      var ASSETS = 'https://data.cvfit.pro';
+      var path = window.location.pathname;
+      // Normalize: remove trailing slash (except root)
+      if (path !== '/' && path.endsWith('/')) path = path.slice(0, -1);
+
+      // Detect language from URL prefix
+      var lang = 'vi';
+      var subPath = path;
+      if (path.startsWith('/en')) { lang = 'en'; subPath = path.slice(3) || '/'; }
+      else if (path.startsWith('/vi')) { lang = 'vi'; subPath = path.slice(3) || '/'; }
+
+      // Legacy path redirect (no language prefix): /privacy -> /vi/privacy
+      var legacyMap = { '/privacy':1, '/terms':1, '/support':1, '/upgrade':1 };
+      if (legacyMap[path]) {
+        window.location.replace('/vi' + path);
+        return;
+      }
+
+      // Noindex for payment/admin routes
+      var noindexPaths = ['/payment/success', '/payment/cancel'];
+      var isNoindex = noindexPaths.indexOf(subPath) >= 0;
+      var robotsContent = isNoindex ? 'noindex, follow' : 'index, follow';
+
+      // SEO metadata map with optimized titles
+      var SEO = {
+        '/': {
+          titleVi: 'cvFit - Phân Tích CV & So Khớp JD Bằng AI | Kiểm Tra ATS Miễn Phí',
+          titleEn: 'cvFit - AI CV Analyzer & ATS Resume Checker | Match CV to Jobs Free',
+          descVi: 'Tải CV lên, so sánh với JD bất kỳ. Nhận điểm tương thích ATS, phân tích kỹ năng còn thiếu, gợi ý tối ưu CV và dự đoán khả năng trúng tuyển. Miễn phí 100%.',
+          descEn: 'Upload your CV, compare with any JD. Get ATS compatibility score, skill gap analysis, CV optimization tips & hiring probability. 100% free.',
+          kwVi: 'phân tích CV, tối ưu CV, so sánh CV với JD, kiểm tra CV ATS, cvfit, công cụ so sánh CV, cải thiện CV cho ATS, AI phân tích CV',
+          kwEn: 'CV analysis, CV optimization, CV vs JD comparison, ATS resume checker, AI CV analyzer, cvfit, resume scanner, ATS score, skill gap'
+        },
+        '/privacy': {
+          titleVi: 'Chính Sách Bảo Mật | cvFit - Công Cụ Phân Tích CV',
+          titleEn: 'Privacy Policy | cvFit - AI CV Analysis Tool',
+          descVi: 'Chính sách bảo mật của cvFit — cách chúng tôi thu thập, sử dụng và bảo vệ dữ liệu cá nhân của bạn khi dùng công cụ phân tích CV.',
+          descEn: 'cvFit Privacy Policy — how we collect, use and protect your personal data when using our AI CV analysis tool.',
+          kwVi: 'chính sách bảo mật cvfit, bảo mật dữ liệu CV',
+          kwEn: 'privacy policy cvfit, CV data privacy, data protection cvfit'
+        },
+        '/terms': {
+          titleVi: 'Điều Khoản Dịch Vụ | cvFit - Công Cụ Phân Tích CV',
+          titleEn: 'Terms of Service | cvFit - AI CV Analysis Tool',
+          descVi: 'Điều khoản dịch vụ của cvFit — quy định sử dụng công cụ phân tích CV và so khớp JD bằng AI.',
+          descEn: 'cvFit Terms of Service — rules for using our AI-powered CV analysis and JD matching tool.',
+          kwVi: 'điều khoản dịch vụ cvfit, terms of service cvfit',
+          kwEn: 'terms of service cvfit, terms and conditions cvfit'
+        },
+        '/support': {
+          titleVi: 'Ủng Hộ Phát Triển | cvFit - Góp Ý & Báo Lỗi',
+          titleEn: 'Support cvFit Development | Feedback & Bug Reports',
+          descVi: 'Ủng hộ cvFit phát triển — gửi góp ý, báo lỗi hoặc hỗ trợ dự án công cụ phân tích CV miễn phí cho cộng đồng.',
+          descEn: 'Support cvFit development — submit feedback, report bugs, or contribute to our free community CV analysis tool.',
+          kwVi: 'ủng hộ cvfit, góp ý cvfit, phản hồi cvfit, báo lỗi cvfit',
+          kwEn: 'support cvfit, feedback cvfit, contribute cvfit, bug report cvfit'
+        },
+        '/upgrade': {
+          titleVi: 'Nâng Cấp cvFit Pro | Mở Khóa Phân Tích CV Không Giới Hạn',
+          titleEn: 'Upgrade to cvFit Pro | Unlimited CV Analysis & Premium Features',
+          descVi: 'Nâng cấp lên cvFit Pro để mở khóa giới hạn phân tích CV, lưu trữ JD, xuất báo cáo và nhiều tính năng cao cấp.',
+          descEn: 'Upgrade to cvFit Pro to unlock unlimited CV analyses, JD storage, report export, and premium features.',
+          kwVi: 'nâng cấp cvfit pro, cvfit pro, mở khóa giới hạn cv, phân tích CV không giới hạn',
+          kwEn: 'upgrade cvfit pro, cvfit pro, unlock CV limits, unlimited CV analysis'
+        },
+        '/about': {
+          titleVi: 'Về Chúng Tôi | cvFit - Đội Ngũ & Sứ Mệnh',
+          titleEn: 'About Us | cvFit - Team & Mission',
+          descVi: 'Tìm hiểu về đội ngũ phát triển cvFit — công cụ phân tích CV và so khớp JD miễn phí dành cho người Việt. Sứ mệnh giúp mọi ứng viên có CV chuẩn ATS.',
+          descEn: 'Learn about the cvFit team — a free CV analysis & JD matching tool for everyone. Our mission: help every candidate build an ATS-ready CV.',
+          kwVi: 'về cvfit, đội ngũ cvfit, công cụ phân tích CV, sứ mệnh cvfit',
+          kwEn: 'about cvfit, cvfit team, CV analysis tool, cvfit mission'
+        }
+      };
+
+      var route = SEO[subPath] || SEO['/'];
+      var title = lang === 'vi' ? route.titleVi : route.titleEn;
+      var desc = lang === 'vi' ? route.descVi : route.descEn;
+      var kw = lang === 'vi' ? route.kwVi : route.kwEn;
+      var canonical = DOMAIN + '/' + lang + (subPath === '/' ? '' : subPath);
+
+      // Set document language
+      document.documentElement.lang = lang;
+
+      // Update title
+      document.title = title;
+
+      // Helper: update or create meta tag
+      function setMeta(attrName, attrValue, content) {
+        var sel = attrName === 'property' ? 'meta[property="' + attrValue + '"]' : 'meta[name="' + attrValue + '"]';
+        var el = document.querySelector(sel);
+        if (!el) {
+          el = document.createElement('meta');
+          el.setAttribute(attrName, attrValue);
+          document.head.appendChild(el);
+        }
+        el.setAttribute('content', content);
+      }
+
+      setMeta('name', 'description', desc);
+      setMeta('name', 'keywords', kw);
+      setMeta('name', 'robots', robotsContent);
+      setMeta('property', 'og:url', canonical);
+      setMeta('property', 'og:title', title);
+      setMeta('property', 'og:description', desc);
+      setMeta('property', 'og:locale', lang === 'vi' ? 'vi_VN' : 'en_US');
+      setMeta('name', 'twitter:url', canonical);
+      setMeta('name', 'twitter:title', title);
+      setMeta('name', 'twitter:description', desc);
+
+      // Update canonical link
+      var canonicalEl = document.querySelector('link[rel="canonical"]');
+      if (canonicalEl) canonicalEl.setAttribute('href', canonical);
+
+      // Update hreflang links
+      var hreflangLinks = document.querySelectorAll('link[rel="alternate"][hreflang]');
+      var sub = subPath === '/' ? '' : subPath;
+      for (var i = 0; i < hreflangLinks.length; i++) {
+        var hl = hreflangLinks[i].getAttribute('hreflang');
+        if (hl === 'vi') hreflangLinks[i].setAttribute('href', DOMAIN + '/vi' + sub);
+        else if (hl === 'en') hreflangLinks[i].setAttribute('href', DOMAIN + '/en' + sub);
+        else if (hl === 'x-default') hreflangLinks[i].setAttribute('href', DOMAIN + '/vi' + sub);
+      }
+
+      // FAQ data for schema
+      var faqVi = [
+        {q: "Dữ liệu của tôi có được bảo mật không?", a: "Tuyệt đối bảo mật. Mọi tập tin bạn tải lên đều được mã hóa bằng giao thức SSL/TLS. Hệ thống sẽ tự động xóa vĩnh viễn dữ liệu của bạn sau 24 giờ kể từ khi phân tích xong. Chúng tôi cam kết không chia sẻ thông tin của bạn cho bất kỳ bên thứ ba nào khi chưa có sự cho phép."},
+        {q: "Hệ thống hỗ trợ những định dạng file nào?", a: "Công cụ hỗ trợ PDF (.pdf), Word (.docx) và file hình ảnh (JPG, PNG). Khuyến khích dùng PDF để AI phân tích chính xác nhất về bố cục và khả năng đọc của ATS."},
+        {q: "Làm sao để biết CV của tôi đã chuẩn ATS chưa?", a: "Sau khi quét, hệ thống sẽ trả về Báo cáo ATS chi tiết. CV được coi là chuẩn ATS khi đạt Matching Score trên 80%, không chứa yếu tố gây nhiễu Robot, và chứa đầy đủ từ khóa quan trọng từ JD."},
+        {q: "Tôi có thể sử dụng công cụ này miễn phí không?", a: "Có! Chúng tôi cung cấp phân tích chuyên sâu hoàn toàn miễn phí cho người dùng mới để bạn trải nghiệm sức mạnh của AI."},
+        {q: "Điểm Matching Score có đảm bảo nhận được lịch phỏng vấn?", a: "Matching Score cao giúp CV của bạn vượt qua các bộ lọc tự động và gây ấn tượng mạnh với nhà tuyển dụng. Tuy nhiên, việc nhận được lời mời phỏng vấn còn phụ thuộc vào thái độ và cách bạn thể hiện. Công cụ của chúng tôi đóng vai trò trợ lý đắc lực để đảm bảo hồ sơ của bạn luôn ở trạng thái hoàn hảo nhất."}
+      ];
+      var faqEn = [
+        {q: "Is my data secure?", a: "Absolutely. All uploaded files are encrypted via SSL/TLS. The system permanently deletes your data 24 hours after analysis. We never share your information with third parties without your permission."},
+        {q: "What file formats are supported?", a: "PDF (.pdf), Word (.docx), and images (JPG, PNG). We recommend PDF for the most accurate layout and ATS readability analysis."},
+        {q: "How do I know if my CV is ATS-ready?", a: "After scanning, you'll receive a detailed ATS Report. Your CV is ATS-ready when it scores above 80%, contains no robot-confusing elements, and includes all key JD keywords."},
+        {q: "Can I use this tool for free?", a: "Yes! We offer in-depth analysis completely free for new users to experience the power of AI."},
+        {q: "Does a high Matching Score guarantee an interview?", a: "A high Matching Score helps your CV pass automated filters and impress recruiters. However, getting an interview also depends on your attitude and presentation. Our tool ensures your profile is always in its best shape."}
+      ];
+
+      // Build schema graph
+      var schemaGraph = [
+        {
+          '@type': 'SoftwareApplication',
+          name: 'cvFit',
+          description: desc,
+          applicationCategory: 'BusinessApplication',
+          operatingSystem: 'Web',
+          url: DOMAIN,
+          offers: {
+            '@type': 'Offer',
+            price: '0',
+            priceCurrency: lang === 'vi' ? 'VND' : 'USD'
+          }
+        },
+        {
+          '@type': 'Organization',
+          name: 'cvFit',
+          url: DOMAIN,
+          logo: ASSETS + '/android-chrome-192x192.png'
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: lang === 'vi' ? 'Trang chủ' : 'Home', item: DOMAIN + '/' + lang }
+          ]
+        }
+      ];
+
+      // Add breadcrumb children for sub-pages
+      var bc = schemaGraph[2].itemListElement;
+      var routeName = '';
+      if (subPath === '/privacy') routeName = lang === 'vi' ? 'Chính sách bảo mật' : 'Privacy Policy';
+      else if (subPath === '/terms') routeName = lang === 'vi' ? 'Điều khoản dịch vụ' : 'Terms of Service';
+      else if (subPath === '/support') routeName = lang === 'vi' ? 'Ủng hộ phát triển' : 'Support';
+      else if (subPath === '/upgrade') routeName = lang === 'vi' ? 'Nâng cấp Pro' : 'Upgrade';
+      else if (subPath === '/about') routeName = lang === 'vi' ? 'Về chúng tôi' : 'About';
+      if (routeName) {
+        bc.push({ '@type': 'ListItem', position: 2, name: routeName, item: canonical });
+      }
+
+      // Add FAQ schema for homepage
+      if (subPath === '/') {
+        schemaGraph.push({
+          '@type': 'FAQPage',
+          mainEntity: (lang === 'vi' ? faqVi : faqEn).map(function(item) {
+            return {
+              '@type': 'Question',
+              name: item.q,
+              acceptedAnswer: { '@type': 'Answer', text: item.a }
+            };
+          })
+        });
+
+        // Add HowTo schema
+        var steps = lang === 'vi'
+          ? [
+              { name: 'Tải CV lên', text: 'Upload hồ sơ của bạn dưới dạng PDF hoặc Word.' },
+              { name: 'Dán JD', text: 'Sao chép nội dung tuyển dụng từ công ty bạn muốn ứng tuyển.' },
+              { name: 'AI Phân tích', text: 'Hệ thống so sánh hơn 50 tiêu chí giữa hồ sơ và yêu cầu.' },
+              { name: 'Nhận báo cáo', text: 'Nhận kết quả đánh giá chi tiết và hướng dẫn tối ưu ngay lập tức.' }
+            ]
+          : [
+              { name: 'Upload CV', text: 'Upload your profile in PDF or Word format.' },
+              { name: 'Paste JD', text: 'Copy the job description from the company you want to apply to.' },
+              { name: 'AI Analysis', text: 'System compares over 50 criteria between your CV and the requirements.' },
+              { name: 'Get Report', text: 'Receive detailed evaluation results and optimization guidance instantly.' }
+            ];
+        schemaGraph.push({
+          '@type': 'HowTo',
+          name: lang === 'vi' ? 'Cách sử dụng cvFit để phân tích CV' : 'How to use cvFit for CV analysis',
+          description: lang === 'vi'
+            ? '4 bước đơn giản để phân tích và tối ưu CV của bạn với AI.'
+            : '4 simple steps to analyze and optimize your CV with AI.',
+          step: steps.map(function(s, i) {
+            return { '@type': 'HowToStep', position: i + 1, name: s.name, text: s.text };
+          })
+        });
+      }
+
+      var schema = { '@context': 'https://schema.org', '@graph': schemaGraph };
+      var schemaScript = document.querySelector('script[type="application/ld+json"]');
+      if (schemaScript) schemaScript.textContent = JSON.stringify(schema, null, 2);
+    })();
     </script>
   </head>
   <body>
@@ -54,4 +309,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

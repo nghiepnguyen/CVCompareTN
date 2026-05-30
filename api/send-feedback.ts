@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { Resend } from 'resend';
+import { escapeHtml } from './lib/escapeHtml';
+import { validateFeedbackInput } from './lib/validate';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -10,6 +12,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { token, rating, title, content, userEmail } = req.body;
   const secretKey = process.env.RECAPTCHA_SECRET_KEY;
   const apiKey = process.env.RESEND_API_KEY;
+
+  // Validate input lengths/format before processing
+  const validationErrors = validateFeedbackInput(req.body as Record<string, unknown>);
+  if (validationErrors.length > 0) {
+    return res.status(400).json({ success: false, message: 'Invalid input', errors: validationErrors });
+  }
 
   if (!secretKey) {
     return res.status(500).json({ success: false, message: 'reCAPTCHA configuration error' });
@@ -38,19 +46,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 2. Send the email using Resend
     if (apiKey) {
       const resendClient = new Resend(apiKey);
+      const safeTitle = escapeHtml(title ?? '');
+      const safeContent = escapeHtml(content ?? '');
+      const safeUserEmail = escapeHtml(userEmail ?? 'Ẩn danh');
+      const safeRating = typeof rating === 'number' ? String(rating) : '—';
+
       await resendClient.emails.send({
         from: `cvFit <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
         to: [process.env.FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'],
-        subject: `Feedback: ${title}`,
+        subject: `Feedback: ${safeTitle}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
             <h2 style="color: #4f46e5;">Phản hồi mới từ cvfit.pro</h2>
-            <p><strong>Đánh giá:</strong> ${rating}/5 sao</p>
-            <p><strong>Tiêu đề:</strong> ${title}</p>
-            <p><strong>Người gửi:</strong> ${userEmail || 'Ẩn danh'}</p>
+            <p><strong>Đánh giá:</strong> ${safeRating}/5 sao</p>
+            <p><strong>Tiêu đề:</strong> ${safeTitle}</p>
+            <p><strong>Người gửi:</strong> ${safeUserEmail}</p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
             <p><strong>Nội dung:</strong></p>
-            <p style="white-space: pre-wrap; line-height: 1.6;">${content}</p>
+            <p style="white-space: pre-wrap; line-height: 1.6;">${safeContent}</p>
           </div>
         `
       });

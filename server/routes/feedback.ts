@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import axios from 'axios';
 import { Resend } from 'resend';
+import { escapeHtml } from '../lib/escapeHtml';
+import { validateFeedbackInput } from '../lib/validate';
 
 const router = Router();
 
@@ -8,6 +10,12 @@ router.post('/', async (req, res) => {
   const { token, rating, title, content, userEmail } = req.body;
   const secretKey = process.env.RECAPTCHA_SECRET_KEY;
   const apiKey = process.env.RESEND_API_KEY;
+
+  // Validate input lengths/format before processing
+  const validationErrors = validateFeedbackInput(req.body as Record<string, unknown>);
+  if (validationErrors.length > 0) {
+    return res.status(400).json({ success: false, message: 'Invalid input', errors: validationErrors });
+  }
 
   if (!secretKey) {
     console.error('RECAPTCHA_SECRET_KEY is missing.');
@@ -37,19 +45,24 @@ router.post('/', async (req, res) => {
     // 2. Send the email using Resend
     if (apiKey) {
       const resendClient = new Resend(apiKey);
+      const safeTitle = escapeHtml(title ?? '');
+      const safeContent = escapeHtml(content ?? '');
+      const safeUserEmail = escapeHtml(userEmail ?? 'Anonymous');
+      const safeRating = typeof rating === 'number' ? String(rating) : '—';
+
       const { data, error } = await resendClient.emails.send({
         from: `CV Matcher <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
         to: [process.env.FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'],
-        subject: `Feedback: ${title}`,
+        subject: `Feedback: ${safeTitle}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
             <h2 style="color: #4f46e5;">New feedback from CV Matcher</h2>
-            <p><strong>Rating:</strong> ${rating}/5 stars</p>
-            <p><strong>Title:</strong> ${title}</p>
-            <p><strong>From:</strong> ${userEmail || 'Anonymous'}</p>
+            <p><strong>Rating:</strong> ${safeRating}/5 stars</p>
+            <p><strong>Title:</strong> ${safeTitle}</p>
+            <p><strong>From:</strong> ${safeUserEmail}</p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
             <p><strong>Content:</strong></p>
-            <p style="white-space: pre-wrap; line-height: 1.6;">${content}</p>
+            <p style="white-space: pre-wrap; line-height: 1.6;">${safeContent}</p>
           </div>
         `
       });

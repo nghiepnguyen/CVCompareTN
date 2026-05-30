@@ -261,8 +261,8 @@ export const landing = {
     en: "Intelligent Analysis",
   },
   badgeGeminiEngine: {
-    vi: "Gemini 3 Engine",
-    en: "Gemini 3 Engine",
+    vi: "AI Engine",
+    en: "AI Engine",
   },
   badgeAiPowered: {
     vi: "AI Powered",

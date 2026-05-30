@@ -19,7 +19,18 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(cors());
+  app.use(
+    cors({
+      origin: [
+        'https://cvfit.pro',
+        'https://www.cvfit.pro',
+        ...(process.env.NODE_ENV !== 'production'
+          ? ['http://localhost:5173', 'http://localhost:3000']
+          : []),
+      ],
+      credentials: true,
+    })
+  );
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

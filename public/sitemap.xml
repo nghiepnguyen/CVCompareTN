@@ -1,21 +1,123 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <!-- Homepage -->
   <url>
-    <loc>https://cvfit.pro/</loc>
+    <loc>https://cvfit.pro/vi/</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/" />
     <lastmod>2026-05-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://cvfit.pro/privacy</loc>
+    <loc>https://cvfit.pro/en/</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/" />
+    <lastmod>2026-05-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- About -->
+  <url>
+    <loc>https://cvfit.pro/vi/about</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/about" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/about" />
+    <lastmod>2026-05-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://cvfit.pro/en/about</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/about" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/about" />
+    <lastmod>2026-05-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Privacy Policy -->
+  <url>
+    <loc>https://cvfit.pro/vi/privacy</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/privacy" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/privacy" />
     <lastmod>2026-05-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://cvfit.pro/terms</loc>
+    <loc>https://cvfit.pro/en/privacy</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/privacy" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/privacy" />
     <lastmod>2026-05-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
+  </url>
+
+  <!-- Terms of Service -->
+  <url>
+    <loc>https://cvfit.pro/vi/terms</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/terms" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/terms" />
+    <lastmod>2026-05-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://cvfit.pro/en/terms</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/terms" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/terms" />
+    <lastmod>2026-05-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Support -->
+  <url>
+    <loc>https://cvfit.pro/vi/support</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/support" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/support" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/support" />
+    <lastmod>2026-05-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://cvfit.pro/en/support</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/support" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/support" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/support" />
+    <lastmod>2026-05-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Upgrade -->
+  <url>
+    <loc>https://cvfit.pro/vi/upgrade</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/upgrade" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/upgrade" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/upgrade" />
+    <lastmod>2026-05-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://cvfit.pro/en/upgrade</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/upgrade" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://cvfit.pro/en/upgrade" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/upgrade" />
+    <lastmod>2026-05-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
 </urlset>

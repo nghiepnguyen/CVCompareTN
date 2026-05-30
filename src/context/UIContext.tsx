@@ -11,7 +11,8 @@ export type Tab =
   | 'support'
   | 'upgrade'
   | 'payment-success'
-  | 'payment-cancel';
+  | 'payment-cancel'
+  | 'about';
 
 function tabFromPath(path: string, params: URLSearchParams): Tab {
   if (path.includes('/payment/success')) return 'payment-success';
@@ -19,7 +20,8 @@ function tabFromPath(path: string, params: URLSearchParams): Tab {
   if (path.includes('/upgrade')) return 'upgrade';
   if (path.includes('/privacy') || path.includes('/policy')) return 'privacy';
   if (path.includes('/terms')) return 'terms';
-  if (path.includes('/support')) return 'support';
+    if (path.includes('/support')) return 'support';
+    if (path.includes('/about')) return 'about';
   if (params.get('policy') === 'true' || params.get('privacy') === 'true') return 'privacy';
   if (params.get('terms') === 'true') return 'terms';
   if (params.get('support') === 'true') return 'support';
@@ -96,6 +98,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     else if (activeTab === 'terms') subPath = '/terms';
     else if (activeTab === 'support') subPath = '/support';
     else if (activeTab === 'upgrade') subPath = '/upgrade';
+    else if (activeTab === 'about') subPath = '/about';
 
     const newPathname = langPrefix + subPath;
 

@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import axios from 'axios';
 import { Resend } from 'resend';
+import { escapeHtml } from '../lib/escapeHtml';
+import { validateWelcomeEmailInput } from '../lib/validate';
 
 const router = Router();
 
@@ -8,6 +10,12 @@ router.post('/', async (req, res) => {
   const { token, userEmail, userName } = req.body;
   const secretKey = process.env.RECAPTCHA_SECRET_KEY;
   const apiKey = process.env.RESEND_API_KEY;
+
+  // Validate input before processing
+  const validationErrors = validateWelcomeEmailInput(req.body as Record<string, unknown>);
+  if (validationErrors.length > 0) {
+    return res.status(400).json({ success: false, message: 'Invalid input', errors: validationErrors });
+  }
 
   if (!secretKey) {
     console.error('RECAPTCHA_SECRET_KEY is missing.');
@@ -37,13 +45,16 @@ router.post('/', async (req, res) => {
     // 2. Send the email using Resend
     if (apiKey) {
       const resendClient = new Resend(apiKey);
+      const safeUserName = escapeHtml(userName ?? 'there');
+      const safeUserEmail = escapeHtml(userEmail ?? '');
+
       const { data, error } = await resendClient.emails.send({
         from: `cvFit <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
-        to: [userEmail],
+        to: [safeUserEmail],
         subject: 'Chào mừng bạn! Cùng tối ưu CV để chinh phục công việc mơ ước 🚀',
         html: `
           <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px;">
-            <h2 style="color: #4f46e5; margin-bottom: 24px;">Hi ${userName || 'there'},</h2>
+            <h2 style="color: #4f46e5; margin-bottom: 24px;">Hi ${safeUserName},</h2>
             <p>Thank you for choosing <strong>cvFit</strong> as your career companion.</p>
             <p>Every CV contains your passion and effort. To pass ATS systems and selective recruiters, professional isn't enough — it needs to be <strong>compatible</strong>.</p>
             <h3 style="color: #1e293b; margin-top: 32px;">What can you do now?</h3>

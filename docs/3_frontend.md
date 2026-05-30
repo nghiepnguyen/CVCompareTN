@@ -94,7 +94,9 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
 -   **Pro Feature Gate:** Các tính năng Pro (export CV, batch > 1, v.v.) được kiểm tra qua `isProPlan()` từ `planLimits.ts`; giao diện hiển thị `UpgradePrompt` khi người dùng Free truy cập.
 -   **Collapsible Sidebar:** Tối ưu không gian hiển thị với thanh điều hướng có thể thu gọn, giúp tập trung vào nội dung phân tích.
 -   **In-App Browser detection:** Cảnh báo người dùng khi truy cập từ Zalo/Facebook để đảm bảo quyền đăng nhập Google.
--   **Dynamic SEO Sync:** Metadata (title, description, OG) đồng bộ trong `AppContent.tsx` theo tab và ngôn ngữ báo cáo.
+-   **Pre-hydration SEO (2026-05):** `<script>` đồng bộ trong `index.html` chạy trước React — set đúng meta (title, description, OG, Twitter, canonical), hreflang (`vi`, `en`, `x-default`), Schema.org (`SoftwareApplication`, `Organization`, `BreadcrumbList`, `FAQPage`, `HowTo`), và `robots` meta (`noindex` cho payment/admin). Có full SEO metadata cho 6 route (home, privacy, terms, support, upgrade, about) bằng cả 2 ngôn ngữ.
+-   **Hreflang & Canonical:** URL-based language routing (`/vi`, `/en` prefix) với hreflang tags + canonical per-route. Legacy paths (`/privacy`...) redirect 301 về `/vi/privacy`.
+-   **Dynamic SEO Sync:** `AppContent.tsx` đồng bộ canonical, hreflang, meta, schema sau mỗi SPA navigation — kế thừa và cập nhật seed từ pre-hydration script.
 -   **Performance (Lazy Loading):** Áp dụng `React.lazy` và `Suspense` cho các View lớn để giảm thời gian tải trang ban đầu.
 -   **Thiết kế Industrial Utilitarian:** 
     - Ngôn ngữ thiết kế tập trung vào sự chính xác, các đường nét rõ ràng và phản hồi xúc giác cao cấp.

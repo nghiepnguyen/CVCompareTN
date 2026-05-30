@@ -38,6 +38,9 @@ const TermsOfServicePage = React.lazy(() =>
 const SupportDevelopmentPage = React.lazy(() =>
   import('../components/SupportDevelopmentPage').then((m) => ({ default: m.SupportDevelopmentPage }))
 );
+const AboutPage = React.lazy(() =>
+  import('../components/AboutPage').then((m) => ({ default: m.AboutPage }))
+);
 const PrintView = React.lazy(() =>
   import('../components/views/result/PrintView').then((m) => ({ default: m.PrintView }))
 );
@@ -114,41 +117,45 @@ export function AppContent() {
     updateMeta('meta[property="og:description"]', description);
     updateMeta('meta[name="twitter:title"]', pageTitle);
     updateMeta('meta[name="twitter:description"]', description);
+
+    // Update canonical URL per route
+    const langPrefix = reportLanguage === 'en' ? '/en' : '/vi';
+    const routePath =
+      activeTab === 'privacy' ? '/privacy' :
+      activeTab === 'terms' ? '/terms' :
+      activeTab === 'support' ? '/support' :
+      activeTab === 'upgrade' ? '/upgrade' :
+      activeTab === 'about' ? '/about' :
+      '';
+    const canonicalUrl = `https://cvfit.pro${langPrefix}${routePath}`;
+    const canonicalEl = document.querySelector('link[rel="canonical"]');
+    if (canonicalEl) canonicalEl.setAttribute('href', canonicalUrl);
+
+    // Update hreflang links for SPA navigation
+    const hreflangLinks = document.querySelectorAll('link[rel="alternate"][hreflang]');
+    for (let i = 0; i < hreflangLinks.length; i++) {
+      const hl = hreflangLinks[i].getAttribute('hreflang');
+      if (hl === 'vi') hreflangLinks[i].setAttribute('href', `https://cvfit.pro/vi${routePath}`);
+      else if (hl === 'en') hreflangLinks[i].setAttribute('href', `https://cvfit.pro/en${routePath}`);
+      else if (hl === 'x-default') hreflangLinks[i].setAttribute('href', `https://cvfit.pro/vi${routePath}`);
+    }
+
     document.documentElement.lang = reportLanguage;
 
-    const existingSchema = document.getElementById('dynamic-schema');
-    if (existingSchema) existingSchema.remove();
-
-    const schemaData = {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'SoftwareApplication',
-          name: 'cvFit',
-          description,
-          applicationCategory: 'BusinessApplication',
-          operatingSystem: 'Web',
-          url: 'https://cvfit.pro',
-          offers: {
-            '@type': 'Offer',
-            price: '0',
-            priceCurrency: reportLanguage === 'vi' ? 'VND' : 'USD',
-          },
-        },
-        {
-          '@type': 'Organization',
-          name: 'cvFit',
-          url: 'https://cvfit.pro',
-          logo: 'https://thanhnghiep.top/wp-content/uploads/2021/10/cropped-logo-fav-192x192.png',
-        },
-      ],
-    };
-
-    const script = document.createElement('script');
-    script.id = 'dynamic-schema';
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify(schemaData);
-    document.head.appendChild(script);
+    // Update schema description (schema is already seeded by pre-hydration script; keep in sync)
+    const schemaScript = document.querySelector('script[type="application/ld+json"]');
+    if (schemaScript) {
+      try {
+        const schema = JSON.parse(schemaScript.textContent || '{}');
+        if (schema['@graph'] && schema['@graph'][0]) {
+          schema['@graph'][0].description = description;
+          schema['@graph'][0].offers.priceCurrency = reportLanguage === 'vi' ? 'VND' : 'USD';
+        }
+        schemaScript.textContent = JSON.stringify(schema, null, 2);
+      } catch {
+        // ignore parse errors
+      }
+    }
   }, [reportLanguage, t, activeTab]);
 
   const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
@@ -258,6 +265,8 @@ export function AppContent() {
               <HistoryView />
             ) : activeTab === 'profile' ? (
               <ProfileView />
+            ) : activeTab === 'about' ? (
+              <AboutPage onBack={() => setActiveTab('analyze')} />
             ) : null}
           </React.Suspense>
         </main>
