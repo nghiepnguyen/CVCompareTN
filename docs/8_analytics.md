@@ -28,7 +28,7 @@ Phần dưới mô tả lần lượt từng chủ đề.
 | **Vercel Analytics** | Lượt xem, Core Web Vitals trên dashboard Vercel | Không qua banner cookie GA | `<Analytics />` trong `src/app/AppShell.tsx` |
 | **GA4** | Funnel phân tích CV, JD, lịch sử | Bắt buộc — banner cookie | `VITE_GA_MEASUREMENT_ID` |
 
-**Measurement ID production:** `G-GVTPXY9S3D` (đặt qua biến môi trường, không hardcode trong mã nguồn).
+**Measurement ID production:** `G-4SB0WWRBQC` (đặt qua biến môi trường, không hardcode trong mã nguồn).
 
 ---
 
@@ -74,7 +74,7 @@ Khi load, client gửi:
 
 | Biến | Bắt buộc | Mô tả |
 |------|----------|--------|
-| `VITE_GA_MEASUREMENT_ID` | Có (để bật GA4) | ID dạng `G-XXXXXXXXXX`. Ví dụ: `G-GVTPXY9S3D` |
+| `VITE_GA_MEASUREMENT_ID` | Có (để bật GA4) | ID dạng `G-XXXXXXXXXX`. Ví dụ: `G-4SB0WWRBQC` |
 
 - **Local:** `.env.local` (xem `.env.example`).
 - **Vercel (project `cvcompare`):** Settings → Environment Variables → Production + Preview → **Redeploy**.
@@ -306,7 +306,7 @@ Chỉ user có `monthly_analytics_limit_custom = false` nhận giá trị mới.
 ### GA4
 
 1. Cài [Google Analytics Debugger](https://chrome.google.com/webstore) hoặc dùng **DebugView** (Admin → DebugView).
-2. Mở site → **Chấp nhận** cookie → Network có request tới `googletagmanager.com/gtag/js?id=G-GVTPXY9S3D`.
+2. Mở site → **Chấp nhận** cookie → Network có request tới `googletagmanager.com/gtag/js?id=G-4SB0WWRBQC`.
 3. Chạy một lượt phân tích CV → DebugView thấy `analyze_cv`, sau đó `analysis_success`.
 4. **Từ chối** cookie → không có request Google; `trackEvent` không gửi gì.
 

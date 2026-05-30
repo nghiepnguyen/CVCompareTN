@@ -36,7 +36,7 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
     -   `FEEDBACK_RECIPIENT_EMAIL`: Email nhận thông báo góp ý.
     -   `VITE_ADMIN_EMAIL`: Email có quyền truy cập trang Admin.
     -   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`: Project Supabase (client).
-    -   `VITE_GA_MEASUREMENT_ID`: Google Analytics 4 (ví dụ `G-GVTPXY9S3D`) — bắt buộc nếu bật theo dõi hành vi GA4.
+    -   `VITE_GA_MEASUREMENT_ID`: Google Analytics 4 (ví dụ `G-4SB0WWRBQC`) — bắt buộc nếu bật theo dõi hành vi GA4.
 -   **PayOS (Pro plan):** Thêm các biến sau để kích hoạt thanh toán:
     -   `PAYOS_CLIENT_ID`: Client ID từ cổng PayOS.
     -   `PAYOS_API_KEY`: API Key từ PayOS.
