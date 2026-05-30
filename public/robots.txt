@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://cv.thanhnghiep.top/sitemap.xml
+Sitemap: https://cvfit.pro/sitemap.xml

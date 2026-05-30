@@ -25,7 +25,7 @@ export function WhyChooseSection({ t }: { t: LandingLabels }) {
 
       <div className="container-premium relative z-10">
         <div className="text-center mb-14">
-          <SectionBadge icon={Activity}>AI-Powered Features</SectionBadge>
+          <SectionBadge icon={Activity}>{t.badgeWhyChoose}</SectionBadge>
         </div>
         <SectionHeading as="h2" goldLine>
           {t.whyTitle}

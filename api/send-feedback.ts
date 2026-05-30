@@ -39,12 +39,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (apiKey) {
       const resendClient = new Resend(apiKey);
       await resendClient.emails.send({
-        from: `CV Matcher <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
+        from: `cvFit <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
         to: [process.env.FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'],
         subject: `Feedback: ${title}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-            <h2 style="color: #4f46e5;">Phản hồi mới từ thanhnghiep.top</h2>
+            <h2 style="color: #4f46e5;">Phản hồi mới từ cvfit.pro</h2>
             <p><strong>Đánh giá:</strong> ${rating}/5 sao</p>
             <p><strong>Tiêu đề:</strong> ${title}</p>
             <p><strong>Người gửi:</strong> ${userEmail || 'Ẩn danh'}</p>

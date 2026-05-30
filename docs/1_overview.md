@@ -1,6 +1,6 @@
-# Dự án CV Compare
+# Dự án cvFit
 
-**CV Compare** là một giải pháp đột phá sử dụng Trí tuệ nhân tạo (Generative AI) để giúp ứng viên và nhà tuyển dụng so sánh, phân tích mức độ phù hợp giữa hồ sơ năng lực (CV) với mô tả công việc (Job Description - JD). 
+**cvFit** là một giải pháp đột phá sử dụng Trí tuệ nhân tạo (Generative AI) để giúp ứng viên và nhà tuyển dụng so sánh, phân tích mức độ phù hợp giữa hồ sơ năng lực (CV) với mô tả công việc (Job Description - JD). 
 
 ## Mục tiêu chính (Core Objectives)
 

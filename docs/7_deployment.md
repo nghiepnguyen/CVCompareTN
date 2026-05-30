@@ -1,6 +1,6 @@
 # Hướng dẫn Triển khai (Deployment Guide)
 
-Dự án **CV Matcher & Optimizer** được triển khai theo mô hình **Vercel Native**, tích hợp cả Frontend (React/Vite) và Backend (Serverless Functions) trên cùng một hạ tầng Vercel.
+Dự án **cvFit** được triển khai theo mô hình **Vercel Native**, tích hợp cả Frontend (React/Vite) và Backend (Serverless Functions) trên cùng một hạ tầng Vercel.
 
 ## 1. Triển khai trên Vercel
 
@@ -12,7 +12,7 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
 |---|---|
 | **Project name (Dashboard)** | `cvcompare` |
 | **GitHub repo** | `nghiepnguyen/CVCompareTN` |
-| **Production domain** | `https://cv.thanhnghiep.top` (gắn trên project `cvcompare`) |
+| **Production domain** | `https://cvfit.pro` (gắn trên project `cvcompare`) |
 | **Preview URL (ví dụ)** | `https://cvcompare-<hash>-nghiepnguyens.vercel.app` |
 
 **Không** dùng project `cv-compare-tn` (thường tạo khi `vercel link` / import nhầm). Push lên GitHub chỉ deploy đúng khi repo được gắn vào **`cvcompare`**, không phải `cv-compare-tn`.
@@ -42,7 +42,7 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
     -   `PAYOS_API_KEY`: API Key từ PayOS.
     -   `PAYOS_CHECKSUM_KEY`: Checksum Key để xác thực webhook (HMAC-SHA256).
     -   `SUPABASE_SERVICE_ROLE_KEY`: Service role key — webhook cần quyền ghi `profiles` và `payments`.
-    -   `APP_URL`: URL đầy đủ của ứng dụng (vd: `https://cv.thanhnghiep.top`), dùng cho `returnUrl`/`cancelUrl` của PayOS.
+    -   `APP_URL`: URL đầy đủ của ứng dụng (vd: `https://cvfit.pro`), dùng cho `returnUrl`/`cancelUrl` của PayOS.
 3.  **Cấu hình Frontend (Client-side):** Các biến có tiền tố `VITE_` sẽ được nhúng vào mã nguồn khi build.
 4.  **Tự động triển khai:** Vercel sẽ tự động nhận diện thư mục `/api` và triển khai chúng dưới dạng Serverless Functions dựa trên cấu hình trong `vercel.json`.
 
@@ -53,7 +53,7 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
 ### Các bước thực hiện:
 
 1.  **Tạo project Supabase:** Truy cập [Supabase Dashboard](https://supabase.com/dashboard).
-2.  **Authentication:** Bật nhà cung cấp **Google**. Trong URL Redirect / Site URL, thêm domain production (ví dụ `https://cv.thanhnghiep.top`) và URL preview của Vercel (`https://*.vercel.app`) cùng `http://localhost:5173` (hoặc cổng dev bạn dùng).
+2.  **Authentication:** Bật nhà cung cấp **Google**. Trong URL Redirect / Site URL, thêm domain production (ví dụ `https://cvfit.pro`) và URL preview của Vercel (`https://*.vercel.app`) cùng `http://localhost:5173` (hoặc cổng dev bạn dùng).
 3.  **Database:** Áp dụng migration trong `supabase/migrations/` (khuyến nghị: `supabase db push`, hoặc chạy lần lượt trong SQL Editor):
 
     | Migration | Nội dung chính |

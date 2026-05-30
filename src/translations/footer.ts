@@ -13,7 +13,7 @@ export const footer = {
     en: "CV comparison tool",
   },
   footerKeyword2: {
-    vi: "ATS resume checker",
+    vi: "Kiểm tra CV chuẩn ATS",
     en: "ATS resume checker",
   },
   footerKeyword3: {
@@ -53,8 +53,8 @@ export const footer = {
     en: "Email:",
   },
   seoTitle: {
-    vi: "CV Matcher & Optimizer - Tối ưu CV chuẩn ATS",
-    en: "CV Matcher & Optimizer - Optimize CV for ATS Standards",
+    vi: "cvFit - Tối ưu CV chuẩn ATS",
+    en: "cvFit - Optimize CV for ATS Standards",
   },
   seoDescription: {
     vi: "Tải lên CV và so sánh với Job Description để nhận điểm tương thích ATS, phân tích kỹ năng và bản CV được viết lại hoàn chỉnh bởi AI.",

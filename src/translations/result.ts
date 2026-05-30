@@ -105,8 +105,8 @@ export const result = {
     en: "Copy plain text",
   },
   fullCvDraftFooter: {
-    vi: "cv.thanhnghiep.top · Bản nháp do CV Matcher & Optimizer tạo ra.",
-    en: "cv.thanhnghiep.top · Draft produced by CV Matcher & Optimizer.",
+    vi: "cvfit.pro · Bản nháp do cvFit tạo ra.",
+    en: "cvfit.pro · Draft produced by cvFit.",
   },
   fullCvSpecimenEyebrow: {
     vi: "Mẫu · CV hoàn chỉnh",

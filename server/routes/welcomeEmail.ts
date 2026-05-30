@@ -38,13 +38,13 @@ router.post('/', async (req, res) => {
     if (apiKey) {
       const resendClient = new Resend(apiKey);
       const { data, error } = await resendClient.emails.send({
-        from: `CV Matcher <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
+        from: `cvFit <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
         to: [userEmail],
         subject: 'Chào mừng bạn! Cùng tối ưu CV để chinh phục công việc mơ ước 🚀',
         html: `
           <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px;">
             <h2 style="color: #4f46e5; margin-bottom: 24px;">Hi ${userName || 'there'},</h2>
-            <p>Thank you for choosing <strong>CV Matcher</strong> as your career companion.</p>
+            <p>Thank you for choosing <strong>cvFit</strong> as your career companion.</p>
             <p>Every CV contains your passion and effort. To pass ATS systems and selective recruiters, professional isn't enough — it needs to be <strong>compatible</strong>.</p>
             <h3 style="color: #1e293b; margin-top: 32px;">What can you do now?</h3>
             <ul style="list-style-type: none; padding: 0;">
@@ -59,11 +59,11 @@ router.post('/', async (req, res) => {
               </li>
             </ul>
             <div style="margin-top: 40px; text-align: center;">
-              <a href="https://cv.thanhnghiep.top" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold;">
-                Try CV Comparison Now
+               <a href="https://cvfit.pro" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold;">
+                 Try CV Comparison Now
               </a>
             </div>
-            <p style="margin-top: 24px; font-weight: bold;">Best regards,<br>CV Matcher Team</p>
+            <p style="margin-top: 24px; font-weight: bold;">Best regards,<br>cvFit Team</p>
           </div>
         `
       });

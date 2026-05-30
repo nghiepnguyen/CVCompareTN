@@ -9,7 +9,7 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
     <section className="relative w-full section-padding overflow-hidden">
       <div className="container-premium relative z-10">
         <div className="text-center mb-14">
-          <SectionBadge icon={Activity}>Intelligent Analysis</SectionBadge>
+          <SectionBadge icon={Activity}>{t.badgeDemoResult}</SectionBadge>
         </div>
         <SectionHeading goldLine>{t.resultTitle}</SectionHeading>
 
@@ -34,13 +34,13 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                   <div className="flex items-center gap-2 rounded-full bg-white/[0.03] px-4 py-1 border border-white/[0.05]">
                     <Brain className="h-3 w-3 shrink-0 text-accent" />
                     <span className="text-[10px] font-semibold uppercase tracking-widest text-text-light whitespace-nowrap">
-                      Gemini 3 Engine
+                      {t.badgeGeminiEngine}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 border border-accent/20 text-accent">
                     <Zap className="h-3 w-3 shrink-0" />
                     <span className="text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap">
-                      AI Powered
+                      {t.badgeAiPowered}
                     </span>
                   </div>
                 </div>
@@ -78,7 +78,7 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                             {t.matchingScore}
                           </span>
                           <h4 className="font-sans text-lg font-bold text-text-main">
-                            Overall Compatibility
+                            {t.demoOverallCompat}
                           </h4>
                         </div>
                         <span className="font-serif text-4xl font-black text-accent-glow">72%</span>
@@ -99,10 +99,10 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                       <div className="mb-6 flex items-center justify-between">
                         <div className="space-y-1">
                           <span className="block text-[10px] font-semibold uppercase tracking-widest text-text-light">
-                            ATS Score
+                            {t.demoAtsScore}
                           </span>
                           <h4 className="font-sans text-lg font-bold text-text-main">
-                            System Readability
+                            {t.demoSystemReadability}
                           </h4>
                         </div>
                         <span className="font-serif text-4xl font-black text-success">81%</span>

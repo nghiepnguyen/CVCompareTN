@@ -38,7 +38,7 @@ export function Header() {
             <FileSearch className="text-white w-5 h-5 relative z-10" />
           </div>
           <span className="text-xl font-extrabold tracking-tighter text-text-main hidden sm:inline font-sans">
-            cv matcher<span className="text-accent italic">.ai</span>
+            cv<span className="text-accent">Fit</span>.pro
           </span>
         </div>
           
@@ -212,7 +212,7 @@ export function Header() {
                 <button 
                   onClick={() => window.open(window.location.href, '_blank')}
                   className="p-2 bg-white/[0.03] text-text-light rounded-xl hover:bg-white/[0.06] transition-all cursor-pointer"
-                  title="Mở trong tab mới để đăng nhập dễ hơn"
+                  title={t.openInNewTabTooltip}
                 >
                   <ExternalLink className="w-4 h-4" />
                 </button>

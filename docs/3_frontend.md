@@ -1,6 +1,6 @@
-# Kiến trúc Frontend (CV Compare)
+# Kiến trúc Frontend (cvFit)
 
-Frontend của dự án **CV Compare** được thiết kế để xử lý việc so sánh đồng thời nhiều hồ sơ năng lực với một bảng mô tả công việc (JD). Toàn bộ mã nguồn nằm trong thư mục `src/`.
+Frontend của dự án **cvFit** được thiết kế để xử lý việc so sánh đồng thời nhiều hồ sơ năng lực với một bảng mô tả công việc (JD). Toàn bộ mã nguồn nằm trong thư mục `src/`.
 
 ## Cấu trúc thư mục (Modular Architecture)
 

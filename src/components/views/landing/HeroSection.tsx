@@ -43,7 +43,7 @@ export function HeroSection({
       >
         {/* Badge */}
         <SectionBadge icon={Sparkles}>
-          AI-Powered CV Intelligence
+          {t.badgeHero}
         </SectionBadge>
 
         {/* Headline */}
@@ -51,12 +51,11 @@ export function HeroSection({
           initial={{ opacity: 0, y: 60, filter: 'blur(10px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="font-serif text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-bold tracking-tight text-text-main leading-[0.95]"
+          className="font-serif text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-bold tracking-tight text-text-main leading-[1.05] text-balance"
         >
-          {t.heroTitle.split(' ').slice(0, -1).join(' ')}{' '}
-          <br className="hidden sm:block" />
+          {t.heroTitle}{' '}
           <span className="text-green-accent">
-            {t.heroTitle.split(' ').slice(-1)} Smart Insights
+            {t.badgeHeroHighlight}
           </span>
         </motion.h1>
 
@@ -65,7 +64,7 @@ export function HeroSection({
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-text-muted sm:text-xl lg:text-2xl font-light"
+          className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-text-muted sm:text-xl lg:text-2xl font-light text-balance"
         >
           {t.heroDesc}
         </motion.p>
@@ -81,7 +80,7 @@ export function HeroSection({
             {t.startNow}
           </AccentButton>
           <OutlineButton
-            href="https://hr.thanhnghiep.top"
+            href="#"
             target="_blank"
             rel="noopener noreferrer"
             icon={ArrowRight}

@@ -420,7 +420,7 @@ export function AdminView() {
                             {u.isNew && <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent border-2 border-surface rounded-full" />}
                           </div>
                           <div className="overflow-hidden">
-                            <div className="text-sm font-black text-text-main leading-tight">{u.displayName || 'Unknown'}</div>
+                            <div className="text-sm font-black text-text-main leading-tight">{u.displayName || t.unknownUser}</div>
                             <div className="text-[11px] text-text-light font-mono truncate tracking-tighter">{u.email}</div>
                           </div>
                         </div>
@@ -688,7 +688,7 @@ export function AdminView() {
                 <label className="text-[10px] font-black text-text-light uppercase tracking-widest ml-1">{t.adminRecipientLabel}</label>
                 <input 
                   type="email"
-                  placeholder="name@example.com"
+                  placeholder={t.emailPlaceholder}
                   value={testEmailRecipient}
                   onChange={(e) => setTestEmailRecipient(e.target.value)}
                   className="w-full px-4 py-3 bg-surface-secondary border border-border rounded-xl focus:ring-2 focus:ring-accent focus:bg-surface transition-all outline-none font-medium text-text-main"

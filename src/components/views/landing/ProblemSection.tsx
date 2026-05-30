@@ -17,7 +17,7 @@ export function ProblemSection({ t }: { t: LandingLabels }) {
               {t.problemItem1}
             </h3>
             <p className="text-text-muted leading-relaxed">
-              {t.problemItem2}. Hệ thống ATS tự động loại bỏ hồ sơ không chứa đúng từ khóa hoặc định dạng không chuẩn.
+              {t.problemItem2}. {t.problemDescCard1}
             </p>
           </GlassCard>
 
@@ -25,10 +25,10 @@ export function ProblemSection({ t }: { t: LandingLabels }) {
           <GlassCard className="lg:col-span-1" delay={0.1}>
             <FeatureIcon icon={Clock} size="md" />
             <h3 className="mb-3 font-sans text-xl md:text-2xl font-bold text-text-main">
-              6–10 Giây
+              {t.problemDescCard2}
             </h3>
             <p className="text-text-muted leading-relaxed">
-              {t.problemItem4}. Bạn cần làm nổi bật giá trị của mình ngay lập tức.
+              {t.problemItem4}. {t.problemDescCard2Detail}
             </p>
           </GlassCard>
 
@@ -39,7 +39,7 @@ export function ProblemSection({ t }: { t: LandingLabels }) {
               {t.problemItem3}
             </h3>
             <p className="text-text-muted leading-relaxed">
-              Kỹ năng không khớp khiến AI đánh giá thấp hồ sơ của bạn.
+              {t.problemDescCard3Detail}
             </p>
           </GlassCard>
 
@@ -50,9 +50,9 @@ export function ProblemSection({ t }: { t: LandingLabels }) {
               <h3 className="mb-4 font-serif text-2xl md:text-3xl font-bold leading-tight text-white">
                 {t.problemResult}
               </h3>
-              <p className="text-text-muted leading-relaxed">
-                Đừng để nỗ lực của bạn trở nên vô ích chỉ vì thiếu sự chuẩn bị về mặt kỹ thuật.
-              </p>
+            <p className="text-text-muted leading-relaxed">
+              {t.problemDescCard4Detail}
+            </p>
             </div>
           </GlassCard>
         </div>

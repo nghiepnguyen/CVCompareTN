@@ -1,4 +1,4 @@
-# Kế hoạch triển khai: CV Compare Pro (PayOS)
+# Kế hoạch triển khai: cvFit Pro (PayOS)
 
 > Stack: React 19 + Vite · Supabase (PostgreSQL + Auth) · Express/Vercel Serverless · PayOS
 
@@ -204,9 +204,9 @@ router.post('/create', async (req, res) => {
   const payosBody = {
     orderCode,
     amount: 69000,
-    description: `CV Compare Pro`, // tối đa 25 ký tự
+    description: `cvFit Pro`, // tối đa 25 ký tự
     buyerEmail: userEmail,
-    items: [{ name: 'CV Compare Pro 30 ngày', quantity: 1, price: 69000 }],
+    items: [{ name: 'cvFit Pro 30 ngày', quantity: 1, price: 69000 }],
     returnUrl: `${process.env.APP_URL}/payment/success?orderCode=${orderCode}`,
     cancelUrl: `${process.env.APP_URL}/payment/cancel`,
     expiredAt: Math.floor(Date.now() / 1000) + 15 * 60, // hết hạn sau 15 phút
@@ -502,7 +502,7 @@ SELECT cron.schedule(
 ## Checklist trước khi go-live
 
 - Tạo tài khoản PayOS, lấy `CLIENT_ID`, `API_KEY`, `CHECKSUM_KEY`
-- Đăng ký webhook URL trên PayOS Dashboard: `https://cv.thanhnghiep.top/api/payment/webhook`
+- Đăng ký webhook URL trên PayOS Dashboard: `https://cvfit.pro/api/payment/webhook`
 - Thêm env vars vào Vercel Dashboard
 - Chạy migration SQL trên Supabase
 - Test luồng thanh toán với môi trường sandbox PayOS

@@ -128,4 +128,20 @@ export const system = {
     vi: "Quay lại",
     en: "Back",
   },
+  openInNewTabTooltip: {
+    vi: "Mở trong tab mới để đăng nhập dễ hơn",
+    en: "Open in new tab for easier login",
+  },
+  appBrandName: {
+    vi: "cvFit",
+    en: "cvFit",
+  },
+  unknownUser: {
+    vi: "Không rõ",
+    en: "Unknown",
+  },
+  emailPlaceholder: {
+    vi: "ten@example.com",
+    en: "name@example.com",
+  },
 } as const;

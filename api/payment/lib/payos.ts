@@ -154,7 +154,7 @@ export function getAppBaseUrl(): string {
   const url =
     process.env.APP_URL?.trim() ||
     process.env.VITE_APP_URL?.trim() ||
-    'https://cv.thanhnghiep.top';
+    'https://cvfit.pro';
   return url.replace(/\/$/, '');
 }
 
@@ -183,7 +183,7 @@ export async function createPayosPaymentLink(params: {
 }): Promise<{ checkoutUrl: string; orderCode: number }> {
   const baseUrl = getAppBaseUrl();
   const orderCode = params.orderCode;
-  const description = 'CV Compare Pro';
+  const description = 'cvFit Pro';
   const returnUrl = `${baseUrl}/payment/success?orderCode=${orderCode}`;
   const cancelUrl = `${baseUrl}/payment/cancel`;
 
@@ -192,7 +192,7 @@ export async function createPayosPaymentLink(params: {
     amount: PRO_PRICE_VND,
     description,
     buyerEmail: params.buyerEmail,
-    items: [{ name: 'CV Compare Pro 30 ngày', quantity: 1, price: PRO_PRICE_VND }],
+    items: [{ name: 'cvFit Pro 30 ngày', quantity: 1, price: PRO_PRICE_VND }],
     returnUrl,
     cancelUrl,
     expiredAt: Math.floor(Date.now() / 1000) + 15 * 60,

@@ -26,7 +26,7 @@ export function CtaSection({ t, login }: { t: LandingLabels; login: () => void }
             {/* Small badge */}
             <div className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-accent backdrop-blur-md mb-8">
               <Zap className="h-3.5 w-3.5" />
-              <span>Get Started</span>
+              <span>{t.badgeCta}</span>
             </div>
 
             <h2 className="mx-auto max-w-3xl font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-text-main leading-tight">
@@ -38,7 +38,7 @@ export function CtaSection({ t, login }: { t: LandingLabels; login: () => void }
                 {t.ctaBtn}
               </AccentButton>
               <OutlineButton
-                href="https://hr.thanhnghiep.top"
+                href="#"
                 target="_blank"
                 rel="noopener noreferrer"
                 icon={ArrowRight}

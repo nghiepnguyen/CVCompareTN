@@ -160,6 +160,24 @@ export interface UiLabels {
   footerSupportDev: string;
   footerTermsOfService: string;
   forEmployers: string;
+  badgeHero: string;
+  badgeHeroHighlight: string;
+  badgeDemoResult: string;
+  badgeGeminiEngine: string;
+  badgeAiPowered: string;
+  badgeWhyChoose: string;
+  badgeHowItWorks: string;
+  badgeCta: string;
+  badgeFaq: string;
+  badgeTargetUsers: string;
+  demoOverallCompat: string;
+  demoAtsScore: string;
+  demoSystemReadability: string;
+  problemDescCard1: string;
+  problemDescCard2: string;
+  problemDescCard2Detail: string;
+  problemDescCard3Detail: string;
+  problemDescCard4Detail: string;
   fullCvDraftFooter: string;
   fullCvSpecimenEyebrow: string;
   fullRewrittenCV: string;
@@ -453,4 +471,8 @@ export interface UiLabels {
   profileAnalyticsUnlimited: string;
   profileBack: string;
   checkoutError: string;
+  openInNewTabTooltip: string;
+  appBrandName: string;
+  unknownUser: string;
+  emailPlaceholder: string;
 }

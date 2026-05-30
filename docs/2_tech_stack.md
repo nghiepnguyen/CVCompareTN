@@ -1,4 +1,4 @@
-# Công nghệ sử dụng (CV Matcher & Optimizer)
+# Công nghệ sử dụng (cvFit)
 
 Dự án được xây dựng trên một nền tảng công nghệ hiện đại, tập trung vào hiệu suất, khả năng mở rộng và trải nghiệm người dùng cao cấp.
 

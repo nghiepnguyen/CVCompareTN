@@ -73,7 +73,7 @@ Cần cấu hình các biến sau trong file `.env` hoặc hệ thống CI/CD:
 GEMINI_API_KEY=          # Google AI API Key
 RECAPTCHA_SECRET_KEY=    # Google reCAPTCHA v3 Secret
 RESEND_API_KEY=          # Resend Platform API Key
-RESEND_FROM_EMAIL=       # Email gửi đi (ví dụ: noreply@thanhnghiep.top)
+RESEND_FROM_EMAIL=       # Email gửi đi (ví dụ: noreply@cvfit.pro)
 FEEDBACK_RECIPIENT_EMAIL= # Email nhận phản hồi admin
 
 # PayOS (thanh toán Pro)
@@ -81,7 +81,7 @@ PAYOS_CLIENT_ID=         # PayOS Client ID
 PAYOS_API_KEY=           # PayOS API Key
 PAYOS_CHECKSUM_KEY=      # PayOS Checksum Key (HMAC-SHA256)
 SUPABASE_SERVICE_ROLE_KEY= # Service role key (để webhook ghi DB)
-APP_URL=                 # URL ứng dụng (vd: https://cv.thanhnghiep.top)
+APP_URL=                 # URL ứng dụng (vd: https://cvfit.pro)
 ```
 
 ## Security & Middleware

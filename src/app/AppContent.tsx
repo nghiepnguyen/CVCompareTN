@@ -95,8 +95,8 @@ export function AppContent() {
     const isPolicyPage =
       activeTab === 'privacy' || activeTab === 'terms' || activeTab === 'support';
     const pageTitle = isPolicyPage
-      ? `${activeTab === 'privacy' ? t.privacyPolicyPageTitle : activeTab === 'terms' ? t.termsPageTitle : t.supportPageTitle} | CV Matcher`
-      : t.seoTitle || 'CV Matcher & Optimizer';
+      ? `${activeTab === 'privacy' ? t.privacyPolicyPageTitle : activeTab === 'terms' ? t.termsPageTitle : t.supportPageTitle} | cvFit`
+      : t.seoTitle || 'cvFit';
 
     document.title = pageTitle;
 
@@ -124,11 +124,11 @@ export function AppContent() {
       '@graph': [
         {
           '@type': 'SoftwareApplication',
-          name: 'CV Matcher & Optimizer',
+          name: 'cvFit',
           description,
           applicationCategory: 'BusinessApplication',
           operatingSystem: 'Web',
-          url: 'https://cv.thanhnghiep.top',
+          url: 'https://cvfit.pro',
           offers: {
             '@type': 'Offer',
             price: '0',
@@ -137,8 +137,8 @@ export function AppContent() {
         },
         {
           '@type': 'Organization',
-          name: 'thanhnghiep.top',
-          url: 'https://thanhnghiep.top',
+          name: 'cvFit',
+          url: 'https://cvfit.pro',
           logo: 'https://thanhnghiep.top/wp-content/uploads/2021/10/cropped-logo-fav-192x192.png',
         },
       ],

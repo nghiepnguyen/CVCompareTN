@@ -39,19 +39,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (apiKey) {
       const resendClient = new Resend(apiKey);
       await resendClient.emails.send({
-        from: `CV Matcher <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
+        from: `cvFit <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
         to: [userEmail],
         subject: 'Chào mừng bạn! Cùng tối ưu CV để chinh phục công việc mơ ước 🚀',
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #334155;">
             <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 40px 20px; text-align: center; border-radius: 20px 20px 0 0;">
               <h1 style="color: white; margin: 0; font-size: 28px;">Chào mừng ${userName}!</h1>
-              <p style="color: #e0e7ff; margin-top: 10px; font-size: 16px;">Chúng tôi rất vui khi bạn đồng hành cùng CV Matcher.</p>
+              <p style="color: #e0e7ff; margin-top: 10px; font-size: 16px;">Chúng tôi rất vui khi bạn đồng hành cùng cvFit.</p>
             </div>
             <div style="padding: 30px; background: white; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 20px 20px;">
-              <p>Cảm ơn bạn đã tin tưởng sử dụng <strong>CV Matcher & Optimizer</strong>.</p>
+              <p>Cảm ơn bạn đã tin tưởng sử dụng <strong>cvFit</strong>.</p>
               <div style="text-align: center; margin: 40px 0;">
-                <a href="https://cv.thanhnghiep.top" style="background: #4f46e5; color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: bold;">Trải nghiệm ngay</a>
+                <a href="https://cvfit.pro" style="background: #4f46e5; color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: bold;">Trải nghiệm ngay</a>
               </div>
             </div>
           </div>

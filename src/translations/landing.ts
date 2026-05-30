@@ -248,6 +248,78 @@ export const landing = {
     vi: "Dành cho nhà tuyển dụng",
     en: "For Employers",
   },
+  badgeHero: {
+    vi: "CV với Trí tuệ nhân tạo",
+    en: "AI-Powered CV Intelligence",
+  },
+  badgeHeroHighlight: {
+    vi: "Phân tích thông minh",
+    en: "Smart Insights",
+  },
+  badgeDemoResult: {
+    vi: "Phân tích thông minh",
+    en: "Intelligent Analysis",
+  },
+  badgeGeminiEngine: {
+    vi: "Gemini 3 Engine",
+    en: "Gemini 3 Engine",
+  },
+  badgeAiPowered: {
+    vi: "AI Powered",
+    en: "AI Powered",
+  },
+  badgeWhyChoose: {
+    vi: "Tính năng AI",
+    en: "AI-Powered Features",
+  },
+  badgeHowItWorks: {
+    vi: "Quy trình đơn giản",
+    en: "Simple Process",
+  },
+  badgeCta: {
+    vi: "Bắt đầu ngay",
+    en: "Get Started",
+  },
+  badgeFaq: {
+    vi: "Hỗ trợ",
+    en: "Support",
+  },
+  badgeTargetUsers: {
+    vi: "Đối tượng",
+    en: "Audience",
+  },
+  demoOverallCompat: {
+    vi: "Độ tương thích tổng quan",
+    en: "Overall Compatibility",
+  },
+  demoAtsScore: {
+    vi: "Điểm ATS",
+    en: "ATS Score",
+  },
+  demoSystemReadability: {
+    vi: "Khả năng đọc của hệ thống",
+    en: "System Readability",
+  },
+  problemDescCard1: {
+    vi: "Hệ thống ATS tự động loại bỏ hồ sơ không chứa đúng từ khóa hoặc định dạng không chuẩn.",
+    en: "ATS systems automatically reject profiles that lack the right keywords or use non-standard formats.",
+  },
+  problemDescCard2: {
+    vi: "6–10 Giây",
+    en: "6–10 Seconds",
+  },
+  problemDescCard2Detail: {
+    vi: "Bạn cần làm nổi bật giá trị của mình ngay lập tức.",
+    en: "You need to highlight your value immediately.",
+  },
+  problemDescCard3Detail: {
+    vi: "Kỹ năng không khớp khiến AI đánh giá thấp hồ sơ của bạn.",
+    en: "Mismatched skills cause AI to undervalue your profile.",
+  },
+  problemDescCard4Detail: {
+    vi: "Đừng để nỗ lực của bạn trở nên vô ích chỉ vì thiếu sự chuẩn bị về mặt kỹ thuật.",
+    en: "Don't let your effort go to waste due to lack of technical preparation.",
+  },
   faqTitle: {
     vi: "FAQ – Giải đáp thắc mắc của bạn",
     en: "FAQ – Frequently Asked Questions",

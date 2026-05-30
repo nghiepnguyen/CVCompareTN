@@ -1,4 +1,4 @@
-# Quy trình hoạt động (CV Compare Workflow)
+# Quy trình hoạt động (cvFit Workflow)
 
 Dưới đây là mô tả quy trình so sánh hồ sơ năng lực (CV) ứng viên với mô tả công việc (JD).
 
@@ -28,7 +28,7 @@ graph TD
 ### Các bước trọng tâm:
 1.  **Thu thập JD:** JD có thể được lấy từ nhiều nguồn: nhập tay trực tiếp, trích xuất tự động từ đường link tuyển dụng hoặc chọn nhanh từ **Kho lưu trữ JD cá nhân (JD Store)** (`SavedJdContext` / modal trong `AppContent`). Lưu JD mới: `confirmSaveJD(title, jdContent)`.
 2.  **Kiểm tra hạn mức tháng:** Trước khi gọi Gemini, `AnalysisRunContext` gọi RPC `check_analytics_quota` với số CV dự kiến trong batch. Hạn mức lấy từ `app_settings.default_monthly_analytics_limit` (mặc định **20**, đổi qua Admin/SQL không cần deploy) hoặc override trên `profiles`. Xem [8_analytics.md](8_analytics.md).
-3.  **Xử lý hàng loạt:** Khác với các công cụ đơn lẻ, **CV Compare** được tối ưu để xử lý một danh sách ứng viên, giúp nhà tuyển dụng tiết kiệm thời gian khi sàng lọc.
+3.  **Xử lý hàng loạt:** Khác với các công cụ đơn lẻ, **cvFit** được tối ưu để xử lý một danh sách ứng viên, giúp nhà tuyển dụng tiết kiệm thời gian khi sàng lọc.
 4.  **So sánh chi tiết (Detailed Comparison):** AI không chỉ chấm điểm mà còn chỉ ra minh chứng trực tiếp (`cvEvidence`) từ hồ sơ để giải thích tại sao một yêu cầu được coi là "Đạt" (Matched) hoặc "Thiếu" (Missing).
 
 ## 2. Luồng tối ưu hóa & Xuất bản

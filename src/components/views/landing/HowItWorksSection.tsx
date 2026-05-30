@@ -19,7 +19,7 @@ export function HowItWorksSection({ t }: { t: LandingLabels }) {
 
       <div className="container-premium relative z-10">
         <div className="text-center mb-14">
-          <SectionBadge icon={Sparkles}>Simple Process</SectionBadge>
+          <SectionBadge icon={Sparkles}>{t.badgeHowItWorks}</SectionBadge>
         </div>
         <SectionHeading goldLine>{t.howItWorksTitle}</SectionHeading>
 

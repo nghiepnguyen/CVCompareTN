@@ -19,7 +19,7 @@ export function TargetUsersSection({ t }: { t: LandingLabels }) {
     <section className="relative w-full section-padding overflow-hidden">
       <div className="container-premium relative z-10">
         <div className="text-center mb-14">
-          <SectionBadge icon={Target}>Audience</SectionBadge>
+          <SectionBadge icon={Target}>{t.badgeTargetUsers}</SectionBadge>
         </div>
         <SectionHeading goldLine>{t.targetUsersTitle}</SectionHeading>
 

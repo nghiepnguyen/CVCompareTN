@@ -9,8 +9,8 @@ export const legal = {
     en: "Share link",
   },
   privacyHeroSubtitle: {
-    vi: "Cam kết bảo vệ quyền riêng tư và dữ liệu cá nhân của bạn tại thanhnghiep.top",
-    en: "Our commitment to protecting your privacy and personal data at thanhnghiep.top",
+    vi: "Cam kết bảo vệ quyền riêng tư và dữ liệu cá nhân của bạn tại cvfit.pro",
+    en: "Our commitment to protecting your privacy and personal data at cvfit.pro",
   },
   privacyS1Title: {
     vi: "1. Thông tin chúng tôi thu thập",
@@ -105,16 +105,16 @@ export const legal = {
     en: "Last updated: May 16, 2026",
   },
   termsHeroSubtitle: {
-    vi: "Các quy định và điều kiện khi sử dụng dịch vụ của thanhnghiep.top",
-    en: "Rules and conditions for using thanhnghiep.top",
+    vi: "Các quy định và điều kiện khi sử dụng dịch vụ của cvfit.pro",
+    en: "Rules and conditions for using cvfit.pro",
   },
   termsS1Title: {
     vi: "1. Chấp nhận điều khoản",
     en: "1. Acceptance of terms",
   },
   termsS1Body: {
-    vi: "Bằng cách truy cập và sử dụng trang web thanhnghiep.top, bạn đồng ý tuân thủ và bị ràng buộc bởi các điều khoản và điều kiện sử dụng này. Nếu bạn không đồng ý với bất kỳ phần nào của các điều khoản này, vui lòng không sử dụng dịch vụ của chúng tôi.",
-    en: "By accessing and using thanhnghiep.top, you agree to be bound by these terms and conditions. If you do not agree with any part of these terms, please do not use our service.",
+    vi: "Bằng cách truy cập và sử dụng trang web cvfit.pro, bạn đồng ý tuân thủ và bị ràng buộc bởi các điều khoản và điều kiện sử dụng này. Nếu bạn không đồng ý với bất kỳ phần nào của các điều khoản này, vui lòng không sử dụng dịch vụ của chúng tôi.",
+    en: "By accessing and using cvfit.pro, you agree to be bound by these terms and conditions. If you do not agree with any part of these terms, please do not use our service.",
   },
   termsS2Title: {
     vi: "2. Sử dụng dịch vụ hợp pháp",

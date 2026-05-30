@@ -18,8 +18,8 @@ async function sendTestEmail() {
     const { data, error } = await resend.emails.send({
       from: 'onboarding@resend.dev',
       to: 'thanhnghiep.top@gmail.com',
-      subject: 'Hello World from CV Matcher',
-      html: '<p>Congrats on sending your <strong>first email</strong> from the CV Matcher project!</p>',
+      subject: 'Hello World from cvFit',
+      html: '<p>Congrats on sending your <strong>first email</strong> from the cvFit project!</p>',
     });
 
     if (error) {

@@ -22,7 +22,7 @@ export function Footer() {
                 <FileSearch className="text-white w-5 h-5 relative z-10" />
               </div>
               <span className="text-xl font-extrabold tracking-tighter text-text-main font-sans">
-                cv matcher<span className="text-accent italic">.ai</span>
+                cv<span className="text-accent">Fit</span>.pro
               </span>
             </div>
             <p className="text-sm text-text-muted leading-relaxed max-w-sm">{t.footerDesc}</p>
@@ -103,7 +103,7 @@ export function Footer() {
             </button>
           </div>
           <p className="text-xs font-bold text-text-light text-center md:text-right">
-            © {new Date().getFullYear()} CV Matcher & Optimizer. {t.footerCopyright}
+            © {new Date().getFullYear()} {t.appBrandName}. {t.footerCopyright}
           </p>
         </div>
       </div>

@@ -1,4 +1,4 @@
-# Danh sách API Endpoints (CV Compare)
+# Danh sách API Endpoints (cvFit)
 
 > **Routing matrix (Vercel vs Express vs Edge):** [9_api_routes.md](./9_api_routes.md)
 >

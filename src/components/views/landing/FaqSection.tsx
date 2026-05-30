@@ -23,7 +23,7 @@ export function FaqSection({
 
       <div className="container-premium relative z-10 max-w-3xl">
         <div className="text-center mb-14">
-          <SectionBadge icon={HelpCircle}>Support</SectionBadge>
+          <SectionBadge icon={HelpCircle}>{t.badgeFaq}</SectionBadge>
         </div>
         <SectionHeading goldLine>{t.faqTitle}</SectionHeading>
 
