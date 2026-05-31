@@ -1,16 +1,16 @@
 # Graph Report - cv-compare-tn  (2026-05-30)
 
 ## Corpus Check
-- 167 files · ~79,859 words
+- 167 files · ~80,757 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 886 nodes · 1697 edges · 41 communities (37 shown, 4 thin omitted)
+- 889 nodes · 1661 edges · 41 communities (37 shown, 4 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 10 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c7b08ea2`
+- Built from commit: `315861ef`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -52,34 +52,34 @@
 - [[_COMMUNITY_Community 36|Community 36]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `useUI()` - 69 edges
-2. `useAuth()` - 40 edges
+1. `useUI()` - 67 edges
+2. `useAuth()` - 39 edges
 3. `cn()` - 34 edges
-4. `formatLabel()` - 21 edges
+4. `formatLabel()` - 20 edges
 5. `isProPlan()` - 15 edges
 6. `Hạn mức phân tích CV/tháng (Supabase — không phải GA4)` - 14 edges
 7. `handlePaymentConfirm()` - 13 edges
 8. `handlePaymentWebhook()` - 12 edges
-9. `analyzeCV()` - 12 edges
-10. `Phân tích & Đo lường (Analytics)` - 11 edges
+9. `LandingLabels` - 12 edges
+10. `analyzeCV()` - 12 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `AppContent()` --calls--> `useAnalysis()`  [INFERRED]
+  app/AppContent.tsx → src/context/analysis/AnalysisProvider.tsx
+- `AboutPage()` --calls--> `useUI()`  [EXTRACTED]
+  components/AboutPage.tsx → src/context/UIContext.tsx
 - `AnalysisRunProvider()` --calls--> `useUI()`  [EXTRACTED]
   AnalysisRunContext.tsx → src/context/UIContext.tsx
-- `SavedCvProvider()` --calls--> `useUI()`  [EXTRACTED]
-  SavedCvContext.tsx → src/context/UIContext.tsx
 - `handler()` --calls--> `handlePaymentConfirm()`  [EXTRACTED]
   api/payment/confirm.ts → handlers.ts
 - `AnalysisRunProvider()` --calls--> `useAuth()`  [EXTRACTED]
   AnalysisRunContext.tsx → src/context/AuthContext.tsx
-- `useAnalysis()` --calls--> `useAnalysisRun()`  [EXTRACTED]
-  src/context/analysis/AnalysisProvider.tsx → AnalysisRunContext.tsx
 
 ## Communities (41 total, 4 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.06
-Nodes (64): useAnalysis(), AppContent(), MobileBottomNav(), MobileBottomNavProps, AboutPage(), PrivacyPolicyPage(), TermsOfServicePage(), useAuth() (+56 more)
+Cohesion: 0.05
+Nodes (78): fullRewrittenCvToPlainText(), useAnalysis(), SavedCvProvider(), SavedJdProvider(), useSavedJds(), AppContent(), MobileBottomNav(), MobileBottomNavProps (+70 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.07
@@ -87,7 +87,7 @@ Nodes (56): activateProForOrder(), fetchProfileForEmail(), handlePaymentConfirm(
 
 ### Community 2 - "Community 2"
 Cohesion: 0.07
-Nodes (45): AnalysisRunContext, AnalysisRunProvider(), useAnalysisRun(), SupabaseConfigError(), AuthContext, AuthContextType, AuthProvider(), cleanText() (+37 more)
+Nodes (44): AnalysisRunContext, AnalysisRunProvider(), useAnalysisRun(), SupabaseConfigError(), AuthContext, AuthContextType, AuthProvider(), cleanText() (+36 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.05
@@ -110,28 +110,28 @@ Cohesion: 0.06
 Nodes (36): Admin UI (`AdminView`), API theo dõi sự kiện, Bảng & cột, Bảng event đang track, Bảo mật RPC (Security Advisor), Biến môi trường, Cấu hình privacy trên GA4, code:text (┌───────────────────────────────────────────────────────────) (+28 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.09
-Nodes (24): SavedCvContext, SavedCvProvider(), useSavedCvs(), SavedJdContext, SavedJdProvider(), useSavedJds(), AnalysisContextType, AnalysisRunContextType (+16 more)
-
-### Community 9 - "Community 9"
 Cohesion: 0.08
 Nodes (17): getMatchingCategoryLabel(), about, admin, billing, footer, history, LocaleEntry, SECTIONS (+9 more)
 
+### Community 9 - "Community 9"
+Cohesion: 0.11
+Nodes (21): AppErrorBoundary, AnalyticsBootstrap(), AnalyticsConsent, applyGrantedConsent(), denyAnalyticsConsent(), ensureDataLayer(), eventQueue, flushEventQueue() (+13 more)
+
 ### Community 10 - "Community 10"
-Cohesion: 0.19
+Cohesion: 0.18
 Nodes (18): CtaSection(), DemoResultSection(), FaqSection(), HeroSection(), HowItWorksSection(), ProblemSection(), AccentButton(), AnimatedCounter() (+10 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.11
-Nodes (21): AppErrorBoundary, UIProvider(), AnalyticsBootstrap(), AnalyticsConsent, applyGrantedConsent(), denyAnalyticsConsent(), ensureDataLayer(), eventQueue (+13 more)
+Nodes (19): SavedCvContext, useSavedCvs(), SavedJdContext, AnalysisContextType, AnalysisRunContextType, SavedCvContextType, SavedJdContextType, SavedCvsListModal() (+11 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.07
 Nodes (26): 2a — `App.tsx` decomposition, 2b — Two analysis providers (B2), 2c — LandingView, code:gitignore (# Graphify — regenerate with `graphify update .`; keep human), code:block2 (src/app/), code:typescript (export { default } from './app/AppShell';), code:block4 (AuthProvider → UIProvider → AnalysisProvider (composer) → Ap), code:block5 (src/context/analysis/) (+18 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.12
-Nodes (21): AboutPage, AdminView, DashboardView, HistoryView, LandingView, NoPermissionView, PaymentCancelView, PaymentSuccessView (+13 more)
+Cohesion: 0.09
+Nodes (19): AboutPage, AdminView, DashboardView, HistoryView, LandingView, NoPermissionView, PaymentCancelView, PaymentSuccessView (+11 more)
 
 ### Community 14 - "Community 14"
 Cohesion: 0.1
@@ -146,32 +146,32 @@ Cohesion: 0.11
 Nodes (17): 1. General Principles, 2. Naming Conventions, 3. React Best Practices, 4. Performance Optimization, 4. Styling (Tailwind CSS), 5. TypeScript Usage, 6. Error Handling, 7. Comments and Documentation (+9 more)
 
 ### Community 17 - "Community 17"
-Cohesion: 0.2
-Nodes (13): cvMarkdownHasHeadings(), fixMarkdownHeadingHashes(), fullRewrittenCvToPlainText(), isBulletLine(), isSectionLine(), normalizeSectionCandidate(), preprocessFullRewrittenCvMarkdown(), promotePlainTextCvToMarkdown() (+5 more)
-
-### Community 18 - "Community 18"
 Cohesion: 0.12
 Nodes (14): 1. Triển khai trên Vercel, 2. Cấu hình Supabase (Bắt buộc), 3. Chế độ Phát triển (Local Development), 4. Cấu hình điều hướng (vercel.json), 5. Bảo mật mã nguồn và bí mật, Biến môi trường, Các bước thực hiện:, Các bước thực hiện: (+6 more)
 
-### Community 19 - "Community 19"
+### Community 18 - "Community 18"
 Cohesion: 0.14
 Nodes (13): 1. Quản lý trạng thái tập trung, 2. Xử lý đa định dạng (Multi-format Support), 3. Hiển thị kết quả so sánh, Các luồng xử lý chính, Cấu trúc thư mục (Modular Architecture), Custom hooks (`src/hooks/`), Entry & shell (`src/app/`), Global state (`src/context/`) (+5 more)
 
-### Community 20 - "Community 20"
+### Community 19 - "Community 19"
 Cohesion: 0.15
 Nodes (12): 1. Cấu hình (`/api/config`), 2. Trích xuất PDF, 3. Xác thực reCAPTCHA, 4. Thanh toán PayOS (`/api/payment/create` & `/api/payment/webhook`), 5. Hệ thống Email (`/api/send-feedback` & `/api/send-welcome-email`), Biến môi trường (Environment Variables), Các chức năng chính (Routes), Cấu trúc & Runtime (+4 more)
 
-### Community 21 - "Community 21"
+### Community 20 - "Community 20"
 Cohesion: 0.26
 Nodes (12): BLOCKED_HOSTNAME_PATTERNS, BLOCKED_HOSTNAMES, extractTextFromHtml(), handler(), hasPathTraversal(), htmlToText(), ipv4ToNumber(), isBlockedHostname() (+4 more)
 
-### Community 22 - "Community 22"
+### Community 21 - "Community 21"
 Cohesion: 0.17
 Nodes (11): 1. Internal API (Backend Proxy), 2. Dịch vụ lưu trữ & xác thực (Supabase), Danh sách API Endpoints (cvFit), Edge Function (tùy chọn — Supabase), `GET /api/config`, `POST /api/send-feedback`, `POST /api/send-welcome-email`, RPC & quota phân tích (client gọi qua `supabase.rpc`) (+3 more)
 
-### Community 23 - "Community 23"
+### Community 22 - "Community 22"
 Cohesion: 0.17
 Nodes (11): Adding a new endpoint, API routing matrix (Vercel · Express · Supabase), code:mermaid (flowchart TB), Express (`npm start` → `server.ts` + `server/routes/`), Out of scope (this doc), Quick reference, Request flow (high level), Supabase data plane (not HTTP `/api`) (+3 more)
+
+### Community 23 - "Community 23"
+Cohesion: 0.29
+Nodes (9): cvMarkdownHasHeadings(), fixMarkdownHeadingHashes(), isBulletLine(), isSectionLine(), normalizeSectionCandidate(), preprocessFullRewrittenCvMarkdown(), promotePlainTextCvToMarkdown(), SECTION_LABELS (+1 more)
 
 ### Community 24 - "Community 24"
 Cohesion: 0.2
@@ -202,23 +202,23 @@ Cohesion: 0.67
 Nodes (3): handler(), isPdfBuffer(), PDF_HEADER
 
 ## Knowledge Gaps
-- **275 isolated node(s):** `PDF_HEADER`, `router`, `PDF_HEADER`, `buffer`, `Mục tiêu chính (Core Objectives)` (+270 more)
+- **290 isolated node(s):** `LandingView`, `DashboardView`, `AdminView`, `HistoryView`, `NoPermissionView` (+285 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `useUI()` connect `Community 0` to `Community 8`, `Community 2`, `Community 10`, `Community 13`?**
-  _High betweenness centrality (0.046) - this node is a cross-community bridge._
-- **Why does `useAuth()` connect `Community 0` to `Community 8`, `Community 2`, `Community 10`, `Community 13`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
-- **Why does `cn()` connect `Community 0` to `Community 17`, `Community 2`, `Community 10`, `Community 13`?**
-  _High betweenness centrality (0.014) - this node is a cross-community bridge._
-- **What connects `PDF_HEADER`, `router`, `PDF_HEADER` to the rest of the system?**
-  _275 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `useUI()` connect `Community 0` to `Community 2`, `Community 9`, `Community 10`, `Community 11`, `Community 13`?**
+  _High betweenness centrality (0.051) - this node is a cross-community bridge._
+- **Why does `useAuth()` connect `Community 0` to `Community 10`, `Community 2`, `Community 11`, `Community 13`?**
+  _High betweenness centrality (0.022) - this node is a cross-community bridge._
+- **Why does `cn()` connect `Community 0` to `Community 2`, `Community 10`, `Community 13`?**
+  _High betweenness centrality (0.019) - this node is a cross-community bridge._
+- **What connects `LandingView`, `DashboardView`, `AdminView` to the rest of the system?**
+  _290 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.06 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.07 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**

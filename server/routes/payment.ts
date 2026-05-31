@@ -9,7 +9,9 @@ const router = Router();
 
 router.post('/create', async (req, res) => {
   try {
-    const result = await handlePaymentCreate(req.headers.authorization);
+    const body = req.body as { planType?: string } | undefined;
+    const planType = body?.planType === 'recruiter' ? 'recruiter' as const : 'pro' as const;
+    const result = await handlePaymentCreate(req.headers.authorization, planType);
     return res.status(result.status).json(result.body);
   } catch (err) {
     console.error('payment/create error:', err);

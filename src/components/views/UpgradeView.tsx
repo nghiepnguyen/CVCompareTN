@@ -3,161 +3,71 @@ import type { UiLabels } from '../../translations/types';
 import {
   AlertCircle,
   ArrowRight,
+  Briefcase,
   Check,
   ChevronRight,
   Infinity,
   Loader2,
+  Minus,
   Sparkles,
   Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
-import { createProCheckout } from '../../services/paymentService';
+import { createProCheckout, createRecruiterCheckout } from '../../services/paymentService';
 import { cn } from '../../lib/utils';
-import { formatPlanExpiryDate, isProPlan } from '../../lib/planLimits';
+import { formatPlanExpiryDate, isProPlan, isRecruiterPlan } from '../../lib/planLimits';
 import { formatLabel } from '../../translations';
 
-type RowKey = 'analyses' | 'batch' | 'cv' | 'jd' | 'history' | 'export';
+type Plan = 'free' | 'pro' | 'recruiter';
 
-type FeatureRow = {
-  key: RowKey;
+type ComparisonRow = {
+  key: string;
   label: string;
-  value: string;
-  icon?: 'check' | 'infinity';
+  free: { value: string; icon: 'check' | 'dash' | 'infinity' };
+  pro: { value: string; icon: 'check' | 'dash' | 'infinity' };
+  recruiter: { value: string; icon: 'check' | 'dash' | 'infinity' };
 };
 
-type FeatureRowKey = {
-  key: RowKey;
-  labelKey: keyof UiLabels;
-  freeKey: keyof UiLabels;
-  proKey: keyof UiLabels;
-  icon?: 'check' | 'infinity';
-};
-
-const FEATURE_ROW_KEYS: FeatureRowKey[] = [
-  { key: 'analyses', labelKey: 'upgradeCompareAnalyses', freeKey: 'upgradeFreeAnalyses', proKey: 'upgradeProAnalyses' },
-  { key: 'batch', labelKey: 'upgradeCompareBatch', freeKey: 'upgradeFreeBatch', proKey: 'upgradeProBatch' },
-  { key: 'cv', labelKey: 'upgradeCompareCV', freeKey: 'upgradeFreeCV', proKey: 'upgradeProCV' },
-  { key: 'jd', labelKey: 'upgradeCompareJd', freeKey: 'upgradeFreeJd', proKey: 'upgradeProJd', icon: 'infinity' },
-  { key: 'history', labelKey: 'upgradeCompareHistory', freeKey: 'upgradeFreeHistory', proKey: 'upgradeProHistory' },
-  { key: 'export', labelKey: 'upgradeCompareExport', freeKey: 'upgradeFreeExport', proKey: 'upgradeProExport' },
+const ROWS: ComparisonRow[] = [
+  { key: 'analyses', label: 'Lượt phân tích / tháng', free: { value: '10', icon: 'dash' }, pro: { value: '100', icon: 'check' }, recruiter: { value: '500', icon: 'check' } },
+  { key: 'batch', label: 'CV mỗi lần phân tích', free: { value: '1', icon: 'dash' }, pro: { value: '5', icon: 'check' }, recruiter: { value: '50', icon: 'check' } },
+  { key: 'campaignCvs', label: 'CV / đợt tuyển dụng', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '50 CV', icon: 'check' } },
+  { key: 'campaigns', label: 'Đợt tuyển dụng', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '10 / tháng', icon: 'check' } },
+  { key: 'cv', label: 'Kho CV', free: { value: '1 CV', icon: 'dash' }, pro: { value: '10 CV', icon: 'check' }, recruiter: { value: '50 CV', icon: 'check' } },
+  { key: 'jd', label: 'Kho JD mẫu', free: { value: '3 mẫu', icon: 'dash' }, pro: { value: 'Không giới hạn', icon: 'infinity' }, recruiter: { value: 'Không giới hạn', icon: 'infinity' } },
+  { key: 'history', label: 'Lịch sử', free: { value: '7 ngày', icon: 'dash' }, pro: { value: 'Vĩnh viễn', icon: 'check' }, recruiter: { value: 'Vĩnh viễn', icon: 'check' } },
+  { key: 'export', label: 'Xuất báo cáo Excel', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: 'Có', icon: 'check' } },
+  { key: 'hrNotes', label: 'Ghi chú nội bộ HR', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: 'Có', icon: 'check' } },
 ];
 
-function mapToFeatureRows(t: UiLabels): FeatureRow[] {
-  return FEATURE_ROW_KEYS.map((r) => ({
-    key: r.key,
-    label: String(t[r.labelKey]),
-    value: String(t[r.proKey]),
-    icon: r.icon,
-  }));
+function RowIcon({ type }: { type: 'check' | 'dash' | 'infinity' }) {
+  if (type === 'infinity') return <Infinity className="w-4 h-4 text-accent" />;
+  if (type === 'check') return <Check className="w-4 h-4 text-success" />;
+  return <Minus className="w-4 h-4 text-text-muted/30" />;
 }
 
-function mapToFreeRows(t: UiLabels): FeatureRow[] {
-  return FEATURE_ROW_KEYS.map((r) => ({
-    key: r.key,
-    label: String(t[r.labelKey]),
-    value: String(t[r.freeKey]),
-    icon: r.icon,
-  }));
-}
-
-function FeatureIcon({ type }: { type?: 'check' | 'infinity' }) {
-  if (type === 'infinity') return <Infinity className="size-4 text-accent shrink-0" />;
-  return <Check className="size-4 text-success shrink-0" />;
-}
-
-function PricingCard({
-  plan,
-  price,
-  subtitle,
-  features,
-  highlighted,
-  isCurrentPlan,
-  onAction,
-  isLoading,
-  actionLabel,
-}: {
-  plan: string;
-  price: string;
-  subtitle: string;
-  features: FeatureRow[];
-  highlighted: boolean;
-  isCurrentPlan: boolean;
-  onAction: () => void;
-  isLoading: boolean;
-  actionLabel: string;
-}) {
+function PriceTag({ plan, className }: { plan: Plan; className?: string }) {
+  if (plan === 'recruiter') {
+    return (
+      <div className={cn('space-y-0.5', className)}>
+        <p className="text-2xl sm:text-3xl font-black text-purple-400">499.000đ</p>
+        <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">/ tháng</p>
+      </div>
+    );
+  }
+  if (plan === 'pro') {
+    return (
+      <div className={cn('space-y-0.5', className)}>
+        <p className="text-2xl sm:text-3xl font-black text-accent">69.000đ</p>
+        <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">/ tháng</p>
+      </div>
+    );
+  }
   return (
-    <div
-      className={cn(
-        'relative flex flex-col rounded-2xl border-2 transition-colors duration-200',
-        highlighted
-          ? 'border-accent bg-accent/5'
-          : 'border-border bg-surface hover:border-text-muted/40'
-      )}
-    >
-      {highlighted && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-accent px-3 py-1 text-xs font-black uppercase tracking-widest text-white shadow-sm">
-            <Zap className="size-3 fill-white" />
-            Phổ biến
-          </span>
-        </div>
-      )}
-
-      <div className="flex flex-col items-center p-6 pt-8 text-center">
-        <h3
-          className={cn(
-            'text-lg font-black uppercase tracking-wider',
-            highlighted ? 'text-accent' : 'text-text-main'
-          )}
-        >
-          {plan}
-        </h3>
-        <div className="mt-3 flex items-baseline gap-1">
-          <span className="text-4xl font-black text-text-main">{price}</span>
-          <span className="text-sm font-semibold text-text-muted">/tháng</span>
-        </div>
-        <p className="mt-1 text-xs text-text-muted">{subtitle}</p>
-      </div>
-
-      <div className="flex-1 border-t border-border px-5 py-5 space-y-3">
-        {features.map((row) => (
-          <div key={row.key} className="flex items-center gap-3 text-sm">
-            <FeatureIcon type={row.icon} />
-            <span className="flex-1 text-text-main font-medium">{row.label}</span>
-            <span className="text-text-muted tabular-nums">{row.value}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="px-5 pb-5 pt-2">
-        <button
-          type="button"
-          disabled={isCurrentPlan && highlighted || isLoading}
-          onClick={onAction}
-          className={cn(
-            'inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-black uppercase tracking-widest transition-all duration-200 cursor-pointer',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-            isCurrentPlan
-              ? 'bg-surface-secondary text-text-muted border border-border'
-              : highlighted
-                ? 'bg-accent text-white hover:bg-accent/90 active:bg-accent/80'
-                : 'bg-surface-secondary text-text-main border border-border hover:border-text-muted/60'
-          )}
-        >
-          {isLoading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : isCurrentPlan ? (
-            'Gói hiện tại'
-          ) : (
-            <>
-              {actionLabel}
-              <ArrowRight className="size-4" />
-            </>
-          )}
-        </button>
-      </div>
+    <div className={cn('space-y-0.5', className)}>
+      <p className="text-2xl sm:text-3xl font-black text-text-main">0đ</p>
+      <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Miễn phí trọn đời</p>
     </div>
   );
 }
@@ -166,53 +76,51 @@ export function UpgradeView() {
   const { user, effectivePlan, userProfile } = useAuth();
   const { t, setActiveTab, reportLanguage } = useUI();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const alreadyPro = userProfile?.role === 'admin' || isProPlan(effectivePlan);
+  const alreadyRecruiter = userProfile?.role === 'admin' || isRecruiterPlan(effectivePlan);
   const planExpiryLabel =
-    alreadyPro && userProfile?.planExpiresAt
+    (alreadyPro || alreadyRecruiter) && userProfile?.planExpiresAt
       ? formatLabel(t.planExpiresUntil, {
           date: formatPlanExpiryDate(userProfile.planExpiresAt, reportLanguage) ?? '',
         })
       : null;
 
-  const handleUpgrade = async () => {
+  const handleCheckout = async (plan: 'pro' | 'recruiter') => {
     if (!user) {
       setError(t.login);
       return;
     }
-    if (alreadyPro) {
-      setActiveTab('analyze');
-      return;
-    }
     setError(null);
     setIsCheckingOut(true);
+    setCheckoutPlan(plan);
     try {
-      const { checkoutUrl } = await createProCheckout();
+      const { checkoutUrl } = plan === 'recruiter'
+        ? await createRecruiterCheckout()
+        : await createProCheckout('pro');
       window.location.href = checkoutUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : t.checkoutError);
       setIsCheckingOut(false);
+      setCheckoutPlan(null);
     }
   };
 
-  const freeRows = mapToFreeRows(t);
-  const proRows = mapToFeatureRows(t);
+  const currentPlan: Plan = alreadyRecruiter ? 'recruiter' : alreadyPro ? 'pro' : 'free';
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10 sm:py-16 space-y-12">
+    <div className="max-w-6xl mx-auto px-4 py-10 sm:py-16 space-y-10">
       {/* Hero */}
       <header className="text-center space-y-4">
         <div className="inline-flex items-center justify-center size-14 rounded-2xl bg-accent/10 border border-accent/30">
           <Sparkles className="size-7 text-accent" />
         </div>
-
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-text-main">
           {t.upgradePageTitle}
         </h1>
-        <p className="text-text-muted max-w-lg mx-auto leading-relaxed">
-          {t.upgradePageDesc}
-        </p>
+        <p className="text-text-muted max-w-lg mx-auto leading-relaxed">{t.upgradePageDesc}</p>
 
         {planExpiryLabel && (
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-400/10 px-4 py-1.5 text-sm font-bold text-amber-600 dark:text-amber-400">
@@ -220,36 +128,294 @@ export function UpgradeView() {
             {planExpiryLabel}
           </div>
         )}
-
-        {!alreadyPro && (
+        {!alreadyPro && !alreadyRecruiter && (
           <p className="text-xs text-text-muted">{t.planStackingNote}</p>
         )}
       </header>
 
-      {/* Pricing Cards */}
-      <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-        <PricingCard
-          plan={t.planFree}
-          price="0đ"
-          subtitle="Miễn phí trọn đời"
-          features={freeRows}
-          highlighted={false}
-          isCurrentPlan={!alreadyPro}
-          onAction={() => setActiveTab('analyze')}
-          isLoading={false}
-          actionLabel="Bắt đầu miễn phí"
-        />
-        <PricingCard
-          plan={t.planPro}
-          price="69.000đ"
-          subtitle={t.planStackingNote}
-          features={proRows}
-          highlighted
-          isCurrentPlan={alreadyPro}
-          onAction={() => void handleUpgrade()}
-          isLoading={isCheckingOut}
-          actionLabel={t.upgradeCta}
-        />
+      {/* Desktop: Comparison Table */}
+      <div className="hidden lg:block max-w-5xl mx-auto">
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface/40 backdrop-blur-md">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="w-[30%] p-6 text-left">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-text-muted">
+                    Tính năng
+                  </span>
+                </th>
+                <th className={cn('w-[23%] p-5 border-b', currentPlan === 'free' && 'bg-success/5')}>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-base font-black text-text-main uppercase tracking-wider">Miễn phí</h3>
+                    <PriceTag plan="free" />
+                    {currentPlan === 'free' && (
+                      <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20">
+                        Gói hiện tại
+                      </span>
+                    )}
+                  </div>
+                </th>
+                <th className={cn('w-[23%] p-5 border-b bg-accent/[0.02]', currentPlan === 'pro' && 'bg-accent/10')}>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-base font-black text-accent uppercase tracking-wider">Pro</h3>
+                    <PriceTag plan="pro" />
+                    <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-accent/10 text-accent border border-accent/20">
+                      Phổ biến
+                    </span>
+                    {currentPlan === 'pro' && (
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20">
+                        Gói hiện tại
+                      </span>
+                    )}
+                  </div>
+                </th>
+                <th className={cn('w-[24%] p-5 border-b bg-purple-500/[0.03]', currentPlan === 'recruiter' && 'bg-purple-500/10')}>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-base font-black text-purple-400 uppercase tracking-wider">Recruiter</h3>
+                    <PriceTag plan="recruiter" />
+                    <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/10 text-purple-400 border border-purple-400/20">
+                      Doanh nghiệp
+                    </span>
+                    {currentPlan === 'recruiter' && (
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20">
+                        Gói hiện tại
+                      </span>
+                    )}
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {ROWS.map((row, idx) => (
+                <tr key={row.key} className="border-b border-border/50 hover:bg-white/[0.01] transition-colors">
+                  <td className="py-4 px-6">
+                    <span className="text-sm font-semibold text-text-main">{row.label}</span>
+                  </td>
+                  <td className="py-4 px-5 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <RowIcon type={row.free.icon} />
+                      <span className="text-sm text-text-muted tabular-nums">{row.free.value}</span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-5 text-center bg-accent/[0.01]">
+                    <div className="flex items-center justify-center gap-2">
+                      <RowIcon type={row.pro.icon} />
+                      <span className="text-sm text-text-muted tabular-nums">{row.pro.value}</span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-5 text-center bg-purple-500/[0.02]">
+                    <div className="flex items-center justify-center gap-2">
+                      <RowIcon type={row.recruiter.icon} />
+                      <span className="text-sm text-text-muted tabular-nums">{row.recruiter.value}</span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {/* CTA Row */}
+              <tr className="border-t-2 border-border/80">
+                <td className="py-5 px-6" />
+                <td className="py-5 px-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('analyze')}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-semibold border border-border text-text-muted hover:text-text-main cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                  >
+                    <Zap className="h-4 w-4" />
+                    Bắt đầu miễn phí
+                  </button>
+                </td>
+                <td className="py-5 px-4 text-center bg-accent/[0.01]">
+                  {currentPlan === 'pro' || currentPlan === 'recruiter' ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('analyze')}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold border border-border text-text-muted cursor-pointer hover:scale-105 active:scale-95 transition-all bg-surface-secondary"
+                    >
+                      Gói hiện tại
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isCheckingOut}
+                      onClick={() => handleCheckout('pro')}
+                      className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold bg-accent text-white cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {isCheckingOut && checkoutPlan === 'pro' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          <span>{t.upgradeCta}</span>
+                          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                        </>
+                      )}
+                    </button>
+                  )}
+                </td>
+                <td className="py-5 px-4 text-center bg-purple-500/[0.02]">
+                  {currentPlan === 'recruiter' ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('analyze')}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold border border-border text-text-muted cursor-pointer hover:scale-105 active:scale-95 transition-all bg-surface-secondary"
+                    >
+                      Gói hiện tại
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isCheckingOut}
+                      onClick={() => handleCheckout('recruiter')}
+                      className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold bg-purple-500 text-white cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {isCheckingOut && checkoutPlan === 'recruiter' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Briefcase className="h-4 w-4" />
+                          <span>Nâng cấp Recruiter</span>
+                          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                        </>
+                      )}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Mobile: Stacked Cards */}
+      <div className="lg:hidden space-y-5 max-w-md mx-auto">
+        {(['free', 'pro', 'recruiter'] as Plan[]).map((plan) => {
+          const isRecruiter = plan === 'recruiter';
+          const isPro = plan === 'pro';
+          const isCurrent = currentPlan === plan;
+
+          return (
+            <div
+              key={plan}
+              className={cn(
+                'relative overflow-hidden rounded-2xl border-2 bg-surface/50 backdrop-blur-sm',
+                isRecruiter
+                  ? 'border-purple-500/30'
+                  : isPro
+                    ? 'border-accent/30'
+                    : 'border-border',
+                isCurrent && 'ring-2 ring-success/30',
+              )}
+            >
+              {/* Badge */}
+              {(isPro || isRecruiter) && (
+                <div className={cn(
+                  'text-center py-1.5',
+                  isRecruiter ? 'bg-purple-500' : 'bg-accent',
+                )}>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-white">
+                    {isRecruiter ? 'Doanh nghiệp' : 'Phổ biến'}
+                  </span>
+                </div>
+              )}
+
+              {/* Header */}
+              <div className="p-5 text-center">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <h3 className={cn(
+                    'text-lg font-black uppercase tracking-wider',
+                    isRecruiter ? 'text-purple-400' : isPro ? 'text-accent' : 'text-text-main',
+                  )}>
+                    {plan === 'recruiter' ? 'Recruiter' : plan === 'pro' ? 'Pro' : 'Miễn phí'}
+                  </h3>
+                  {isCurrent && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20">
+                      Hiện tại
+                    </span>
+                  )}
+                </div>
+                <PriceTag plan={plan} />
+              </div>
+
+              {/* Rows */}
+              <div className="border-t border-border divide-y divide-border/50">
+                {ROWS.map((row) => (
+                  <div key={row.key} className="flex items-center justify-between px-5 py-3">
+                    <span className="text-xs font-semibold text-text-main">{row.label}</span>
+                    <div className="flex items-center gap-1.5">
+                      <RowIcon type={row[plan].icon} />
+                      <span className="text-xs text-text-muted tabular-nums font-medium">{row[plan].value}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA */}
+              <div className="p-5">
+                {plan === 'recruiter' ? (
+                  currentPlan === 'recruiter' ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('analyze')}
+                      className="w-full h-12 rounded-xl font-bold text-sm border border-border text-text-muted bg-surface-secondary cursor-pointer"
+                    >
+                      Gói hiện tại
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isCheckingOut}
+                      onClick={() => handleCheckout('recruiter')}
+                      className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm bg-purple-500 text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                    >
+                      {isCheckingOut && checkoutPlan === 'recruiter' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Briefcase className="h-4 w-4" />
+                          Nâng cấp Recruiter
+                        </>
+                      )}
+                    </button>
+                  )
+                ) : plan === 'pro' ? (
+                  currentPlan === 'pro' || currentPlan === 'recruiter' ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('analyze')}
+                      className="w-full h-12 rounded-xl font-bold text-sm border border-border text-text-muted bg-surface-secondary cursor-pointer"
+                    >
+                      Gói hiện tại
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isCheckingOut}
+                      onClick={() => handleCheckout('pro')}
+                      className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm bg-accent text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                    >
+                      {isCheckingOut && checkoutPlan === 'pro' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          {t.upgradeCta}
+                        </>
+                      )}
+                    </button>
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('analyze')}
+                    className="w-full h-12 rounded-xl font-bold text-sm border border-border text-text-muted cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all bg-surface-secondary"
+                  >
+                    Bắt đầu miễn phí
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Error */}
@@ -260,7 +426,7 @@ export function UpgradeView() {
         </div>
       )}
 
-      {/* Guarantee / Trust */}
+      {/* Guarantee */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-xs text-text-muted max-w-2xl mx-auto">
         <div className="flex items-center gap-2">
           <div className="size-8 rounded-lg bg-success/10 border border-success/20 flex items-center justify-center">
@@ -273,6 +439,12 @@ export function UpgradeView() {
             <Zap className="size-4 text-accent" />
           </div>
           <span>Kích hoạt ngay lập tức</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="size-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+            <Briefcase className="size-4 text-purple-400" />
+          </div>
+          <span>Đợt tuyển dụng 10/tháng</span>
         </div>
       </div>
 

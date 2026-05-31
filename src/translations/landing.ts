@@ -285,8 +285,160 @@ export const landing = {
     en: "Support",
   },
   badgeTargetUsers: {
-    vi: "Đối tượng",
-    en: "Audience",
+    vi: 'Đối tượng',
+    en: 'Audience',
+  },
+  badgeRecruiter: {
+    vi: 'Dành cho Nhà tuyển dụng',
+    en: 'For Recruiters',
+  },
+  recruiterSectionTitle: {
+    vi: 'Tuyển dụng thông minh với AI',
+    en: 'Smart Recruiting with AI',
+  },
+  recruiterSectionDesc: {
+    vi: 'Tiết kiệm thời gian sàng lọc CV, tập trung vào ứng viên tốt nhất.',
+    en: 'Save time screening CVs, focus on the best candidates.',
+  },
+  recruiterFeature1Title: {
+    vi: 'Upload hàng loạt CV',
+    en: 'Bulk CV Upload',
+  },
+  recruiterFeature1Desc: {
+    vi: 'Tải lên đến 50 CV cùng lúc cho mỗi đợt tuyển dụng. Hỗ trợ PDF, Word, ảnh.',
+    en: 'Upload up to 50 CVs at once per campaign. Supports PDF, Word, images.',
+  },
+  recruiterFeature2Title: {
+    vi: 'Phân tích & Xếp hạng tự động',
+    en: 'Auto Analysis & Ranking',
+  },
+  recruiterFeature2Desc: {
+    vi: 'AI so sánh từng CV với JD, chấm điểm và xếp hạng ứng viên theo % khớp.',
+    en: 'AI compares each CV with the JD, scores and ranks candidates by match %.',
+  },
+  recruiterFeature3Title: {
+    vi: 'Báo cáo điểm theo hạng mục',
+    en: 'Category Score Reports',
+  },
+  recruiterFeature3Desc: {
+    vi: 'Điểm chi tiết: Kỹ năng, Kinh nghiệm, Công cụ, Học vấn — dễ dàng so sánh.',
+    en: 'Detailed scores: Skills, Experience, Tools, Education — easy comparison.',
+  },
+  recruiterFeature4Title: {
+    vi: 'Xuất báo cáo Excel',
+    en: 'Export Excel Reports',
+  },
+  recruiterFeature4Desc: {
+    vi: 'Export toàn bộ kết quả phân tích ra file Excel chỉ với một click.',
+    en: 'Export all analysis results to Excel with a single click.',
+  },
+  recruiterFeature5Title: {
+    vi: 'Ghi chú nội bộ',
+    en: 'Internal Notes',
+  },
+  recruiterFeature5Desc: {
+    vi: 'HR có thể ghi chú, gắn trạng thái Shortlist/Phỏng vấn/Loại/Đã tuyển cho từng ứng viên.',
+    en: 'HR can add notes and set status: Shortlist/Interview/Rejected/Hired per candidate.',
+  },
+  recruiterFeature6Title: {
+    vi: 'Quản lý nhiều đợt tuyển dụng',
+    en: 'Multi-Campaign Management',
+  },
+  recruiterFeature6Desc: {
+    vi: 'Tạo tối đa 10 đợt tuyển dụng, mỗi đợt có JD riêng, theo dõi tiến độ từng đợt.',
+    en: 'Create up to 10 campaigns, each with its own JD, track progress per campaign.',
+  },
+  recruiterViewPlans: {
+    vi: 'Xem gói Recruiter',
+    en: 'View Recruiter Plans',
+  },
+  badgePricing: {
+    vi: 'Bảng giá',
+    en: 'Pricing',
+  },
+  pricingSectionTitle: {
+    vi: 'Chọn gói phù hợp với bạn',
+    en: 'Choose the plan that fits you',
+  },
+  pricingColFeature: {
+    vi: 'Tính năng',
+    en: 'Feature',
+  },
+  pricingCtaFree: {
+    vi: 'Bắt đầu miễn phí',
+    en: 'Start Free',
+  },
+  pricingCtaPro: {
+    vi: 'Nâng cấp Pro',
+    en: 'Upgrade to Pro',
+  },
+  pricingCtaRecruiter: {
+    vi: 'Nâng cấp Recruiter',
+    en: 'Upgrade Recruiter',
+  },
+  pricingBadgePopular: {
+    vi: 'Phổ biến',
+    en: 'Popular',
+  },
+  pricingBadgeEnterprise: {
+    vi: 'Doanh nghiệp',
+    en: 'Enterprise',
+  },
+  pricingTrustNote: {
+    vi: 'Mua thêm gói được cộng thêm 30 ngày vào hạn hiện tại. Hủy bất cứ lúc nào.',
+    en: 'Each purchase adds 30 days to your current expiry. Cancel anytime.',
+  },
+  planFreeLabel: {
+    vi: 'Miễn phí',
+    en: 'Free',
+  },
+  planProLabel: {
+    vi: 'Pro',
+    en: 'Pro',
+  },
+  planRecruiterLabel: {
+    vi: 'Recruiter',
+    en: 'Recruiter',
+  },
+  pricingAnalyses: {
+    vi: 'Phân tích / tháng',
+    en: 'Analyses / month',
+  },
+  pricingBatch: {
+    vi: 'CV / lần phân tích',
+    en: 'CVs / analysis',
+  },
+  pricingCampaignCvs: {
+    vi: 'CV / đợt tuyển dụng',
+    en: 'CVs / campaign',
+  },
+  pricingCampaigns: {
+    vi: 'Đợt tuyển dụng',
+    en: 'Campaigns',
+  },
+  pricingJdStore: {
+    vi: 'Kho JD mẫu',
+    en: 'JD templates',
+  },
+  pricingHistory: {
+    vi: 'Lịch sử',
+    en: 'History',
+  },
+  pricingExport: {
+    vi: 'Xuất báo cáo Excel',
+    en: 'Excel export',
+  },
+  pricingHrNotes: {
+    vi: 'Ghi chú nội bộ HR',
+    en: 'HR notes',
+  },
+  pricingFreeLifetime: {
+    vi: 'Miễn phí trọn đời',
+    en: 'Free forever',
+  },
+  pricingPerMonth: {
+    vi: '/ tháng',
+    en: '/ month',
   },
   demoOverallCompat: {
     vi: "Độ tương thích tổng quan",

@@ -10,6 +10,8 @@ import { HowItWorksSection } from './landing/HowItWorksSection';
 import { DemoResultSection } from './landing/DemoResultSection';
 import { StatsSection } from './landing/StatsSection';
 import { TargetUsersSection } from './landing/TargetUsersSection';
+import { RecruiterFeaturesSection } from './landing/RecruiterFeaturesSection';
+import { PricingSection } from './landing/PricingSection';
 import { CtaSection } from './landing/CtaSection';
 import { FaqSection } from './landing/FaqSection';
 
@@ -38,6 +40,8 @@ export function LandingView() {
         <DemoResultSection t={t} />
         <StatsSection t={t} />
         <TargetUsersSection t={t} />
+        <RecruiterFeaturesSection t={t} />
+        <PricingSection t={t} login={login} />
         <CtaSection t={t} login={login} />
         <FaqSection t={t} openFaqIndex={openFaqIndex} setOpenFaqIndex={setOpenFaqIndex} />
       </div>

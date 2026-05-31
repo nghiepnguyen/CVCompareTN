@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { LayoutDashboard, History as HistoryIcon, Bookmark, Settings } from 'lucide-react';
+import { LayoutDashboard, History as HistoryIcon, Bookmark, Settings, Briefcase } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { Tab } from '../context/UIContext';
 import type { AnalysisResult } from '../services/ai';
@@ -12,11 +12,13 @@ export interface MobileBottomNavProps {
   setSelectedResult: (result: null) => void;
   onOpenSavedJds: () => void;
   showAdmin: boolean;
+  showRecruiter: boolean;
   labels: {
     analyze: string;
     history: string;
     mobileJdStore: string;
     admin: string;
+    recruiter: string;
   };
 }
 
@@ -27,6 +29,7 @@ export function MobileBottomNav({
   setSelectedResult,
   onOpenSavedJds,
   showAdmin,
+  showRecruiter,
   labels,
 }: MobileBottomNavProps) {
   return (
@@ -69,6 +72,30 @@ export function MobileBottomNav({
         <Bookmark className="w-6 h-6 stroke-2" />
         <span className="text-[10px] font-bold uppercase tracking-tight">{labels.mobileJdStore}</span>
       </button>
+      {showRecruiter && (
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('recruiter');
+            setSelectedResult(null);
+          }}
+          className={cn(
+            'flex flex-col items-center gap-1 p-2 min-w-[64px] transition-all active:scale-90 cursor-pointer hover:scale-105',
+            activeTab === 'recruiter' && !selectedResult ? 'text-accent' : 'text-text-light'
+          )}
+        >
+          <Briefcase
+            className={cn(
+              'w-6 h-6',
+              activeTab === 'recruiter' && !selectedResult ? 'stroke-[2.5px]' : 'stroke-2'
+            )}
+          />
+          <span className="text-[10px] font-bold uppercase tracking-tight">{labels.recruiter}</span>
+          {activeTab === 'recruiter' && !selectedResult && (
+            <motion.div layoutId="activeTabDot" className="w-1 h-1 bg-accent rounded-full" />
+          )}
+        </button>
+      )}
       {showAdmin && (
         <button
           type="button"

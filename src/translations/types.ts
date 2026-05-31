@@ -46,6 +46,7 @@ export interface UiLabels {
   adminPlanGrantPro30: string;
   adminPlanGrantPro90: string;
   adminPlanGrantPro365: string;
+  adminPlanGrantRecruiter30: string;
   adminPlanPro: string;
   adminNewProfilesSubtitle: string;
   adminNewProfilesTitle: string;
@@ -170,6 +171,8 @@ export interface UiLabels {
   badgeCta: string;
   badgeFaq: string;
   badgeTargetUsers: string;
+  badgePricing: string;
+  pricingSectionTitle: string;
   demoOverallCompat: string;
   demoAtsScore: string;
   demoSystemReadability: string;
@@ -490,4 +493,20 @@ export interface UiLabels {
   appBrandName: string;
   unknownUser: string;
   emailPlaceholder: string;
+  planRecruiter: string;
+  planBadgeRecruiter: string;
+  upgradeCompareCampaigns: string;
+  upgradeCompareCampaignCvs: string;
+  upgradeFreeCampaigns: string;
+  upgradeProCampaigns: string;
+  upgradeRecruiterCampaigns: string;
+  upgradeFreeCampaignCvs: string;
+  upgradeProCampaignCvs: string;
+  upgradeRecruiterCampaignCvs: string;
+  upgradeRecruiterAnalyses: string;
+  upgradeRecruiterBatch: string;
+  upgradeRecruiterJd: string;
+  upgradeRecruiterHistory: string;
+  upgradeRecruiterExport: string;
+  upgradePromptFeatureRecruiter: string;
 }

@@ -31,7 +31,7 @@ async function parsePaymentApiResponse(
   }
 }
 
-export async function createProCheckout(): Promise<CreateCheckoutResponse> {
+export async function createProCheckout(planType: 'pro' | 'recruiter' = 'pro'): Promise<CreateCheckoutResponse> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) {
@@ -44,7 +44,7 @@ export async function createProCheckout(): Promise<CreateCheckoutResponse> {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ planType }),
   });
 
   const body = await parsePaymentApiResponse(response);
@@ -63,6 +63,10 @@ export async function createProCheckout(): Promise<CreateCheckoutResponse> {
   }
 
   return { checkoutUrl: body.checkoutUrl, orderCode: body.orderCode as number };
+}
+
+export function createRecruiterCheckout(): Promise<CreateCheckoutResponse> {
+  return createProCheckout('recruiter');
 }
 
 export type ConfirmPaymentResponse = {

@@ -72,6 +72,10 @@ export const admin = {
     vi: "Pro 1 năm",
     en: "Pro 1 year",
   },
+  adminPlanGrantRecruiter30: {
+    vi: "Recruiter 30 ngày",
+    en: "Recruiter 30 days",
+  },
   adminPlanChangeError: {
     vi: "Không cập nhật được gói: {message}",
     en: "Could not update plan: {message}",

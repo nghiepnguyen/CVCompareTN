@@ -2,7 +2,7 @@ import { supabase } from "../lib/supabase";
 
 export const DEFAULT_AVATAR_URL = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
 
-export type UserPlan = 'free' | 'pro';
+export type UserPlan = 'free' | 'pro' | 'recruiter';
 
 export interface UserProfile {
   id: string;
@@ -52,7 +52,7 @@ function mapProfile(data: any): UserProfile {
         : Number(data.monthly_analytics_limit),
     monthlyAnalyticsLimitCustom: Boolean(data.monthly_analytics_limit_custom),
     usageMonth: data.usage_month || '',
-    plan: data.plan === 'pro' ? 'pro' : 'free',
+    plan: (data.plan === 'pro' || data.plan === 'recruiter') ? data.plan : 'free',
     planExpiresAt: data.plan_expires_at ?? null,
   };
 }
@@ -63,7 +63,7 @@ export async function fetchEffectiveUserPlan(userId: string): Promise<UserPlan> 
     console.error('get_user_plan failed:', error);
     return 'free';
   }
-  return data === 'pro' ? 'pro' : 'free';
+  return (data === 'pro' || data === 'recruiter') ? data : 'free';
 }
 
 export async function getUserProfile(id: string): Promise<UserProfile | null> {
@@ -204,20 +204,22 @@ export async function updateUserRole(uid: string, role: 'admin' | 'user'): Promi
   if (error) throw error;
 }
 
-export type AdminPlanGrant = 'free' | 'pro_30' | 'pro_90' | 'pro_365';
+export type AdminPlanGrant = 'free' | 'pro_30' | 'pro_90' | 'pro_365' | 'recruiter_30';
 
 /** Effective tier for UI (expiry-aware; admins always pro for limits). */
 export function getDisplayEffectivePlan(
   profile: Pick<UserProfile, 'plan' | 'planExpiresAt' | 'role'>
 ): UserPlan {
   if (profile.role === 'admin') return 'pro';
-  if (profile.plan !== 'pro') return 'free';
-  if (!profile.planExpiresAt) return 'pro';
-  return new Date(profile.planExpiresAt) > new Date() ? 'pro' : 'free';
+  if (profile.plan !== 'pro' && profile.plan !== 'recruiter') return 'free';
+  if (!profile.planExpiresAt) return profile.plan as UserPlan;
+  return new Date(profile.planExpiresAt) > new Date() ? (profile.plan as UserPlan) : 'free';
 }
 
 export function adminPlanSelectValue(profile: UserProfile): AdminPlanGrant {
-  if (getDisplayEffectivePlan(profile) === 'free') return 'free';
+  const effective = getDisplayEffectivePlan(profile);
+  if (effective === 'free') return 'free';
+  if (effective === 'recruiter') return 'recruiter_30';
   if (!profile.planExpiresAt) return 'pro_30';
   const daysLeft = Math.ceil(
     (new Date(profile.planExpiresAt).getTime() - Date.now()) / 86_400_000
@@ -231,7 +233,7 @@ export async function adminUpdateUserPlan(
   uid: string,
   grant: AdminPlanGrant
 ): Promise<void> {
-  const plan = grant === 'free' ? 'free' : 'pro';
+  const plan = grant === 'free' ? 'free' : grant === 'recruiter_30' ? 'recruiter' : 'pro';
   const durationDays =
     grant === 'pro_90' ? 90 : grant === 'pro_365' ? 365 : grant === 'pro_30' ? 30 : 30;
 

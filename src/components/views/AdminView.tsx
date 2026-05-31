@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Mail, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, Send, AlertCircle, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown } from 'lucide-react';
+import { Users, Mail, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, Send, AlertCircle, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown, Briefcase } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -50,6 +50,11 @@ export function AdminView() {
   const [isSavingGlobalLimit, setIsSavingGlobalLimit] = useState(false);
   const [globalLimitMessage, setGlobalLimitMessage] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [planModal, setPlanModal] = useState<{
+    user: UserProfile;
+    grant: AdminPlanGrant;
+    limitDraft: string;
+  } | null>(null);
   const pageSize = 10;
 
   const loadGlobalDefaultLimit = useCallback(async () => {
@@ -168,11 +173,11 @@ export function AdminView() {
   };
 
   const handleAdminPlanChange = async (u: UserProfile, grant: AdminPlanGrant) => {
-    if (grant === adminPlanSelectValue(u)) return;
     setSavingPlanUserId(u.id);
     setError(null);
     try {
       await adminUpdateUserPlan(u.id, grant);
+      setPlanModal(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setError(formatLabel(t.adminPlanChangeError, { message }));
@@ -451,106 +456,62 @@ export function AdminView() {
                           <span
                             className={cn(
                               'inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border',
-                              getDisplayEffectivePlan(u) === 'pro'
-                                ? 'bg-accent-light border-accent/20 text-accent'
-                                : 'bg-surface-secondary border-border text-text-muted'
+                              getDisplayEffectivePlan(u) === 'recruiter'
+                                ? 'bg-purple-500/10 border-purple-400/20 text-purple-400'
+                                : getDisplayEffectivePlan(u) === 'pro'
+                                  ? 'bg-accent-light border-accent/20 text-accent'
+                                  : 'bg-surface-secondary border-border text-text-muted'
                             )}
                           >
-                            {getDisplayEffectivePlan(u) === 'pro' ? (
+                            {getDisplayEffectivePlan(u) === 'recruiter' ? (
+                              <Briefcase className="w-3 h-3" />
+                            ) : getDisplayEffectivePlan(u) === 'pro' ? (
                               <Crown className="w-3 h-3" />
                             ) : null}
-                            {getDisplayEffectivePlan(u) === 'pro' ? t.adminPlanPro : t.adminPlanFree}
+                            {getDisplayEffectivePlan(u) === 'recruiter'
+                              ? 'Recruiter'
+                              : getDisplayEffectivePlan(u) === 'pro'
+                                ? t.adminPlanPro
+                                : t.adminPlanFree}
                           </span>
                           {u.role !== 'admin' && u.id !== user?.id && (
-                            <div className="flex items-center gap-1">
-                              <select
-                                value={adminPlanSelectValue(u)}
-                                disabled={savingPlanUserId === u.id}
-                                onChange={(e) =>
-                                  void handleAdminPlanChange(u, e.target.value as AdminPlanGrant)
-                                }
-                                className={cn(
-                                  'flex-1 min-w-0 px-2 py-1 text-[10px] font-bold uppercase tracking-wide',
-                                  'border border-border rounded-md bg-surface text-text-main',
-                                  'cursor-pointer hover:scale-105 active:scale-95 transition-transform',
-                                  'focus:outline-none focus:ring-1 focus:ring-accent',
-                                  savingPlanUserId === u.id && 'opacity-50 cursor-not-allowed'
-                                )}
-                                aria-label={t.adminColPlan}
-                              >
-                                <option value="free">{t.adminPlanGrantFree}</option>
-                                <option value="pro_30">{t.adminPlanGrantPro30}</option>
-                                <option value="pro_90">{t.adminPlanGrantPro90}</option>
-                                <option value="pro_365">{t.adminPlanGrantPro365}</option>
-                              </select>
-                              {savingPlanUserId === u.id && (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-accent shrink-0" />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPlanModal({
+                                  user: u,
+                                  grant: adminPlanSelectValue(u),
+                                  limitDraft: u.monthlyAnalyticsLimitCustom
+                                    ? (u.monthlyAnalyticsLimit === null ? '' : String(u.monthlyAnalyticsLimit))
+                                    : '',
+                                })
+                              }
+                              className={cn(
+                                'px-2 py-1 text-[10px] font-bold uppercase tracking-wide rounded-md border border-border bg-surface text-text-muted',
+                                'cursor-pointer hover:scale-105 active:scale-95 transition-transform hover:border-accent/30 hover:text-accent',
                               )}
-                            </div>
+                            >
+                              Chỉnh sửa ▾
+                            </button>
                           )}
-                          {u.planExpiresAt && getDisplayEffectivePlan(u) === 'pro' && (
+                          {u.planExpiresAt && (getDisplayEffectivePlan(u) === 'pro' || getDisplayEffectivePlan(u) === 'recruiter') && (
                             <span className="text-[9px] text-text-light font-mono">
                               {new Date(u.planExpiresAt).toLocaleDateString(dateLocale)}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-2 min-w-[140px]">
-                          <div className="flex items-center gap-1.5">
-                            <Activity className="w-3.5 h-3.5 text-accent-light shrink-0" />
-                            <span className="text-[11px] font-black text-text-main">
-                              {formatUsageLimit(u)}
-                            </span>
-                          </div>
-                          {!u.monthlyAnalyticsLimitCustom && (
-                            <span className="text-[9px] font-bold text-accent uppercase tracking-wider">
-                              {formatLabel(t.adminAnalyticsUsingDefault, {
-                                limit: String(globalDefaultLimit),
-                              })}
+                      <td className="px-6 py-4" colSpan={0}>
+                        <div className="flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-accent-light shrink-0" />
+                          <span className="text-[11px] font-black text-text-main">
+                            {formatUsageLimit(u)}
+                          </span>
+                          {u.monthlyAnalyticsLimitCustom && (
+                            <span className="text-[9px] font-bold text-success uppercase tracking-wider ml-1">
+                              (tuỳ chỉnh)
                             </span>
                           )}
-                          <label className="flex flex-col gap-0.5">
-                            <span className="text-[9px] font-bold text-text-light uppercase tracking-wider">
-                              {t.adminAnalyticsLimitLabel}
-                            </span>
-                            <div className="flex items-center gap-1 flex-wrap">
-                              <input
-                                type="number"
-                                min={0}
-                                value={getLimitDraft(u)}
-                                onChange={(e) =>
-                                  setLimitDrafts((prev) => ({
-                                    ...prev,
-                                    [u.id]: e.target.value,
-                                  }))
-                                }
-                                onBlur={() => void handleSaveMonthlyLimit(u)}
-                                placeholder={
-                                  u.monthlyAnalyticsLimitCustom
-                                    ? t.adminAnalyticsLimitPlaceholder
-                                    : formatLabel(t.adminAnalyticsLimitPlaceholderInherit, {
-                                        limit: String(globalDefaultLimit),
-                                      })
-                                }
-                                className="w-20 px-2 py-1 text-[11px] font-mono border border-border rounded-md bg-surface focus:outline-none focus:ring-1 focus:ring-accent"
-                                title={t.adminAnalyticsUnlimited}
-                              />
-                              {u.monthlyAnalyticsLimitCustom && (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleResetToGlobalLimit(u)}
-                                  disabled={savingLimitUserId === u.id}
-                                  className="text-[9px] font-black text-accent uppercase tracking-wider hover:underline cursor-pointer disabled:opacity-50"
-                                >
-                                  {t.adminResetToGlobalLimit}
-                                </button>
-                              )}
-                              {savingLimitUserId === u.id && (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
-                              )}
-                            </div>
-                          </label>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -738,6 +699,154 @@ export function AdminView() {
           </div>
         </div>
       )}
+
+      {/* Plan Change Modal */}
+      <AnimatePresence>
+        {planModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              className="absolute inset-0 bg-black/50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPlanModal(null)}
+            />
+            <motion.div
+              className="relative z-10 w-full max-w-sm bg-surface border border-border rounded-2xl shadow-2xl p-6"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <h3 className="text-lg font-black text-text-main mb-1">Chỉnh sửa người dùng</h3>
+              <p className="text-xs text-text-muted mb-4">
+                {planModal.user.displayName || planModal.user.email}
+              </p>
+
+              {/* Plan Section */}
+              <div className="mb-5">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-text-muted mb-2">Gói dịch vụ</p>
+                <div className="space-y-1.5">
+                  {([
+                    { value: 'free', label: t.adminPlanGrantFree },
+                    { value: 'pro_30', label: t.adminPlanGrantPro30 },
+                    { value: 'pro_90', label: t.adminPlanGrantPro90 },
+                    { value: 'pro_365', label: t.adminPlanGrantPro365 },
+                    { value: 'recruiter_30', label: t.adminPlanGrantRecruiter30 },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() =>
+                        setPlanModal((prev) =>
+                          prev ? { ...prev, grant: opt.value } : prev
+                        )
+                      }
+                      className={cn(
+                        'w-full px-3 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer border',
+                        planModal.grant === opt.value
+                          ? 'bg-accent text-white border-accent'
+                          : 'bg-surface-secondary text-text-main border-border hover:border-accent/30',
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Analytics Limit Section */}
+              <div className="mb-5 pt-4 border-t border-border">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-text-muted mb-2">
+                  {t.adminAnalyticsLimitLabel}
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    value={planModal.limitDraft}
+                    onChange={(e) =>
+                      setPlanModal((prev) =>
+                        prev ? { ...prev, limitDraft: e.target.value } : prev
+                      )
+                    }
+                    placeholder={String(globalDefaultLimit)}
+                    className="flex-1 px-3 py-2 text-sm font-mono border border-border rounded-xl bg-surface-secondary focus:outline-none focus:ring-1 focus:ring-accent"
+                  />
+                  <span className="text-xs text-text-muted">{t.adminAnalyticsLimitLabel}</span>
+                </div>
+                {planModal.user.monthlyAnalyticsLimitCustom && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleResetToGlobalLimit(planModal.user);
+                      setPlanModal((prev) =>
+                        prev ? { ...prev, limitDraft: '' } : prev
+                      );
+                    }}
+                    disabled={savingLimitUserId === planModal.user.id}
+                    className="mt-2 text-[10px] font-bold text-accent uppercase tracking-wider hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    {t.adminResetToGlobalLimit} ({globalDefaultLimit}/tháng)
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPlanModal(null)}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold border border-border text-text-muted hover:text-text-main cursor-pointer transition-colors bg-surface-secondary"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="button"
+                  disabled={savingPlanUserId === planModal.user.id || savingLimitUserId === planModal.user.id}
+                  onClick={async () => {
+                    // Save analytics limit if changed
+                    const newLimit = planModal.limitDraft.trim();
+                    const oldLimit = planModal.user.monthlyAnalyticsLimitCustom
+                      ? (planModal.user.monthlyAnalyticsLimit === null ? '' : String(planModal.user.monthlyAnalyticsLimit))
+                      : '';
+                    if (newLimit !== oldLimit) {
+                      if (newLimit === '') {
+                        // Reset to global
+                        if (planModal.user.monthlyAnalyticsLimitCustom) {
+                          await handleResetToGlobalLimit(planModal.user);
+                        }
+                      } else {
+                        const parsed = parseInt(newLimit, 10);
+                        if (!Number.isNaN(parsed) && parsed >= 0) {
+                          setLimitDrafts((prev) => ({ ...prev, [planModal.user.id]: newLimit }));
+                          await handleSaveMonthlyLimit(planModal.user);
+                        }
+                      }
+                    }
+                    // Save plan if changed
+                    if (planModal.grant !== adminPlanSelectValue(planModal.user)) {
+                      await handleAdminPlanChange(planModal.user, planModal.grant);
+                    } else {
+                      setPlanModal(null);
+                    }
+                  }}
+                  className={cn(
+                    'flex-1 px-4 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider text-white cursor-pointer transition-all bg-accent hover:scale-[1.02] active:scale-[0.98]',
+                    (savingPlanUserId === planModal.user.id || savingLimitUserId === planModal.user.id) &&
+                      'opacity-50 cursor-not-allowed',
+                  )}
+                >
+                  {savingPlanUserId === planModal.user.id || savingLimitUserId === planModal.user.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                  ) : (
+                    'Lưu thay đổi'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileSearch, LayoutDashboard, History as HistoryIcon, ShieldCheck, LogOut, LogIn, ExternalLink, User as UserIcon, Sparkles } from 'lucide-react';
+import { FileSearch, LayoutDashboard, History as HistoryIcon, ShieldCheck, Briefcase, LogOut, LogIn, ExternalLink, User as UserIcon, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { formatPlanExpiryDate, isProPlan } from '../../lib/planLimits';
+import { formatPlanExpiryDate, isProPlan, isRecruiterPlan } from '../../lib/planLimits';
 import { formatLabel } from '../../translations';
 import { useUI } from '../../context/UIContext';
 import { useAnalysis } from '../../context/AnalysisContext';
@@ -13,12 +13,16 @@ export function Header() {
   const { user, userProfile, effectivePlan, allUsers, login, logout } = useAuth();
   const showProBadge =
     user && (userProfile?.role === 'admin' || isProPlan(effectivePlan));
+  const showRecruiterBadge =
+    user && (userProfile?.role === 'admin' || isRecruiterPlan(effectivePlan));
+  const showRecruiterTab =
+    user && userProfile && (userProfile.role === 'admin' || isRecruiterPlan(userProfile.plan));
   const { activeTab, setActiveTab, navigateToUpgrade, reportLanguage, setReportLanguage, isUserMenuOpen, setIsUserMenuOpen, t } = useUI();
   const { selectedResult, setSelectedResult } = useAnalysis();
 
   const newUsersCount = allUsers.filter(u => u.isNew && u.role !== 'admin').length;
   const planExpiryInMenu =
-    showProBadge && userProfile?.planExpiresAt
+    (showProBadge || showRecruiterBadge) && userProfile?.planExpiresAt
       ? formatLabel(t.planExpiresUntil, {
           date: formatPlanExpiryDate(userProfile.planExpiresAt, reportLanguage) ?? '',
         })
@@ -70,6 +74,18 @@ export function Header() {
                   <HistoryIcon className="w-4 h-4" />
                   <span className="hidden md:inline">{t.history}</span>
                 </button>
+                {showRecruiterTab && (
+                  <button 
+                    onClick={() => { setActiveTab('recruiter'); setSelectedResult(null); }}
+                    className={cn(
+                      "flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer",
+                      activeTab === 'recruiter' && !selectedResult ? "bg-white/[0.06] text-accent" : "text-text-muted hover:text-text-main"
+                    )}
+                  >
+                    <Briefcase className="w-4 h-4" />
+                    <span className="hidden md:inline">Tuyển dụng</span>
+                  </button>
+                )}
               </>
             )}
             { (userProfile?.role === 'admin' || user?.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase()) && (
@@ -147,7 +163,12 @@ export function Header() {
                         <div className="px-4 py-3 border-b border-white/[0.06] mb-1 rounded-t-2xl">
                           <div className="flex items-center gap-2">
                             <div className="text-sm font-bold text-text-main truncate">{user.user_metadata?.full_name || user.email}</div>
-                            {showProBadge && (
+                            {showRecruiterBadge && (
+                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-400/20 shrink-0">
+                                RECRUITER
+                              </span>
+                            )}
+                            {showProBadge && !showRecruiterBadge && (
                               <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/20 shrink-0">
                                 {t.planBadgePro}
                               </span>
@@ -172,7 +193,7 @@ export function Header() {
                           <UserIcon className="w-4 h-4" />
                           {t.profile}
                         </button>
-                        {!showProBadge && (
+                        {!showProBadge && !showRecruiterBadge && (
                           <button
                             type="button"
                             onClick={() => {

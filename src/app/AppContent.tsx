@@ -9,6 +9,7 @@ import { Footer } from '../components/layout/Footer';
 import { InAppBrowserWarning } from '../components/layout/InAppBrowserWarning';
 import { CookieConsentBanner } from '../components/layout/CookieConsentBanner';
 import { cn } from '../lib/utils';
+import { isRecruiterPlan } from '../lib/planLimits';
 import { MobileBottomNav } from './MobileBottomNav';
 import { SavedJdsListModal } from './SavedJdsListModal';
 import { SaveJdNameModal } from './SaveJdNameModal';
@@ -49,6 +50,9 @@ const ProfileView = React.lazy(() =>
 );
 const UpgradeView = React.lazy(() =>
   import('../components/views/UpgradeView').then((m) => ({ default: m.UpgradeView }))
+);
+const RecruiterView = React.lazy(() =>
+  import('../components/views/RecruiterView').then((m) => ({ default: m.RecruiterView }))
 );
 const PaymentSuccessView = React.lazy(() =>
   import('../components/views/PaymentSuccessView').then((m) => ({ default: m.PaymentSuccessView }))
@@ -267,6 +271,8 @@ export function AppContent() {
               <HistoryView />
             ) : activeTab === 'profile' ? (
               <ProfileView />
+            ) : activeTab === 'recruiter' ? (
+              <RecruiterView />
             ) : null}
           </React.Suspense>
         </main>
@@ -281,11 +287,13 @@ export function AppContent() {
             setSelectedResult={setSelectedResult}
             onOpenSavedJds={() => setIsSavedJDsModalOpen(true)}
             showAdmin={isAdmin || userProfile?.role === 'admin'}
+            showRecruiter={userProfile ? isRecruiterPlan(userProfile.plan) : false}
             labels={{
               analyze: t.analyze || 'Phân tích',
               history: t.history || 'Lịch sử',
               mobileJdStore: t.mobileJdStore,
               admin: t.admin,
+              recruiter: 'Tuyển dụng',
             }}
           />
         )}

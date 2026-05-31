@@ -3,10 +3,11 @@ import {
   createPayosPaymentLink,
   fetchPaymentRequestInfo,
   generateOrderCode,
+  getPlanConfig,
   isPayosPaymentPaid,
   PRO_DURATION_DAYS,
-  PRO_PRICE_VND,
   verifyWebhookPayload,
+  type PlanType,
 } from './payos.js';
 import { getMissingPaymentEnv, paymentConfigErrorBody } from './paymentEnv.js';
 import { getSupabaseAdmin, getUserFromBearerToken } from './supabaseAdmin.js';
@@ -36,13 +37,15 @@ async function activateProForOrder(
   userId: string,
   orderCode: number,
   payosData: Record<string, unknown> | null,
-  durationDays: number = PRO_DURATION_DAYS
+  durationDays: number = PRO_DURATION_DAYS,
+  plan: string = 'pro'
 ): Promise<{ activated: boolean; error: string | null }> {
   const { data, error } = await supabase.rpc('activate_pro_plan', {
     p_user_id: userId,
     p_order_code: orderCode,
     p_duration_days: durationDays,
     p_payos_data: payosData,
+    p_plan: plan,
   });
   if (error) {
     console.error('activate_pro_plan failed:', error);
@@ -106,7 +109,8 @@ async function notifyVipUpgrade(
 }
 
 export async function handlePaymentCreate(
-  authHeader: string | undefined
+  authHeader: string | undefined,
+  planType: PlanType = 'pro'
 ): Promise<PaymentHandlerResult> {
   const missingEnv = getMissingPaymentEnv();
   if (missingEnv) {
@@ -123,18 +127,20 @@ export async function handlePaymentCreate(
 
   const supabase = getSupabaseAdmin();
   const orderCode = generateOrderCode();
+  const config = getPlanConfig(planType);
 
   const { checkoutUrl, orderCode: confirmedCode } = await createPayosPaymentLink({
     orderCode,
     buyerEmail: user.email,
+    planType,
   });
 
   const { error: insertError } = await supabase.from('payments').insert({
     user_id: user.id,
     order_code: confirmedCode,
-    amount: PRO_PRICE_VND,
-    plan: 'pro',
-    duration_days: PRO_DURATION_DAYS,
+    amount: config.price,
+    plan: planType,
+    duration_days: config.durationDays,
     status: 'pending',
   });
 
@@ -182,7 +188,7 @@ export async function handlePaymentWebhook(
 
   const { data: payment, error: fetchError } = await supabase
     .from('payments')
-    .select('user_id, status, duration_days')
+    .select('user_id, status, duration_days, plan')
     .eq('order_code', orderCode)
     .maybeSingle();
 
@@ -199,12 +205,15 @@ export async function handlePaymentWebhook(
       ? payment.duration_days
       : PRO_DURATION_DAYS;
 
+  const planStr = typeof payment.plan === 'string' && payment.plan === 'recruiter' ? 'recruiter' : 'pro';
+
   const { activated, error: activateError } = await activateProForOrder(
     supabase,
     payment.user_id,
     orderCode,
     (payload.data as Record<string, unknown>) ?? null,
-    durationDays
+    durationDays,
+    planStr
   );
 
   if (activateError) {
@@ -253,7 +262,7 @@ export async function handlePaymentConfirm(
 
   const { data: payment, error: fetchError } = await supabase
     .from('payments')
-    .select('user_id, status, duration_days')
+    .select('user_id, status, duration_days, plan')
     .eq('order_code', orderCode)
     .eq('user_id', user.id)
     .maybeSingle();
@@ -263,7 +272,8 @@ export async function handlePaymentConfirm(
   }
 
   if (payment.status === 'paid') {
-    return { status: 200, body: { success: true, alreadyPaid: true, plan: 'pro' } };
+    const paidPlan = typeof payment.plan === 'string' ? payment.plan : 'pro';
+    return { status: 200, body: { success: true, alreadyPaid: true, plan: paidPlan } };
   }
 
   const payosInfo = await fetchPaymentRequestInfo(orderCode);
@@ -282,12 +292,15 @@ export async function handlePaymentConfirm(
       ? payment.duration_days
       : PRO_DURATION_DAYS;
 
+  const planStr = typeof payment.plan === 'string' && payment.plan === 'recruiter' ? 'recruiter' : 'pro';
+
   const { activated, error: activateError } = await activateProForOrder(
     supabase,
     payment.user_id,
     orderCode,
     payosInfo as unknown as Record<string, unknown>,
-    durationDays
+    durationDays,
+    planStr
   );
 
   if (activateError) {
@@ -295,7 +308,7 @@ export async function handlePaymentConfirm(
   }
 
   if (!activated) {
-    return { status: 200, body: { success: true, alreadyPaid: true, plan: 'pro' } };
+    return { status: 200, body: { success: true, alreadyPaid: true, plan: planStr } };
   }
 
   // Send VIP upgrade email (non-blocking, fire-and-forget)
@@ -305,5 +318,5 @@ export async function handlePaymentConfirm(
     );
   }
 
-  return { status: 200, body: { success: true, plan: 'pro' } };
+  return { status: 200, body: { success: true, plan: planStr } };
 }

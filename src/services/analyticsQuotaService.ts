@@ -26,7 +26,7 @@ export async function checkAnalyticsQuota(
   const row = (data ?? {}) as Record<string, unknown>;
   const planRaw = row.plan;
   const plan: UserPlan | undefined =
-    planRaw === 'pro' ? 'pro' : planRaw === 'free' ? 'free' : undefined;
+    planRaw === 'pro' ? 'pro' : planRaw === 'recruiter' ? 'recruiter' : planRaw === 'free' ? 'free' : undefined;
 
   return {
     allowed: Boolean(row.allowed),

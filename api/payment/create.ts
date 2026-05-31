@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { handlePaymentCreate } from './lib/handlers.js';
+import type { PlanType } from './lib/payos.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -9,7 +10,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const authHeader =
       typeof req.headers.authorization === 'string' ? req.headers.authorization : undefined;
-    const result = await handlePaymentCreate(authHeader);
+    const body = req.body as { planType?: string } | undefined;
+    const planType: PlanType = body?.planType === 'recruiter' ? 'recruiter' : 'pro';
+    const result = await handlePaymentCreate(authHeader, planType);
     return res.status(result.status).json(result.body);
   } catch (err) {
     console.error('payment/create error:', err);

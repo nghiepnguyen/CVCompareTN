@@ -2,6 +2,8 @@ import { createHmac } from 'node:crypto';
 
 export const PRO_PRICE_VND = 69000;
 export const PRO_DURATION_DAYS = 30;
+export const RECRUITER_PRICE_VND = 499000;
+export const RECRUITER_DURATION_DAYS = 30;
 export const PAYOS_API_URL = 'https://api-merchant.payos.vn/v2/payment-requests';
 
 export type PayosCreateBody = {
@@ -177,22 +179,44 @@ async function parsePayosJson(response: Response): Promise<{
   }
 }
 
+export type PlanType = 'pro' | 'recruiter';
+
+export function getPlanConfig(planType: PlanType) {
+  if (planType === 'recruiter') {
+    return {
+      price: RECRUITER_PRICE_VND,
+      durationDays: RECRUITER_DURATION_DAYS,
+      label: 'cvFit Recruiter',
+      itemName: 'cvFit Recruiter 30 ngày',
+    };
+  }
+  return {
+    price: PRO_PRICE_VND,
+    durationDays: PRO_DURATION_DAYS,
+    label: 'cvFit Pro',
+    itemName: 'cvFit Pro 30 ngày',
+  };
+}
+
 export async function createPayosPaymentLink(params: {
   orderCode: number;
   buyerEmail: string;
+  planType?: PlanType;
 }): Promise<{ checkoutUrl: string; orderCode: number }> {
   const baseUrl = getAppBaseUrl();
   const orderCode = params.orderCode;
-  const description = 'cvFit Pro';
+  const planType = params.planType ?? 'pro';
+  const config = getPlanConfig(planType);
+  const description = config.label;
   const returnUrl = `${baseUrl}/payment/success?orderCode=${orderCode}`;
   const cancelUrl = `${baseUrl}/payment/cancel`;
 
   const payosBody: PayosCreateBody = {
     orderCode,
-    amount: PRO_PRICE_VND,
+    amount: config.price,
     description,
     buyerEmail: params.buyerEmail,
-    items: [{ name: 'cvFit Pro 30 ngày', quantity: 1, price: PRO_PRICE_VND }],
+    items: [{ name: config.itemName, quantity: 1, price: config.price }],
     returnUrl,
     cancelUrl,
     expiredAt: Math.floor(Date.now() / 1000) + 15 * 60,

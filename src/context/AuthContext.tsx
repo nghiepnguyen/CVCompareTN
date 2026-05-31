@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             : Number(u.monthly_analytics_limit),
         monthlyAnalyticsLimitCustom: Boolean(u.monthly_analytics_limit_custom),
         usageMonth: u.usage_month || '',
-        plan: u.plan === 'pro' ? 'pro' : 'free',
+        plan: (u.plan === 'pro' || u.plan === 'recruiter') ? u.plan : 'free',
         planExpiresAt: u.plan_expires_at ?? null,
         createdAt: u.created_at,
         isNew: u.is_new,

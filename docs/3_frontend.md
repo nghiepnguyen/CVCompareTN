@@ -9,19 +9,24 @@ Frontend của dự án **cvFit** được thiết kế để xử lý việc so
 ### Entry & shell (`src/app/`)
 
 -   **`src/App.tsx`**: Re-export mặc định → `AppShell` (giữ import path cũ cho Vite).
--   **`src/app/AppShell.tsx`**: Gắn providers (`Auth`, `UI`, `Analysis`), `AppContent`, `AnalyticsBootstrap`, Vercel `<Analytics />`.
--   **`src/app/AppContent.tsx`**: Định tuyến tab/view, layout, lazy-load views, **SEO động** (`document.title`, meta OG), modals JD.
+-   **`src/app/AppShell.tsx`**: Gắn providers (`Auth`, `UI`, `Analysis`, `Recruiter`), `AppContent`, `AnalyticsBootstrap`, Vercel `<Analytics />`.
+-   **`src/app/AppContent.tsx`**: Định tuyến tab/view, layout, lazy-load views, **SEO động** (`document.title`, meta OG), modals JD. Hỗ trợ tab `'recruiter'` cho gói Recruiter.
 -   **`src/app/AppErrorBoundary.tsx`**: Error boundary toàn app.
--   **`src/app/MobileBottomNav.tsx`**, **`SaveJdNameModal.tsx`**, **`SavedJdsListModal.tsx`**, **`SavedCvsListModal.tsx`**: Điều hướng mobile và modal kho JD / kho CV.
+-   **`src/app/MobileBottomNav.tsx`**, **`SaveJdNameModal.tsx`**, **`SavedJdsListModal.tsx`**, **`SavedCvsListModal.tsx`**: Điều hướng mobile và modal kho JD / kho CV. MobileBottomNav có tab "Tuyển dụng" khi user có plan=recruiter.
+
+### Recruiter state (`src/context/recruiter/`)
+
+-   **`RecruiterContext.tsx`** — Provider quản lý campaigns, candidates, batch analyze (tái dụng `analyzeCV` từ `ai/analysisService`), upload CV, HR status, export Excel.
+-   **`types.ts`** — `RecruiterContextValue`, re-export types từ `recruiterService`.
 
 ### Global state (`src/context/`)
 
--   **`AuthContext.tsx`**: Xác thực Supabase và profile người dùng.
--   **`UIContext.tsx`**: Tab, ngôn ngữ, modals, nhãn UI.
+-   **`AuthContext.tsx`**: Xác thực Supabase và profile người dùng. Hỗ trợ `UserPlan = 'free' | 'pro' | 'recruiter'`.
+-   **`UIContext.tsx`**: Tab, ngôn ngữ, modals, nhãn UI. Hỗ trợ tab `'recruiter'`.
 -   **`AnalysisContext.tsx`**: Shim re-export — import từ `./context/analysis` (tương thích code cũ).
 -   **`src/context/analysis/`** (hai provider + composer):
     -   `AnalysisRunContext.tsx` — JD/CV, `handleAnalyze`, kết quả, GA4 `analyze_cv` / `analysis_success`, trích JD URL. Đã refactor (**2026-05**): logic `cleanText`/`processFile` trích xuất ra `src/hooks/useFileProcessor.ts`, `createProgressSimulator` trích xuất ra `src/hooks/useProgressSimulator.ts`.
-    -   `SavedJdContext.tsx` — kho JD đã lưu, `confirmSaveJD(title, jdContent)`, GA4 `jd_create` (`manual`).
+    -   `SavedJdContext.tsx` — kho JD đã lưu, `confirmSaveJD(title, jdContent)`, GA4 `jd_create` (`manual`). Tái dụng trong `CreateCampaignModal` cho Recruiter.
     -   `SavedCvContext.tsx` — kho CV đã lưu (Free: 1 CV, Pro: 10 CV), `saveCV(file)`, `loadCVFromSaved()`, `handleDeleteSavedCV()`, GA4 `cv_save` / `cv_delete` / `cv_load_from_saved`.
     -   `AnalysisProvider.tsx` — bọc `AnalysisRunProvider` + `SavedJdProvider` + `SavedCvProvider`.
     -   Hooks: `useAnalysis()` (merged), `useAnalysisRun()`, `useSavedJds()`, `useSavedCvs()`; types trong `types.ts`.
@@ -35,11 +40,11 @@ Frontend của dự án **cvFit** được thiết kế để xử lý việc so
 
 ### Test suite (`src/__tests__/`)
 
-Sử dụng **Vitest** (78 tests, 6 test files — cập nhật **2026-05**):
+Sử dụng **Vitest** (89 tests, 6 test files — cập nhật **2026-06**):
 
 | Test file | Target | Tests |
 |-----------|--------|-------|
-| `planLimits.test.ts` | `src/lib/planLimits.ts` | 13 |
+| `planLimits.test.ts` | `src/lib/planLimits.ts` | 24 (thêm recruiter tests) |
 | `resultPayloadNormalize.test.ts` | `src/services/ai/resultPayloadNormalize.ts` | 23 |
 | `services/parsedCvNormalize.test.ts` | `src/services/ai/parsedCvNormalize.ts` | 21 |
 | `services/prompts.test.ts` | `src/services/ai/prompts.ts` | 9 |
@@ -51,32 +56,42 @@ CI/CD: **GitHub Actions** (`.github/workflows/ci.yml`) — trigger `push`/`PR` t
 ### Views (`src/components/views/`)
 
 -   **`LandingView.tsx`**: Orchestrator mỏng (scroll Motion, nền); compose các section trong **`landing/`**:
-    -   `HeroSection`, `TrustSection`, `ProblemSection`, `WhyChooseSection`, `HowItWorksSection`, `DemoResultSection`, `StatsSection`, `TargetUsersSection`, `CtaSection`, `FaqSection`
-    -   Shared: `landing/shared.tsx` (`BentoCard`, `FeatureIcon`), `landing/types.ts` (`LandingLabels`).
+    -   `HeroSection`, `TrustSection`, `ProblemSection`, `WhyChooseSection`, `HowItWorksSection`, `DemoResultSection`, `StatsSection`, `TargetUsersSection`, `RecruiterFeaturesSection`, `PricingSection`, `CtaSection`, `FaqSection`
+    -   Shared: `landing/shared.tsx` (`GlassCard`, `FeatureIcon`), `landing/types.ts` (`LandingLabels`).
 -   **`DashboardView.tsx`**: Workspace chính (CV/JD, phân tích, kết quả).
--   **`UpgradeView.tsx`**: Bảng giá Free vs Pro, gọi `createProCheckout()` → redirect PayOS.
+-   **`UpgradeView.tsx`**: Bảng so sánh Free / Pro / Recruiter dạng table (desktop) và stacked cards (mobile), gọi `createProCheckout(planType)` hoặc `createRecruiterCheckout()` → redirect PayOS.
+-   **`RecruiterView.tsx`**: Danh sách đợt tuyển dụng (campaigns). Feature gate: chỉ hiển thị khi user có plan=recruiter, nếu không hiện `UpgradePrompt`.
+-   **`CampaignDetailView.tsx`**: Bảng xếp hạng ứng viên theo điểm khớp, upload CV hàng loạt (50 CV/lần), phân tích batch, xuất Excel (SheetJS), JD toggle viewer, xóa CV.
 -   **`PaymentSuccessView.tsx`**: Polling Supabase mỗi 2s (tối đa 15 lần) để phát hiện plan activation, tự động redirect Dashboard sau 4s.
 -   **`PaymentCancelView.tsx`**: Trang thông báo hủy thanh toán, nút quay lại Dashboard.
--   **`ProfileView.tsx`**: Trang thông tin cá nhân (Họ tên, Email, Loại tài khoản Free/Pro, hạn sử dụng, số lượt phân tích đã dùng/tháng).
--   **`HistoryView.tsx`**, **`AdminView.tsx`**: Lịch sử và quản trị (Admin: cấu hình hạn mức mặc định `app_settings`, override/unlimited từng user — xem [8_analytics.md](8_analytics.md)).
+-   **`ProfileView.tsx`**: Trang thông tin cá nhân (Họ tên, Email, Loại tài khoản Free/Pro/Recruiter, hạn sử dụng, số lượt phân tích đã dùng/tháng).
+-   **`HistoryView.tsx`**, **`AdminView.tsx`**: Lịch sử và quản trị (Admin: cấu hình hạn mức mặc định `app_settings`, override/unlimited từng user, set plan Pro/Recruiter qua modal — xem [8_analytics.md](8_analytics.md)).
 -   Các trang pháp lý / hỗ trợ: lazy-load từ `AppContent` (`TermsOfServicePage`, `PrivacyPolicyPage`, …).
+
+### Recruiter components (`src/components/recruiter/`)
+
+-   **`CampaignCard.tsx`**: Card hiển thị campaign với status badge, progress bar, menu actions (đóng/mở/xoá).
+-   **`CandidateTable.tsx`**: Bảng xếp hạng ứng viên (sort match_score), cột trạng thái (pending/analyzing/done/error) + điểm, nút xoá CV.
+-   **`CandidatePanel.tsx`**: Panel chi tiết ứng viên (mobile: bottom sheet, desktop: side panel) — ScoreGauge SVG, category scores (Skills/Experience/Tools/Education), matched/missing skills, strengths/weaknesses, HR status, ghi chú, JD viewer accordion.
+-   **`CreateCampaignModal.tsx`**: Modal tạo campaign mới với title + JD textarea + upload file + chọn từ kho JD (tái dụng SavedJdContext).
 
 ### Khác
 
--   **`src/lib/`**: `utils.ts`, `supabase.ts`, **GA4 + consent** (`ga4.ts`).
+-   **`src/lib/`**: `utils.ts`, `supabase.ts`, **GA4 + consent** (`ga4.ts`), **`planLimits.ts`** (MAX_BATCH_BY_PLAN, MAX_CAMPAIGN_CVS, MAX_CAMPAIGNS, isProPlan, isRecruiterPlan).
 -   **`src/components/layout/CookieConsentBanner.tsx`**: Banner cookie trước khi load GA4.
--   **`src/components/shared/UpgradePrompt.tsx`**: Component tái sử dụng "Tính năng Pro" cho các feature gate.
+-   **`src/components/shared/UpgradePrompt.tsx`**: Component tái sử dụng cho các feature gate (Pro / Recruiter).
 -   **`src/services/`**:
     -   **`ai/`**: Gemini (`analysisService`, `extractionService`, …), chuẩn hoá payload (`resultPayloadNormalize.ts`, `parsedCvNormalize.ts`), **`fullRewrittenCvMarkdown.ts`**.
     -   **CV tối ưu (UI):** `CvMarkdownBody.tsx` + `.cv-markdown-specimen` trong `index.css`.
     -   **Supabase:** `userService`, `historyService`, `cvService` (bucket Storage `cv-files` — upload/download/delete CV cho kho CV).
-    -   **Payment:** `paymentService.ts` — `createProCheckout()` gọi `POST /api/payment/create`, trả về `checkoutUrl` từ PayOS.
+    -   **Payment:** `paymentService.ts` — `createProCheckout(planType?)` gọi `POST /api/payment/create` với `planType` ('pro' | 'recruiter'), trả về `checkoutUrl` từ PayOS. `createRecruiterCheckout()` là shorthand.
+    -   **Recruiter:** `recruiterService.ts` — CRUD campaigns & candidates, Supabase Storage upload, `saveCandidateAnalysis` (gọi API proxy `/api/recruiter/save-analysis`).
     -   **Quota phân tích/tháng:** `appSettingsService`, `analyticsQuotaService`; logic trong `AnalysisRunContext` (`checkAnalyticsQuota` trước `handleAnalyze`).
 
 ## Các luồng xử lý chính
 
 ### 1. Quản lý trạng thái tập trung
-Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/context/` (phân tích tách **run** vs **saved JD**). View và modal đọc state qua `useAnalysis()` / hooks chuyên biệt, tránh prop drilling.
+Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/context/` (phân tích tách **run** vs **saved JD**, **recruiter** có context riêng). View và modal đọc state qua `useAnalysis()` / `useRecruiter()` / hooks chuyên biệt, tránh prop drilling.
 
 ### 2. Xử lý đa định dạng (Multi-format Support)
 -   Hỗ trợ trích xuất văn bản từ: `.pdf`, `.docx`, `.txt`.
@@ -88,10 +103,18 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
 -   **Biểu đồ (Recharts):** Tab chi tiết dùng **Bar chart** (điểm theo nhóm) và **Pie chart** (phân bố matching points theo category); **History** có Area/Bar khi có đủ dữ liệu lịch sử. Container chart dùng chiều cao cố định + `ResponsiveContainer` để tránh cảnh báo kích thước.
 -   **Optimized Readability:** Kết quả phân tích được giới hạn chiều rộng tối đa 900px, tạo trải nghiệm đọc "như văn bản in" (editorial-grade), giảm mỏi mắt cho nhà tuyển dụng.
 
+### 4. Luồng Recruiter (Nhà tuyển dụng)
+-   User có plan=recruiter → truy cập `RecruiterView` (danh sách campaign).
+-   Tạo campaign mới (`CreateCampaignModal`) → upload CV hàng loạt (50 CV/lần).
+-   Phân tích batch (`RecruiterContext.analyzeCampaign`) → tái dụng `analyzeCV` từ `ai/analysisService`.
+-   Kết quả hiển thị trong `CandidateTable` (xếp hạng theo match_score).
+-   Click ứng viên → `CandidatePanel` hiển thị chi tiết: ScoreGauge, category scores, matched/missing skills, strengths/weaknesses, HR status, ghi chú nội bộ.
+-   Xuất Excel: `SheetJS` export 15 cột (STT, Tên, Điểm khớp, 4 category scores, Xác suất, Yếu tố chính, Điểm mạnh, Điểm yếu, Trạng thái HR, Ghi chú, Thời gian PT).
+
 ## Điểm nhấn UX
 -   **Real-time Progress:** Hiển thị tiến trình phân tích cho từng file khi xử lý hàng loạt.
 -   **Multi-language:** Hỗ trợ chuyển đổi ngôn ngữ báo cáo (Tiếng Việt/Tiếng Anh) một cách tức thì.
--   **Pro Feature Gate:** Các tính năng Pro (export CV, batch > 1, v.v.) được kiểm tra qua `isProPlan()` từ `planLimits.ts`; giao diện hiển thị `UpgradePrompt` khi người dùng Free truy cập.
+-   **Pro/Recruiter Feature Gate:** Các tính năng được kiểm tra qua `isProPlan()` / `isRecruiterPlan()` từ `planLimits.ts`; giao diện hiển thị `UpgradePrompt` khi người dùng Free/Pro truy cập tính năng Recruiter.
 -   **Collapsible Sidebar:** Tối ưu không gian hiển thị với thanh điều hướng có thể thu gọn, giúp tập trung vào nội dung phân tích.
 -   **In-App Browser detection:** Cảnh báo người dùng khi truy cập từ Zalo/Facebook để đảm bảo quyền đăng nhập Google.
 -   **Pre-hydration SEO (2026-05):** `<script>` đồng bộ trong `index.html` chạy trước React — set đúng meta (title, description, OG, Twitter, canonical), hreflang (`vi`, `en`, `x-default`), Schema.org (`SoftwareApplication`, `Organization`, `BreadcrumbList`, `FAQPage`, `HowTo`), và `robots` meta (`noindex` cho payment/admin). Có full SEO metadata cho 6 route (home, privacy, terms, support, upgrade, about) bằng cả 2 ngôn ngữ.
@@ -109,3 +132,8 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
     - **Bottom Sheets:** Chuyển đổi các Modals thành dạng vuốt từ dưới lên trên thiết bị di động.
     - **Adaptive Layouts:** Chuyển đổi bảng dữ liệu thành dạng thẻ (Cards) và tối ưu hóa padding cho màn hình nhỏ.
 -   **Instant Startup:** Tối ưu hóa luồng khởi tạo (System initialization) bằng cách song song hóa việc kiểm tra Auth và Redirect Result, giúp ứng dụng sẵn sàng sử dụng chỉ sau ~100-200ms.
+-   **Recruiter Dashboard UX (2026-06):**
+    - **Sticky Header** với upload, analyze all, export Excel, JD toggle.
+    - **Candidate Panel** với ScoreGauge SVG, category scores 4 ô, strengths/weaknesses chips, JD viewer accordion.
+    - **Status badges** rõ ràng: Chờ PT, Đang PT, Lỗi, điểm số.
+    - **Modal confirm** cho admin set plan (Free/Pro/Recruiter) + analytics limit.
