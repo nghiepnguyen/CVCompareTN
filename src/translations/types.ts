@@ -182,6 +182,9 @@ export interface UiLabels {
   badgeTargetUsers: string;
   badgePricing: string;
   pricingSectionTitle: string;
+  pricingCtaFree: string;
+  pricingCtaPro: string;
+  pricingCtaRecruiter: string;
   demoOverallCompat: string;
   demoAtsScore: string;
   demoSystemReadability: string;
@@ -549,6 +552,12 @@ export interface UiLabels {
   recruiterEmptyDesc: string;
   recruiterCreateFirst: string;
   recruiterUpgradeFeature: string;
+  recruiterUpgradeDesc: string;
+  recruiterUpgradeBenefitCampaigns: string;
+  recruiterUpgradeBenefitBatch: string;
+  recruiterUpgradeBenefitExcel: string;
+  recruiterUpgradeBenefitNotes: string;
+  recruiterUpgradeSeeComparison: string;
 
   // CampaignCard
   campaignStatusActive: string;

@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 
 export const PRO_PRICE_VND = 69000;
 export const PRO_DURATION_DAYS = 30;
-export const RECRUITER_PRICE_VND = 499000;
+export const RECRUITER_PRICE_VND = 399000;
 export const RECRUITER_DURATION_DAYS = 30;
 export const PAYOS_API_URL = 'https://api-merchant.payos.vn/v2/payment-requests';
 

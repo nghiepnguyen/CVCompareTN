@@ -231,6 +231,18 @@ export const OptimizationTab = React.memo(function OptimizationTab({ selectedRes
                       <CvMarkdownBody markdown={selectedResult.fullRewrittenCV} locale={reportLanguage} density="screen" />
                     </div>
 
+                    {/* Watermark for free users */}
+                    {!canExportOptimized && (
+                      <div
+                        className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center select-none"
+                        aria-hidden
+                      >
+                        <span className="rotate-[-25deg] text-[2.5rem] sm:text-[4.5rem] font-black text-slate-300/[0.12] tracking-[0.25em] uppercase whitespace-nowrap drop-shadow-sm">
+                          cvFit.pro
+                        </span>
+                      </div>
+                    )}
+
                     <div className="relative z-10 mt-16 border-t border-slate-200 pt-6 text-center font-cv-header text-[9px] font-bold uppercase tracking-[0.25em] text-slate-400">
                       {t.fullCvDraftFooter}
                     </div>

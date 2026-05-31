@@ -35,6 +35,30 @@ export const recruiter = {
     vi: "Gói Nhà tuyển dụng",
     en: "Recruiter Plan",
   },
+  recruiterUpgradeDesc: {
+    vi: "Nâng cấp lên gói Recruiter để mở khóa bộ công cụ tuyển dụng chuyên nghiệp với AI.",
+    en: "Upgrade to the Recruiter plan to unlock professional AI-powered recruitment tools.",
+  },
+  recruiterUpgradeBenefitCampaigns: {
+    vi: "Tạo tối đa 10 đợt tuyển dụng / tháng",
+    en: "Create up to 10 recruitment campaigns / month",
+  },
+  recruiterUpgradeBenefitBatch: {
+    vi: "Upload và phân tích 50 CV mỗi đợt",
+    en: "Upload & analyze 50 CVs per campaign",
+  },
+  recruiterUpgradeBenefitExcel: {
+    vi: "Xuất báo cáo Excel chi tiết",
+    en: "Export detailed Excel reports",
+  },
+  recruiterUpgradeBenefitNotes: {
+    vi: "Ghi chú nội bộ & quản lý trạng thái ứng viên",
+    en: "Internal notes & candidate status management",
+  },
+  recruiterUpgradeSeeComparison: {
+    vi: "Xem so sánh chi tiết",
+    en: "See detailed comparison",
+  },
 
   // ── CampaignCard ──
   campaignStatusActive: {

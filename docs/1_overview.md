@@ -22,7 +22,7 @@
 -   **CV Tối ưu (Optimized CV):** AI tự động tạo ra một bản thảo CV mới đã được tối ưu hóa hoàn toàn dựa trên thông tin gốc của ứng viên.
 -   **Kho lưu trữ JD cá nhân (JD Store):** Lưu lại các mô tả công việc mẫu để tái sử dụng nhanh chóng cho nhiều đợt tuyển dụng khác nhau.
 -   **Kho lưu trữ CV (CV Store):** Lưu trữ file CV trên Supabase Storage để tái sử dụng mà không cần tải lên nhiều lần. Free: tối đa 1 CV, Pro: 10 CV. Hỗ trợ upload, download, xóa, và thông báo lưu thành công.
--   **Gói Pro & Recruiter (PayOS):** Người dùng có thể nâng cấp lên gói **Pro** (69.000 VNĐ/tháng) hoặc **Recruiter** (499.000 VNĐ/tháng) qua [PayOS](https://payos.vn/). Gói Pro: 100 lượt phân tích/tháng, batch 5 CV, kho JD không giới hạn. Gói Recruiter: 500 lượt, batch 50 CV, 10 đợt tuyển dụng với upload hàng loạt, xếp hạng tự động, xuất Excel, ghi chú nội bộ HR. Thanh toán được xử lý qua PayOS với webhook xác thực HMAC-SHA256.
+-   **Gói Pro & Recruiter (PayOS):** Người dùng có thể nâng cấp lên gói **Pro** (69.000 VNĐ/tháng) hoặc **Recruiter** (399.000 VNĐ/tháng) qua [PayOS](https://payos.vn/). Gói Pro: 100 lượt phân tích/tháng, batch 5 CV, kho JD không giới hạn. Gói Recruiter: 500 lượt, batch 50 CV, 10 đợt tuyển dụng với upload hàng loạt, xếp hạng tự động, xuất Excel, ghi chú nội bộ HR. Thanh toán được xử lý qua PayOS với webhook xác thực HMAC-SHA256.
 -   **Lịch sử & Quản trị:** Người dùng xem lại lịch sử phân tích; admin quản lý user, quyền, và **hạn mức phân tích/tháng** (mặc định **20** lượt, cấu hình runtime qua `app_settings` — không cần deploy lại khi đổi default).
 
 ---

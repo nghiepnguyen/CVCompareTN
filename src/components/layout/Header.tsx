@@ -15,8 +15,7 @@ export function Header() {
     user && (userProfile?.role === 'admin' || isProPlan(effectivePlan));
   const showRecruiterBadge =
     user && (userProfile?.role === 'admin' || isRecruiterPlan(effectivePlan));
-  const showRecruiterTab =
-    user && userProfile && (userProfile.role === 'admin' || isRecruiterPlan(userProfile.plan));
+  const showRecruiterTab = !!user;
   const { activeTab, setActiveTab, navigateToUpgrade, reportLanguage, setReportLanguage, isUserMenuOpen, setIsUserMenuOpen, t } = useUI();
   const { selectedResult, setSelectedResult } = useAnalysis();
 

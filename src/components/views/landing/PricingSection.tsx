@@ -38,7 +38,7 @@ function PriceTag({ plan, t }: { plan: Plan; t: any }) {
   if (plan === 'recruiter') {
     return (
       <div className="space-y-1">
-        <p className="text-3xl font-black text-purple-400">499.000đ</p>
+        <p className="text-3xl font-black text-purple-400">399.000đ</p>
         <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">{t.pricingPerMonth || '/ tháng'}</p>
       </div>
     );

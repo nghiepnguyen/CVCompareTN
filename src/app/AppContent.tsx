@@ -287,7 +287,7 @@ export function AppContent() {
             setSelectedResult={setSelectedResult}
             onOpenSavedJds={() => setIsSavedJDsModalOpen(true)}
             showAdmin={isAdmin || userProfile?.role === 'admin'}
-            showRecruiter={userProfile ? isRecruiterPlan(userProfile.plan) : false}
+            showRecruiter={!!user}
             labels={{
               analyze: t.analyze || 'Phân tích',
               history: t.history || 'Lịch sử',

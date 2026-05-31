@@ -19,7 +19,7 @@
 | Xuất báo cáo Excel     | ❌        | ❌                | ✅                  |
 | Ghi chú nội bộ HR      | ❌        | ❌                | ✅                  |
 | Lịch sử                | 7 ngày   | Vĩnh viễn        | Vĩnh viễn          |
-| Giá                    | Miễn phí | 69.000 VNĐ/tháng | 499.000 VNĐ/tháng  |
+| Giá                    | Miễn phí | 69.000 VNĐ/tháng | 399.000 VNĐ/tháng  |
 
 ---
 
@@ -135,7 +135,7 @@ const { userId, userEmail, planType = 'pro' } = req.body;
 
 const PLAN_CONFIG = {
   pro:       { amount: 69000,  duration: 30, label: 'CV Compare Pro' },
-  recruiter: { amount: 499000, duration: 30, label: 'CV Compare Recruiter' },
+  recruiter: { amount: 399000, duration: 30, label: 'CV Compare Recruiter' },
 };
 ```
 
@@ -335,7 +335,7 @@ Thêm cột Recruiter vào bảng so sánh hiện có:
 const plans = [
   { id: 'free',      label: 'Miễn phí',  price: 0 },
   { id: 'pro',       label: 'Pro',        price: 69000 },
-  { id: 'recruiter', label: 'Recruiter',  price: 499000 },
+  { id: 'recruiter', label: 'Recruiter',  price: 399000 },
 ];
 ```
 

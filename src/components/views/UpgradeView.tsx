@@ -51,7 +51,7 @@ function PriceTag({ plan, className }: { plan: Plan; className?: string }) {
   if (plan === 'recruiter') {
     return (
       <div className={cn('space-y-0.5', className)}>
-        <p className="text-2xl sm:text-3xl font-black text-purple-400">499.000đ</p>
+        <p className="text-2xl sm:text-3xl font-black text-purple-400">399.000đ</p>
         <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">/ tháng</p>
       </div>
     );

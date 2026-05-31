@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Briefcase, Plus, ArrowLeft, Sparkles } from 'lucide-react';
+import { Briefcase, Plus, ArrowLeft, Sparkles, Check, ArrowRight, FileSpreadsheet, StickyNote, Users } from 'lucide-react';
 import { useRecruiter } from '../../context/recruiter';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
@@ -11,10 +11,12 @@ import { CampaignCard } from '../recruiter/CampaignCard';
 import { CreateCampaignModal } from '../recruiter/CreateCampaignModal';
 import { CampaignDetailView } from './CampaignDetailView';
 import { useSavedJds } from '../../context/analysis/SavedJdContext';
+import { createRecruiterCheckout } from '../../services/paymentService';
+import { cn } from '../../lib/utils';
 
 export function RecruiterView() {
-  const { effectivePlan, userProfile } = useAuth();
-  const { t } = useUI();
+  const { effectivePlan, user } = useAuth();
+  const { t, setActiveTab } = useUI();
   const {
     campaigns,
     campaignLoading,
@@ -29,12 +31,90 @@ export function RecruiterView() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const isRecruiter = isRecruiterPlan(effectivePlan);
 
+  const handleUpgrade = async () => {
+    if (!user) return;
+    setIsCheckingOut(true);
+    try {
+      const { checkoutUrl } = await createRecruiterCheckout();
+      window.location.href = checkoutUrl;
+    } catch {
+      setIsCheckingOut(false);
+    }
+  };
+
+  const BENEFITS = [
+    { icon: Briefcase, text: t.recruiterUpgradeBenefitCampaigns || 'Tạo tối đa 10 đợt tuyển dụng / tháng' },
+    { icon: Users, text: t.recruiterUpgradeBenefitBatch || 'Upload và phân tích 50 CV mỗi đợt' },
+    { icon: FileSpreadsheet, text: t.recruiterUpgradeBenefitExcel || 'Xuất báo cáo Excel chi tiết' },
+    { icon: StickyNote, text: t.recruiterUpgradeBenefitNotes || 'Ghi chú nội bộ & quản lý trạng thái ứng viên' },
+  ];
+
   if (!isRecruiter) {
     return (
-      <UpgradePrompt feature={t.recruiterUpgradeFeature} />
+      <div className="max-w-2xl mx-auto px-4 py-12 sm:py-20">
+        <div className="rounded-2xl border-2 border-purple-500/30 bg-purple-500/[0.03] backdrop-blur-md overflow-hidden">
+          {/* Header */}
+          <div className="p-6 sm:p-8 text-center bg-purple-500/10 border-b border-purple-500/20">
+            <div className="inline-flex items-center justify-center size-14 rounded-2xl bg-purple-500/20 border border-purple-500/30 mb-4">
+              <Briefcase className="size-7 text-purple-400" />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-purple-400 mb-2">
+              {t.recruiterUpgradeFeature}
+            </h1>
+            <p className="text-sm text-text-muted max-w-md mx-auto leading-relaxed">
+              {t.recruiterUpgradeDesc || 'Nâng cấp lên gói Recruiter để mở khóa bộ công cụ tuyển dụng chuyên nghiệp với AI.'}
+            </p>
+          </div>
+
+          {/* Price */}
+          <div className="px-6 sm:px-8 py-5 text-center border-b border-purple-500/10">
+            <p className="text-3xl font-black text-purple-400">399.000đ</p>
+            <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mt-0.5">/ tháng</p>
+          </div>
+
+          {/* Benefits */}
+          <div className="p-6 sm:p-8 space-y-4">
+            {BENEFITS.map((benefit, idx) => (
+              <div key={idx} className="flex items-start gap-3">
+                <div className="size-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <benefit.icon className="size-4 text-purple-400" />
+                </div>
+                <span className="text-sm font-medium text-text-main pt-1">{benefit.text}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div className="p-6 sm:p-8 pt-0 flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              disabled={isCheckingOut}
+              onClick={handleUpgrade}
+              className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm bg-purple-500 text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {isCheckingOut ? (
+                <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  {t.pricingCtaRecruiter || 'Nâng cấp Recruiter'}
+                  <ArrowRight className="size-4" />
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('upgrade')}
+              className="flex-1 h-12 rounded-xl font-bold text-sm border border-purple-500/30 text-purple-400 cursor-pointer hover:bg-purple-500/10 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              {t.recruiterUpgradeSeeComparison}
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 
