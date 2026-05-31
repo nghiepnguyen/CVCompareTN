@@ -88,6 +88,23 @@ CI/CD: **GitHub Actions** (`.github/workflows/ci.yml`) — trigger `push`/`PR` t
     -   **Recruiter:** `recruiterService.ts` — CRUD campaigns & candidates, Supabase Storage upload, `saveCandidateAnalysis` (gọi API proxy `/api/recruiter/save-analysis`).
     -   **Quota phân tích/tháng:** `appSettingsService`, `analyticsQuotaService`; logic trong `AnalysisRunContext` (`checkAnalyticsQuota` trước `handleAnalyze`).
 
+### Đa ngôn ngữ UI (`src/translations/`)
+
+-   **`types.ts`**: `UiLabels` interface — toàn bộ key VI/EN cho tất cả section (result, nav, landing, input, footer, history, admin, system, legal, billing, about, **recruiter**).
+-   **`index.ts`**: Hợp nhất tất cả section → `UI_LABELS: Record<ReportLanguage, UiLabels>`. Hàm `formatLabel(template, vars)` hỗ trợ placeholder `{key}`.
+-   **`recruiter.ts`** (thêm **2026-06**): 74 translation keys riêng cho tính năng Recruiter, phân nhóm theo component:
+    -   **Navigation**: `recruiterTab` — "Tuyển dụng" / "Recruitment" → dùng trong Header tab và MobileBottomNav
+    -   **RecruiterView**: tiêu đề "Đợt tuyển dụng", đếm campaign, nút "Tạo mới", empty state
+    -   **CampaignCard**: status labels (Đang mở/Đã đóng/Đã lưu trữ), menu actions (Đóng đợt/Mở lại/Xoá), đếm CV/đã PT/shortlist
+    -   **CreateCampaignModal**: tiêu đề, labels, placeholders, error messages, nút Huỷ/Tạo đợt
+    -   **CampaignDetailView**: loading, upload/analyze/export labels, error messages, filter, delete confirm
+    -   **CandidateTable**: empty state, cột (Ứng viên/Điểm/Trạng thái), status badges (Đang PT/Chờ PT/Lỗi), HR status labels (Mới/Shortlist/Phỏng vấn/Loại/Đã tuyển)
+    -   **CandidatePanel**: status, probability, match score, verdict (Ứng viên tiềm năng/Cân nhắc/Chưa phù hợp), HR sections, analysis results (Điểm mạnh/Điểm yếu/Kỹ năng đạt/Kỹ năng thiếu), category labels (Kỹ năng/Kinh nghiệm/Công cụ/Học vấn), note save states
+-   **ProfileView Recruiter info**: 8 keys cho section thông tin gói Recruiter (loại tài khoản, số đợt, CV mỗi đợt, xuất Excel, ghi chú nội bộ)
+-   Các section khác: `result.ts`, `nav.ts`, `landing.ts`, `input.ts`, `footer.ts`, `history.ts`, `admin.ts`, `system.ts`, `legal.ts`, `billing.ts`, `about.ts`
+
+Tất cả component tuyển dụng sử dụng `useUI().t` để truy cập translation keys — hỗ trợ đầy đủ tiếng Việt và tiếng Anh thông qua `reportLanguage` trong `UIContext`.
+
 ## Các luồng xử lý chính
 
 ### 1. Quản lý trạng thái tập trung

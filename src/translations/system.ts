@@ -128,6 +128,42 @@ export const system = {
     vi: "Quay lại",
     en: "Back",
   },
+  profilePlanRecruiter: {
+    vi: "Nhà tuyển dụng",
+    en: "Recruiter",
+  },
+  profileRecruiterLabel: {
+    vi: "Thông tin gói Nhà tuyển dụng",
+    en: "Recruiter Plan Info",
+  },
+  profileRecruiterCampaigns: {
+    vi: "Số đợt tuyển dụng",
+    en: "Campaigns",
+  },
+  profileRecruiterCampaignsLimit: {
+    vi: "{used}/{limit}/tháng",
+    en: "{used}/{limit}/month",
+  },
+  profileRecruiterBatchLabel: {
+    vi: "CV mỗi đợt",
+    en: "CV per batch",
+  },
+  profileRecruiterBatchValue: {
+    vi: "Tối đa {max} CV",
+    en: "Up to {max} CVs",
+  },
+  profileRecruiterExportLabel: {
+    vi: "Xuất Excel",
+    en: "Excel Export",
+  },
+  profileRecruiterExportYes: {
+    vi: "Có",
+    en: "Yes",
+  },
+  profileRecruiterNoteLabel: {
+    vi: "Ghi chú nội bộ",
+    en: "Internal Notes",
+  },
   openInNewTabTooltip: {
     vi: "Mở trong tab mới để đăng nhập dễ hơn",
     en: "Open in new tab for easier login",

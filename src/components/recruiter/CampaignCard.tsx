@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { ChevronRight, Users, CheckCircle2, Star, MoreHorizontal } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useUI } from '../../context/UIContext';
 import type { RecruitmentCampaign } from '../../context/recruiter';
 
 interface CampaignCardProps {
@@ -11,26 +12,30 @@ interface CampaignCardProps {
   onDelete: (id: string) => void;
 }
 
-const STATUS_CONFIG = {
-  active: {
-    label: 'Đang mở',
-    color: 'text-success bg-success/10 border-success/20',
-    dot: 'bg-success',
-  },
-  closed: {
-    label: 'Đã đóng',
-    color: 'text-text-muted bg-surface-secondary/60 border-border',
-    dot: 'bg-text-muted',
-  },
-  archived: {
-    label: 'Đã lưu trữ',
-    color: 'text-text-muted bg-surface-secondary/40 border-border',
-    dot: 'bg-text-muted',
-  },
-} as const;
+function useStatusConfig() {
+  const { t } = useUI();
+  return {
+    active: {
+      label: t.campaignStatusActive,
+      color: 'text-success bg-success/10 border-success/20',
+      dot: 'bg-success',
+    },
+    closed: {
+      label: t.campaignStatusClosed,
+      color: 'text-text-muted bg-surface-secondary/60 border-border',
+      dot: 'bg-text-muted',
+    },
+    archived: {
+      label: t.campaignStatusArchived,
+      color: 'text-text-muted bg-surface-secondary/40 border-border',
+      dot: 'bg-text-muted',
+    },
+  } as const;
+}
 
 export function CampaignCard({ campaign, onClick, onChangeStatus, onDelete }: CampaignCardProps) {
-  const config = STATUS_CONFIG[campaign.status];
+  const { t } = useUI();
+  const config = useStatusConfig()[campaign.status];
   const [menuOpen, setMenuOpen] = React.useState(false);
 
   const donePercent =
@@ -88,7 +93,7 @@ export function CampaignCard({ campaign, onClick, onChangeStatus, onDelete }: Ca
                     }}
                     className="block w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium text-text-main hover:bg-surface cursor-pointer"
                   >
-                    Đóng đợt
+                    {t.campaignMenuClose}
                   </button>
                 )}
                 {campaign.status === 'closed' && (
@@ -100,7 +105,7 @@ export function CampaignCard({ campaign, onClick, onChangeStatus, onDelete }: Ca
                     }}
                     className="block w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium text-text-main hover:bg-surface cursor-pointer"
                   >
-                    Mở lại
+                    {t.campaignMenuReopen}
                   </button>
                 )}
                 <button
@@ -111,7 +116,7 @@ export function CampaignCard({ campaign, onClick, onChangeStatus, onDelete }: Ca
                   }}
                   className="block w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium text-error hover:bg-surface cursor-pointer"
                 >
-                  Xoá
+                  {t.campaignMenuDelete}
                 </button>
               </div>
             </>
@@ -122,11 +127,11 @@ export function CampaignCard({ campaign, onClick, onChangeStatus, onDelete }: Ca
       <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border">
         <div className="flex items-center gap-1.5 text-xs text-text-muted">
           <Users className="w-3.5 h-3.5" />
-          <span className="font-semibold">{campaign.candidateCount}</span> CV
+          <span className="font-semibold">{campaign.candidateCount}</span> {t.campaignCvCount}
         </div>
         <div className="flex items-center gap-1.5 text-xs text-text-muted">
           <CheckCircle2 className="w-3.5 h-3.5" />
-          <span className="font-semibold">{campaign.analyzedCount}</span> đã PT
+          <span className="font-semibold">{campaign.analyzedCount}</span> {t.campaignAnalyzedCount}
         </div>
         <div className="flex-1" />
         <div className="text-[10px] text-text-muted tabular-nums">

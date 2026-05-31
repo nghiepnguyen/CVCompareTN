@@ -5,6 +5,7 @@ import { useRecruiter } from '../../context/recruiter';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { isRecruiterPlan } from '../../lib/planLimits';
+import { formatLabel } from '../../translations';
 import { UpgradePrompt } from '../shared/UpgradePrompt';
 import { CampaignCard } from '../recruiter/CampaignCard';
 import { CreateCampaignModal } from '../recruiter/CreateCampaignModal';
@@ -33,7 +34,7 @@ export function RecruiterView() {
 
   if (!isRecruiter) {
     return (
-      <UpgradePrompt feature="Gói Nhà tuyển dụng" />
+      <UpgradePrompt feature={t.recruiterUpgradeFeature} />
     );
   }
 
@@ -59,10 +60,10 @@ export function RecruiterView() {
           </motion.div>
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-text-main">
-              Đợt tuyển dụng
+              {t.recruiterViewTitle}
             </h1>
             <p className="text-xs text-text-muted mt-0.5">
-              {campaigns.length} đợt
+              {formatLabel(t.recruiterViewCount, { count: String(campaigns.length) })}
             </p>
           </div>
         </div>
@@ -72,7 +73,7 @@ export function RecruiterView() {
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-black uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95 transition-all"
         >
           <Plus className="w-4 h-4" />
-          Tạo mới
+          {t.recruiterCreateBtn}
         </button>
       </div>
 
@@ -95,9 +96,9 @@ export function RecruiterView() {
           <div className="inline-flex items-center justify-center size-16 rounded-2xl bg-surface-secondary border border-border mb-4">
             <Briefcase className="w-7 h-7 text-text-muted" />
           </div>
-          <h2 className="text-base font-black text-text-main mb-2">Chưa có đợt tuyển dụng nào</h2>
+          <h2 className="text-base font-black text-text-main mb-2">{t.recruiterEmptyTitle}</h2>
           <p className="text-xs text-text-muted max-w-sm mx-auto mb-6">
-            Tạo đợt tuyển dụng đầu tiên, upload CV ứng viên và để AI phân tích, xếp hạng tự động.
+            {t.recruiterEmptyDesc}
           </p>
           <button
             type="button"
@@ -105,7 +106,7 @@ export function RecruiterView() {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent text-white text-sm font-black uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95 transition-all"
           >
             <Sparkles className="w-4 h-4" />
-            Tạo đợt đầu tiên
+            {t.recruiterCreateFirst}
           </button>
         </div>
       ) : (

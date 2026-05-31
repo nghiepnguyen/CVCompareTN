@@ -293,7 +293,7 @@ export function AppContent() {
               history: t.history || 'Lịch sử',
               mobileJdStore: t.mobileJdStore,
               admin: t.admin,
-              recruiter: 'Tuyển dụng',
+              recruiter: t.recruiterTab,
             }}
           />
         )}

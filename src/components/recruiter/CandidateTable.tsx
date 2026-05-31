@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Star, TrendingUp, TrendingDown, Minus, Loader2, AlertCircle, Trash2, Clock } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useUI } from '../../context/UIContext';
 import type { CandidateCV } from '../../context/recruiter';
 
 interface CandidateTableProps {
@@ -11,20 +12,6 @@ interface CandidateTableProps {
   selectedId?: string | null;
   isAnalyzing?: boolean;
 }
-
-const HR_STATUS_ICONS: Record<string, React.ReactNode> = {
-  shortlisted: <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />,
-  hired: <TrendingUp className="w-3.5 h-3.5 text-success" />,
-  rejected: <TrendingDown className="w-3.5 h-3.5 text-error" />,
-};
-
-const HR_STATUS_LABELS: Record<string, string> = {
-  new: 'Mới',
-  shortlisted: 'Shortlist',
-  interviewing: 'Phỏng vấn',
-  rejected: 'Loại',
-  hired: 'Đã tuyển',
-};
 
 function getScoreClass(score: number | null): string {
   if (score == null) return 'text-text-muted';
@@ -40,15 +27,31 @@ export function CandidateTable({
   selectedId,
   isAnalyzing,
 }: CandidateTableProps) {
+  const { t } = useUI();
+
+  const hrStatusIcons: Record<string, React.ReactNode> = {
+    shortlisted: <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />,
+    hired: <TrendingUp className="w-3.5 h-3.5 text-success" />,
+    rejected: <TrendingDown className="w-3.5 h-3.5 text-error" />,
+  };
+
+  const hrStatusLabels: Record<string, string> = {
+    new: t.tableHrStatusNew,
+    shortlisted: t.tableHrStatusShortlisted,
+    interviewing: t.tableHrStatusInterviewing,
+    rejected: t.tableHrStatusRejected,
+    hired: t.tableHrStatusHired,
+  };
+
   if (candidates.length === 0) {
     return (
       <div className="text-center py-16 px-4">
         <div className="inline-flex items-center justify-center size-14 rounded-2xl bg-surface-secondary border border-border mb-4">
           <Minus className="w-6 h-6 text-text-muted" />
         </div>
-        <p className="text-sm font-bold text-text-main mb-1">Chưa có ứng viên</p>
+        <p className="text-sm font-bold text-text-main mb-1">{t.tableNoCandidates}</p>
         <p className="text-xs text-text-muted">
-          Tải lên CV để bắt đầu phân tích và xếp hạng.
+          {t.tableNoCandidatesDesc}
         </p>
       </div>
     );
@@ -60,16 +63,16 @@ export function CandidateTable({
         <thead>
           <tr className="border-b border-border">
             <th className="text-left py-3 px-3 text-[10px] font-extrabold uppercase tracking-wider text-text-muted w-10">
-              #
+              {t.tableColIndex}
             </th>
             <th className="text-left py-3 px-3 text-[10px] font-extrabold uppercase tracking-wider text-text-muted">
-              Ứng viên
+              {t.tableColCandidate}
             </th>
             <th className="text-right py-3 px-3 text-[10px] font-extrabold uppercase tracking-wider text-text-muted w-20">
-              Điểm
+              {t.tableColScore}
             </th>
             <th className="text-center py-3 px-3 text-[10px] font-extrabold uppercase tracking-wider text-text-muted w-28 hidden sm:table-cell">
-              Trạng thái
+              {t.tableColStatus}
             </th>
             {onDelete && (
               <th className="text-center py-3 px-3 text-[10px] font-extrabold uppercase tracking-wider text-text-muted w-12" />
@@ -113,17 +116,17 @@ export function CandidateTable({
                   {candidate.status === 'analyzing' ? (
                     <div className="flex items-center justify-end gap-1">
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
-                      <span className="text-[10px] font-bold text-accent">Đang PT</span>
+                      <span className="text-[10px] font-bold text-accent">{t.tableStatusAnalyzing}</span>
                     </div>
                   ) : candidate.status === 'pending' ? (
                     <div className="flex items-center justify-end gap-1">
                       <Clock className="w-3.5 h-3.5 text-text-muted" />
-                      <span className="text-[10px] font-bold text-text-muted">Chờ PT</span>
+                      <span className="text-[10px] font-bold text-text-muted">{t.tableStatusPending}</span>
                     </div>
                   ) : candidate.status === 'error' ? (
                     <div className="flex items-center justify-end gap-1">
                       <AlertCircle className="w-3.5 h-3.5 text-error" />
-                      <span className="text-[10px] font-bold text-error">Lỗi</span>
+                      <span className="text-[10px] font-bold text-error">{t.tableStatusError}</span>
                     </div>
                   ) : (
                     <span
@@ -138,7 +141,7 @@ export function CandidateTable({
                 </td>
                 <td className="py-3 px-3 text-center hidden sm:table-cell">
                   <div className="flex items-center justify-center gap-1">
-                    {HR_STATUS_ICONS[candidate.hrStatus]}
+                    {hrStatusIcons[candidate.hrStatus]}
                     <span
                       className={cn(
                         'text-[11px] font-semibold',
@@ -155,7 +158,7 @@ export function CandidateTable({
                                   : 'text-text-muted',
                       )}
                     >
-                      {HR_STATUS_LABELS[candidate.hrStatus] || candidate.hrStatus}
+                      {hrStatusLabels[candidate.hrStatus] || candidate.hrStatus}
                     </span>
                   </div>
                 </td>
@@ -168,7 +171,7 @@ export function CandidateTable({
                         onDelete(candidate);
                       }}
                       className="p-1.5 rounded-lg text-text-muted hover:text-error hover:bg-error/10 cursor-pointer transition-colors"
-                      title="Xoá CV"
+                      title={t.tableDeleteTitle}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

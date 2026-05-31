@@ -6,6 +6,7 @@ export type FaqItem = {
 };
 
 export interface UiLabels {
+  // admin
   admin: string;
   adminColActions: string;
   adminPaginationInfo: string;
@@ -64,6 +65,8 @@ export interface UiLabels {
   adminTrialNote: string;
   adminUnlock: string;
   adminUsageAnalytic: string;
+
+  // app
   aiThinking: string;
   analysisHistory: string;
   analysisProgress: string;
@@ -82,6 +85,8 @@ export interface UiLabels {
   monthlyUsageLimitExceededDetail: string;
   savedCvLimitFree: string;
   savedCvLimitPro: string;
+
+  // result
   atsCompatibilityScore: string;
   atsDesc: string;
   atsKeywords: string;
@@ -146,6 +151,8 @@ export interface UiLabels {
   feature7Title: string;
   feature8Desc: string;
   feature8Title: string;
+
+  // footer/input
   feedbackPlaceholder: string;
   footerContactSupport: string;
   footerCookieSettings: string;
@@ -161,6 +168,8 @@ export interface UiLabels {
   footerSupportDev: string;
   footerTermsOfService: string;
   forEmployers: string;
+
+  // landing
   badgeHero: string;
   badgeHeroHighlight: string;
   badgeDemoResult: string;
@@ -419,6 +428,8 @@ export interface UiLabels {
   uploadCV: string;
   vietnamese: string;
   whyTitle: string;
+
+  // upgrade / billing
   upgradePageTitle: string;
   upgradePageDesc: string;
   upgradeCta: string;
@@ -476,6 +487,8 @@ export interface UiLabels {
   aboutBackHome: string;
   menuQuotaLine: string;
   menuQuotaLineUnlimited: string;
+
+  // nav / profile
   profile: string;
   profileTitle: string;
   profileNameLabel: string;
@@ -488,13 +501,26 @@ export interface UiLabels {
   profileAnalyticsLabel: string;
   profileAnalyticsUnlimited: string;
   profileBack: string;
+  profilePlanRecruiter: string;
+  profileRecruiterLabel: string;
+  profileRecruiterCampaigns: string;
+  profileRecruiterCampaignsLimit: string;
+  profileRecruiterBatchLabel: string;
+  profileRecruiterBatchValue: string;
+  profileRecruiterExportLabel: string;
+  profileRecruiterExportYes: string;
+  profileRecruiterNoteLabel: string;
   checkoutError: string;
   openInNewTabTooltip: string;
   appBrandName: string;
   unknownUser: string;
   emailPlaceholder: string;
+
+  // plan badges
   planRecruiter: string;
   planBadgeRecruiter: string;
+
+  // upgrade recruiter
   upgradeCompareCampaigns: string;
   upgradeCompareCampaignCvs: string;
   upgradeFreeCampaigns: string;
@@ -509,4 +535,111 @@ export interface UiLabels {
   upgradeRecruiterHistory: string;
   upgradeRecruiterExport: string;
   upgradePromptFeatureRecruiter: string;
+
+  // ── Recruiter translation keys ──
+
+  // Navigation
+  recruiterTab: string;
+
+  // RecruiterView
+  recruiterViewTitle: string;
+  recruiterViewCount: string;
+  recruiterCreateBtn: string;
+  recruiterEmptyTitle: string;
+  recruiterEmptyDesc: string;
+  recruiterCreateFirst: string;
+  recruiterUpgradeFeature: string;
+
+  // CampaignCard
+  campaignStatusActive: string;
+  campaignStatusClosed: string;
+  campaignStatusArchived: string;
+  campaignMenuClose: string;
+  campaignMenuReopen: string;
+  campaignMenuDelete: string;
+  campaignCvCount: string;
+  campaignAnalyzedCount: string;
+  campaignShortlistedCount: string;
+
+  // CreateCampaignModal
+  createCampaignTitle: string;
+  createCampaignNameLabel: string;
+  createCampaignNamePlaceholder: string;
+  createCampaignJdLabel: string;
+  createCampaignJdPlaceholder: string;
+  createCampaignUploadFile: string;
+  createCampaignSelectJd: string;
+  createCampaignRequiredName: string;
+  createCampaignRequiredJd: string;
+  createCampaignError: string;
+  createCampaignJdFileError: string;
+  createCampaignCancel: string;
+  createCampaignSubmit: string;
+  createCampaignSubmitting: string;
+  createCampaignRequiredMark: string;
+
+  // CampaignDetailView
+  detailLoading: string;
+  detailUploadError: string;
+  detailAnalyzeError: string;
+  detailUpdateError: string;
+  detailExportError: string;
+  detailJdLabel: string;
+  detailCvAnalyzedCount: string;
+  detailFilterAnalyzedOnly: string;
+  detailUploadCv: string;
+  detailUploadCvLoading: string;
+  detailAnalyzeBtn: string;
+  detailAnalyzeBtnRunning: string;
+  detailExportExcel: string;
+  detailErrorClose: string;
+  detailLoadingCandidates: string;
+  detailDeleteConfirm: string;
+
+  // CandidateTable
+  tableNoCandidates: string;
+  tableNoCandidatesDesc: string;
+  tableColIndex: string;
+  tableColCandidate: string;
+  tableColScore: string;
+  tableColStatus: string;
+  tableStatusAnalyzing: string;
+  tableStatusPending: string;
+  tableStatusError: string;
+  tableDeleteTitle: string;
+  tableHrStatusNew: string;
+  tableHrStatusShortlisted: string;
+  tableHrStatusInterviewing: string;
+  tableHrStatusRejected: string;
+  tableHrStatusHired: string;
+
+  // CandidatePanel
+  panelStatusAnalyzing: string;
+  panelStatusPending: string;
+  panelStatusError: string;
+  panelProbability: string;
+  panelMainFactor: string;
+  panelMatchScore: string;
+  panelVerdictPotential: string;
+  panelVerdictConsider: string;
+  panelVerdictNotFit: string;
+  panelAnalysisError: string;
+  panelHrStatusLabel: string;
+  panelHrNoteLabel: string;
+  panelHrNotePlaceholder: string;
+  panelSaveNote: string;
+  panelSaving: string;
+  panelSaved: string;
+  panelSaveError: string;
+  panelAnalysisResult: string;
+  panelStrengths: string;
+  panelWeaknesses: string;
+  panelCategoryScores: string;
+  panelCatSkill: string;
+  panelCatExperience: string;
+  panelCatTools: string;
+  panelCatEducation: string;
+  panelMatchedSkills: string;
+  panelMissingSkills: string;
+  panelViewFullDetail: string;
 }

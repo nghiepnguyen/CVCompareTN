@@ -5,7 +5,6 @@ import {
   Upload,
   Play,
   Download,
-  FileText,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -18,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useRecruiter } from '../../context/recruiter';
 import { useUI } from '../../context/UIContext';
+import { formatLabel } from '../../translations';
 import { CandidateTable } from '../recruiter/CandidateTable';
 import { CandidatePanel } from '../recruiter/CandidatePanel';
 import type { CandidateCV, HrStatus } from '../../context/recruiter';
@@ -72,7 +72,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
         <Loader2 className="w-8 h-8 animate-spin text-text-muted mx-auto mb-4" />
-        <p className="text-sm text-text-muted">Đang tải...</p>
+        <p className="text-sm text-text-muted">{t.detailLoading}</p>
       </div>
     );
   }
@@ -88,7 +88,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
       const fileArray = Array.from(files);
       await uploadCandidateCVs(campaignId, fileArray);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload thất bại');
+      setError(err instanceof Error ? err.message : t.detailUploadError);
     } finally {
       setUploading(false);
       // Reset input
@@ -103,7 +103,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
     try {
       await analyzeCampaign(campaignId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Phân tích thất bại');
+      setError(err instanceof Error ? err.message : t.detailAnalyzeError);
     }
   };
 
@@ -111,7 +111,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
     try {
       await updateHrStatus(candidateId, status, note);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Cập nhật thất bại');
+      setError(err instanceof Error ? err.message : t.detailUpdateError);
     }
   };
 
@@ -120,7 +120,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
     try {
       await exportToExcel(campaignId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Xuất Excel thất bại');
+      setError(err instanceof Error ? err.message : t.detailExportError);
     }
   };
 
@@ -131,6 +131,11 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
   const displayedCandidates = showAnalyzedOnly
     ? candidates.filter((c) => c.status === 'done')
     : candidates;
+
+  const cvAnalyzedText = formatLabel(t.detailCvAnalyzedCount, {
+    candidateCount: String(campaign.candidateCount),
+    analyzedCount: String(campaign.analyzedCount),
+  });
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-4 sm:py-6 space-y-3">
@@ -144,7 +149,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
           >
             <span className="flex items-center gap-2">
               <FileSearch className="w-3.5 h-3.5 text-accent" />
-              Mô tả công việc (JD)
+              {t.detailJdLabel}
             </span>
             {showInlineJd ? (
               <ChevronUp className="w-3.5 h-3.5" />
@@ -187,11 +192,11 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
               </h1>
               <div className="flex items-center gap-3 text-[10px] text-text-muted mt-0.5">
                 <span>
-                  {campaign.candidateCount} CV · {campaign.analyzedCount} đã phân tích
+                  {cvAnalyzedText}
                 </span>
                 {campaign.shortlistedCount > 0 && (
                   <span className="text-amber-600 font-bold">
-                    · {campaign.shortlistedCount} shortlist
+                    · {campaign.shortlistedCount} {t.campaignShortlistedCount}
                   </span>
                 )}
               </div>
@@ -215,7 +220,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
               ) : (
                 <EyeOff className="w-3.5 h-3.5" />
               )}
-              <span className="hidden md:inline">Đã PT</span>
+              <span className="hidden md:inline">{t.detailFilterAnalyzedOnly}</span>
             </button>
 
             {/* Upload CV */}
@@ -233,7 +238,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
                 <Upload className="w-3.5 h-3.5" />
               )}
               <span className="hidden sm:inline">
-                {uploading ? 'Đang tải...' : 'Upload CV'}
+                {uploading ? t.detailUploadCvLoading : t.detailUploadCv}
               </span>
               <input
                 ref={fileInputRef}
@@ -263,7 +268,9 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
                   <Play className="w-3.5 h-3.5" />
                 )}
                 <span className="hidden sm:inline">
-                  {isAnalyzing ? 'Đang PT...' : `PT ${pendingCount} CV`}
+                  {isAnalyzing
+                    ? t.detailAnalyzeBtnRunning
+                    : formatLabel(t.detailAnalyzeBtn, { count: String(pendingCount) })}
                 </span>
               </button>
             )}
@@ -275,7 +282,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-success/10 border border-success/20 text-success cursor-pointer hover:scale-105 active:scale-95 transition-all"
             >
               <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Excel</span>
+              <span className="hidden sm:inline">{t.detailExportExcel}</span>
             </button>
           </div>
         </div>
@@ -295,7 +302,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
             onClick={() => setError(null)}
             className="text-error hover:text-error/80 cursor-pointer text-xs font-bold"
           >
-            Đóng
+            {t.detailErrorClose}
           </button>
         </motion.div>
       )}
@@ -307,7 +314,7 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
           {candidatesLoading ? (
             <div className="p-10 text-center">
               <Loader2 className="w-6 h-6 animate-spin text-text-muted mx-auto mb-2" />
-              <p className="text-xs text-text-muted">Đang tải danh sách ứng viên...</p>
+              <p className="text-xs text-text-muted">{t.detailLoadingCandidates}</p>
             </div>
           ) : (
             <CandidateTable
@@ -316,7 +323,9 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
               selectedId={selectedCandidate?.id}
               isAnalyzing={isAnalyzing}
               onDelete={(candidate) => {
-                if (window.confirm(`Xoá CV của "${candidate.candidateName || candidate.fileName}"? Hành động này không thể hoàn tác.`)) {
+                const name = candidate.candidateName || candidate.fileName;
+                const msg = formatLabel(t.detailDeleteConfirm, { name });
+                if (window.confirm(msg)) {
                   deleteCandidateCV(candidate.id, candidate.filePath);
                 }
               }}

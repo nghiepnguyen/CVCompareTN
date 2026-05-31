@@ -12,15 +12,13 @@ import {
   FileSearch,
   ChevronDown,
   ChevronUp,
-  Download,
-  Eye,
-  ExternalLink,
   TrendingUp,
   TrendingDown,
   Zap,
-  Lightbulb,
+  Eye,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useUI } from '../../context/UIContext';
 import type { CandidateCV, HrStatus } from '../../context/recruiter';
 
 interface CandidatePanelProps {
@@ -29,34 +27,6 @@ interface CandidatePanelProps {
   onClose: () => void;
   onUpdateHrStatus: (candidateId: string, status: HrStatus, note?: string) => Promise<void>;
 }
-
-const HR_STATUS_OPTIONS: { value: HrStatus; label: string; color: string }[] = [
-  {
-    value: 'new',
-    label: 'Mới',
-    color: 'border-border text-text-muted',
-  },
-  {
-    value: 'shortlisted',
-    label: 'Shortlist',
-    color: 'border-amber-500/30 text-amber-600 bg-amber-400/5',
-  },
-  {
-    value: 'interviewing',
-    label: 'Phỏng vấn',
-    color: 'border-accent/30 text-accent bg-accent/5',
-  },
-  {
-    value: 'rejected',
-    label: 'Loại',
-    color: 'border-error/30 text-error bg-error/5',
-  },
-  {
-    value: 'hired',
-    label: 'Đã tuyển',
-    color: 'border-success/30 text-success bg-success/5',
-  },
-];
 
 function ScoreGauge({
   score,
@@ -125,6 +95,7 @@ export function CandidatePanel({
   onClose,
   onUpdateHrStatus,
 }: CandidatePanelProps) {
+  const { t } = useUI();
   const [hrNote, setHrNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [noteStatus, setNoteStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -158,6 +129,34 @@ export function CandidatePanel({
     }
   };
 
+  const hrStatusOptions: { value: HrStatus; label: string; color: string }[] = [
+    {
+      value: 'new',
+      label: t.tableHrStatusNew,
+      color: 'border-border text-text-muted',
+    },
+    {
+      value: 'shortlisted',
+      label: t.tableHrStatusShortlisted,
+      color: 'border-amber-500/30 text-amber-600 bg-amber-400/5',
+    },
+    {
+      value: 'interviewing',
+      label: t.tableHrStatusInterviewing,
+      color: 'border-accent/30 text-accent bg-accent/5',
+    },
+    {
+      value: 'rejected',
+      label: t.tableHrStatusRejected,
+      color: 'border-error/30 text-error bg-error/5',
+    },
+    {
+      value: 'hired',
+      label: t.tableHrStatusHired,
+      color: 'border-success/30 text-success bg-success/5',
+    },
+  ];
+
   return (
     <AnimatePresence>
       {candidate && (
@@ -178,6 +177,7 @@ export function CandidatePanel({
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             >
               <CandidateDetail
+                t={t}
                 candidate={candidate}
                 jdContent={jdContent}
                 showJd={showJd}
@@ -185,6 +185,7 @@ export function CandidatePanel({
                 hrNote={hrNote}
                 setHrNote={setHrNote}
                 noteStatus={noteStatus}
+                hrStatusOptions={hrStatusOptions}
                 onHrStatusChange={handleHrStatusChange}
                 onSaveNote={handleSaveNote}
                 onClose={onClose}
@@ -196,6 +197,7 @@ export function CandidatePanel({
           {/* Desktop: Side Panel */}
           <div className="hidden lg:block w-80 xl:w-96 border-l border-border bg-surface/60 backdrop-blur-sm overflow-y-auto shrink-0">
             <CandidateDetail
+              t={t}
               candidate={candidate}
               jdContent={jdContent}
               showJd={showJd}
@@ -203,6 +205,7 @@ export function CandidatePanel({
               hrNote={hrNote}
               setHrNote={setHrNote}
               noteStatus={noteStatus}
+              hrStatusOptions={hrStatusOptions}
               onHrStatusChange={handleHrStatusChange}
               onSaveNote={handleSaveNote}
               onClose={onClose}
@@ -215,12 +218,12 @@ export function CandidatePanel({
   );
 }
 
-function StatusBadge({ candidate }: { candidate: CandidateCV }) {
+function StatusBadge({ candidate, t }: { candidate: CandidateCV; t: any }) {
   if (candidate.status === 'analyzing') {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent/10 text-accent border border-accent/20">
         <Loader2 className="w-2.5 h-2.5 animate-spin" />
-        Đang PT
+        {t.panelStatusAnalyzing}
       </span>
     );
   }
@@ -228,7 +231,7 @@ function StatusBadge({ candidate }: { candidate: CandidateCV }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-secondary text-text-muted border border-border">
         <Clock className="w-2.5 h-2.5" />
-        Chờ PT
+        {t.panelStatusPending}
       </span>
     );
   }
@@ -236,7 +239,7 @@ function StatusBadge({ candidate }: { candidate: CandidateCV }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-error/10 text-error border border-error/20">
         <AlertTriangle className="w-2.5 h-2.5" />
-        Lỗi
+        {t.panelStatusError}
       </span>
     );
   }
@@ -244,6 +247,7 @@ function StatusBadge({ candidate }: { candidate: CandidateCV }) {
 }
 
 function CandidateDetail({
+  t,
   candidate,
   jdContent,
   showJd,
@@ -251,11 +255,13 @@ function CandidateDetail({
   hrNote,
   setHrNote,
   noteStatus,
+  hrStatusOptions,
   onHrStatusChange,
   onSaveNote,
   onClose,
   saving,
 }: {
+  t: any;
   candidate: CandidateCV;
   jdContent?: string;
   showJd: boolean;
@@ -263,6 +269,7 @@ function CandidateDetail({
   hrNote: string;
   setHrNote: (note: string) => void;
   noteStatus: 'idle' | 'saving' | 'saved' | 'error';
+  hrStatusOptions: { value: HrStatus; label: string; color: string }[];
   onHrStatusChange: (status: HrStatus) => Promise<void>;
   onSaveNote: () => Promise<void>;
   onClose: () => void;
@@ -288,7 +295,7 @@ function CandidateDetail({
               {candidate.candidateName || candidate.fileName}
             </h3>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <StatusBadge candidate={candidate} />
+              <StatusBadge candidate={candidate} t={t} />
               {candidate.fileName && (
                 <span className="text-[10px] text-text-muted truncate flex items-center gap-1">
                   <FileText className="w-3 h-3" />
@@ -313,7 +320,7 @@ function CandidateDetail({
             <div className="flex items-center gap-2 bg-surface-secondary border border-border rounded-xl px-3 py-2">
               <Target className="w-4 h-4 text-accent shrink-0" />
               <div className="min-w-0">
-                <p className="text-[9px] text-text-muted uppercase tracking-wide">Xác suất</p>
+                <p className="text-[9px] text-text-muted uppercase tracking-wide">{t.panelProbability}</p>
                 <p className="text-[11px] font-extrabold text-text-main truncate">
                   {(result as any)?.successProbability || (result as any)?.passProbability || '—'}
                 </p>
@@ -323,7 +330,7 @@ function CandidateDetail({
             <div className="flex items-center gap-2 bg-surface-secondary border border-border rounded-xl px-3 py-2">
               <Zap className="w-4 h-4 text-amber-500 shrink-0" />
               <div className="min-w-0">
-                <p className="text-[9px] text-text-muted uppercase tracking-wide">Yếu tố chính</p>
+                <p className="text-[9px] text-text-muted uppercase tracking-wide">{t.panelMainFactor}</p>
                 <p className="text-[11px] font-extrabold text-text-main truncate">
                   {(result as any)?.mainFactor || '—'}
                 </p>
@@ -339,7 +346,7 @@ function CandidateDetail({
             {isDone && candidate.matchScore != null && (
               <div className="space-y-1">
                 <div className="flex justify-between text-[10px] font-extrabold uppercase tracking-wider">
-                  <span className="text-text-muted">Điểm khớp</span>
+                  <span className="text-text-muted">{t.panelMatchScore}</span>
                   <span
                     className={
                       candidate.matchScore >= 80
@@ -372,22 +379,22 @@ function CandidateDetail({
                 <>
                   {candidate.matchScore != null && candidate.matchScore >= 80 ? (
                     <span className="text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-md">
-                      Ứng viên tiềm năng
+                      {t.panelVerdictPotential}
                     </span>
                   ) : candidate.matchScore != null && candidate.matchScore >= 60 ? (
                     <span className="text-[10px] font-bold text-amber-600 bg-amber-400/10 px-2 py-0.5 rounded-md">
-                      Cân nhắc
+                      {t.panelVerdictConsider}
                     </span>
                   ) : candidate.matchScore != null ? (
                     <span className="text-[10px] font-bold text-error bg-error/10 px-2 py-0.5 rounded-md">
-                      Chưa phù hợp
+                      {t.panelVerdictNotFit}
                     </span>
                   ) : null}
                 </>
               )}
               {candidate.status === 'error' && (
                 <span className="text-[10px] text-error">
-                  {candidate.errorMessage || 'Lỗi phân tích'}
+                  {candidate.errorMessage || t.panelAnalysisError}
                 </span>
               )}
             </div>
@@ -398,10 +405,10 @@ function CandidateDetail({
       {/* ---- HR Status ---- */}
       <div className="p-5 space-y-3">
         <p className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">
-          Trạng thái tuyển dụng
+          {t.panelHrStatusLabel}
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {HR_STATUS_OPTIONS.map((opt) => (
+          {hrStatusOptions.map((opt) => (
             <button
               key={opt.value}
               type="button"
@@ -423,12 +430,12 @@ function CandidateDetail({
       {/* ---- HR Note ---- */}
       <div className="p-5 space-y-2.5">
         <p className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">
-          Ghi chú nội bộ
+          {t.panelHrNoteLabel}
         </p>
         <textarea
           value={hrNote}
           onChange={(e) => setHrNote(e.target.value)}
-          placeholder="Ghi chú cho ứng viên này..."
+          placeholder={t.panelHrNotePlaceholder}
           rows={3}
           className="w-full bg-surface-secondary border border-border rounded-xl px-3 py-2 text-xs text-text-main placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none"
         />
@@ -445,10 +452,10 @@ function CandidateDetail({
           ) : (
             <Save className="w-3.5 h-3.5" />
           )}
-          {noteStatus === 'saving' ? 'Đang lưu...' : noteStatus === 'saved' ? 'Đã lưu ✓' : 'Lưu ghi chú'}
+          {noteStatus === 'saving' ? t.panelSaving : noteStatus === 'saved' ? `${t.panelSaved} ✓` : t.panelSaveNote}
         </button>
         {noteStatus === 'error' && (
-          <p className="text-[10px] font-bold text-error">Lỗi khi lưu — thử lại</p>
+          <p className="text-[10px] font-bold text-error">{t.panelSaveError}</p>
         )}
       </div>
 
@@ -456,7 +463,7 @@ function CandidateDetail({
       {isDone && (
         <div className="p-5 space-y-4">
           <p className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted">
-            Kết quả phân tích
+            {t.panelAnalysisResult}
           </p>
 
           {/* Strengths */}
@@ -465,7 +472,7 @@ function CandidateDetail({
               <div className="flex items-center gap-1.5">
                 <TrendingUp className="w-3.5 h-3.5 text-success" />
                 <span className="text-xs font-semibold text-text-main">
-                  Điểm mạnh ({(result as any).matchingPoints.length})
+                  {t.panelStrengths} ({(result as any).matchingPoints.length})
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
@@ -487,7 +494,7 @@ function CandidateDetail({
               <div className="flex items-center gap-1.5">
                 <TrendingDown className="w-3.5 h-3.5 text-error" />
                 <span className="text-xs font-semibold text-text-main">
-                  Điểm yếu ({(result as any).missingGaps.length})
+                  {t.panelWeaknesses} ({(result as any).missingGaps.length})
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
@@ -514,14 +521,14 @@ function CandidateDetail({
           {candidate.analysisResult && (candidate.analysisResult as any).categoryScores && (
             <div className="space-y-2">
               <p className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted">
-                Điểm theo hạng mục
+                {t.panelCategoryScores}
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {([
-                  { key: 'skills', label: 'Kỹ năng' },
-                  { key: 'experience', label: 'Kinh nghiệm' },
-                  { key: 'tools', label: 'Công cụ' },
-                  { key: 'education', label: 'Học vấn' },
+                  { key: 'skills', label: t.panelCatSkill },
+                  { key: 'experience', label: t.panelCatExperience },
+                  { key: 'tools', label: t.panelCatTools },
+                  { key: 'education', label: t.panelCatEducation },
                 ] as const).map((cat) => {
                   const val = (candidate.analysisResult as any)?.categoryScores?.[cat.key] ?? 0;
                   const valNum = typeof val === 'number' ? val : 0;
@@ -571,7 +578,7 @@ function CandidateDetail({
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-success" />
                 <span className="text-xs font-semibold text-text-main">
-                  Kỹ năng đạt ({matchedSkills.length})
+                  {t.panelMatchedSkills} ({matchedSkills.length})
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
@@ -593,7 +600,7 @@ function CandidateDetail({
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 text-error" />
                 <span className="text-xs font-semibold text-text-main">
-                  Kỹ năng thiếu ({missingSkills.length})
+                  {t.panelMissingSkills} ({missingSkills.length})
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
@@ -614,7 +621,7 @@ function CandidateDetail({
             <details className="group">
               <summary className="text-xs font-bold text-accent cursor-pointer hover:underline list-none flex items-center gap-1">
                 <Eye className="w-3.5 h-3.5" />
-                Xem chi tiết đầy đủ
+                {t.panelViewFullDetail}
               </summary>
               <pre className="mt-2 p-3 bg-surface-secondary border border-border rounded-xl text-[10px] text-text-muted overflow-x-auto max-h-48 overflow-y-auto leading-relaxed">
                 {JSON.stringify(candidate.analysisResult, null, 2)}
@@ -634,7 +641,7 @@ function CandidateDetail({
           >
             <span className="flex items-center gap-1.5">
               <FileSearch className="w-3.5 h-3.5" />
-              Mô tả công việc (JD)
+              {t.detailJdLabel}
             </span>
             {showJd ? (
               <ChevronUp className="w-3.5 h-3.5" />

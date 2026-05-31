@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { User, ArrowLeft, Mail, Shield, Calendar, BarChart3, Loader2 } from 'lucide-react';
+import { User, ArrowLeft, Mail, Shield, Calendar, BarChart3, Loader2, Briefcase, FileSpreadsheet, FileText, StickyNote } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
+import { useRecruiter } from '../../context/recruiter';
 import { checkAnalyticsQuota, type AnalyticsQuota } from '../../services/analyticsQuotaService';
-import { formatPlanExpiryDate, isProPlan } from '../../lib/planLimits';
+import { formatPlanExpiryDate, isProPlan, isRecruiterPlan, MAX_CAMPAIGNS, MAX_CAMPAIGN_CVS } from '../../lib/planLimits';
 import { formatLabel } from '../../translations';
 
 export function ProfileView() {
   const { user, userProfile, effectivePlan } = useAuth();
   const { setActiveTab, t } = useUI();
+  const { campaigns } = useRecruiter();
 
   const [quota, setQuota] = useState<AnalyticsQuota | null>(null);
   const [isLoadingQuota, setIsLoadingQuota] = useState(true);
@@ -34,6 +36,7 @@ export function ProfileView() {
   const displayName = user?.user_metadata?.full_name || userProfile?.displayName || '';
   const email = user?.email || '';
   const isPro = isProPlan(effectivePlan);
+  const isRecruiter = isRecruiterPlan(effectivePlan);
   const expiryDate = userProfile?.planExpiresAt
     ? formatPlanExpiryDate(userProfile.planExpiresAt, 'vi')
     : null;
@@ -43,6 +46,22 @@ export function ProfileView() {
     : quota.limit == null
       ? `${quota.used} / ${t.profileAnalyticsUnlimited}`
       : `${quota.used} / ${quota.limit}`;
+
+  const campaignLimit = MAX_CAMPAIGNS.recruiter;
+  const campaignUsed = campaigns.length;
+  const campaignText = formatLabel(t.profileRecruiterCampaignsLimit, {
+    used: String(campaignUsed),
+    limit: String(campaignLimit),
+  });
+
+  const batchCvMax = MAX_CAMPAIGN_CVS.recruiter;
+  const batchText = formatLabel(t.profileRecruiterBatchValue, { max: String(batchCvMax) });
+
+  const planLabel = isRecruiter
+    ? t.profilePlanRecruiter
+    : isPro
+      ? t.profilePlanPro
+      : t.profilePlanFree;
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center py-12 px-4">
@@ -74,6 +93,11 @@ export function ProfileView() {
             <h2 className="text-xl font-extrabold text-text-main tracking-tight">
               {displayName || email}
             </h2>
+            {isRecruiter && (
+              <span className="mt-2 text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                {t.planBadgeRecruiter}
+              </span>
+            )}
             {isPro && (
               <span className="mt-2 text-[10px] font-black px-2 py-0.5 rounded bg-accent/10 text-accent border border-accent/20">
                 {t.planBadgePro}
@@ -126,7 +150,7 @@ export function ProfileView() {
                   {t.profilePlanLabel}
                 </p>
                 <p className="text-sm font-bold text-text-main">
-                  {isPro ? t.profilePlanPro : t.profilePlanFree}
+                  {planLabel}
                 </p>
               </div>
             </div>
@@ -165,6 +189,79 @@ export function ProfileView() {
               </div>
             </div>
           </div>
+
+          {/* Recruiter-specific info section */}
+          {isRecruiter && (
+            <>
+              <div className="border-t border-white/[0.06] my-6" />
+              <div className="mb-4">
+                <p className="text-[11px] font-bold text-text-light uppercase tracking-wider mb-0.5">
+                  {t.profileRecruiterLabel}
+                </p>
+              </div>
+              <div className="space-y-4">
+                {/* Campaigns */}
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/[0.06] flex items-center justify-center shrink-0">
+                    <Briefcase className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-text-light uppercase tracking-wider mb-0.5">
+                      {t.profileRecruiterCampaigns}
+                    </p>
+                    <p className="text-sm font-bold text-text-main tabular-nums">
+                      {campaignText}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Batch CV */}
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/[0.06] flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-text-light uppercase tracking-wider mb-0.5">
+                      {t.profileRecruiterBatchLabel}
+                    </p>
+                    <p className="text-sm font-bold text-text-main">
+                      {batchText}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Export */}
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/[0.06] flex items-center justify-center shrink-0">
+                    <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-text-light uppercase tracking-wider mb-0.5">
+                      {t.profileRecruiterExportLabel}
+                    </p>
+                    <p className="text-sm font-bold text-emerald-400">
+                      {t.profileRecruiterExportYes}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Internal notes */}
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/[0.06] flex items-center justify-center shrink-0">
+                    <StickyNote className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-text-light uppercase tracking-wider mb-0.5">
+                      {t.profileRecruiterNoteLabel}
+                    </p>
+                    <p className="text-sm font-bold text-emerald-400">
+                      {t.profileRecruiterExportYes}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

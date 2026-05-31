@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Upload, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useUI } from '../../context/UIContext';
 
 interface CreateCampaignModalProps {
   open: boolean;
@@ -16,6 +17,7 @@ export function CreateCampaignModal({
   onCreate,
   savedJds = [],
 }: CreateCampaignModalProps) {
+  const { t } = useUI();
   const [title, setTitle] = useState('');
   const [jdContent, setJdContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,11 +27,11 @@ export function CreateCampaignModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError('Vui lòng nhập tên đợt tuyển dụng');
+      setError(t.createCampaignRequiredName);
       return;
     }
     if (!jdContent.trim()) {
-      setError('Vui lòng nhập mô tả công việc (JD)');
+      setError(t.createCampaignRequiredJd);
       return;
     }
 
@@ -43,7 +45,7 @@ export function CreateCampaignModal({
       setJdContent('');
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể tạo đợt tuyển dụng');
+      setError(err instanceof Error ? err.message : t.createCampaignError);
     } finally {
       setIsSubmitting(false);
     }
@@ -59,7 +61,7 @@ export function CreateCampaignModal({
       setJdContent(text);
     };
     reader.onerror = () => {
-      setError('Không đọc được file JD');
+      setError(t.createCampaignJdFileError);
     };
     reader.readAsText(file);
   };
@@ -92,7 +94,7 @@ export function CreateCampaignModal({
           >
             {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-border">
-              <h2 className="text-base font-black text-text-main">Tạo đợt tuyển dụng mới</h2>
+              <h2 className="text-base font-black text-text-main">{t.createCampaignTitle}</h2>
               <button
                 type="button"
                 onClick={onClose}
@@ -106,13 +108,14 @@ export function CreateCampaignModal({
               {/* Campaign Title */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-text-main">
-                  Tên đợt <span className="text-error">*</span>
+                  {t.createCampaignNameLabel}{' '}
+                  <span className="text-error">{t.createCampaignRequiredMark}</span>
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ví dụ: Tuyển Backend Developer Q3/2026"
+                  placeholder={t.createCampaignNamePlaceholder}
                   className="w-full bg-surface-secondary border border-border rounded-xl px-3 py-2.5 text-sm text-text-main placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
                 />
               </div>
@@ -120,19 +123,20 @@ export function CreateCampaignModal({
               {/* JD Content */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-text-main">
-                  Mô tả công việc (JD) <span className="text-error">*</span>
+                  {t.createCampaignJdLabel}{' '}
+                  <span className="text-error">{t.createCampaignRequiredMark}</span>
                 </label>
                 <textarea
                   value={jdContent}
                   onChange={(e) => setJdContent(e.target.value)}
-                  placeholder="Dán nội dung JD vào đây..."
+                  placeholder={t.createCampaignJdPlaceholder}
                   rows={8}
                   className="w-full bg-surface-secondary border border-border rounded-xl px-3 py-2.5 text-sm text-text-main placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none font-mono text-xs"
                 />
                 <div className="flex items-center gap-2">
                   <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-surface-secondary border border-border text-text-main cursor-pointer hover:scale-105 active:scale-95 transition-all">
                     <Upload className="w-3.5 h-3.5" />
-                    Upload file
+                    {t.createCampaignUploadFile}
                     <input
                       type="file"
                       accept=".txt,.md,.pdf,.doc,.docx"
@@ -149,7 +153,7 @@ export function CreateCampaignModal({
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-surface-secondary border border-border text-text-main cursor-pointer hover:scale-105 active:scale-95 transition-all"
                       >
                         <ChevronDown className="w-3.5 h-3.5" />
-                        Chọn từ kho JD
+                        {t.createCampaignSelectJd}
                       </button>
                       {showJdPicker && (
                         <>
@@ -187,7 +191,7 @@ export function CreateCampaignModal({
                   onClick={onClose}
                   className="px-4 py-2 rounded-xl text-sm font-bold text-text-muted hover:text-text-main cursor-pointer transition-colors"
                 >
-                  Huỷ
+                  {t.createCampaignCancel}
                 </button>
                 <button
                   type="submit"
@@ -197,7 +201,7 @@ export function CreateCampaignModal({
                     isSubmitting && 'opacity-50 cursor-not-allowed',
                   )}
                 >
-                  {isSubmitting ? 'Đang tạo...' : 'Tạo đợt →'}
+                  {isSubmitting ? t.createCampaignSubmitting : t.createCampaignSubmit}
                 </button>
               </div>
             </form>

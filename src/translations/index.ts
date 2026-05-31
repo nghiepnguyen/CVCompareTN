@@ -10,10 +10,11 @@ import { system } from './system';
 import { legal } from './legal';
 import { billing } from './billing';
 import { about } from './about';
+import { recruiter } from './recruiter';
 
 export type { ReportLanguage, UiLabels, FaqItem } from './types';
 
-const SECTIONS = [result, nav, landing, input, footer, history, admin, system, legal, billing, about] as const;
+const SECTIONS = [result, nav, landing, input, footer, history, admin, system, legal, billing, about, recruiter] as const;
 
 type LocaleEntry = { readonly vi: string; readonly en: string } | { readonly vi: readonly import('./types').FaqItem[]; readonly en: readonly import('./types').FaqItem[] };
 

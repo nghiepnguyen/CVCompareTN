@@ -83,7 +83,7 @@ export function Header() {
                     )}
                   >
                     <Briefcase className="w-4 h-4" />
-                    <span className="hidden md:inline">Tuyển dụng</span>
+                    <span className="hidden md:inline">{t.recruiterTab}</span>
                   </button>
                 )}
               </>
