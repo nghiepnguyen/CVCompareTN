@@ -10,6 +10,16 @@ import {
   fetchEffectiveUserPlan,
 } from '../services/userService';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
+import { trackEvent } from '../lib/ga4';
+
+export type AuthModalMode = 'signIn' | 'signUp' | 'resetPassword' | null;
+
+export interface EmailAuthResult {
+  success: boolean;
+  error?: string;
+  /** When true, user needs to check email (e.g., email confirmation required) */
+  checkEmail?: boolean;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -25,6 +35,14 @@ interface AuthContextType {
   isAuthInitialized: boolean;
   isRedirectChecked: boolean;
   refreshUserProfile: () => Promise<void>;
+  /** Auth modal */
+  authModalMode: AuthModalMode;
+  openAuthModal: (mode?: AuthModalMode) => void;
+  closeAuthModal: () => void;
+  /** Email auth */
+  signInWithEmail: (email: string, password: string) => Promise<EmailAuthResult>;
+  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<EmailAuthResult>;
+  resetPasswordForEmail: (email: string) => Promise<EmailAuthResult>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | React.ReactNode | null>(null);
   const [isAuthInitialized, setIsAuthInitialized] = useState(false);
   const [isRedirectChecked, setIsRedirectChecked] = useState(true); // OAuth redirect handled by Supabase session
+  const [authModalMode, setAuthModalMode] = useState<AuthModalMode>(null);
   
   const { executeRecaptcha } = useGoogleReCaptcha();
 
@@ -194,6 +213,127 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const openAuthModal = (mode?: AuthModalMode) => {
+    setAuthModalMode(mode || 'signIn');
+  };
+
+  const closeAuthModal = () => {
+    setAuthModalMode(null);
+  };
+
+  const verifyCaptcha = async (action: string): Promise<boolean> => {
+    if (!executeRecaptcha) return true; // reCAPTCHA chưa sẵn sàng — bỏ qua
+    try {
+      const token = await executeRecaptcha(action);
+      const res = await fetch('/api/verify-recaptcha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      if (!res.ok) {
+        console.warn(`reCAPTCHA verify failed (status ${res.status}) for ${action}`);
+        return false;
+      }
+      const data = await res.json();
+      return data.success === true;
+    } catch (err) {
+      console.error(`reCAPTCHA error for ${action}:`, err);
+      return false;
+    }
+  };
+
+  const signInWithEmail = async (email: string, password: string): Promise<EmailAuthResult> => {
+    const captchaOk = await verifyCaptcha('sign_in_email');
+    if (!captchaOk) {
+      return { success: false, error: 'authGenericError' };
+    }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) {
+        if (error.message?.includes('Invalid login') || error.message?.includes('Invalid email')) {
+          return { success: false, error: 'authInvalidCredentials' };
+        }
+        if (error.message?.includes('Email not confirmed')) {
+          return { success: false, error: 'authEmailNotConfirmed' };
+        }
+        return { success: false, error: error.message };
+      }
+
+      trackEvent('sign_in_email', { method: 'email' });
+      return { success: true };
+    } catch (err: any) {
+      console.error('Sign in error:', err);
+      trackEvent('sign_in_email_error', { method: 'email', error: err.message?.slice(0, 100) || 'unknown' });
+      return { success: false, error: err.message || 'authGenericError' };
+    }
+  };
+
+  const signUpWithEmail = async (email: string, password: string, displayName: string): Promise<EmailAuthResult> => {
+    const captchaOk = await verifyCaptcha('sign_up_email');
+    if (!captchaOk) {
+      return { success: false, error: 'authGenericError' };
+    }
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: { full_name: displayName.trim() },
+          emailRedirectTo: `${window.location.origin}`,
+        },
+      });
+
+      if (error) {
+        if (error.message?.includes('already registered') || error.message?.includes('already in use')) {
+          return { success: false, error: 'authEmailInUse' };
+        }
+        return { success: false, error: error.message };
+      }
+
+      // If user is created but not confirmed, show check-email message
+      if (data?.user && data?.user?.identities?.length === 0) {
+        return { success: false, error: 'authEmailInUse' };
+      }
+
+      // If email confirmation is enabled, user needs to check email
+      if (data?.session === null) {
+        trackEvent('sign_up_email', { method: 'email', needs_confirmation: true });
+        return { success: true, checkEmail: true };
+      }
+
+      trackEvent('sign_up_email', { method: 'email', needs_confirmation: false });
+      return { success: true };
+    } catch (err: any) {
+      console.error('Sign up error:', err);
+      trackEvent('sign_up_email_error', { method: 'email', error: err.message?.slice(0, 100) || 'unknown' });
+      return { success: false, error: err.message || 'authGenericError' };
+    }
+  };
+
+  const resetPasswordForEmail = async (email: string): Promise<EmailAuthResult> => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: `${window.location.origin}`,
+      });
+
+      if (error) {
+        trackEvent('reset_password_error', { method: 'email', error: error.message?.slice(0, 100) || 'unknown' });
+        return { success: false, error: error.message };
+      }
+
+      trackEvent('reset_password', { method: 'email' });
+      return { success: true };
+    } catch (err: any) {
+      console.error('Reset password error:', err);
+      trackEvent('reset_password_error', { method: 'email', error: err.message?.slice(0, 100) || 'unknown' });
+      return { success: false, error: err.message || 'authGenericError' };
+    }
+  };
+
   const refreshUserProfile = async () => {
     if (!user) return;
     await loadUserProfileData(user);
@@ -227,6 +367,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthInitialized,
       isRedirectChecked,
       refreshUserProfile,
+      authModalMode,
+      openAuthModal,
+      closeAuthModal,
+      signInWithEmail,
+      signUpWithEmail,
+      resetPasswordForEmail,
     }}>
       {children}
     </AuthContext.Provider>

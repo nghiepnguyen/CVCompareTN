@@ -51,6 +51,9 @@ const ProfileView = React.lazy(() =>
 const UpgradeView = React.lazy(() =>
   import('../components/views/UpgradeView').then((m) => ({ default: m.UpgradeView }))
 );
+const AuthModal = React.lazy(() =>
+  import('../components/auth/AuthModal').then((m) => ({ default: m.AuthModal }))
+);
 const RecruiterView = React.lazy(() =>
   import('../components/views/RecruiterView').then((m) => ({ default: m.RecruiterView }))
 );
@@ -399,6 +402,12 @@ export function AppContent() {
             cvStoreLoad: t.cvStoreLoad,
           }}
         />
+
+          {!user && (
+            <React.Suspense fallback={null}>
+              <AuthModal />
+            </React.Suspense>
+          )}
 
         <CookieConsentBanner
           onOpenPrivacy={() => {

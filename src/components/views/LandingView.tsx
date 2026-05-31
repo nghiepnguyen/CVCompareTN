@@ -17,7 +17,7 @@ import { FaqSection } from './landing/FaqSection';
 
 export function LandingView() {
   const { t } = useUI();
-  const { login } = useAuth();
+  const { login, openAuthModal } = useAuth();
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const { scrollYProgress } = useScroll();
   const opacity = useTransform(scrollYProgress, [0, 0.15], [1, 0]);
@@ -32,7 +32,7 @@ export function LandingView() {
       </div>
 
       <div className="relative z-10 w-full">
-        <HeroSection t={t} login={login} opacity={opacity} scale={scale} />
+        <HeroSection t={t} login={() => openAuthModal('signUp')} opacity={opacity} scale={scale} />
         <TrustSection t={t} />
         <ProblemSection t={t} />
         <WhyChooseSection t={t} />
@@ -41,8 +41,8 @@ export function LandingView() {
         <StatsSection t={t} />
         <TargetUsersSection t={t} />
         <RecruiterFeaturesSection t={t} />
-        <PricingSection t={t} login={login} />
-        <CtaSection t={t} login={login} />
+        <PricingSection t={t} login={() => openAuthModal('signUp')} />
+        <CtaSection t={t} login={() => openAuthModal('signUp')} />
         <FaqSection t={t} openFaqIndex={openFaqIndex} setOpenFaqIndex={setOpenFaqIndex} />
       </div>
     </div>

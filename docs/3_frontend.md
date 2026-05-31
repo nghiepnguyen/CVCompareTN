@@ -21,7 +21,7 @@ Frontend của dự án **cvFit** được thiết kế để xử lý việc so
 
 ### Global state (`src/context/`)
 
--   **`AuthContext.tsx`**: Xác thực Supabase và profile người dùng. Hỗ trợ `UserPlan = 'free' | 'pro' | 'recruiter'`.
+-   **`AuthContext.tsx`**: Xác thực Supabase và profile người dùng. Hỗ trợ `UserPlan = 'free' | 'pro' | 'recruiter'`. Ngoài Google OAuth (`login()`), còn có email auth: `signInWithEmail()`, `signUpWithEmail()`, `resetPasswordForEmail()` — mỗi hàm đều verify reCAPTCHA qua `POST /api/verify-recaptcha` trước khi gọi Supabase Auth. Quản lý `authModalMode` ('signIn' | 'signUp' | 'resetPassword' | null) để điều khiển `AuthModal`.
 -   **`UIContext.tsx`**: Tab, ngôn ngữ, modals, nhãn UI. Hỗ trợ tab `'recruiter'`.
 -   **`AnalysisContext.tsx`**: Shim re-export — import từ `./context/analysis` (tương thích code cũ).
 -   **`src/context/analysis/`** (hai provider + composer):
@@ -74,6 +74,18 @@ CI/CD: **GitHub Actions** (`.github/workflows/ci.yml`) — trigger `push`/`PR` t
 -   **`CandidateTable.tsx`**: Bảng xếp hạng ứng viên (sort match_score), cột trạng thái (pending/analyzing/done/error) + điểm, nút xoá CV.
 -   **`CandidatePanel.tsx`**: Panel chi tiết ứng viên (mobile: bottom sheet, desktop: side panel) — ScoreGauge SVG, category scores (Skills/Experience/Tools/Education), matched/missing skills, strengths/weaknesses, HR status, ghi chú, JD viewer accordion.
 -   **`CreateCampaignModal.tsx`**: Modal tạo campaign mới với title + JD textarea + upload file + chọn từ kho JD (tái dụng SavedJdContext).
+
+### Auth components (`src/components/auth/`)
+
+-   **`AuthModal.tsx`**: Modal xác thực thống nhất 3 chế độ (Sign In / Sign Up / Reset Password) với Motion `layoutId` animation khi chuyển tab. Hỗ trợ:
+    -   **Sign In:** Email + Password + "Quên mật khẩu?" link
+    -   **Sign Up:** Tên + Email + Password
+    -   **Reset Password:** Nhập email → gửi link reset qua Supabase
+    -   **Google OAuth** (luôn hiển thị phía dưới dạng nút "Tiếp tục với Google")
+    -   Validation client-side (email format, password ≥ 6 ký tự, tên không trống)
+    -   Error mapping từ Supabase → translation key (authInvalidCredentials, authEmailInUse, …)
+    -   reCAPTCHA v3 protection: gọi `verifyCaptcha()` → `POST /api/verify-recaptcha` trước khi submit form
+    -   Thiết kế Dark OLED phù hợp Industrial Utilitarian của dự án
 
 ### Khác
 
@@ -134,6 +146,7 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
 -   **Pro/Recruiter Feature Gate:** Các tính năng được kiểm tra qua `isProPlan()` / `isRecruiterPlan()` từ `planLimits.ts`; giao diện hiển thị `UpgradePrompt` khi người dùng Free/Pro truy cập tính năng Recruiter.
 -   **Collapsible Sidebar:** Tối ưu không gian hiển thị với thanh điều hướng có thể thu gọn, giúp tập trung vào nội dung phân tích.
 -   **In-App Browser detection:** Cảnh báo người dùng khi truy cập từ Zalo/Facebook để đảm bảo quyền đăng nhập Google.
+-   **Auth Modal (Email + Google):** `AuthModal.tsx` cung cấp Sign In/Sign Up/Reset Password với Motion layoutId animation, reCAPTCHA v3, và hỗ trợ cả Google OAuth. Hiển thị qua `openAuthModal()` từ AuthContext.
 -   **Pre-hydration SEO (2026-05):** `<script>` đồng bộ trong `index.html` chạy trước React — set đúng meta (title, description, OG, Twitter, canonical), hreflang (`vi`, `en`, `x-default`), Schema.org (`SoftwareApplication`, `Organization`, `BreadcrumbList`, `FAQPage`, `HowTo`), và `robots` meta (`noindex` cho payment/admin). Có full SEO metadata cho 6 route (home, privacy, terms, support, upgrade, about) bằng cả 2 ngôn ngữ.
 -   **Hreflang & Canonical:** URL-based language routing (`/vi`, `/en` prefix) với hreflang tags + canonical per-route. Legacy paths (`/privacy`...) redirect 301 về `/vi/privacy`.
 -   **Dynamic SEO Sync:** `AppContent.tsx` đồng bộ canonical, hreflang, meta, schema sau mỗi SPA navigation — kế thừa và cập nhật seed từ pre-hydration script.

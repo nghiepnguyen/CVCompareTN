@@ -180,4 +180,122 @@ export const system = {
     vi: "ten@example.com",
     en: "name@example.com",
   },
+
+  // ── Auth Modal ──
+  authSignInTitle: {
+    vi: "Đăng nhập",
+    en: "Sign In",
+  },
+  authSignUpTitle: {
+    vi: "Đăng ký",
+    en: "Sign Up",
+  },
+  authEmailLabel: {
+    vi: "Email",
+    en: "Email",
+  },
+  authPasswordLabel: {
+    vi: "Mật khẩu",
+    en: "Password",
+  },
+  authNameLabel: {
+    vi: "Họ tên",
+    en: "Full Name",
+  },
+  authNamePlaceholder: {
+    vi: "Nguyễn Văn A",
+    en: "John Doe",
+  },
+  authSignInBtn: {
+    vi: "Đăng nhập bằng Email",
+    en: "Sign In with Email",
+  },
+  authSignInBtnLoading: {
+    vi: "Đang đăng nhập...",
+    en: "Signing In...",
+  },
+  authSignUpBtn: {
+    vi: "Tạo tài khoản",
+    en: "Create Account",
+  },
+  authSignUpBtnLoading: {
+    vi: "Đang tạo tài khoản...",
+    en: "Creating Account...",
+  },
+  authSwitchToSignUp: {
+    vi: "Chưa có tài khoản? Đăng ký",
+    en: "No account? Sign Up",
+  },
+  authSwitchToSignIn: {
+    vi: "Đã có tài khoản? Đăng nhập",
+    en: "Already have an account? Sign In",
+  },
+  authGoogleBtn: {
+    vi: "Tiếp tục với Google",
+    en: "Continue with Google",
+  },
+  authDivider: {
+    vi: "hoặc",
+    en: "or",
+  },
+  authForgotPassword: {
+    vi: "Quên mật khẩu?",
+    en: "Forgot password?",
+  },
+  authInvalidEmail: {
+    vi: "Email không hợp lệ.",
+    en: "Invalid email address.",
+  },
+  authWeakPassword: {
+    vi: "Mật khẩu phải có ít nhất 6 ký tự.",
+    en: "Password must be at least 6 characters.",
+  },
+  authNameRequired: {
+    vi: "Vui lòng nhập họ tên.",
+    en: "Please enter your name.",
+  },
+  authEmailInUse: {
+    vi: "Email này đã được đăng ký. Vui lòng đăng nhập.",
+    en: "This email is already registered. Please sign in.",
+  },
+  authInvalidCredentials: {
+    vi: "Email hoặc mật khẩu không đúng. Vui lòng thử lại.",
+    en: "Invalid email or password. Please try again.",
+  },
+  authSignUpSuccess: {
+    vi: "Đăng ký thành công!",
+    en: "Registration successful!",
+  },
+  authSignUpSuccessDesc: {
+    vi: "Kiểm tra email để xác nhận tài khoản của bạn.",
+    en: "Check your email to confirm your account.",
+  },
+  authGenericError: {
+    vi: "Đã xảy ra lỗi. Vui lòng thử lại.",
+    en: "An error occurred. Please try again.",
+  },
+  authResetPasswordTitle: {
+    vi: "Đặt lại mật khẩu",
+    en: "Reset Password",
+  },
+  authResetPasswordDesc: {
+    vi: "Nhập email của bạn và chúng tôi sẽ gửi link đặt lại mật khẩu.",
+    en: "Enter your email and we'll send you a reset link.",
+  },
+  authResetPasswordBtn: {
+    vi: "Gửi link đặt lại",
+    en: "Send Reset Link",
+  },
+  authResetPasswordBtnLoading: {
+    vi: "Đang gửi...",
+    en: "Sending...",
+  },
+  authResetPasswordSuccess: {
+    vi: "Link đặt lại mật khẩu đã được gửi đến email của bạn.",
+    en: "A password reset link has been sent to your email.",
+  },
+  authBackToSignIn: {
+    vi: "Quay lại đăng nhập",
+    en: "Back to Sign In",
+  },
 } as const;

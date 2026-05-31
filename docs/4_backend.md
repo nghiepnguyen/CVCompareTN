@@ -30,6 +30,8 @@ Hệ thống sử dụng **Express** module hoá (`server/routes/`) khi chạy *
 
 Tự động bypass trên localhost để thuận tiện phát triển.
 
+**Sử dụng trong auth:** Frontend gọi `verifyCaptcha()` (trong `AuthContext.tsx`) trước mỗi lần `signInWithEmail()` / `signUpWithEmail()`. Token Google reCAPTCHA v3 được gửi đến `POST /api/verify-recaptcha` để verify với score ≥ 0.5. Nếu reCAPTCHA chưa sẵn sàng (chưa load) → bỏ qua để không block auth.
+
 ### 4. Thanh toán PayOS (`/api/payment/create` & `/api/payment/webhook`)
 
 -   **Files:** `server/routes/payment.ts` (Express), `api/payment/` (Vercel serverless), shared logic trong `api/payment/lib/`.
@@ -89,3 +91,8 @@ APP_URL=                 # URL ứng dụng (vd: https://cvfit.pro)
 -   **Body Parser:** Hỗ trợ `limit: '50mb'` để xử lý các file PDF lớn chứa hình ảnh.
 -   **Dev Integration:** Trong môi trường development, server chạy song song với Vite qua `vite.middlewares`.
 -   **Secrets:** Chỉ đọc từ biến môi trường (`.env` local, Vercel Dashboard production). Không hard-code API key trong mã nguồn. File `.env` và cache `supabase/.temp/` nằm trong `.gitignore` — mẫu biến tham khảo: `.env.example`.
+
+## Supabase Auth Providers
+
+-   **Google OAuth:** Provider mặc định, cấu hình trong Supabase Dashboard > Authentication > Providers > Google.
+-   **Email/Password:** Cần bật trong Supabase Dashboard > Authentication > Providers > Email. Có thể tắt "Confirm email" để user đăng nhập ngay sau khi đăng ký. Email auth được bảo vệ bởi reCAPTCHA v3 ở phía frontend (verify qua `/api/verify-recaptcha` trước khi gọi Supabase `signInWithPassword` / `signUp`).

@@ -60,7 +60,7 @@ Do **not** assume one Edge function replaces Express and Vercel handlers without
 
 | Concern | Client module | Notes |
 |---------|---------------|--------|
-| Auth | `src/lib/supabase.ts` | Google OAuth, session |
+| Auth | `src/lib/supabase.ts` + `src/context/AuthContext.tsx` | Google OAuth + Email/Password (Supabase Auth), reCAPTCHA v3 verify qua `/api/verify-recaptcha` trước sign in/sign up |
 | History / saved JDs | `src/services/historyService.ts` | Postgres via Supabase client |
 | Storage bucket `cv-files` | Supabase Storage API | Bucket created in project; no dedicated `storageService.ts` in app code |
 

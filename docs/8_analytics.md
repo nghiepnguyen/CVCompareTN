@@ -103,6 +103,12 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 | `analyze_cv` | Bắt đầu một lượt phân tích CV–JD | `input_mode`: `'file'` \| `'text'` — `jd_mode`: `'text'` \| `'link'` — `cv_count`: số file (khi upload) | Đầu `handleAnalyze`, sau reCAPTCHA (production) | `AnalysisRunContext.tsx` |
 | `analysis_success` | Một CV hoàn tất phân tích AI | `match_score`: điểm ATS — `jd_type`: chế độ JD — `input_mode`: `'file'` \| `'text'` | Sau mỗi `analyzeCV` thành công | `AnalysisRunContext.tsx` |
 | `view_history` | Mở tab Lịch sử | _(không có)_ | Click tab History trên Header | `Header.tsx` |
+| `sign_in_email` | Đăng nhập thành công bằng email/password | `method`: `'email'` | Supabase `signInWithPassword` thành công | `AuthContext.tsx` |
+| `sign_in_email_error` | Đăng nhập email thất bại | `method`: `'email'`, `error`: message lỗi (cắt 100 ký tự) | Supabase `signInWithPassword` thất bại | `AuthContext.tsx` |
+| `sign_up_email` | Đăng ký thành công bằng email/password | `method`: `'email'`, `needs_confirmation`: `true/false` | Supabase `signUp` thành công | `AuthContext.tsx` |
+| `sign_up_email_error` | Đăng ký email thất bại | `method`: `'email'`, `error`: message lỗi (cắt 100 ký tự) | Supabase `signUp` thất bại | `AuthContext.tsx` |
+| `reset_password` | Gửi yêu cầu đặt lại mật khẩu thành công | `method`: `'email'` | Supabase `resetPasswordForEmail` thành công | `AuthContext.tsx` |
+| `reset_password_error` | Gửi yêu cầu đặt lại mật khẩu thất bại | `method`: `'email'`, `error`: message lỗi (cắt 100 ký tự) | Supabase `resetPasswordForEmail` thất bại | `AuthContext.tsx` |
 
 ### Ghi chú quan trọng
 
@@ -117,6 +123,7 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 | `analysis_completed` | `analysis_success` | Hoàn thành giá trị cốt lõi |
 | `jd_saved` | `jd_create` (`method: manual`) | Người dùng lưu JD để dùng lại |
 | `analysis_started` | `analyze_cv` | Ý định phân tích (phễu trên) |
+| `sign_up_completed` | `sign_up_email` (`needs_confirmation: false`) | Đăng ký mới (không cần xác nhận email) |
 
 Đánh dấu conversion trong **Admin → Events → Mark as conversion** (hoặc tạo custom conversion tương ứng).
 

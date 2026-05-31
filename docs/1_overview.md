@@ -11,6 +11,7 @@
 5.  **Tối ưu hóa SEO (Pre-hydration + Dynamic Sync):** Pre-hydration `<script>` trong `index.html` chạy trước React — set đúng title, meta, OG, Twitter, canonical, hreflang (`vi`/`en`/`x-default`), Schema.org (`FAQPage`, `HowTo`, `BreadcrumbList`), và `noindex` cho payment/admin. Hỗ trợ 6 route x 2 ngôn ngữ. `AppContent.tsx` đồng bộ sau mỗi SPA navigation. Sitemap 14 URL với `xhtml:link` hreflang. Legacy paths redirect 301. Xem chi tiết: [3_frontend.md](3_frontend.md).
 6.  **Bảo mật & Riêng tư (Security & Privacy):** Dữ liệu CV qua Supabase (RLS, Auth, Storage); API proxy giữ secret phía server (Gemini, reCAPTCHA, Resend). Không commit `.env`, khóa riêng, cache CLI (`supabase/.temp/`) — xem `.gitignore` và [Triển khai §5](7_deployment.md#5-bảo-mật-mã-nguồn-và-bi-mật).
 7. **Kiến trúc Mobile-First (Mobile-First Design):** Tối ưu hóa trải nghiệm trên thiết bị di động với Bottom Navigation, Bottom Sheets và giao diện thích ứng linh hoạt, đảm bảo tính ergonomic cho người dùng.
+8. **Xác thực đa kênh (Multi-channel Auth):** Hỗ trợ đăng nhập/đăng ký qua **Google OAuth** và **Email/Password** (Supabase Auth). Email auth được bảo vệ bởi Google reCAPTCHA v3 qua backend `/api/verify-recaptcha`. Modal Auth (`AuthModal.tsx`) cung cấp giao diện Sign In / Sign Up / Reset Password thống nhất với Motion layoutId animation.
 
 ## Tính năng nổi bật (Key Features)
 
@@ -24,6 +25,7 @@
 -   **Kho lưu trữ CV (CV Store):** Lưu trữ file CV trên Supabase Storage để tái sử dụng mà không cần tải lên nhiều lần. Free: tối đa 1 CV, Pro: 10 CV. Hỗ trợ upload, download, xóa, và thông báo lưu thành công.
 -   **Gói Pro & Recruiter (PayOS):** Người dùng có thể nâng cấp lên gói **Pro** (69.000 VNĐ/tháng) hoặc **Recruiter** (399.000 VNĐ/tháng) qua [PayOS](https://payos.vn/). Gói Pro: 100 lượt phân tích/tháng, batch 5 CV, kho JD không giới hạn. Gói Recruiter: 500 lượt, batch 50 CV, 10 đợt tuyển dụng với upload hàng loạt, xếp hạng tự động, xuất Excel, ghi chú nội bộ HR. Thanh toán được xử lý qua PayOS với webhook xác thực HMAC-SHA256.
 -   **Lịch sử & Quản trị:** Người dùng xem lại lịch sử phân tích; admin quản lý user, quyền, và **hạn mức phân tích/tháng** (mặc định **20** lượt, cấu hình runtime qua `app_settings` — không cần deploy lại khi đổi default).
+-   **Đăng nhập/Đăng ký Email:** Ngoài Google OAuth, người dùng có thể đăng ký và đăng nhập bằng email/password qua Supabase Auth. Modal Auth (`AuthModal.tsx`) hỗ trợ 3 chế độ: Sign In, Sign Up (có nhập tên), và Reset Password. Tất cả được bảo vệ bởi reCAPTCHA v3 (verify qua `POST /api/verify-recaptcha`).
 
 ---
 

@@ -651,4 +651,35 @@ export interface UiLabels {
   panelMatchedSkills: string;
   panelMissingSkills: string;
   panelViewFullDetail: string;
+
+  // ── Auth Modal ──
+  authSignInTitle: string;
+  authSignUpTitle: string;
+  authEmailLabel: string;
+  authPasswordLabel: string;
+  authNameLabel: string;
+  authNamePlaceholder: string;
+  authSignInBtn: string;
+  authSignInBtnLoading: string;
+  authSignUpBtn: string;
+  authSignUpBtnLoading: string;
+  authSwitchToSignUp: string;
+  authSwitchToSignIn: string;
+  authGoogleBtn: string;
+  authDivider: string;
+  authForgotPassword: string;
+  authInvalidEmail: string;
+  authWeakPassword: string;
+  authNameRequired: string;
+  authEmailInUse: string;
+  authInvalidCredentials: string;
+  authSignUpSuccess: string;
+  authSignUpSuccessDesc: string;
+  authGenericError: string;
+  authResetPasswordTitle: string;
+  authResetPasswordDesc: string;
+  authResetPasswordBtn: string;
+  authResetPasswordBtnLoading: string;
+  authResetPasswordSuccess: string;
+  authBackToSignIn: string;
 }

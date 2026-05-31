@@ -10,7 +10,7 @@ import { trackEvent } from '../../lib/ga4';
 import { cn } from '../../lib/utils';
 
 export function Header() {
-  const { user, userProfile, effectivePlan, allUsers, login, logout } = useAuth();
+  const { user, userProfile, effectivePlan, allUsers, login, logout, openAuthModal } = useAuth();
   const showProBadge =
     user && (userProfile?.role === 'admin' || isProPlan(effectivePlan));
   const showRecruiterBadge =
@@ -222,8 +222,8 @@ export function Header() {
           ) : (
             <div className="flex items-center gap-2">
               <button 
-                onClick={login}
-                className="flex items-center gap-2 px-5 py-3 sm:px-4 sm:py-2 bg-accent text-white rounded-xl text-sm font-bold hover:bg-accent-hover transition-all sm:bg-white/[0.03] sm:text-text-main sm:border sm:border-white/[0.08] sm:hover:bg-white/[0.06] cursor-pointer"
+                onClick={() => openAuthModal('signIn')}
+                className="flex items-center gap-2 px-5 py-3 sm:px-4 sm:py-2 bg-accent text-white rounded-xl text-sm font-bold hover:bg-accent-hover transition-all sm:bg-white/[0.03] sm:text-text-main sm:border sm:border-white/[0.08] sm:hover:bg-white/[0.06] cursor-pointer hover:scale-105 active:scale-95"
               >
                 <LogIn className="w-4 h-4 sm:text-accent" />
                 <span className="hidden xs:inline sm:inline">{t.login}</span>
