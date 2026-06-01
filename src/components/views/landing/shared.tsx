@@ -3,6 +3,8 @@ import { motion, useInView, animate } from 'motion/react';
 import { cn } from '../../../lib/utils';
 import type { LucideIcon } from 'lucide-react';
 
+export type SectionTheme = 'dark' | 'light';
+
 /* ------------------------------------------------------------------ */
 /* GlassCard — card with glass morphism effect                       */
 /* ------------------------------------------------------------------ */
@@ -11,12 +13,15 @@ export function GlassCard({
   className,
   delay = 0,
   hover = true,
+  theme = 'dark',
 }: {
   children: React.ReactNode;
   className?: string;
   delay?: number;
   hover?: boolean;
+  theme?: SectionTheme;
 }) {
+  const isLight = theme === 'light';
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -24,10 +29,12 @@ export function GlassCard({
       viewport={{ once: true, margin: '-80px' }}
       transition={{ duration: 0.6, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
       className={cn(
-        'relative overflow-hidden rounded-2xl md:rounded-3xl',
-        'bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08]',
-        'p-6 md:p-8 lg:p-10',
-        hover && 'glass-hover cursor-pointer',
+        'relative overflow-hidden rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-10',
+        isLight
+          ? 'glass-card-light group glass-card-light-hover'
+          : 'bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08]',
+        !isLight && hover && 'glass-hover cursor-pointer',
+        isLight && hover && 'cursor-pointer',
         className,
       )}
     >
@@ -37,14 +44,16 @@ export function GlassCard({
 }
 
 /* ------------------------------------------------------------------ */
-/* FeatureIcon — icon inside a subtle gold-tinted container           */
+/* FeatureIcon — icon inside a subtle accent-tinted container         */
 /* ------------------------------------------------------------------ */
 export function FeatureIcon({
   icon: Icon,
   size = 'md',
+  theme = 'dark',
 }: {
   icon: LucideIcon;
   size?: 'sm' | 'md' | 'lg';
+  theme?: SectionTheme;
 }) {
   const sizeClasses = {
     sm: 'h-10 w-10 rounded-xl',
@@ -52,13 +61,16 @@ export function FeatureIcon({
     lg: 'h-16 w-16 rounded-2xl',
   };
   const iconSize = { sm: 'h-5 w-5', md: 'h-6 w-6 md:h-7 md:w-7', lg: 'h-8 w-8' };
+  const isLight = theme === 'light';
 
   return (
     <div
       className={cn(
         'mb-5 flex items-center justify-center shrink-0',
-        'bg-accent/10 border border-accent/20 text-accent',
-        'group-hover:bg-accent/15 group-hover:border-accent/30 transition-colors duration-500',
+        'group-hover:transition-colors duration-500',
+        isLight
+          ? 'feature-icon-light group-hover:bg-accent/15 group-hover:border-accent/30'
+          : 'bg-accent/10 border border-accent/20 text-accent group-hover:bg-accent/15 group-hover:border-accent/30',
         sizeClasses[size],
       )}
     >
@@ -73,17 +85,25 @@ export function FeatureIcon({
 export function SectionBadge({
   icon: Icon,
   children,
+  theme = 'dark',
 }: {
   icon?: LucideIcon;
   children: React.ReactNode;
+  theme?: SectionTheme;
 }) {
+  const isLight = theme === 'light';
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
-      className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-accent backdrop-blur-md mb-6"
+      className={cn(
+        'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] backdrop-blur-md mb-6',
+        isLight
+          ? 'badge-light'
+          : 'border border-accent/20 bg-accent/5 text-accent',
+      )}
     >
       {Icon && <Icon className="h-3.5 w-3.5" />}
       <span>{children}</span>
@@ -92,19 +112,22 @@ export function SectionBadge({
 }
 
 /* ------------------------------------------------------------------ */
-/* SectionHeading — large heading with optional gold accent line       */
+/* SectionHeading — large heading with optional accent line           */
 /* ------------------------------------------------------------------ */
 export function SectionHeading({
   children,
   className,
   as: Tag = 'h2',
   goldLine = false,
+  theme = 'dark',
 }: {
   children: React.ReactNode;
   className?: string;
   as?: 'h1' | 'h2' | 'h3';
   goldLine?: boolean;
+  theme?: SectionTheme;
 }) {
+  const isLight = theme === 'light';
   return (
     <div className="mb-14 md:mb-20 text-center">
       <motion.div
@@ -115,14 +138,22 @@ export function SectionHeading({
       >
         <Tag
           className={cn(
-            'font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-text-main',
+            'font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight',
+            isLight ? 'text-slate-900' : 'text-text-main',
             className,
           )}
         >
           {children}
         </Tag>
         {goldLine && (
-          <div className="mt-6 mx-auto h-px w-24 bg-gradient-to-r from-transparent via-accent to-transparent" />
+          <div
+            className={cn(
+              'mt-6 mx-auto h-px w-24',
+              isLight
+                ? 'gold-line-light'
+                : 'bg-gradient-to-r from-transparent via-accent to-transparent',
+            )}
+          />
         )}
       </motion.div>
     </div>
@@ -191,6 +222,7 @@ export function OutlineButton({
   target,
   rel,
   icon: Icon,
+  theme = 'dark',
 }: {
   children: React.ReactNode;
   onClick?: () => void;
@@ -199,7 +231,9 @@ export function OutlineButton({
   target?: string;
   rel?: string;
   icon?: LucideIcon;
+  theme?: SectionTheme;
 }) {
+  const isLight = theme === 'light';
   const content = (
     <>
       <span>{children}</span>
@@ -209,7 +243,8 @@ export function OutlineButton({
 
   const baseClasses = cn(
     'group relative inline-flex h-14 md:h-16 items-center justify-center gap-3 rounded-2xl px-8 md:px-10 font-sans text-base font-semibold',
-    'btn-outline cursor-pointer',
+    isLight ? 'btn-outline-light' : 'btn-outline',
+    'cursor-pointer',
     className,
   );
 
@@ -235,10 +270,12 @@ export function AnimatedCounter({
   value,
   suffix = '',
   duration = 2000,
+  theme = 'dark',
 }: {
   value: string;
   suffix?: string;
   duration?: number;
+  theme?: SectionTheme;
 }) {
   const numericPart = value.replace(/[^0-9.]/g, '');
   const prefix = value.replace(numericPart, '');
@@ -246,6 +283,7 @@ export function AnimatedCounter({
   const [displayValue, setDisplayValue] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true });
+  const isLight = theme === 'light';
 
   useEffect(() => {
     if (!isInView) return;
@@ -264,7 +302,10 @@ export function AnimatedCounter({
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
       viewport={{ once: true }}
-      className="font-serif text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter text-white"
+      className={cn(
+        'font-serif text-5xl sm:text-6xl md:text-7xl font-black tracking-tighter',
+        isLight ? 'text-accent' : 'text-white',
+      )}
     >
       {prefix}{displayValue}{suffix}
     </motion.span>

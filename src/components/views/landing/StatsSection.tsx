@@ -1,15 +1,26 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { cn } from '../../../lib/utils';
 import type { LandingLabels } from './types';
+import type { SectionTheme } from './shared';
 import { AnimatedCounter } from './shared';
 
-export function StatsSection({ t }: { t: LandingLabels }) {
+export function StatsSection({ t, theme = 'dark' }: { t: LandingLabels; theme?: SectionTheme }) {
+  const isLight = theme === 'light';
+
   return (
     <section className="relative w-full section-padding overflow-hidden">
       {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(5,150,105,0.05),transparent_60%)]" />
-        <div className="absolute inset-0 bg-grid opacity-30" />
+        <div
+          className={cn(
+            'absolute inset-0',
+            isLight
+              ? 'bg-[radial-gradient(circle_at_50%_50%,rgba(5,150,105,0.06),transparent_60%)]'
+              : 'bg-[radial-gradient(circle_at_50%_50%,rgba(5,150,105,0.05),transparent_60%)]',
+          )}
+        />
+        <div className={cn('absolute inset-0 opacity-30', isLight ? 'bg-grid-light' : 'bg-grid')} />
       </div>
 
       <div className="container-premium relative z-10">
@@ -27,8 +38,13 @@ export function StatsSection({ t }: { t: LandingLabels }) {
               transition={{ delay: i * 0.1, duration: 0.5 }}
               className="text-center"
             >
-              <AnimatedCounter value={stat.val} suffix={stat.suffix} duration={2500} />
-              <div className="mt-3 font-sans text-sm font-semibold uppercase tracking-[0.2em] text-text-light/60">
+              <AnimatedCounter value={stat.val} suffix={stat.suffix} duration={2500} theme={theme} />
+              <div
+                className={cn(
+                  'mt-3 font-sans text-sm font-semibold uppercase tracking-[0.2em]',
+                  isLight ? 'text-slate-400' : 'text-text-light/60',
+                )}
+              >
                 {stat.label}
               </div>
             </motion.div>

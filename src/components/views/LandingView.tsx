@@ -25,25 +25,48 @@ export function LandingView() {
 
   return (
     <div className="relative flex w-full flex-col items-center overflow-hidden bg-primary font-body">
-      {/* Global ambient background */}
+      {/* Global ambient background — only visible behind dark sections */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute top-0 left-1/4 h-96 w-96 rounded-full bg-accent/3 blur-[150px]" />
         <div className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-accent/2 blur-[150px]" />
       </div>
 
       <div className="relative z-10 w-full">
+        {/* DARK */}
         <HeroSection t={t} login={() => openAuthModal('signUp')} opacity={opacity} scale={scale} />
-        <TrustSection t={t} />
+
+        {/* LIGHT */}
+        <TrustSection t={t} theme="light" />
+
+        {/* DARK */}
         <ProblemSection t={t} />
-        <WhyChooseSection t={t} />
+
+        {/* LIGHT */}
+        <WhyChooseSection t={t} theme="light" />
+
+        {/* DARK */}
         <HowItWorksSection t={t} />
-        <DemoResultSection t={t} />
+
+        {/* LIGHT — showcase product in clean environment */}
+        <DemoResultSection t={t} theme="light" />
+
+        {/* DARK */}
         <StatsSection t={t} />
-        <TargetUsersSection t={t} />
+
+        {/* LIGHT */}
+        <TargetUsersSection t={t} theme="light" />
+
+        {/* DARK */}
         <RecruiterFeaturesSection t={t} />
-        <PricingSection t={t} login={() => openAuthModal('signUp')} />
+
+        {/* LIGHT — pricing table shines on white */}
+        <PricingSection t={t} login={() => openAuthModal('signUp')} theme="light" />
+
+        {/* DARK */}
         <CtaSection t={t} login={() => openAuthModal('signUp')} />
-        <FaqSection t={t} openFaqIndex={openFaqIndex} setOpenFaqIndex={setOpenFaqIndex} />
+
+        {/* LIGHT — friendly ending */}
+        <FaqSection t={t} openFaqIndex={openFaqIndex} setOpenFaqIndex={setOpenFaqIndex} theme="light" />
       </div>
     </div>
   );

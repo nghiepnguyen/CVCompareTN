@@ -132,19 +132,19 @@ export async function createUserProfile(user: any, recaptchaToken?: string): Pro
 
     const profile = mapProfile(data);
 
-    if (recaptchaToken) {
-      fetch('/api/send-welcome-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: recaptchaToken,
-          userEmail: profile.email,
-          userName: profile.displayName,
-        }),
-      }).catch(emailError => {
-        console.error("Lỗi khi gửi email chào mừng:", emailError);
-      });
-    }
+    // Luôn gởi welcome email sau khi tạo profile thành công.
+    // Token reCAPTCHA được gởi lên server nếu có; server tự quyết định verify.
+    fetch('/api/send-welcome-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: recaptchaToken || '',
+        userEmail: profile.email,
+        userName: profile.displayName,
+      }),
+    }).catch(emailError => {
+      console.error("Lỗi khi gửi email chào mừng:", emailError);
+    });
 
     return profile;
   } catch (error) {

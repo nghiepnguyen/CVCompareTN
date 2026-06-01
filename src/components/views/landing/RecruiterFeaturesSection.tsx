@@ -1,7 +1,9 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { cn } from '../../../lib/utils';
 import { Briefcase, FileSpreadsheet, MessageSquareText, BarChart3, Upload, Target, Zap } from 'lucide-react';
 import type { LandingLabels } from './types';
+import type { SectionTheme } from './shared';
 import { GlassCard, FeatureIcon, SectionHeading, SectionBadge } from './shared';
 
 type RecruiterT = LandingLabels & {
@@ -23,7 +25,8 @@ type RecruiterT = LandingLabels & {
   recruiterViewPlans?: string;
 };
 
-export function RecruiterFeaturesSection({ t }: { t: RecruiterT }) {
+export function RecruiterFeaturesSection({ t, theme = 'dark' }: { t: RecruiterT; theme?: SectionTheme }) {
+  const isLight = theme === 'light';
   const features = [
     {
       icon: Upload,
@@ -61,32 +64,32 @@ export function RecruiterFeaturesSection({ t }: { t: RecruiterT }) {
     <section className="relative w-full section-padding overflow-hidden">
       {/* Background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-purple-500/5 blur-[120px]" />
-        <div className="absolute top-0 left-1/3 h-48 w-48 rounded-full bg-accent/3 blur-[100px]" />
+        <div className={cn('absolute bottom-0 right-1/4 h-64 w-64 rounded-full blur-[120px]', isLight ? 'bg-purple-100/60' : 'bg-purple-500/5')} />
+        <div className={cn('absolute top-0 left-1/3 h-48 w-48 rounded-full blur-[100px]', isLight ? 'bg-emerald-100/50' : 'bg-accent/3')} />
       </div>
 
       <div className="container-premium relative z-10">
         <div className="text-center mb-14">
-          <SectionBadge icon={Briefcase}>
+          <SectionBadge icon={Briefcase} theme={theme}>
             {t.badgeRecruiter || 'Dành cho Nhà tuyển dụng'}
           </SectionBadge>
         </div>
-        <SectionHeading as="h2" goldLine>
+        <SectionHeading as="h2" goldLine theme={theme}>
           {t.recruiterSectionTitle || 'Tuyển dụng thông minh với AI'}
         </SectionHeading>
 
-        <p className="text-center text-text-muted text-sm max-w-2xl mx-auto -mt-10 mb-14">
+        <p className={cn('text-center text-sm max-w-2xl mx-auto -mt-10 mb-14', isLight ? 'text-slate-500' : 'text-text-muted')}>
           {t.recruiterSectionDesc || ''}
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {features.map((item, i) => (
-            <GlassCard key={i} delay={i * 0.06} className="group">
-              <FeatureIcon icon={item.icon} size="sm" />
-              <h4 className="mb-3 font-sans text-lg font-bold leading-snug text-text-main">
+            <GlassCard key={i} delay={i * 0.06} className="group" theme={theme}>
+              <FeatureIcon icon={item.icon} size="sm" theme={theme} />
+              <h4 className={cn('mb-3 font-sans text-lg font-bold leading-snug', isLight ? 'text-slate-800' : 'text-text-main')}>
                 {item.title}
               </h4>
-              <p className="text-sm leading-relaxed text-text-muted group-hover:text-text-main/80 transition-colors duration-500">
+              <p className={cn('text-sm leading-relaxed transition-colors duration-500', isLight ? 'text-slate-500 group-hover:text-slate-700' : 'text-text-muted group-hover:text-text-main/80')}>
                 {item.desc}
               </p>
             </GlassCard>

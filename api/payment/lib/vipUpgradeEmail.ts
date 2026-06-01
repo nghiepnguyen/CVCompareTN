@@ -7,11 +7,12 @@ export interface VipUpgradeEmailParams {
   planName: string;
   durationDays: number;
   planExpiresAt: string; // ISO date string
+  planType?: 'pro' | 'recruiter'; // for differentiated benefits
 }
 
 /**
- * Sends a VIP upgrade notification email to the user after successful Pro activation.
- * Includes benefit details and plan expiration date.
+ * Sends a VIP upgrade notification email to the user after successful Pro/Recruiter activation.
+ * Includes plan-specific benefit details and plan expiration date.
  */
 export async function sendVipUpgradeEmail(
   params: VipUpgradeEmailParams
@@ -36,13 +37,23 @@ export async function sendVipUpgradeEmail(
         year: 'numeric',
       });
 
-  // Benefit list reflecting src/lib/planLimits.ts Pro limits
-  const benefits = [
-    'Phân tích tối đa <strong>5 CV</strong> cùng lúc (so với 1 CV ở gói Free)',
-    'Lưu <strong>không giới hạn</strong> JD (so với 3 JD ở gói Free)',
-    'Lưu tối đa <strong>10 CV</strong> (so với 1 CV ở gói Free)',
-    'Lịch sử phân tích <strong>không giới hạn</strong> thời gian (so với 7 ngày ở gói Free)',
-  ];
+  // Differentiated benefit lists reflecting src/lib/planLimits.ts
+  const isRecruiter = params.planType === 'recruiter';
+  const benefits = isRecruiter
+    ? [
+        'Phân tích tối đa <strong>50 CV</strong> cùng lúc (so với 1 CV ở gói Free)',
+        'Lưu <strong>không giới hạn</strong> JD (so với 3 JD ở gói Free)',
+        'Lưu tối đa <strong>50 CV</strong> (so với 1 CV ở gói Free)',
+        'Lịch sử phân tích <strong>không giới hạn</strong> thời gian (so với 7 ngày ở gói Free)',
+        'Tạo tối đa <strong>10 chiến dịch</strong> tuyển dụng',
+        'Mỗi chiến dịch phân tích tối đa <strong>50 CV</strong>',
+      ]
+    : [
+        'Phân tích tối đa <strong>5 CV</strong> cùng lúc (so với 1 CV ở gói Free)',
+        'Lưu <strong>không giới hạn</strong> JD (so với 3 JD ở gói Free)',
+        'Lưu tối đa <strong>10 CV</strong> (so với 1 CV ở gói Free)',
+        'Lịch sử phân tích <strong>không giới hạn</strong> thời gian (so với 7 ngày ở gói Free)',
+      ];
 
   const benefitsHtml = benefits.map((b) => `<li style="margin-bottom: 8px;">✅ ${b}</li>`).join('');
 

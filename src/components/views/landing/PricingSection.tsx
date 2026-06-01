@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, Briefcase, Check, Infinity, Minus, Sparkles, Zap } from 'lucide-react';
-import type { LandingLabels } from './types';
-import { SectionHeading, SectionBadge } from './shared';
+import { Briefcase, Check, Infinity, Minus, Sparkles, Zap } from 'lucide-react';
 import { cn } from '../../../lib/utils';
+import type { SectionTheme } from './shared';
+import { SectionHeading, SectionBadge } from './shared';
 
 type Plan = 'free' | 'pro' | 'recruiter';
 
@@ -31,15 +31,16 @@ function buildRows(t: any): ComparisonRow[] {
 function RowIcon({ type }: { type: 'check' | 'dash' | 'infinity' }) {
   if (type === 'infinity') return <Infinity className="w-4 h-4 text-accent" />;
   if (type === 'check') return <Check className="w-4 h-4 text-success" />;
-  return <Minus className="w-4 h-4 text-text-muted/30" />;
+  return <Minus className="w-4 h-4 text-slate-300 dark:text-text-muted/30" />;
 }
 
-function PriceTag({ plan, t }: { plan: Plan; t: any }) {
+function PriceTag({ plan, t, isLight }: { plan: Plan; t: any; isLight: boolean }) {
+  const mutedClass = isLight ? 'text-slate-400' : 'text-text-muted';
   if (plan === 'recruiter') {
     return (
       <div className="space-y-1">
-        <p className="text-3xl font-black text-purple-400">399.000đ</p>
-        <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">{t.pricingPerMonth || '/ tháng'}</p>
+        <p className="text-3xl font-black text-purple-500">399.000đ</p>
+        <p className={cn('text-[10px] font-semibold uppercase tracking-wider', mutedClass)}>{t.pricingPerMonth || '/ tháng'}</p>
       </div>
     );
   }
@@ -47,14 +48,14 @@ function PriceTag({ plan, t }: { plan: Plan; t: any }) {
     return (
       <div className="space-y-1">
         <p className="text-3xl font-black text-accent">69.000đ</p>
-        <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">{t.pricingPerMonth || '/ tháng'}</p>
+        <p className={cn('text-[10px] font-semibold uppercase tracking-wider', mutedClass)}>{t.pricingPerMonth || '/ tháng'}</p>
       </div>
     );
   }
   return (
     <div className="space-y-1">
-      <p className="text-3xl font-black text-text-main">0đ</p>
-      <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">{t.pricingFreeLifetime || 'Miễn phí trọn đời'}</p>
+      <p className={cn('text-3xl font-black', isLight ? 'text-slate-800' : 'text-text-main')}>0đ</p>
+      <p className={cn('text-[10px] font-semibold uppercase tracking-wider', mutedClass)}>{t.pricingFreeLifetime || 'Miễn phí trọn đời'}</p>
     </div>
   );
 }
@@ -63,11 +64,14 @@ export function PricingSection({
   t,
   login,
   onUpgrade,
+  theme = 'dark',
 }: {
   t: Record<string, any>;
   login: () => void;
   onUpgrade?: () => void;
+  theme?: SectionTheme;
 }) {
+  const isLight = theme === 'light';
   const Rows = buildRows(t);
   const featureLabel = t.pricingColFeature || 'Tính năng';
   const freeLabel = t.planFreeLabel || 'Miễn phí';
@@ -77,16 +81,36 @@ export function PricingSection({
   const enterpriseBadge = t.pricingBadgeEnterprise || 'Doanh nghiệp';
   const trustNote = t.pricingTrustNote || '';
 
+  const labelMuted = isLight ? 'text-slate-500' : 'text-text-muted';
+  const labelText = isLight ? 'text-slate-800' : 'text-text-main';
+  const borderClass = isLight ? 'border-slate-200' : 'border-border';
+  const sectionBg = isLight ? 'bg-gradient-to-b from-white to-slate-50' : '';
+  const tableBg = isLight
+    ? 'border border-slate-200 bg-white shadow-lg'
+    : 'border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl';
+  const tableHoverRow = isLight ? 'hover:bg-slate-50' : 'hover:bg-white/[0.01]';
+  const freeBtnClasses = isLight
+    ? 'border border-slate-200 text-slate-600 hover:text-slate-800 bg-slate-50'
+    : 'border border-border text-text-muted hover:text-text-main bg-surface-secondary';
+
   return (
-    <section id="pricing" className="relative w-full section-padding overflow-hidden">
+    <section id="pricing" className={cn('relative w-full section-padding overflow-hidden', sectionBg)}>
+      {/* Light bg decoration */}
+      {isLight && (
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute top-1/3 left-1/4 h-96 w-96 rounded-full bg-emerald-50/60 blur-[150px]" />
+          <div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-purple-50/50 blur-[100px]" />
+        </div>
+      )}
+
       <div className="container-premium relative z-10">
         {/* Section Header */}
         <div className="text-center mb-14">
-          <SectionBadge icon={Sparkles}>
+          <SectionBadge icon={Sparkles} theme={theme}>
             {t.badgePricing || 'Bảng giá'}
           </SectionBadge>
         </div>
-        <SectionHeading goldLine>
+        <SectionHeading goldLine theme={theme}>
           {t.pricingSectionTitle || 'Chọn gói phù hợp với bạn'}
         </SectionHeading>
 
@@ -97,36 +121,36 @@ export function PricingSection({
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-2xl"
+            className={cn('overflow-hidden rounded-2xl', tableBg)}
           >
             <table className="w-full">
               <thead>
                 <tr>
-                  <th className="w-[28%] p-6 border-b border-border text-left">
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-text-muted">
+                  <th className={cn('w-[28%] p-6 border-b text-left', borderClass)}>
+                    <span className={cn('text-[10px] font-extrabold uppercase tracking-widest', labelMuted)}>
                       {featureLabel}
                     </span>
                   </th>
-                  <th className="w-[24%] border-b border-border">
-                    <div className="text-center p-6 border-b border-border">
-                      <h3 className="text-base font-black text-text-main uppercase tracking-wider mb-3">{freeLabel}</h3>
-                      <PriceTag plan="free" t={t} />
+                  <th className={cn('w-[24%] border-b', borderClass)}>
+                    <div className={cn('text-center p-6 border-b', borderClass)}>
+                      <h3 className={cn('text-base font-black uppercase tracking-wider mb-3', labelText)}>{freeLabel}</h3>
+                      <PriceTag plan="free" t={t} isLight={isLight} />
                     </div>
                   </th>
-                  <th className="w-[24%] border-b border-border bg-accent/[0.02]">
-                    <div className="text-center p-6 border-b border-border">
+                  <th className={cn('w-[24%] border-b', borderClass, isLight ? 'bg-emerald-50/30' : 'bg-accent/[0.02]')}>
+                    <div className={cn('text-center p-6 border-b', borderClass)}>
                       <h3 className="text-base font-black text-accent uppercase tracking-wider mb-3">{proLabel}</h3>
-                      <PriceTag plan="pro" t={t} />
+                      <PriceTag plan="pro" t={t} isLight={isLight} />
                       <span className="inline-block mt-3 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-accent/10 text-accent border border-accent/20">
                         {popularBadge}
                       </span>
                     </div>
                   </th>
-                  <th className="w-[24%] border-b border-border bg-purple-500/[0.03]">
-                    <div className="text-center p-6 border-b border-border">
-                      <h3 className="text-base font-black text-purple-400 uppercase tracking-wider mb-3">{recruiterLabel}</h3>
-                      <PriceTag plan="recruiter" t={t} />
-                      <span className="inline-block mt-3 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-400/20">
+                  <th className={cn('w-[24%] border-b', borderClass, isLight ? 'bg-purple-50/30' : 'bg-purple-500/[0.03]')}>
+                    <div className={cn('text-center p-6 border-b', borderClass)}>
+                      <h3 className="text-base font-black text-purple-500 uppercase tracking-wider mb-3">{recruiterLabel}</h3>
+                      <PriceTag plan="recruiter" t={t} isLight={isLight} />
+                      <span className="inline-block mt-3 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-500/10 text-purple-500 border border-purple-400/20">
                         {enterpriseBadge}
                       </span>
                     </div>
@@ -141,58 +165,55 @@ export function PricingSection({
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.05 * idx }}
-                    className="border-b border-border/50 hover:bg-white/[0.01] transition-colors"
+                    className={cn('border-b transition-colors', borderClass + '/50', tableHoverRow)}
                   >
                     <td className="py-4 px-6">
-                      <span className="text-sm font-semibold text-text-main">{t[row.labelKey] || row.labelKey}</span>
+                      <span className={cn('text-sm font-semibold', labelText)}>{t[row.labelKey] || row.labelKey}</span>
                     </td>
                     <td className="py-4 px-6 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <RowIcon type={row.free.icon} />
-                        <span className="text-sm text-text-muted tabular-nums">{row.free.value}</span>
+                        <span className={cn('text-sm tabular-nums', labelMuted)}>{row.free.value}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-center bg-accent/[0.01]">
+                    <td className={cn('py-4 px-6 text-center', isLight ? 'bg-emerald-50/20' : 'bg-accent/[0.01]')}>
                       <div className="flex items-center justify-center gap-2">
                         <RowIcon type={row.pro.icon} />
-                        <span className="text-sm text-text-muted tabular-nums">{row.pro.value}</span>
+                        <span className={cn('text-sm tabular-nums', labelMuted)}>{row.pro.value}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-center bg-purple-500/[0.02]">
+                    <td className={cn('py-4 px-6 text-center', isLight ? 'bg-purple-50/20' : 'bg-purple-500/[0.02]')}>
                       <div className="flex items-center justify-center gap-2">
                         <RowIcon type={row.recruiter.icon} />
-                        <span className="text-sm text-text-muted tabular-nums">{row.recruiter.value}</span>
+                        <span className={cn('text-sm tabular-nums', labelMuted)}>{row.recruiter.value}</span>
                       </div>
                     </td>
                   </motion.tr>
                 ))}
-                {/* CTA Row — uniform button height h-12, full width */}
-                <tr className="border-t-2 border-border/80">
+                {/* CTA Row */}
+                <tr className={cn('border-t-2', borderClass + '/80')}>
                   <td className="py-5 px-6" />
                   <td className="py-5 px-3 text-center align-middle">
                     <button
                       type="button"
                       onClick={login}
-                      className="inline-flex w-full items-center justify-center gap-2 h-12 rounded-xl text-xs font-black uppercase tracking-wider border border-border text-text-muted hover:text-text-main cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all bg-surface-secondary"
+                      className={cn('inline-flex w-full items-center justify-center gap-2 h-12 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all', freeBtnClasses)}
                     >
                       <Zap className="w-4 h-4" />
                       {t.pricingCtaFree || 'Bắt đầu miễn phí'}
                     </button>
                   </td>
-                  <td className="py-5 px-3 text-center align-middle bg-accent/[0.01]">
+                  <td className={cn('py-5 px-3 text-center align-middle', isLight ? 'bg-emerald-50/20' : 'bg-accent/[0.01]')}>
                     <button
                       type="button"
                       onClick={onUpgrade ?? login}
-                      className={cn(
-                        'inline-flex w-full items-center justify-center gap-2 h-12 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all',
-                        'bg-accent text-white',
-                      )}
+                      className="inline-flex w-full items-center justify-center gap-2 h-12 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all bg-accent text-white"
                     >
                       <Sparkles className="w-4 h-4" />
                       {t.pricingCtaPro || 'Nâng cấp Pro'}
                     </button>
                   </td>
-                  <td className="py-5 px-3 text-center align-middle bg-purple-500/[0.02]">
+                  <td className={cn('py-5 px-3 text-center align-middle', isLight ? 'bg-purple-50/20' : 'bg-purple-500/[0.02]')}>
                     <button
                       type="button"
                       onClick={onUpgrade ?? login}
@@ -222,12 +243,12 @@ export function PricingSection({
                 viewport={{ once: true }}
                 transition={{ delay: 0.1 * planIdx }}
                 className={cn(
-                  'relative overflow-hidden rounded-2xl border-2 backdrop-blur-2xl',
+                  'relative overflow-hidden rounded-2xl border-2',
                   isRecruiter
-                    ? 'border-purple-500/30 bg-purple-500/[0.03]'
+                    ? 'border-purple-500/30 bg-purple-500/[0.03] backdrop-blur-2xl'
                     : isPro
-                      ? 'border-accent/30 bg-accent/[0.02]'
-                      : 'border-border bg-white/[0.02]',
+                      ? 'border-accent/30 bg-accent/[0.02] backdrop-blur-2xl'
+                      : cn(isLight ? 'border-slate-200 bg-white' : 'border-border bg-white/[0.02] backdrop-blur-2xl'),
                 )}
               >
                 {(isPro || isRecruiter) && (
@@ -247,20 +268,20 @@ export function PricingSection({
                 <div className="p-6 pt-8 text-center space-y-3">
                   <h3 className={cn(
                     'text-lg font-black uppercase tracking-wider',
-                    isRecruiter ? 'text-purple-400' : isPro ? 'text-accent' : 'text-text-main',
+                    isRecruiter ? 'text-purple-500' : isPro ? 'text-accent' : (isLight ? 'text-slate-800' : 'text-text-main'),
                   )}>
                     {plan === 'recruiter' ? recruiterLabel : plan === 'pro' ? proLabel : freeLabel}
                   </h3>
-                  <PriceTag plan={plan} t={t} />
+                  <PriceTag plan={plan} t={t} isLight={isLight} />
                 </div>
 
-                <div className="border-t border-border divide-y divide-border/50">
+                <div className={cn('border-t divide-y', borderClass, borderClass + '/50')}>
                   {Rows.map((row) => (
                     <div key={row.key} className="flex items-center justify-between px-5 py-3.5">
-                      <span className="text-xs font-semibold text-text-main">{t[row.labelKey] || row.labelKey}</span>
+                      <span className={cn('text-xs font-semibold', labelText)}>{t[row.labelKey] || row.labelKey}</span>
                       <div className="flex items-center gap-1.5">
                         <RowIcon type={row[plan].icon} />
-                        <span className="text-xs text-text-muted tabular-nums font-medium">{row[plan].value}</span>
+                        <span className={cn('text-xs tabular-nums font-medium', labelMuted)}>{row[plan].value}</span>
                       </div>
                     </div>
                   ))}
@@ -289,7 +310,7 @@ export function PricingSection({
                     <button
                       type="button"
                       onClick={login}
-                      className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm border border-border text-text-muted hover:text-text-main cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all bg-surface-secondary"
+                      className={cn('w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all', freeBtnClasses)}
                     >
                       <Zap className="w-4 h-4" />
                       {t.pricingCtaFree || 'Bắt đầu miễn phí'}
@@ -303,7 +324,7 @@ export function PricingSection({
 
         {/* Trust note */}
         {trustNote && (
-          <p className="text-center text-xs text-text-muted mt-8">{trustNote}</p>
+          <p className={cn('text-center text-xs mt-8', labelMuted)}>{trustNote}</p>
         )}
       </div>
     </section>

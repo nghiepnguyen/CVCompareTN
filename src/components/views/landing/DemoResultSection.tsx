@@ -1,17 +1,34 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { cn } from '../../../lib/utils';
 import { Activity, Brain, Zap, AlertCircle, CheckCircle2 } from 'lucide-react';
 import type { LandingLabels } from './types';
+import type { SectionTheme } from './shared';
 import { SectionHeading, SectionBadge } from './shared';
 
-export function DemoResultSection({ t }: { t: LandingLabels }) {
+export function DemoResultSection({ t, theme = 'dark' }: { t: LandingLabels; theme?: SectionTheme }) {
+  const isLight = theme === 'light';
+
   return (
-    <section className="relative w-full section-padding overflow-hidden">
+    <section
+      className={cn(
+        'relative w-full section-padding overflow-hidden',
+        isLight ? 'bg-gradient-to-b from-white to-slate-50' : '',
+      )}
+    >
+      {/* Background */}
+      {isLight && (
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute top-0 right-1/4 h-80 w-80 rounded-full bg-emerald-50 blur-[120px]" />
+          <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-blue-50 blur-[100px]" />
+        </div>
+      )}
+
       <div className="container-premium relative z-10">
         <div className="text-center mb-14">
-          <SectionBadge icon={Activity}>{t.badgeDemoResult}</SectionBadge>
+          <SectionBadge icon={Activity} theme={theme}>{t.badgeDemoResult}</SectionBadge>
         </div>
-        <SectionHeading goldLine>{t.resultTitle}</SectionHeading>
+        <SectionHeading goldLine theme={theme}>{t.resultTitle}</SectionHeading>
 
         <div className="relative max-w-5xl mx-auto">
           {/* Glass Container */}
@@ -20,20 +37,49 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="group relative overflow-hidden rounded-[2rem] md:rounded-[3rem] border border-white/[0.06] bg-white/[0.02] p-1 shadow-2xl backdrop-blur-3xl"
+            className={cn(
+              'group relative overflow-hidden rounded-[2rem] md:rounded-[3rem] p-1 shadow-2xl',
+              isLight
+                ? 'border border-slate-200 bg-white/80 backdrop-blur-3xl'
+                : 'border border-white/[0.06] bg-white/[0.02] backdrop-blur-3xl',
+            )}
           >
-            <div className="relative overflow-hidden rounded-[1.75rem] md:rounded-[2.75rem] border border-white/[0.06] bg-primary-light">
+            <div
+              className={cn(
+                'relative overflow-hidden rounded-[1.75rem] md:rounded-[2.75rem] border',
+                isLight
+                  ? 'border-slate-100 bg-white'
+                  : 'border-white/[0.06] bg-primary-light',
+              )}
+            >
               {/* Window Header */}
-              <div className="flex items-center justify-between border-b border-white/[0.06] bg-black/20 px-6 py-4 md:px-8 backdrop-blur-md">
+              <div
+                className={cn(
+                  'flex items-center justify-between border-b px-6 py-4 md:px-8 backdrop-blur-md',
+                  isLight ? 'border-slate-100 bg-slate-50' : 'border-white/[0.06] bg-black/20',
+                )}
+              >
                 <div className="flex gap-2">
-                  <div className="h-3 w-3 rounded-full bg-white/10" />
-                  <div className="h-3 w-3 rounded-full bg-white/10" />
-                  <div className="h-3 w-3 rounded-full bg-white/10" />
+                  <div className={cn('h-3 w-3 rounded-full', isLight ? 'bg-slate-200' : 'bg-white/10')} />
+                  <div className={cn('h-3 w-3 rounded-full', isLight ? 'bg-slate-200' : 'bg-white/10')} />
+                  <div className={cn('h-3 w-3 rounded-full', isLight ? 'bg-slate-200' : 'bg-white/10')} />
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2">
-                  <div className="flex items-center gap-2 rounded-full bg-white/[0.03] px-4 py-1 border border-white/[0.05]">
+                  <div
+                    className={cn(
+                      'flex items-center gap-2 rounded-full px-4 py-1 border',
+                      isLight
+                        ? 'bg-slate-50 border-slate-200'
+                        : 'bg-white/[0.03] border-white/[0.05]',
+                    )}
+                  >
                     <Brain className="h-3 w-3 shrink-0 text-accent" />
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-text-light whitespace-nowrap">
+                    <span
+                      className={cn(
+                        'text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap',
+                        isLight ? 'text-slate-500' : 'text-text-light',
+                      )}
+                    >
                       {t.badgeGeminiEngine}
                     </span>
                   </div>
@@ -71,19 +117,36 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                   {/* Left Side: Scores */}
                   <div className="lg:col-span-5 space-y-6">
                     {/* Matching Score */}
-                    <div className="group/score rounded-2xl md:rounded-3xl border border-white/[0.06] bg-white/[0.02] p-6 md:p-8 backdrop-blur-sm transition-all duration-500 hover:border-accent/20">
+                    <div
+                      className={cn(
+                        'group/score rounded-2xl md:rounded-3xl p-6 md:p-8 backdrop-blur-sm transition-all duration-500',
+                        isLight
+                          ? 'border border-slate-100 bg-slate-50/80 hover:border-emerald-200'
+                          : 'border border-white/[0.06] bg-white/[0.02] hover:border-accent/20',
+                      )}
+                    >
                       <div className="mb-6 flex items-center justify-between">
                         <div className="space-y-1">
-                          <span className="block text-[10px] font-semibold uppercase tracking-widest text-text-light">
+                          <span
+                            className={cn(
+                              'block text-[10px] font-semibold uppercase tracking-widest',
+                              isLight ? 'text-slate-500' : 'text-text-light',
+                            )}
+                          >
                             {t.matchingScore}
                           </span>
-                          <h4 className="font-sans text-lg font-bold text-text-main">
+                          <h4 className={cn('font-sans text-lg font-bold', isLight ? 'text-slate-800' : 'text-text-main')}>
                             {t.demoOverallCompat}
                           </h4>
                         </div>
                         <span className="font-serif text-4xl font-black text-accent-glow">72%</span>
                       </div>
-                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-white/[0.05]">
+                      <div
+                        className={cn(
+                          'relative h-2 w-full overflow-hidden rounded-full',
+                          isLight ? 'bg-slate-200' : 'bg-white/[0.05]',
+                        )}
+                      >
                         <motion.div
                           initial={{ width: 0 }}
                           whileInView={{ width: '72%' }}
@@ -95,19 +158,36 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                     </div>
 
                     {/* ATS Score */}
-                    <div className="group/score rounded-2xl md:rounded-3xl border border-white/[0.06] bg-white/[0.02] p-6 md:p-8 backdrop-blur-sm transition-all duration-500 hover:border-success/20">
+                    <div
+                      className={cn(
+                        'group/score rounded-2xl md:rounded-3xl p-6 md:p-8 backdrop-blur-sm transition-all duration-500',
+                        isLight
+                          ? 'border border-slate-100 bg-slate-50/80 hover:border-emerald-100'
+                          : 'border border-white/[0.06] bg-white/[0.02] hover:border-success/20',
+                      )}
+                    >
                       <div className="mb-6 flex items-center justify-between">
                         <div className="space-y-1">
-                          <span className="block text-[10px] font-semibold uppercase tracking-widest text-text-light">
+                          <span
+                            className={cn(
+                              'block text-[10px] font-semibold uppercase tracking-widest',
+                              isLight ? 'text-slate-500' : 'text-text-light',
+                            )}
+                          >
                             {t.demoAtsScore}
                           </span>
-                          <h4 className="font-sans text-lg font-bold text-text-main">
+                          <h4 className={cn('font-sans text-lg font-bold', isLight ? 'text-slate-800' : 'text-text-main')}>
                             {t.demoSystemReadability}
                           </h4>
                         </div>
                         <span className="font-serif text-4xl font-black text-success">81%</span>
                       </div>
-                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-white/[0.05]">
+                      <div
+                        className={cn(
+                          'relative h-2 w-full overflow-hidden rounded-full',
+                          isLight ? 'bg-slate-200' : 'bg-white/[0.05]',
+                        )}
+                      >
                         <motion.div
                           initial={{ width: 0 }}
                           whileInView={{ width: '81%' }}
@@ -127,7 +207,12 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                         initial={{ opacity: 0, x: 20 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
-                        className="rounded-2xl md:rounded-3xl bg-error/5 p-5 md:p-6 border border-error/10 backdrop-blur-sm"
+                        className={cn(
+                          'rounded-2xl md:rounded-3xl p-5 md:p-6 backdrop-blur-sm',
+                          isLight
+                            ? 'bg-red-50/80 border border-red-100'
+                            : 'bg-error/5 border border-error/10',
+                        )}
                       >
                         <h4 className="mb-4 flex items-center gap-2 font-sans text-xs font-semibold uppercase tracking-wider text-error">
                           <AlertCircle className="h-3 w-3" />
@@ -137,7 +222,12 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                           {['SQL', 'Communication', 'Leadership'].map((skill) => (
                             <span
                               key={skill}
-                              className="rounded-xl bg-white/[0.03] px-3 py-1.5 text-xs font-semibold text-text-muted border border-white/[0.05]"
+                              className={cn(
+                                'rounded-xl px-3 py-1.5 text-xs font-semibold border',
+                                isLight
+                                  ? 'bg-white text-slate-600 border-slate-200'
+                                  : 'bg-white/[0.03] text-text-muted border-white/[0.05]',
+                              )}
                             >
                               {skill}
                             </span>
@@ -151,7 +241,12 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1 }}
-                        className="rounded-2xl md:rounded-3xl bg-success/5 p-5 md:p-6 border border-success/10 backdrop-blur-sm"
+                        className={cn(
+                          'rounded-2xl md:rounded-3xl p-5 md:p-6 backdrop-blur-sm',
+                          isLight
+                            ? 'bg-emerald-50/80 border border-emerald-100'
+                            : 'bg-success/5 border border-success/10',
+                        )}
                       >
                         <h4 className="mb-4 flex items-center gap-2 font-sans text-xs font-semibold uppercase tracking-wider text-success">
                           <CheckCircle2 className="h-3 w-3" />
@@ -161,7 +256,12 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                           {['UX Design', 'Figma', 'Research'].map((skill) => (
                             <span
                               key={skill}
-                              className="rounded-xl bg-white/[0.03] px-3 py-1.5 text-xs font-semibold text-text-muted border border-white/[0.05]"
+                              className={cn(
+                                'rounded-xl px-3 py-1.5 text-xs font-semibold border',
+                                isLight
+                                  ? 'bg-white text-slate-600 border-slate-200'
+                                  : 'bg-white/[0.03] text-text-muted border-white/[0.05]',
+                              )}
                             >
                               {skill}
                             </span>
@@ -176,9 +276,14 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
                       transition={{ delay: 0.2 }}
-                      className="rounded-2xl md:rounded-3xl border border-white/[0.06] bg-white/[0.01] p-6 md:p-8 backdrop-blur-sm"
+                      className={cn(
+                        'rounded-2xl md:rounded-3xl p-6 md:p-8 backdrop-blur-sm',
+                        isLight
+                          ? 'border border-slate-100 bg-white'
+                          : 'border border-white/[0.06] bg-white/[0.01]',
+                      )}
                     >
-                      <h4 className="mb-6 font-sans text-base font-bold text-text-main">
+                      <h4 className={cn('mb-6 font-sans text-base font-bold', isLight ? 'text-slate-800' : 'text-text-main')}>
                         {t.suggestions}
                       </h4>
                       <div className="space-y-4">
@@ -194,7 +299,7 @@ export function DemoResultSection({ t }: { t: LandingLabels }) {
                             <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
                               <Zap className="h-3 w-3" />
                             </div>
-                            <p className="text-sm font-medium text-text-muted leading-relaxed">{s}</p>
+                            <p className={cn('text-sm font-medium leading-relaxed', isLight ? 'text-slate-600' : 'text-text-muted')}>{s}</p>
                           </motion.div>
                         ))}
                       </div>

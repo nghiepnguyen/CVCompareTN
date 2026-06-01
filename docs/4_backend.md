@@ -47,10 +47,20 @@ Tự động bypass trên localhost để thuận tiện phát triển.
     -   Gọi RPC `activate_pro_plan` -> cập nhật `profiles.plan = 'pro'`, cập nhật `payments.status = 'paid'`.
     -   Idempotent: đã `paid` thì bỏ qua.
 
-### 5. Hệ thống Email (`/api/send-feedback` & `/api/send-welcome-email`)
--   **Files:** `server/routes/feedback.ts`, `server/routes/welcomeEmail.ts`
--   Tích hợp với dịch vụ **Resend**.
--   Tự động xác thực reCAPTCHA trước khi gửi email để chống spam.
+### 5. Hệ thống Email (Resend)
+
+Hệ thống gởi 3 loại email qua dịch vụ **Resend**:
+
+| Email | Trigger | Endpoint | reCAPTCHA |
+|-------|---------|----------|-----------|
+| **Welcome** | User mới đăng ký (Google OAuth hoặc email) | `POST /api/send-welcome-email` | Tuỳ chọn — nếu có token thì verify, không có thì bỏ qua (welcome từ auth event, không phải form public) |
+| **Feedback** | User đánh giá kết quả phân tích | `POST /api/send-feedback` | Bắt buộc (score ≥ 0.5) |
+| **VIP Upgrade** | Thanh toán PayOS thành công (webhook/confirm) | Server-side (gọi trực tiếp từ `api/payment/lib/`) | Không (server-side, non-blocking) |
+
+- **Files Vercel:** `api/send-feedback.ts`, `api/send-welcome-email.ts`, `api/payment/lib/vipUpgradeEmail.ts`
+- **Files Express:** `server/routes/feedback.ts`, `server/routes/welcomeEmail.ts`
+- **VIP Upgrade Email:** Tự động phân biệt Pro vs Recruiter — hiển thị danh sách quyền lợi khác nhau (Pro: 5 CV batch, 10 saved CV; Recruiter: 50 CV batch, 50 saved CV, 10 campaigns).
+- **Rate limiting:** Express áp dụng `emailLimiter` (5 req/h) cho feedback & welcome.
 
 ## Supabase Database Schema
 

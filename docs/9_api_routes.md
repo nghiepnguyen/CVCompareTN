@@ -11,6 +11,7 @@ Canonical reference for **which runtime handles each capability**. The frontend 
 | reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` (unified path, no suffix) | `verify-recaptcha` (analyze flow in `AnalysisRunContext`) |
 | Feedback email | `POST /api/send-feedback` → `api/send-feedback.ts` | mirror under `server/routes/` | — |
 | Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | — |
+| VIP upgrade email | server-side via `api/payment/lib/vipUpgradeEmail.ts` (triggered by webhook/confirm handlers) | — | — |
 | PayOS — tạo link Pro | `POST /api/payment/create` → `api/payment/create.ts` | `POST /api/payment/create` → `server/routes/payment.ts` | — |
 | PayOS — webhook | `POST /api/payment/webhook` → `api/payment/webhook.ts` | `POST /api/payment/webhook` | — |
 | PayOS — xác nhận Pro (fallback) | `POST /api/payment/confirm` → `api/payment/confirm.ts` | `POST /api/payment/confirm` | — |

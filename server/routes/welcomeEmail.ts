@@ -8,7 +8,6 @@ const router = Router();
 
 router.post('/', async (req, res) => {
   const { token, userEmail, userName } = req.body;
-  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
   const apiKey = process.env.RESEND_API_KEY;
 
   // Validate input before processing
@@ -17,29 +16,31 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid input', errors: validationErrors });
   }
 
-  if (!secretKey) {
-    console.error('RECAPTCHA_SECRET_KEY is missing.');
-    return res.status(500).json({ success: false, message: 'reCAPTCHA configuration error' });
-  }
-
   try {
-    // 1. Verify reCAPTCHA
-    const params = new URLSearchParams();
-    params.append('secret', secretKey);
-    params.append('response', token);
+    // 1. Verify reCAPTCHA (skip if no token — welcome email triggered by auth event, not public form)
+    if (token) {
+      const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+      if (!secretKey) {
+        console.warn('RECAPTCHA_SECRET_KEY missing — skipping reCAPTCHA for welcome email');
+      } else {
+        const params = new URLSearchParams();
+        params.append('secret', secretKey);
+        params.append('response', token);
 
-    const recaptchaResponse = await axios.post(
-      'https://www.google.com/recaptcha/api/siteverify',
-      params
-    );
-    
-    const { success, score, 'error-codes': errorCodes } = recaptchaResponse.data;
-    const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');
+        const recaptchaResponse = await axios.post(
+          'https://www.google.com/recaptcha/api/siteverify',
+          params
+        );
+        
+        const { success, score, 'error-codes': errorCodes } = recaptchaResponse.data;
+        const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');
 
-    if (!success && !isLocal) {
-      return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed', details: errorCodes });
-    } else if (success && score !== undefined && score < 0.2 && !isLocal) {
-      return res.status(400).json({ success: false, message: 'reCAPTCHA score too low' });
+        if (!success && !isLocal) {
+          return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed', details: errorCodes });
+        } else if (success && score !== undefined && score < 0.2 && !isLocal) {
+          return res.status(400).json({ success: false, message: 'reCAPTCHA score too low' });
+        }
+      }
     }
 
     // 2. Send the email using Resend
@@ -72,7 +73,7 @@ router.post('/', async (req, res) => {
             <div style="margin-top: 40px; text-align: center;">
                <a href="https://cvfit.pro" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold;">
                  Try CV Comparison Now
-              </a>
+               </a>
             </div>
             <p style="margin-top: 24px; font-weight: bold;">Best regards,<br>cvFit Team</p>
           </div>

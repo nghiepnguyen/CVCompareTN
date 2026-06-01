@@ -87,7 +87,8 @@ async function notifyVipUpgrade(
   supabase: SupabaseClient,
   userId: string,
   userEmail: string,
-  durationDays: number
+  durationDays: number,
+  plan: string = 'pro'
 ): Promise<void> {
   try {
     const profile = await fetchProfileForEmail(supabase, userId);
@@ -95,12 +96,15 @@ async function notifyVipUpgrade(
       ? profile.planExpiresAt
       : new Date(Date.now() + durationDays * 86_400_000).toISOString();
 
+    const planName = plan === 'recruiter' ? 'Recruiter' : 'Pro';
+
     await sendVipUpgradeEmail({
       userEmail,
       userName: profile?.displayName ?? null,
-      planName: 'Pro',
+      planName,
       durationDays,
       planExpiresAt,
+      planType: plan === 'recruiter' ? 'recruiter' : 'pro',
     });
   } catch (err) {
     // Email is non-critical — log and continue
@@ -228,7 +232,7 @@ export async function handlePaymentWebhook(
   // Webhook has user_id from payment record; look up email via admin API
   const { data: userData } = await supabase.auth.admin.getUserById(payment.user_id);
   if (userData?.user?.email) {
-    notifyVipUpgrade(supabase, payment.user_id, userData.user.email, durationDays).catch((err) =>
+    notifyVipUpgrade(supabase, payment.user_id, userData.user.email, durationDays, planStr).catch((err) =>
       console.error('Webhook email notification failed:', err)
     );
   }
@@ -313,7 +317,7 @@ export async function handlePaymentConfirm(
 
   // Send VIP upgrade email (non-blocking, fire-and-forget)
   if (user.email) {
-    notifyVipUpgrade(supabase, payment.user_id, user.email, durationDays).catch((err) =>
+    notifyVipUpgrade(supabase, payment.user_id, user.email, durationDays, planStr).catch((err) =>
       console.error('Confirm email notification failed:', err)
     );
   }

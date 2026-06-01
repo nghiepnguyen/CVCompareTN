@@ -48,15 +48,26 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 - **`POST /api/payment/webhook`** — PayOS gọi callback khi có kết quả thanh toán. Xác thực HMAC-SHA256, gọi RPC `activate_pro_plan` nếu thành công.
 - **Yêu cầu:** `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`.
 
-### `POST /api/send-feedback`
+### Hệ thống Email (Resend)
 
-- **Mục đích:** Gửi phản hồi qua email (Resend).
-- **Body:** `{ token, rating, title, content, userEmail, ... }` (theo handler).
-- **Yêu cầu:** Xác thực reCAPTCHA phía backend trước khi gửi.
+#### `POST /api/send-welcome-email`
 
-### `POST /api/send-welcome-email`
+- **Mục đích:** Gởi email chào mừng khi user mới đăng ký (Google OAuth hoặc email signup).
+- **Body:** `{ token, userEmail, userName }`
+- **reCAPTCHA:** Tuỳ chọn — nếu `token` có thì verify (score ≥ 0.2), nếu không (Google OAuth redirect, reCAPTCHA chưa kịp load) thì bỏ qua. Welcome email được trigger từ auth event, không phải form public.
 
-- **Mục đích:** Email chào mừng (Resend + reCAPTCHA tùy cấu hình).
+#### `POST /api/send-feedback`
+
+- **Mục đích:** Gởi phản hồi của user về admin qua email (Resend).
+- **Body:** `{ token, rating, title, content, userEmail }`
+- **reCAPTCHA:** Bắt buộc (score ≥ 0.5) — feedback từ UI action, reCAPTCHA đã load sẵn.
+
+#### VIP Upgrade Email (server-side)
+
+- **Mục đích:** Gởi email chúc mừng + quyền lợi khi user nâng cấp Pro/Recruiter thành công.
+- **Trigger:** Thanh toán PayOS thành công (webhook hoặc client confirm).
+- **File:** `api/payment/lib/vipUpgradeEmail.ts` — gọi trực tiếp từ `api/payment/lib/handlers.ts` (non-blocking, fire-and-forget).
+- **Phân biệt plan:** Tự động nhận diện Pro vs Recruiter, hiển thị danh sách quyền lợi tương ứng (Pro: 5 CV batch, 10 saved CV; Recruiter: 50 CV batch, 50 saved CV, 10 campaigns).
 
 ### Edge Function (tùy chọn — Supabase)
 
