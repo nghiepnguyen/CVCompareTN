@@ -35,6 +35,7 @@ const ROWS: ComparisonRow[] = [
   { key: 'campaignCvs', label: 'CV / đợt tuyển dụng', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '50 CV', icon: 'check' } },
   { key: 'campaigns', label: 'Đợt tuyển dụng', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '10 / tháng', icon: 'check' } },
   { key: 'cv', label: 'Kho CV', free: { value: '1 CV', icon: 'dash' }, pro: { value: '10 CV', icon: 'check' }, recruiter: { value: '50 CV', icon: 'check' } },
+  { key: 'downloadCv', label: 'Tải về CV tối ưu', free: { value: '—', icon: 'dash' }, pro: { value: 'Có', icon: 'check' }, recruiter: { value: 'Có', icon: 'check' } },
   { key: 'jd', label: 'Kho JD mẫu', free: { value: '3 mẫu', icon: 'dash' }, pro: { value: 'Không giới hạn', icon: 'infinity' }, recruiter: { value: 'Không giới hạn', icon: 'infinity' } },
   { key: 'history', label: 'Lịch sử', free: { value: '7 ngày', icon: 'dash' }, pro: { value: 'Vĩnh viễn', icon: 'check' }, recruiter: { value: 'Vĩnh viễn', icon: 'check' } },
   { key: 'export', label: 'Xuất báo cáo Excel', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: 'Có', icon: 'check' } },

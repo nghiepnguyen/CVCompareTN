@@ -94,7 +94,7 @@ CI/CD: **GitHub Actions** (`.github/workflows/ci.yml`) — trigger `push`/`PR` t
 -   **`src/components/shared/UpgradePrompt.tsx`**: Component tái sử dụng cho các feature gate (Pro / Recruiter).
 -   **`src/services/`**:
     -   **`ai/`**: Gemini (`analysisService`, `extractionService`, …), chuẩn hoá payload (`resultPayloadNormalize.ts`, `parsedCvNormalize.ts`), **`fullRewrittenCvMarkdown.ts`**.
-    -   **CV tối ưu (UI):** `CvMarkdownBody.tsx` + `.cv-markdown-specimen` trong `index.css`.
+     -   **CV tối ưu (UI):** `CvMarkdownBody.tsx` + `.cv-markdown-specimen` trong `index.css`. Hỗ trợ **Dual-Mode Tab** (Premium View / Free Preview) với layout Black+Gold Liquid Glass cho paid user — xem chi tiết bên dưới.
     -   **Supabase:** `userService`, `historyService`, `cvService` (bucket Storage `cv-files` — upload/download/delete CV cho kho CV).
     -   **Payment:** `paymentService.ts` — `createProCheckout(planType?)` gọi `POST /api/payment/create` với `planType` ('pro' | 'recruiter'), trả về `checkoutUrl` từ PayOS. `createRecruiterCheckout()` là shorthand.
     -   **Recruiter:** `recruiterService.ts` — CRUD campaigns & candidates, Supabase Storage upload, `saveCandidateAnalysis` (gọi API proxy `/api/recruiter/save-analysis`).
@@ -167,3 +167,17 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
     - **Candidate Panel** với ScoreGauge SVG, category scores 4 ô, strengths/weaknesses chips, JD viewer accordion.
     - **Status badges** rõ ràng: Chờ PT, Đang PT, Lỗi, điểm số.
     - **Modal confirm** cho admin set plan (Free/Pro/Recruiter) + analytics limit.
+-   **Dual-Mode Optimized CV Tab (2026-06):**
+    -   **Tab Toggle** trong OptimizationTab: `Premium View` (Crown icon) / `Free Preview` (Eye icon) với Motion `layoutId` sliding pill indicator.
+    -   **Premium View layout — Black+Gold Liquid Glass** (ui-ux-pro-max):
+        -   **Tên (H1):** Ultra-bold black `#0C0A09` với gold underline `amber-500→amber-400`.
+        -   **Section (H2):** Gold ribbon nền `amber-50/80`, vertical gradient accent bar (emerald/blue/violet/amber/rose/cyan), icon trong gold pill badge.
+        -   **Bullet points:** Gold dot `size-1.5` có glow `shadow-[0_0_6px_rgba(202,138,4,0.25)]` với hover glow mạnh hơn.
+        -   **Blockquote:** Border-left `amber-400`, nền gradient `amber-50/70`, dấu ngoặc kép lớn mờ góc phải.
+        -   **Table header:** `bg-gradient-to-r from-[#1C1917] to-[#292524]` text `amber-100`.
+        -   **Strong text:** Highlight nền vàng nhạt `bg-amber-100/60`.
+    -   **Free Preview layout:** Simple markdown rendering (`.cv-markdown-specimen`) không có accent colors/icons.
+    -   **Watermark cho Free user:** 6 lớp watermark (gradient overlay, diagonal stripe, "cvFit.pro" lớn giữa, grid amber, text "NÂNG CẤP ĐỂ MỞ KHÓA" lặp, badge "Xem trước" góc phải) — áp dụng cho cả Premium View và Free Preview tab.
+    -   **Print/Copy đồng bộ variant:** `sessionStorage` (`cvFit_viewMode` + `cvFit_printVersion`) + Custom Event `cvfit:viewModeChanged` giữa `OptimizationTab` và `PrintView` — đảm bảo Print luôn dùng đúng layout user đang chọn.
+    -   **Paid user (pro/recruiter/admin):** Access đầy đủ Copy Markdown, Copy Plain Text, Print ở cả 2 tab. Free user chỉ thấy "Nâng cấp lên Pro".
+    -   **Files:** `OptimizationTab.tsx` (tab toggle, watermark logic), `CvMarkdownBody.tsx` (variant prop → `buildPremiumComponents` / `buildDefaultComponents`), `PrintView.tsx` (sessionStorage sync), `result.ts` (6 translation keys mới), `types.ts` (6 UiLabels keys mới).

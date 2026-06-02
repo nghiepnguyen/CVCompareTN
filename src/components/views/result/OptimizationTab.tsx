@@ -1,23 +1,44 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, RefreshCcw, Copy, Check, FileText, Printer, AlignLeft } from 'lucide-react';
+import { Sparkles, RefreshCcw, Copy, Check, FileText, Printer, AlignLeft, Award, Zap, Shield, Eye, Crown, Lock } from 'lucide-react';
 import { useUI } from '../../../context/UIContext';
 import { useAuth } from '../../../context/AuthContext';
-import { UpgradePrompt } from '../../shared/UpgradePrompt';
-import { isProPlan } from '../../../lib/planLimits';
+import { isProPlan, isRecruiterPlan } from '../../../lib/planLimits';
 import { AnalysisResult, RewriteSuggestion } from '../../../services/ai';
 import { CvMarkdownBody, markdownToPlainText } from './CvMarkdownBody';
+
+type ViewMode = 'premium' | 'free';
 
 interface OptimizationTabProps {
   selectedResult: AnalysisResult;
 }
 
 export const OptimizationTab = React.memo(function OptimizationTab({ selectedResult }: OptimizationTabProps) {
-  const { t, reportLanguage } = useUI();
+  const { t, reportLanguage, navigateToUpgrade } = useUI();
   const { effectivePlan, userProfile } = useAuth();
   const canExportOptimized =
-    userProfile?.role === 'admin' || isProPlan(effectivePlan);
+    userProfile?.role === 'admin' || isProPlan(effectivePlan) || isRecruiterPlan(effectivePlan);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
+  const [viewMode, setViewModeState] = React.useState<ViewMode>(
+    canExportOptimized ? 'premium' : 'free'
+  );
+
+  // Sync viewMode to sessionStorage & dispatch event so PrintView re-renders
+  const syncViewMode = (mode: ViewMode) => {
+    try {
+      sessionStorage.setItem('cvFit_viewMode', mode);
+      sessionStorage.setItem('cvFit_printVersion', String(Date.now()));
+    } catch { /* ignore */ }
+    window.dispatchEvent(new Event('cvfit:viewModeChanged'));
+  };
+  const setViewMode = (mode: ViewMode) => {
+    setViewModeState(mode);
+    syncViewMode(mode);
+  };
+  // Sync initial viewMode on mount
+  React.useEffect(() => {
+    syncViewMode(canExportOptimized ? 'premium' : 'free');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div id="optimization-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
@@ -129,126 +150,486 @@ export const OptimizationTab = React.memo(function OptimizationTab({ selectedRes
             </div>
           </div>
 
-          {/* Full Rewritten CV */}
+          {/* ========== VIP PRO: Full Optimized CV (Dual-Mode Tabs) ========== */}
           {selectedResult.fullRewrittenCV && (
             <>
               <div className="h-px bg-border w-full" />
-              <div className="space-y-6">
-                <div className="flex flex-col gap-5 border-b-2 border-border-strong pb-6 lg:flex-row lg:items-end lg:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-2xl border border-accent/25 bg-accent-light shadow-sm">
+
+              {/* ----- Outer wrapper: premium dark card with glass surface ----- */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-40px' }}
+                transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="relative overflow-hidden rounded-[2.5rem] border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent backdrop-blur-sm shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.03)]"
+              >
+                {/* Subtle grid overlay */}
+                <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" />
+
+                {/* Top accent line */}
+                <div className="absolute left-8 right-8 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
+
+                {/* ----- Document Header Ribbon ----- */}
+                <div className="relative z-10 flex flex-col gap-5 border-b border-white/[0.06] px-6 pb-5 pt-6 sm:px-10 sm:pt-10">
+                  {/* Top row: icon + title + tab toggle */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <motion.div
+                      initial={{ opacity: 0, x: -12 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.1, duration: 0.35 }}
+                      className="flex items-center gap-2.5"
+                    >
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-accent/20 bg-accent-light/80 backdrop-blur-sm shadow-[0_0_20px_rgba(5,150,105,0.12)]">
                         <FileText className="size-5 text-accent" />
                       </div>
-                      <div className="min-w-0 space-y-1">
-                        <p className="font-cv-header text-[10px] font-black uppercase tracking-[0.38em] text-text-muted">
+                      <div className="min-w-0">
+                        <p className="font-cv-header text-[9px] font-black uppercase tracking-[0.42em] text-text-muted mb-0.5">
                           {t.fullCvSpecimenEyebrow}
                         </p>
-                        <h4 className="text-lg font-black tracking-tight text-accent">{t.fullRewrittenCV}</h4>
-                        <p className="max-w-xl text-sm font-medium leading-relaxed text-text-muted">{t.fullRewrittenCVDesc}</p>
+                        <h4 className="text-lg sm:text-xl font-black tracking-tight text-text-main leading-tight">
+                          {t.fullRewrittenCV}
+                        </h4>
                       </div>
+                    </motion.div>
+
+                    {/* ---- Tab Toggle: Premium / Free Preview ---- */}
+                    <div className="relative flex rounded-xl bg-white/[0.04] border border-white/[0.08] p-1 backdrop-blur-sm">
+                      {/* Premium tab */}
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('premium')}
+                        className={`
+                          relative z-10 flex items-center gap-1.5 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors duration-200 cursor-pointer
+                          ${viewMode === 'premium'
+                            ? 'text-accent'
+                            : 'text-text-muted hover:text-text-main'
+                          }
+                        `}
+                      >
+                        <Crown className="size-3.5" />
+                        <span className="hidden xs:inline">{t.premiumViewTab}</span>
+                      </button>
+
+                      {/* Free preview tab */}
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('free')}
+                        className={`
+                          relative z-10 flex items-center gap-1.5 rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors duration-200 cursor-pointer
+                          ${viewMode === 'free'
+                            ? 'text-amber-400'
+                            : 'text-text-muted hover:text-text-main'
+                          }
+                        `}
+                      >
+                        <Eye className="size-3.5" />
+                        <span className="hidden xs:inline">{t.freePreviewTab}</span>
+                      </button>
+
+                      {/* Sliding background indicator */}
+                      <motion.div
+                        layout
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                        className={`
+                          absolute top-1 bottom-1 rounded-lg border shadow-sm
+                          ${viewMode === 'premium'
+                            ? 'left-1 bg-accent-light/40 border-accent/20'
+                            : 'right-1 bg-amber-500/10 border-amber-500/20'
+                          }
+                        `}
+                        style={{
+                          width: 'calc(50% - 4px)',
+                        }}
+                      />
                     </div>
                   </div>
 
-                  {canExportOptimized ? (
-                    <div className="no-print flex flex-wrap items-center gap-2 lg:justify-end">
-                      <span className="hidden h-8 w-px bg-border-strong sm:block lg:h-10" aria-hidden />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (selectedResult.fullRewrittenCV) {
-                            navigator.clipboard.writeText(selectedResult.fullRewrittenCV);
-                            setCopiedId('full-cv-md');
-                            setTimeout(() => setCopiedId(null), 2000);
-                          }
-                        }}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-[11px] font-black uppercase tracking-widest text-text-muted shadow-sm transition-all hover:scale-105 hover:bg-surface-secondary hover:shadow-md active:scale-95 sm:flex-none cursor-pointer"
-                      >
-                        {copiedId === 'full-cv-md' ? (
-                          <Check className="size-4 text-success" />
+                  {/* Header info row: conditional badges + actions */}
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    {viewMode === 'premium' ? (
+                      <>
+                        {/* Premium header: description + badges */}
+                        <div className="flex flex-col gap-3">
+                          <p className="max-w-2xl text-sm font-medium leading-relaxed text-text-muted">
+                            {t.fullRewrittenCVDesc}
+                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent-light/60 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-accent backdrop-blur-sm">
+                              <Zap className="size-3 text-accent" />
+                              ATS Optimized
+                            </span>
+                            <span className="flex items-center gap-1.5 rounded-full border border-success/25 bg-success-light/50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-success backdrop-blur-sm">
+                              <Shield className="size-3 text-success" />
+                              Recruiter Ready
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Action buttons (paid users only) */}
+                        {canExportOptimized ? (
+                          <div className="no-print flex flex-wrap items-center gap-2">
+                            <span className="hidden h-8 w-px bg-white/[0.08] sm:block lg:h-10" aria-hidden />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedResult.fullRewrittenCV) {
+                                  navigator.clipboard.writeText(selectedResult.fullRewrittenCV);
+                                  setCopiedId('full-cv-md');
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                }
+                              }}
+                              className="group flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[10px] font-black uppercase tracking-[0.15em] text-text-muted shadow-sm transition-all duration-200 hover:scale-105 hover:border-white/[0.15] hover:bg-white/[0.06] hover:text-text-main hover:shadow-lg active:scale-95 cursor-pointer backdrop-blur-sm"
+                            >
+                              {copiedId === 'full-cv-md' ? <Check className="size-4 text-success" /> : <Copy className="size-4 transition-colors group-hover:text-accent" />}
+                              {copiedId === 'full-cv-md' ? t.copied : t.copyMarkdown}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedResult.fullRewrittenCV) {
+                                  navigator.clipboard.writeText(markdownToPlainText(selectedResult.fullRewrittenCV));
+                                  setCopiedId('full-cv-plain');
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                }
+                              }}
+                              className="group flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[10px] font-black uppercase tracking-[0.15em] text-text-muted shadow-sm transition-all duration-200 hover:scale-105 hover:border-white/[0.15] hover:bg-white/[0.06] hover:text-text-main hover:shadow-lg active:scale-95 cursor-pointer backdrop-blur-sm"
+                            >
+                              {copiedId === 'full-cv-plain' ? <Check className="size-4 text-success" /> : <AlignLeft className="size-4 transition-colors group-hover:text-accent" />}
+                              {copiedId === 'full-cv-plain' ? t.copied : t.copyPlainText}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => window.print()}
+                              className="group flex items-center justify-center gap-2 rounded-xl border border-accent/20 bg-accent-light/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.15em] text-accent shadow-sm transition-all duration-200 hover:scale-105 hover:border-accent/40 hover:bg-accent-light/70 hover:shadow-[0_0_20px_rgba(5,150,105,0.15)] active:scale-95 cursor-pointer backdrop-blur-sm"
+                            >
+                              <Printer className="size-4 transition-transform group-hover:scale-110" />
+                              {t.printOptimized}
+                            </button>
+                          </div>
                         ) : (
-                          <Copy className="size-4" />
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); navigateToUpgrade(); }}
+                              className="group flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-400/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.15em] text-amber-400 shadow-sm transition-all duration-200 hover:scale-105 hover:border-amber-500/50 hover:bg-amber-400/20 hover:shadow-[0_0_16px_rgba(245,158,11,0.15)] active:scale-95 cursor-pointer backdrop-blur-sm"
+                            >
+                              <Crown className="size-4" />
+                              {t.upgradeToUnlock}
+                            </button>
+                          </div>
                         )}
-                        {copiedId === 'full-cv-md' ? t.copied : t.copyMarkdown}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (selectedResult.fullRewrittenCV) {
-                            navigator.clipboard.writeText(markdownToPlainText(selectedResult.fullRewrittenCV));
-                            setCopiedId('full-cv-plain');
-                            setTimeout(() => setCopiedId(null), 2000);
-                          }
-                        }}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-[11px] font-black uppercase tracking-widest text-text-muted shadow-sm transition-all hover:scale-105 hover:bg-surface-secondary hover:shadow-md active:scale-95 sm:flex-none cursor-pointer"
-                      >
-                        {copiedId === 'full-cv-plain' ? (
-                          <Check className="size-4 text-success" />
+                      </>
+                    ) : (
+                      <>
+                        {/* Free Preview header: conditional badges based on plan */}
+                        <div className="flex flex-col gap-3">
+                          <p className="max-w-2xl text-sm font-medium leading-relaxed text-text-muted">
+                            {t.fullRewrittenCVDesc}
+                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {canExportOptimized ? (
+                              <>
+                                <span className="flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent-light/60 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-accent backdrop-blur-sm">
+                                  <Zap className="size-3 text-accent" />
+                                  ATS Optimized
+                                </span>
+                                <span className="flex items-center gap-1.5 rounded-full border border-success/25 bg-success-light/50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-success backdrop-blur-sm">
+                                  <Shield className="size-3 text-success" />
+                                  Recruiter Ready
+                                </span>
+                              </>
+                            ) : (
+                              <span className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-400/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-amber-400 backdrop-blur-sm">
+                                <Lock className="size-3 text-amber-400" />
+                                {t.freePreviewBadge}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action buttons for paid users in Free Preview tab */}
+                        {canExportOptimized ? (
+                          <div className="no-print flex flex-wrap items-center gap-2">
+                            <span className="hidden h-8 w-px bg-white/[0.08] sm:block lg:h-10" aria-hidden />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedResult.fullRewrittenCV) {
+                                  navigator.clipboard.writeText(selectedResult.fullRewrittenCV);
+                                  setCopiedId('full-cv-md');
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                }
+                              }}
+                              className="group flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[10px] font-black uppercase tracking-[0.15em] text-text-muted shadow-sm transition-all duration-200 hover:scale-105 hover:border-white/[0.15] hover:bg-white/[0.06] hover:text-text-main hover:shadow-lg active:scale-95 cursor-pointer backdrop-blur-sm"
+                            >
+                              {copiedId === 'full-cv-md' ? <Check className="size-4 text-success" /> : <Copy className="size-4 transition-colors group-hover:text-accent" />}
+                              {copiedId === 'full-cv-md' ? t.copied : t.copyMarkdown}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedResult.fullRewrittenCV) {
+                                  navigator.clipboard.writeText(markdownToPlainText(selectedResult.fullRewrittenCV));
+                                  setCopiedId('full-cv-plain');
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                }
+                              }}
+                              className="group flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-[10px] font-black uppercase tracking-[0.15em] text-text-muted shadow-sm transition-all duration-200 hover:scale-105 hover:border-white/[0.15] hover:bg-white/[0.06] hover:text-text-main hover:shadow-lg active:scale-95 cursor-pointer backdrop-blur-sm"
+                            >
+                              {copiedId === 'full-cv-plain' ? <Check className="size-4 text-success" /> : <AlignLeft className="size-4 transition-colors group-hover:text-accent" />}
+                              {copiedId === 'full-cv-plain' ? t.copied : t.copyPlainText}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => window.print()}
+                              className="group flex items-center justify-center gap-2 rounded-xl border border-accent/20 bg-accent-light/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.15em] text-accent shadow-sm transition-all duration-200 hover:scale-105 hover:border-accent/40 hover:bg-accent-light/70 hover:shadow-[0_0_20px_rgba(5,150,105,0.15)] active:scale-95 cursor-pointer backdrop-blur-sm"
+                            >
+                              <Printer className="size-4 transition-transform group-hover:scale-110" />
+                              {t.printOptimized}
+                            </button>
+                          </div>
                         ) : (
-                          <AlignLeft className="size-4" />
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); navigateToUpgrade(); }}
+                              className="group flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-400/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.15em] text-amber-400 shadow-sm transition-all duration-200 hover:scale-105 hover:border-amber-500/50 hover:bg-amber-400/20 hover:shadow-[0_0_16px_rgba(245,158,11,0.15)] active:scale-95 cursor-pointer backdrop-blur-sm"
+                            >
+                              <Crown className="size-4" />
+                              {t.upgradeToUnlock}
+                            </button>
+                          </div>
                         )}
-                        {copiedId === 'full-cv-plain' ? t.copied : t.copyPlainText}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => window.print()}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-accent/25 bg-accent-light px-4 py-3 text-[11px] font-black uppercase tracking-widest text-accent shadow-sm transition-all hover:scale-105 hover:bg-accent/15 hover:shadow-md active:scale-95 sm:flex-none cursor-pointer"
-                      >
-                        <Printer className="size-4" />
-                        {t.printOptimized}
-                      </button>
-                    </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* ----- CV Document Preview ----- */}
+                <div className="relative z-10 p-4 pb-8 sm:p-10 sm:pb-14">
+                  {/* ============================================ */}
+                  {/* === PREMIUM VIEW: Professional CV Layout === */}
+                  {/* ============================================ */}
+                  {viewMode === 'premium' ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.2, duration: 0.5 }}
+                      className="group/cv relative mx-auto min-h-[min(297mm,80vh)] max-w-[210mm] overflow-hidden rounded-[4px]"
+                    >
+                      {/* Outer glow ring */}
+                      <div className="absolute -inset-[2px] rounded-[4px] bg-gradient-to-br from-accent/20 via-accent/5 to-accent/20 opacity-50 transition-opacity duration-500 group-hover/cv:opacity-100 -z-10 blur-sm" />
+
+                      {/* Main paper surface */}
+                      <div className="relative h-full bg-[#FCFCFC] shadow-[0_8px_40px_-12px_rgba(0,0,0,0.35),0_0_0_1px_rgba(0,0,0,0.06),0_20px_60px_-20px_rgba(5,150,105,0.08)] ring-1 ring-slate-200">
+
+                        {/* === Professional Header Bar === */}
+                        <div className="relative border-b-2 border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-8 pt-10 pb-6 sm:px-14 sm:pt-14 sm:pb-8">
+                          {/* Decorative top accent strip */}
+                          <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-accent via-accent to-accent/60" />
+                          <div className="absolute top-[3px] left-0 right-0 h-px bg-gradient-to-r from-accent/30 via-accent/10 to-transparent" />
+
+                          {/* Name placeholder area */}
+                          <div className="mb-6">
+                            <h1 className="font-cv-header text-[clamp(1.75rem,4vw,3rem)] font-black uppercase leading-[0.92] tracking-[-0.05em] text-slate-800">
+                              {/* Name will be rendered from markdown h1 */}
+                            </h1>
+                            <p className="mt-2 font-cv-header text-[0.625rem] font-bold uppercase tracking-[0.35em] text-slate-500">
+                              {reportLanguage === 'vi'
+                                ? 'Bản nháp tối ưu ATS · cấu trúc quét nhanh'
+                                : 'ATS-optimized draft · recruiter-scan layout'}
+                            </p>
+                          </div>
+
+                          {/* Contact info strip */}
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.75rem] text-slate-500 font-medium">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200">
+                              <Shield className="size-3 text-accent" />
+                              {t.premiumOptimizedBadge}
+                            </span>
+                            <span className="text-slate-300">|</span>
+                            <span className="text-slate-500">{t.fullRewrittenCV}</span>
+                          </div>
+                        </div>
+
+                        {/* CV Content Body — Premium variant */}
+                        <div className="relative z-10 p-8 sm:p-14">
+                          <CvMarkdownBody
+                            markdown={selectedResult.fullRewrittenCV}
+                            locale={reportLanguage}
+                            density="screen"
+                            variant="premium"
+                          />
+                        </div>
+
+                        {/* Side watermarks — premium subtle (paid users only) */}
+                        {canExportOptimized && (
+                          <div className="pointer-events-none absolute right-6 top-[35%] opacity-[0.03] transition-opacity duration-500 group-hover/cv:opacity-[0.06]">
+                            <Award className="size-40" />
+                          </div>
+                        )}
+
+                        {/* ====== WATERMARK LAYERS FOR FREE USERS ON PREMIUM VIEW ====== */}
+                        {!canExportOptimized && (
+                          <>
+                            <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-b from-slate-900/10 via-transparent to-slate-900/10" aria-hidden />
+                            <div
+                              className="pointer-events-none absolute inset-0 z-20 select-none"
+                              aria-hidden
+                              style={{
+                                backgroundImage: `repeating-linear-gradient(-35deg, transparent, transparent 70px, rgba(100,116,139,0.07) 70px, rgba(100,116,139,0.07) 71px)`,
+                              }}
+                            />
+                            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center select-none" aria-hidden>
+                              <span className="rotate-[-22deg] text-[2.8rem] sm:text-[5rem] font-black text-slate-500/[0.14] tracking-[0.25em] uppercase whitespace-nowrap">
+                                {t.freePreviewWatermarkPrimary}
+                              </span>
+                            </div>
+                            <div
+                              className="pointer-events-none absolute inset-0 z-20 select-none"
+                              aria-hidden
+                              style={{
+                                backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 130px, rgba(245,158,11,0.05) 130px, rgba(245,158,11,0.05) 131px), repeating-linear-gradient(90deg, transparent, transparent 170px, rgba(245,158,11,0.04) 170px, rgba(245,158,11,0.04) 171px)`,
+                              }}
+                            />
+                            <div className="pointer-events-none absolute inset-0 z-20 select-none overflow-hidden" aria-hidden>
+                              <div className="absolute inset-0 flex flex-wrap content-center justify-center gap-16 opacity-[0.05] rotate-[-20deg] scale-150">
+                                {Array.from({ length: 20 }).map((_, idx) => (
+                                  <span key={idx} className="text-[0.65rem] font-black uppercase tracking-[0.3em] text-slate-700 whitespace-nowrap">
+                                    {t.freePreviewWatermarkSecondary}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="pointer-events-none absolute top-6 right-6 z-20 select-none">
+                              <span className="rounded-lg border border-amber-500/35 bg-amber-400/20 backdrop-blur-sm px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] text-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.15)]">
+                                <Lock className="inline size-3 mr-1 -mt-0.5" />
+                                {t.freePreviewTab}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        {/* ====== END WATERMARK LAYERS ====== */}
+
+                        {/* Footer stamp */}
+                        <div className="relative z-10 mt-8 border-t-2 border-slate-200/80 pt-6 pb-8 text-center font-cv-header text-[9px] font-bold uppercase tracking-[0.25em] text-slate-400">
+                          {t.fullCvDraftFooter}
+                        </div>
+                      </div>
+                    </motion.div>
                   ) : (
-                    <UpgradePrompt feature={t.upgradeFeatureExportCv} className="no-print w-full lg:max-w-md lg:ml-auto" />
+                    /* ========================================== */
+                    /* === FREE PREVIEW: Watermarked Preview === */
+                    /* ========================================== */
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.2, duration: 0.5 }}
+                      className="group/cv relative mx-auto min-h-[min(297mm,80vh)] max-w-[210mm] overflow-hidden rounded-sm bg-slate-100 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.4),0_0_0_1px_rgba(0,0,0,0.08)] ring-1 ring-slate-300/60 transition-shadow duration-500"
+                    >
+                      {/* Muted paper surface */}
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-200/50 via-slate-100/80 to-slate-200/60" />
+
+                      {/* Broken/obscured corner brackets */}
+                      <span className="pointer-events-none absolute left-4 top-4 size-5 border-l-2 border-t-2 border-slate-400/40 sm:left-6 sm:top-6 sm:size-6" aria-hidden />
+                      <span className="pointer-events-none absolute right-4 top-4 size-5 border-r-2 border-t-2 border-slate-400/40 sm:right-6 sm:top-6 sm:size-6" aria-hidden />
+                      <span className="pointer-events-none absolute bottom-4 left-4 size-5 border-b-2 border-l-2 border-slate-400/40 sm:bottom-6 sm:left-6 sm:size-6" aria-hidden />
+                      <span className="pointer-events-none absolute bottom-4 right-4 size-5 border-b-2 border-r-2 border-slate-400/40 sm:bottom-6 sm:right-6 sm:size-6" aria-hidden />
+
+                      {/* CV Content — free users: disabled interaction */}
+                      <div className={`relative z-10 p-8 sm:p-14 ${!canExportOptimized ? 'pointer-events-none select-none' : ''}`}>
+                        <CvMarkdownBody
+                          markdown={selectedResult.fullRewrittenCV}
+                          locale={reportLanguage}
+                          density="screen"
+                        />
+                      </div>
+
+                      {/* ====== FREE PREVIEW WATERMARK LAYERS ====== */}
+                      {!canExportOptimized && (
+                        <>
+                          {/* Layer 1: Dark gradient overlay */}
+                          <div
+                            className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-b from-slate-900/10 via-transparent to-slate-900/10"
+                            aria-hidden
+                          />
+
+                          {/* Layer 2: Diagonal stripe pattern */}
+                          <div
+                            className="pointer-events-none absolute inset-0 z-20 select-none"
+                            aria-hidden
+                            style={{
+                              backgroundImage: `repeating-linear-gradient(
+                                -35deg,
+                                transparent,
+                                transparent 70px,
+                                rgba(100, 116, 139, 0.07) 70px,
+                                rgba(100, 116, 139, 0.07) 71px
+                              )`,
+                            }}
+                          />
+
+                          {/* Layer 3: Large centered "cvFit.pro" */}
+                          <div
+                            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center select-none"
+                            aria-hidden
+                          >
+                            <span className="rotate-[-22deg] text-[2.8rem] sm:text-[5rem] font-black text-slate-500/[0.16] tracking-[0.25em] uppercase whitespace-nowrap">
+                              {t.freePreviewWatermarkPrimary}
+                            </span>
+                          </div>
+
+                          {/* Layer 4: Grid watermark */}
+                          <div
+                            className="pointer-events-none absolute inset-0 z-20 select-none"
+                            aria-hidden
+                            style={{
+                              backgroundImage: `
+                                repeating-linear-gradient(0deg, transparent, transparent 130px, rgba(245, 158, 11, 0.05) 130px, rgba(245, 158, 11, 0.05) 131px),
+                                repeating-linear-gradient(90deg, transparent, transparent 170px, rgba(245, 158, 11, 0.04) 170px, rgba(245, 158, 11, 0.04) 171px)
+                              `,
+                            }}
+                          />
+
+                          {/* Layer 5: Small repeating "PREVIEW ONLY" text watermark */}
+                          <div
+                            className="pointer-events-none absolute inset-0 z-20 select-none overflow-hidden"
+                            aria-hidden
+                          >
+                            <div className="absolute inset-0 flex flex-wrap content-center justify-center gap-16 opacity-[0.06] rotate-[-20deg] scale-150">
+                              {Array.from({ length: 20 }).map((_, idx) => (
+                                <span key={idx} className="text-[0.65rem] font-black uppercase tracking-[0.3em] text-slate-700 whitespace-nowrap">
+                                  {t.freePreviewWatermarkSecondary}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Layer 6: Free Preview badge */}
+                          <div className="pointer-events-none absolute top-6 right-6 z-20 select-none">
+                            <span className="rounded-lg border border-amber-500/35 bg-amber-400/20 backdrop-blur-sm px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] text-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.15)]">
+                              <Lock className="inline size-3 mr-1 -mt-0.5" />
+                              {t.freePreviewTab}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      {/* ====== END WATERMARK LAYERS ====== */}
+
+                      {/* Footer */}
+                      <div className="relative z-10 mt-12 border-t border-slate-300/60 pt-5 text-center font-cv-header text-[9px] font-bold uppercase tracking-[0.25em] text-slate-400">
+                        {t.fullCvDraftFooter}
+                      </div>
+                    </motion.div>
                   )}
                 </div>
 
-                <div className="overflow-hidden rounded-[2.5rem] border border-white/[0.08] bg-white/[0.02] p-4 sm:p-10">
-                  <div className="relative mx-auto min-h-[min(297mm,80vh)] max-w-[210mm] overflow-hidden rounded-sm bg-white p-8 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.12)] ring-1 ring-slate-200 sm:p-14">
-                    <span
-                      className="pointer-events-none absolute left-4 top-4 size-6 border-l-2 border-t-2 border-slate-300 sm:left-6 sm:top-6"
-                      aria-hidden
-                    />
-                    <span
-                      className="pointer-events-none absolute right-4 top-4 size-6 border-r-2 border-t-2 border-slate-300 sm:right-6 sm:top-6"
-                      aria-hidden
-                    />
-                    <span
-                      className="pointer-events-none absolute bottom-4 left-4 size-6 border-b-2 border-l-2 border-slate-300 sm:bottom-6 sm:left-6"
-                      aria-hidden
-                    />
-                    <span
-                      className="pointer-events-none absolute bottom-4 right-4 size-6 border-b-2 border-r-2 border-slate-300 sm:bottom-6 sm:right-6"
-                      aria-hidden
-                    />
-
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white via-white to-slate-50" />
-                    <div className="pointer-events-none absolute right-0 top-0 p-8 opacity-[0.06]">
-                      <FileText className="size-48" />
-                    </div>
-
-                    <div className="relative z-10 px-0 sm:px-1">
-                      <CvMarkdownBody markdown={selectedResult.fullRewrittenCV} locale={reportLanguage} density="screen" />
-                    </div>
-
-                    {/* Watermark for free users */}
-                    {!canExportOptimized && (
-                      <div
-                        className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center select-none"
-                        aria-hidden
-                      >
-                        <span className="rotate-[-25deg] text-[2.5rem] sm:text-[4.5rem] font-black text-slate-300/[0.12] tracking-[0.25em] uppercase whitespace-nowrap drop-shadow-sm">
-                          cvFit.pro
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="relative z-10 mt-16 border-t border-slate-200 pt-6 text-center font-cv-header text-[9px] font-bold uppercase tracking-[0.25em] text-slate-400">
-                      {t.fullCvDraftFooter}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                {/* Bottom accent line */}
+                <div className="absolute bottom-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-accent/25 to-transparent" />
+              </motion.div>
             </>
           )}
 

@@ -416,6 +416,10 @@ export const landing = {
     vi: 'Đợt tuyển dụng',
     en: 'Campaigns',
   },
+  pricingDownloadCv: {
+    vi: 'Tải về CV tối ưu',
+    en: 'Download optimized CV',
+  },
   pricingJdStore: {
     vi: 'Kho JD mẫu',
     en: 'JD templates',

@@ -316,6 +316,12 @@ export interface UiLabels {
   placeholderJD: string;
   premiumOptimizedBadge: string;
   printOptimized: string;
+  premiumViewTab: string;
+  freePreviewTab: string;
+  freePreviewBadge: string;
+  upgradeToUnlock: string;
+  freePreviewWatermarkPrimary: string;
+  freePreviewWatermarkSecondary: string;
   legalBackHome: string;
   legalShareLink: string;
   privacyHeroSubtitle: string;

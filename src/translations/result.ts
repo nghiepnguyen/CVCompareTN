@@ -112,6 +112,34 @@ export const result = {
     vi: "Mẫu · CV hoàn chỉnh",
     en: "Specimen · full CV",
   },
+  premiumViewTab: {
+    vi: "Premium View",
+    en: "Premium View",
+  },
+  freePreviewTab: {
+    vi: "Xem trước",
+    en: "Free Preview",
+  },
+  freePreviewBadge: {
+    vi: "Bản xem trước · Nâng cấp để mở khóa",
+    en: "Preview · Upgrade to unlock",
+  },
+  upgradeToUnlock: {
+    vi: "Nâng cấp lên Pro",
+    en: "Upgrade to Pro",
+  },
+  freePreviewWatermarkPrimary: {
+    vi: "cvFit.pro",
+    en: "cvFit.pro",
+  },
+  freePreviewWatermarkSecondary: {
+    vi: "NÂNG CẤP ĐỂ MỞ KHÓA",
+    en: "UPGRADE TO UNLOCK",
+  },
+  upgradeFeatureExportCv: {
+    vi: "Xuất CV tối ưu",
+    en: "Export Optimized CV",
+  },
   copy: {
     vi: "Sao chép",
     en: "Copy",
