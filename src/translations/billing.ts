@@ -151,4 +151,36 @@ export const billing = {
     vi: '{feature} chỉ dành cho tài khoản Recruiter.',
     en: '{feature} is available on Recruiter only.',
   },
+  upgradeBadgeCurrentPlan: {
+    vi: 'Gói hiện tại',
+    en: 'Current plan',
+  },
+  upgradeCancelAnytime: {
+    vi: 'Hủy bất cứ lúc nào',
+    en: 'Cancel anytime',
+  },
+  upgradeInstantActivation: {
+    vi: 'Kích hoạt ngay lập tức',
+    en: 'Instantly activated',
+  },
+  upgradeRecruiterCampaignNote: {
+    vi: 'Đợt tuyển dụng 10/tháng',
+    en: '10 campaigns/month',
+  },
+  upgradeRecruiterCampaignsPerMonth: {
+    vi: '10 / tháng',
+    en: '10 / month',
+  },
+  upgradeCompareDownloadCv: {
+    vi: 'Tải về CV tối ưu',
+    en: 'Download optimized CV',
+  },
+  upgradeCompareExportExcel: {
+    vi: 'Xuất báo cáo Excel',
+    en: 'Export Excel report',
+  },
+  upgradeCompareHrNotes: {
+    vi: 'Ghi chú nội bộ HR',
+    en: 'Internal HR notes',
+  },
 } as const;

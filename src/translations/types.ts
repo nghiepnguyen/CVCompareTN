@@ -185,6 +185,15 @@ export interface UiLabels {
   pricingCtaFree: string;
   pricingCtaPro: string;
   pricingCtaRecruiter: string;
+  pricingColFeature: string;
+  pricingBadgePopular: string;
+  pricingBadgeEnterprise: string;
+  planFreeLabel: string;
+  planProLabel: string;
+  planRecruiterLabel: string;
+  pricingFreeLifetime: string;
+  pricingPerMonth: string;
+  pricingTrustNote: string;
   demoOverallCompat: string;
   demoAtsScore: string;
   demoSystemReadability: string;
@@ -544,6 +553,16 @@ export interface UiLabels {
   upgradeRecruiterHistory: string;
   upgradeRecruiterExport: string;
   upgradePromptFeatureRecruiter: string;
+
+  // upgrade page additional keys
+  upgradeBadgeCurrentPlan: string;
+  upgradeCancelAnytime: string;
+  upgradeInstantActivation: string;
+  upgradeRecruiterCampaignNote: string;
+  upgradeRecruiterCampaignsPerMonth: string;
+  upgradeCompareDownloadCv: string;
+  upgradeCompareExportExcel: string;
+  upgradeCompareHrNotes: string;
 
   // ── Recruiter translation keys ──
 

@@ -71,11 +71,6 @@ function buildPremiumComponents(locale: 'vi' | 'en'): Components {
   // Reset accent index per render
   accentIdx = 0;
 
-  const stamp =
-    locale === 'vi'
-      ? 'Bản nháp tối ưu ATS · cấu trúc quét nhanh'
-      : 'ATS-optimized draft · recruiter-scan layout';
-
   return {
     /* ── H1: Name — Ultra-bold black with gold underline ── */
     h1: ({ children }) => (
@@ -85,9 +80,6 @@ function buildPremiumComponents(locale: 'vi' | 'en'): Components {
         </h1>
         <div className="mt-4 flex items-center gap-3">
           <div className="h-[2px] w-16 bg-gradient-to-r from-amber-500 to-amber-400 rounded-full" />
-          <span className="font-cv-header text-[0.6rem] font-bold uppercase tracking-[0.35em] text-amber-600/70">
-            {stamp}
-          </span>
           <div className="h-px flex-1 bg-gradient-to-r from-amber-200/60 to-transparent" />
         </div>
       </header>
