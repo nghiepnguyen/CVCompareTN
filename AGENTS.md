@@ -41,6 +41,13 @@ This file contains custom instructions and context for the AI Studio Build agent
 - **File Processing:** Simple text/images are handled client-side; PDF text extraction uses **`POST /api/extract-pdf`** on Vercel (`api/extract-pdf.ts`) and **`POST /api/extract-pdf/extract`** when running the Express server (`npm start` → `server/routes/pdf.ts`). Optional Supabase Edge Function `extract-pdf` may be used for some JD flows (`supabase.functions.invoke`). Full routing matrix: [`docs/9_api_routes.md`](docs/9_api_routes.md).
 - **Feedback System:** Feedback submission requires reCAPTCHA verification on the backend before sending an email via Resend.
 
-### 5. Agent Behavior
+### 5. Vercel Deployment Constraints (Hobby Plan)
+- **Serverless Function limit:** Hobby plan allows **max 12 functions** per deployment.
+- **Function detection:** Vercel automatically detects any `.ts` file in `api/` that has `export default function handler()` as a serverless function.
+- **Avoid lib files being deployed:** Use `.vercelignore` to exclude `api/lib/` and `api/payment/lib/` directories. These contain shared utilities without handler exports, but Vercel may still count them against the limit in certain build caching scenarios.
+- **DO NOT use wildcard `api/**/*.ts` in `vercel.json` functions config.** Instead, use explicit patterns: `api/*.ts`, `api/payment/*.ts`, `api/recruiter/*.ts`.
+- **When adding new API routes:** Always check total function count stays ≤ 9 (leaving buffer for future). If approaching limit, consider merging related logic into fewer handlers.
+
+### 6. Agent Behavior
 - **Proactive Verification:** After significant changes to `src/app/*`, `src/context/analysis/*`, or `server.ts`, run **`npm run lint`** and **`npm run build`** when validating the full bundle.
 - **Targeted Edits:** When using `edit_file` or `multi_edit_file`, ensure the `TargetContent` is precise and unique to avoid "target content not found" errors. Use `view_file` immediately before editing if you are unsure of the exact current state.
