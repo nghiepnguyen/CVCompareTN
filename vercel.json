@@ -42,7 +42,13 @@
     }
   ],
   "functions": {
-    "api/**/*.ts": {
+    "api/*.ts": {
+      "maxDuration": 30
+    },
+    "api/payment/*.ts": {
+      "maxDuration": 30
+    },
+    "api/recruiter/*.ts": {
       "maxDuration": 30
     }
   },
