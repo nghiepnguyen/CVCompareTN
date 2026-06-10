@@ -156,6 +156,14 @@ export function restoreAnalyticsConsent(): void {
 
 export async function grantAnalyticsConsent(): Promise<void> {
   setAnalyticsConsent('granted');
+  // When script is already in the page (injected via index.html), loadGA4()
+  // returns early without updating consent. Apply it directly.
+  if (isGtagScriptInPage() || isScriptLoaded) {
+    applyGrantedConsent();
+    isScriptLoaded = true;
+    flushEventQueue();
+    return;
+  }
   await loadGA4();
   flushEventQueue();
 }
