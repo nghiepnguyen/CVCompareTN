@@ -36,6 +36,42 @@ export const admin = {
     vi: "Tìm kiếm danh bạ...",
     en: "Search directory...",
   },
+  adminFilterRole: {
+    vi: "Vai trò",
+    en: "Role",
+  },
+  adminFilterRoleAll: {
+    vi: "Tất cả",
+    en: "All",
+  },
+  adminFilterRoleUser: {
+    vi: "User",
+    en: "User",
+  },
+  adminFilterRoleAdmin: {
+    vi: "Admin",
+    en: "Admin",
+  },
+  adminFilterPlan: {
+    vi: "Gói",
+    en: "Plan",
+  },
+  adminFilterPlanAll: {
+    vi: "Tất cả",
+    en: "All",
+  },
+  adminFilterPlanFree: {
+    vi: "Free",
+    en: "Free",
+  },
+  adminFilterPlanPro: {
+    vi: "Pro",
+    en: "Pro",
+  },
+  adminFilterPlanRecruiter: {
+    vi: "Recruiter",
+    en: "Recruiter",
+  },
   adminColMember: {
     vi: "Thành viên",
     en: "Member",

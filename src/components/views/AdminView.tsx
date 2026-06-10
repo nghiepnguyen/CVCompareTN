@@ -36,6 +36,8 @@ export function AdminView() {
   
   const [adminSubTab, setAdminSubTab] = useState<'users' | 'email'>('users');
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
+  const [planFilter, setPlanFilter] = useState<'all' | 'free' | 'pro' | 'recruiter'>('all');
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [testEmailRecipient, setTestEmailRecipient] = useState('');
@@ -74,8 +76,15 @@ export function AdminView() {
   }, [adminSubTab, loadGlobalDefaultLimit]);
 
   const filteredUsers = useMemo(
-    () => allUsers.filter(u => u.email.toLowerCase().includes(userSearchTerm.toLowerCase())),
-    [allUsers, userSearchTerm]
+    () =>
+      allUsers.filter(u => {
+        const matchSearch = u.email.toLowerCase().includes(userSearchTerm.toLowerCase());
+        const matchRole = roleFilter === 'all' || u.role === roleFilter;
+        const matchPlan =
+          planFilter === 'all' || getDisplayEffectivePlan(u) === planFilter;
+        return matchSearch && matchRole && matchPlan;
+      }),
+    [allUsers, userSearchTerm, roleFilter, planFilter]
   );
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const paginatedUsers = useMemo(
@@ -85,7 +94,7 @@ export function AdminView() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [userSearchTerm]);
+  }, [userSearchTerm, roleFilter, planFilter]);
 
   const getLimitDraft = (u: UserProfile) => {
     if (limitDrafts[u.id] !== undefined) return limitDrafts[u.id];
@@ -374,20 +383,83 @@ export function AdminView() {
           </div>
 
           {/* Users Table Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <h3 className="text-xl font-black text-text-main flex items-center gap-2">
-              <Activity className="w-5 h-5 text-accent" />
-              {t.adminDirectoryTitle}
-            </h3>
-            <div className="relative w-full sm:w-72 group">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-light group-focus-within:text-accent transition-colors" />
-              <input 
-                type="text" 
-                placeholder={t.adminSearchPlaceholder}
-                value={userSearchTerm}
-                onChange={(e) => setUserSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-surface border-2 border-border rounded-xl text-sm font-medium focus:border-accent focus:ring-0 transition-all outline-none text-text-main"
-              />
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <h3 className="text-xl font-black text-text-main flex items-center gap-2">
+                <Activity className="w-5 h-5 text-accent" />
+                {t.adminDirectoryTitle}
+              </h3>
+              <div className="relative w-full sm:w-72 group">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-light group-focus-within:text-accent transition-colors" />
+                <input 
+                  type="text" 
+                  placeholder={t.adminSearchPlaceholder}
+                  value={userSearchTerm}
+                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-surface border-2 border-border rounded-xl text-sm font-medium focus:border-accent focus:ring-0 transition-all outline-none text-text-main"
+                />
+              </div>
+            </div>
+
+            {/* Filter Row */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Role Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+                  {t.adminFilterRole}
+                </span>
+                <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
+                  {(['all', 'user', 'admin'] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setRoleFilter(opt)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer',
+                        roleFilter === opt
+                          ? 'bg-surface text-accent shadow-sm border border-border'
+                          : 'text-text-muted hover:text-text-main'
+                      )}
+                    >
+                      {opt === 'all'
+                        ? t.adminFilterRoleAll
+                        : opt === 'user'
+                          ? t.adminFilterRoleUser
+                          : t.adminFilterRoleAdmin}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Plan Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+                  {t.adminFilterPlan}
+                </span>
+                <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
+                  {(['all', 'free', 'pro', 'recruiter'] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setPlanFilter(opt)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer',
+                        planFilter === opt
+                          ? 'bg-surface text-accent shadow-sm border border-border'
+                          : 'text-text-muted hover:text-text-main'
+                      )}
+                    >
+                      {opt === 'all'
+                        ? t.adminFilterPlanAll
+                        : opt === 'free'
+                          ? t.adminFilterPlanFree
+                          : opt === 'pro'
+                            ? t.adminFilterPlanPro
+                            : t.adminFilterPlanRecruiter}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 

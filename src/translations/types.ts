@@ -23,6 +23,15 @@ export interface UiLabels {
   adminConfirmDelete: string;
   adminDelete: string;
   adminDirectoryTitle: string;
+  adminFilterRole: string;
+  adminFilterRoleAll: string;
+  adminFilterRoleUser: string;
+  adminFilterRoleAdmin: string;
+  adminFilterPlan: string;
+  adminFilterPlanAll: string;
+  adminFilterPlanFree: string;
+  adminFilterPlanPro: string;
+  adminFilterPlanRecruiter: string;
   adminDisplayNameLabel: string;
   adminDisplayNamePlaceholder: string;
   adminEmailError: string;
