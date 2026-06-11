@@ -89,7 +89,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
 
         <button 
           onClick={handleCopyLink}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-white/[0.03] border border-white/[0.08] text-text-muted rounded-xl text-sm font-bold hover:bg-white/[0.06] transition-all cursor-pointer"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 dark:bg-white/[0.03] bg-surface-muted border border-border text-text-muted rounded-xl text-sm font-bold dark:hover:bg-white/[0.06] hover:bg-surface-secondary transition-all cursor-pointer"
         >
           {copied ? (
             <>
@@ -105,7 +105,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
         </button>
       </div>
 
-      <div className="bg-white/[0.02] backdrop-blur-xl rounded-[2rem] border border-white/[0.08] overflow-hidden">
+      <div className="dark:bg-white/[0.02] bg-white/80 backdrop-blur-xl rounded-[2rem] border border-border overflow-hidden">
         {/* Hero Section */}
         <div className="bg-accent p-8 md:p-12 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
@@ -129,8 +129,8 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
               { icon: ShieldCheck, title: t.feature2Title, desc: t.feature2Desc },
               { icon: Sparkles, title: t.feature3Title, desc: t.feature3Desc }
             ].map((item, idx) => (
-              <div key={idx} className="bg-white/[0.03] backdrop-blur-sm p-6 rounded-3xl border border-white/[0.06] hover:border-accent/20 transition-all group">
-                <div className="w-12 h-12 bg-white/[0.05] rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <div key={idx} className="dark:bg-white/[0.03] bg-surface-secondary backdrop-blur-sm p-6 rounded-3xl border border-border hover:border-accent/20 transition-all group">
+                <div className="w-12 h-12 dark:bg-white/[0.05] bg-accent/10 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <item.icon className="w-6 h-6 text-accent" />
                 </div>
                 <h3 className="font-bold text-text-main mb-2">{item.title}</h3>
@@ -140,7 +140,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
           </div>
 
           {/* Donation Info Section */}
-          <div className="bg-white/[0.03] rounded-[1.5rem] md:rounded-[2rem] p-6 md:p-10 border border-white/[0.06]">
+          <div className="dark:bg-white/[0.03] bg-surface-secondary rounded-[1.5rem] md:rounded-[2rem] p-6 md:p-10 border border-border">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-8 h-8 md:w-10 md:h-10 bg-accent rounded-lg md:rounded-xl flex items-center justify-center">
                 <CreditCard className="w-4 h-4 md:w-5 md:h-5 text-white" />
@@ -152,7 +152,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
               {/* Bank Details */}
               <div className="space-y-6">
                 {bankAccounts.map((bank, idx) => (
-                  <div key={idx} className="bg-white/[0.02] p-6 rounded-3xl border border-white/[0.06]">
+                  <div key={idx} className="dark:bg-white/[0.02] bg-surface p-6 rounded-3xl border border-border">
                     <div className="space-y-4">
                       <div>
                         <label className="text-[10px] font-semibold text-text-light uppercase tracking-widest block mb-1">{t.bankLabel}</label>
@@ -166,7 +166,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
                         </div>
                         <button 
                           onClick={() => handleCopyAccount(bank.accountNumber)}
-                          className="p-2 md:p-3 bg-white/[0.03] text-text-muted rounded-xl md:rounded-2xl hover:bg-accent hover:text-white transition-all flex-shrink-0 ml-2 cursor-pointer"
+                          className="p-2 md:p-3 dark:bg-white/[0.03] bg-surface-muted text-text-muted rounded-xl md:rounded-2xl hover:bg-accent hover:text-white transition-all flex-shrink-0 ml-2 cursor-pointer"
                           title={t.copyAccount}
                         >
                           {copiedAccount === bank.accountNumber ? <Check className="w-4 h-4 md:w-5 md:h-5" /> : <Copy className="w-4 h-4 md:w-5 md:h-5" />}
@@ -189,7 +189,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
 
               {/* QR Code */}
               <div className="flex flex-col items-center justify-center space-y-4">
-                <div className="bg-white/[0.02] p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border border-white/[0.1] relative group w-full max-w-[320px]">
+                <div className="dark:bg-white/[0.02] bg-surface p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border border-border relative group w-full max-w-[320px]">
                   <div className="absolute -top-3 -right-3 md:-top-4 md:-right-4 w-10 h-10 md:w-12 md:h-12 bg-accent rounded-xl md:rounded-2xl flex items-center justify-center z-10">
                     <QrCode className="w-5 h-5 md:w-6 md:h-6 text-white" />
                   </div>

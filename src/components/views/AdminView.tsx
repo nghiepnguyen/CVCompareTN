@@ -499,7 +499,7 @@ export function AdminView() {
                             className={cn(
                               'inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border',
                               getDisplayEffectivePlan(u) === 'recruiter'
-                                ? 'bg-purple-500/10 border-purple-400/20 text-purple-400'
+                                ? 'dark:bg-purple-500/10 bg-purple-100 dark:border-purple-400/20 border-purple-300 dark:text-purple-400 text-purple-700'
                                 : getDisplayEffectivePlan(u) === 'pro'
                                   ? 'bg-accent-light border-accent/20 text-accent'
                                   : 'bg-surface-secondary border-border text-text-muted'

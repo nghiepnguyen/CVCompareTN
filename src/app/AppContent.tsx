@@ -214,7 +214,7 @@ export function AppContent() {
   return (
     <div
       className={cn(
-        'min-h-screen transition-colors duration-500',
+        'min-h-screen transition-colors duration-300',
         selectedResult ? 'bg-surface' : 'bg-surface-secondary'
       )}
     >

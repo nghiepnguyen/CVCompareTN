@@ -76,17 +76,17 @@ export function ProfileView() {
         </button>
 
         {/* Card */}
-        <div className="bg-surface border border-white/[0.08] rounded-3xl p-8 shadow-2xl">
+        <div className="bg-surface border border-border rounded-3xl p-8 shadow-2xl">
           {/* Avatar & Name */}
           <div className="flex flex-col items-center mb-8">
             {(userProfile?.photoURL || user?.user_metadata?.avatar_url) ? (
               <img
                 src={userProfile?.photoURL || user?.user_metadata?.avatar_url || ''}
                 alt={displayName}
-                className="w-20 h-20 rounded-full border-2 border-white/[0.1] mb-4"
+                className="w-20 h-20 rounded-full border-2 dark:border-white/[0.1] border-border mb-4"
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mb-4 border-2 border-white/[0.1]">
+              <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mb-4 border-2 dark:border-white/[0.1] border-border">
                 <User className="w-10 h-10 text-accent" />
               </div>
             )}
@@ -106,13 +106,13 @@ export function ProfileView() {
           </div>
 
           {/* Divider */}
-          <div className="border-t border-white/[0.06] my-6" />
+          <div className="border-t dark:border-white/[0.06] border-border my-6" />
 
           {/* Info rows */}
           <div className="space-y-5">
             {/* Name */}
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.03] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl dark:bg-white/[0.03] bg-surface-secondary flex items-center justify-center shrink-0">
                 <User className="w-5 h-5 text-text-muted" />
               </div>
               <div className="flex-1 min-w-0">
@@ -127,7 +127,7 @@ export function ProfileView() {
 
             {/* Email */}
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.03] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl dark:bg-white/[0.03] bg-surface-secondary flex items-center justify-center shrink-0">
                 <Mail className="w-5 h-5 text-text-muted" />
               </div>
               <div className="flex-1 min-w-0">
@@ -142,7 +142,7 @@ export function ProfileView() {
 
             {/* Plan */}
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.03] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl dark:bg-white/[0.03] bg-surface-secondary flex items-center justify-center shrink-0">
                 <Shield className="w-5 h-5 text-text-muted" />
               </div>
               <div className="flex-1 min-w-0">
@@ -157,7 +157,7 @@ export function ProfileView() {
 
             {/* Expiry */}
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.03] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl dark:bg-white/[0.03] bg-surface-secondary flex items-center justify-center shrink-0">
                 <Calendar className="w-5 h-5 text-text-muted" />
               </div>
               <div className="flex-1 min-w-0">
@@ -172,7 +172,7 @@ export function ProfileView() {
 
             {/* Analytics quota */}
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.03] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl dark:bg-white/[0.03] bg-surface-secondary flex items-center justify-center shrink-0">
                 <BarChart3 className="w-5 h-5 text-text-muted" />
               </div>
               <div className="flex-1 min-w-0">

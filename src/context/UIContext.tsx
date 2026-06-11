@@ -47,6 +47,8 @@ interface UIContextType {
   setIsSaveJDNameModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   isSavedCVsModalOpen: boolean;
   setIsSavedCVsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isDarkMode: boolean;
+  toggleTheme: () => void;
   t: typeof UI_LABELS['vi'];
 }
 
@@ -71,6 +73,48 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [isSavedJDsModalOpen, setIsSavedJDsModalOpen] = useState(false);
   const [isSaveJDNameModalOpen, setIsSaveJDNameModalOpen] = useState(false);
   const [isSavedCVsModalOpen, setIsSavedCVsModalOpen] = useState(false);
+
+  // ---- Theme State ----
+  // Initialize from localStorage, fallback to system preference, default dark
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const stored = localStorage.getItem('cvfit-theme');
+    if (stored === 'light') return false;
+    if (stored === 'dark') return true;
+    // First visit: respect system preference
+    if (window.matchMedia('(prefers-color-scheme: light)').matches) return false;
+    return true; // default dark
+  });
+
+  const toggleTheme = useCallback(() => {
+    setIsDarkMode(prev => {
+      const next = !prev;
+      localStorage.setItem('cvfit-theme', next ? 'dark' : 'light');
+      return next;
+    });
+  }, []);
+
+  // Sync html.dark class with theme state
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDarkMode) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
+  // Listen for system preference changes (only if user hasn't manually set a preference)
+  useEffect(() => {
+    const stored = localStorage.getItem('cvfit-theme');
+    if (stored) return; // user has explicit preference, don't override
+
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      setIsDarkMode(e.matches);
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // Sync Language and Tab with Path
   useEffect(() => {
@@ -171,6 +215,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
       isSavedJDsModalOpen, setIsSavedJDsModalOpen,
       isSaveJDNameModalOpen, setIsSaveJDNameModalOpen,
       isSavedCVsModalOpen, setIsSavedCVsModalOpen,
+      isDarkMode, toggleTheme,
       t
     }}>
       {children}

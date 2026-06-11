@@ -176,7 +176,7 @@ export const OptimizationTab = React.memo(function OptimizationTab({ selectedRes
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-40px' }}
                 transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className="relative overflow-hidden rounded-[2.5rem] border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent backdrop-blur-sm shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.03)]"
+                className="relative overflow-hidden rounded-[2.5rem] border border-border bg-gradient-to-br dark:from-white/[0.04] dark:via-white/[0.02] dark:to-transparent from-white/80 via-white/40 to-white/20 backdrop-blur-sm shadow-sm"
               >
                 {/* Subtle grid overlay */}
                 <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" />

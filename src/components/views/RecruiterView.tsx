@@ -56,13 +56,13 @@ export function RecruiterView() {
   if (!isRecruiter) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 sm:py-20">
-        <div className="rounded-2xl border-2 border-purple-500/30 bg-purple-500/[0.03] backdrop-blur-md overflow-hidden">
+        <div className="rounded-2xl border-2 dark:border-purple-500/30 border-purple-300 dark:bg-purple-500/[0.03] bg-purple-50/70 backdrop-blur-md overflow-hidden">
           {/* Header */}
-          <div className="p-6 sm:p-8 text-center bg-purple-500/10 border-b border-purple-500/20">
-            <div className="inline-flex items-center justify-center size-14 rounded-2xl bg-purple-500/20 border border-purple-500/30 mb-4">
-              <Briefcase className="size-7 text-purple-400" />
+          <div className="p-6 sm:p-8 text-center dark:bg-purple-500/10 bg-purple-100 border-b dark:border-purple-500/20 border-purple-200">
+            <div className="inline-flex items-center justify-center size-14 rounded-2xl dark:bg-purple-500/20 bg-purple-200 border dark:border-purple-500/30 border-purple-300 mb-4">
+              <Briefcase className="size-7 dark:text-purple-400 text-purple-700" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-purple-400 mb-2">
+            <h1 className="text-xl sm:text-2xl font-black dark:text-purple-400 text-purple-700 mb-2">
               {t.recruiterUpgradeFeature}
             </h1>
             <p className="text-sm text-text-muted max-w-md mx-auto leading-relaxed">
@@ -71,8 +71,8 @@ export function RecruiterView() {
           </div>
 
           {/* Price */}
-          <div className="px-6 sm:px-8 py-5 text-center border-b border-purple-500/10">
-            <p className="text-3xl font-black text-purple-400">399.000đ</p>
+          <div className="px-6 sm:px-8 py-5 text-center border-b dark:border-purple-500/10 border-purple-200">
+            <p className="text-3xl font-black dark:text-purple-400 text-purple-700">399.000đ</p>
             <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mt-0.5">/ tháng</p>
           </div>
 
@@ -80,8 +80,8 @@ export function RecruiterView() {
           <div className="p-6 sm:p-8 space-y-4">
             {BENEFITS.map((benefit, idx) => (
               <div key={idx} className="flex items-start gap-3">
-                <div className="size-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                  <benefit.icon className="size-4 text-purple-400" />
+                <div className="size-8 rounded-lg dark:bg-purple-500/10 bg-purple-100 border dark:border-purple-500/20 border-purple-300 flex items-center justify-center shrink-0 mt-0.5">
+                  <benefit.icon className="size-4 dark:text-purple-400 text-purple-700" />
                 </div>
                 <span className="text-sm font-medium text-text-main pt-1">{benefit.text}</span>
               </div>
@@ -94,7 +94,7 @@ export function RecruiterView() {
               type="button"
               disabled={isCheckingOut}
               onClick={handleUpgrade}
-              className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm bg-purple-500 text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+              className="flex-1 inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm dark:bg-purple-500 bg-purple-700 text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
             >
               {isCheckingOut ? (
                 <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -108,7 +108,7 @@ export function RecruiterView() {
             <button
               type="button"
               onClick={() => setActiveTab('upgrade')}
-              className="flex-1 h-12 rounded-xl font-bold text-sm border border-purple-500/30 text-purple-400 cursor-pointer hover:bg-purple-500/10 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              className="flex-1 h-12 rounded-xl font-bold text-sm border dark:border-purple-500/30 border-purple-300 dark:text-purple-400 text-purple-700 cursor-pointer dark:hover:bg-purple-500/10 hover:bg-purple-100 hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
               {t.recruiterUpgradeSeeComparison}
             </button>

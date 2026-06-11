@@ -51,7 +51,7 @@ function SectionCard({ icon: Icon, iconBg, iconColor, title, body, stat, reverse
       </div>
 
       {/* Content Column */}
-      <div className="glass min-w-0 flex-1 rounded-2xl p-6 transition-all duration-500 group-hover:border-white/[0.12] group-hover:bg-white/[0.05] lg:p-8">
+      <div className="min-w-0 flex-1 rounded-2xl p-6 transition-all duration-500 dark:glass dark:group-hover:border-white/[0.12] dark:group-hover:bg-white/[0.05] bg-surface border border-border hover:border-accent/20 lg:p-8">
         <h3 className="mb-3 font-sans text-lg font-extrabold tracking-tight text-text-main lg:text-xl">
           {title}
         </h3>
@@ -89,12 +89,12 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-white/[0.05] hover:text-accent cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 transition-colors dark:hover:bg-white/[0.05] hover:bg-surface-secondary hover:text-accent cursor-pointer"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           {t.aboutBackHome}
         </button>
-        <span className="text-white/15">/</span>
+        <span className="text-border-strong">/</span>
         <span className="text-text-muted">{t.aboutPageTitle}</span>
       </motion.nav>
 
@@ -103,7 +103,7 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.08, ease: 'easeOut' }}
-        className="relative mb-16 overflow-hidden rounded-3xl border border-white/[0.06] bg-grid p-8 pb-0 sm:mb-24 sm:p-12 sm:pb-0 lg:p-16 lg:pb-0"
+        className="relative mb-16 overflow-hidden rounded-3xl border border-border bg-grid bg-white/60 dark:bg-transparent p-8 pb-0 sm:mb-24 sm:p-12 sm:pb-0 lg:p-16 lg:pb-0"
       >
         {/* Decorative accent glow behind heading */}
         <div className="pointer-events-none absolute right-0 top-0 h-80 w-80 translate-x-1/4 -translate-y-1/4 rounded-full bg-accent/5 blur-[100px]" />
@@ -128,11 +128,11 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
 
           {/* Floating decorative stats */}
           <div className="mt-8 flex flex-wrap gap-4 sm:gap-6">
-            <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
+            <div className="flex items-center gap-2 rounded-xl border border-border dark:bg-white/[0.02] bg-surface-secondary px-4 py-2.5">
               <Globe className="h-4 w-4 text-accent/60" />
               <span className="text-xs font-bold text-text-light">Việt Nam</span>
             </div>
-            <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
+            <div className="flex items-center gap-2 rounded-xl border border-border dark:bg-white/[0.02] bg-surface-secondary px-4 py-2.5">
               <Shield className="h-4 w-4 text-accent/60" />
               <span className="text-xs font-bold text-text-light">Self-funded</span>
             </div>
@@ -197,10 +197,10 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative mt-16 overflow-hidden rounded-3xl border border-accent/10 bg-gradient-to-br from-accent/5 via-white/[0.02] to-transparent p-8 text-center sm:mt-24 sm:p-12 lg:p-16"
+        className="relative mt-16 overflow-hidden rounded-3xl border border-accent/10 dark:bg-gradient-to-br dark:from-accent/5 dark:via-white/[0.02] dark:to-transparent bg-gradient-to-br from-accent/5 to-transparent p-8 text-center sm:mt-24 sm:p-12 lg:p-16"
       >
         {/* Decorative grid overlay */}
-        <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" />
+        <div className="pointer-events-none absolute inset-0 bg-grid opacity-30 dark:opacity-30 opacity-10" />
         {/* Accent glow */}
         <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-96 -translate-x-1/2 rounded-full bg-accent/8 blur-[120px]" />
 

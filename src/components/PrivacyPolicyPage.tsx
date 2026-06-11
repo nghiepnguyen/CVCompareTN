@@ -38,7 +38,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
         <button
           type="button"
           onClick={handleCopyLink}
-          className="flex items-center gap-2 px-4 py-2 bg-white/[0.03] border border-white/[0.08] text-text-muted rounded-xl text-sm font-bold hover:bg-white/[0.06] transition-all cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 dark:bg-white/[0.03] bg-surface-muted border border-border text-text-muted rounded-xl text-sm font-bold dark:hover:bg-white/[0.06] hover:bg-surface-secondary transition-all cursor-pointer"
         >
           {copied ? (
             <>
@@ -54,7 +54,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
         </button>
       </div>
 
-      <div className="bg-white/[0.02] backdrop-blur-xl rounded-[2rem] border border-white/[0.08] overflow-hidden">
+      <div className="dark:bg-white/[0.02] bg-white/80 backdrop-blur-xl rounded-[2rem] border border-border overflow-hidden">
         <div className="bg-accent p-12 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
           <div className="relative z-10">
@@ -91,7 +91,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
                 <li key={item}>{item}</li>
               ))}
             </ul>
-            <p className="bg-white/[0.03] p-4 rounded-xl border-l-4 border-accent italic text-sm">{t.privacyS2Note}</p>
+            <p className="dark:bg-white/[0.03] bg-surface-secondary p-4 rounded-xl border-l-4 border-accent italic text-sm">{t.privacyS2Note}</p>
           </section>
 
           <section className="space-y-4">

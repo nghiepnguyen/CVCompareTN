@@ -24,7 +24,7 @@ export function LandingView() {
   const scale = useTransform(scrollYProgress, [0, 0.15], [1, 0.97]);
 
   return (
-    <div className="relative flex w-full flex-col items-center overflow-hidden bg-primary font-body">
+    <div className="relative flex w-full flex-col items-center overflow-hidden font-body dark bg-[#0A0A0A]">
       {/* Global ambient background — only visible behind dark sections */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute top-0 left-1/4 h-96 w-96 rounded-full bg-accent/3 blur-[150px]" />

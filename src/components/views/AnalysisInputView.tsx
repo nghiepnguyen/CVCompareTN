@@ -114,8 +114,8 @@ export function AnalysisInputView() {
         {/* Left Column: Job Description */}
         <section 
           className={cn(
-            "bg-white/[0.02] backdrop-blur-xl p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border transition-all relative flex flex-col h-full",
-            isDraggingJD ? "border-accent bg-accent/10 ring-4 ring-accent/10" : "border-white/[0.06]"
+            "dark:bg-white/[0.02] bg-white/60 backdrop-blur-xl p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border transition-all relative flex flex-col h-full",
+            isDraggingJD ? "border-accent bg-accent/10 ring-4 ring-accent/10" : "border-border"
           )}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingJD(true); }}
           onDragLeave={(e) => { e.stopPropagation(); setIsDraggingJD(false); }}
@@ -171,12 +171,12 @@ export function AnalysisInputView() {
                     value={jd}
                     onChange={(e) => setJd(e.target.value)}
                     placeholder={t.placeholderJD}
-                    className="flex-1 w-full p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-white/[0.08] focus:ring-4 focus:ring-accent/10 focus:border-accent/50 transition-all resize-none text-text-main bg-white/[0.03] text-sm font-medium leading-relaxed placeholder:text-text-light/40"
+                    className="flex-1 w-full p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-border focus:ring-4 focus:ring-accent/10 focus:border-accent/50 transition-all resize-none text-text-main dark:bg-white/[0.03] bg-white text-sm font-medium leading-relaxed placeholder:text-text-light/40"
                   />
                   {jd && (
                     <button 
                       onClick={() => setJd('')}
-                      className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-primary-light/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] font-bold text-text-muted hover:text-error transition-all uppercase tracking-widest cursor-pointer border border-white/[0.08] hover:scale-105 active:scale-95 flex items-center gap-1.5 z-10"
+                      className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 bg-primary-light/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] font-bold text-text-muted hover:text-error transition-all uppercase tracking-widest cursor-pointer border border-border hover:scale-105 active:scale-95 flex items-center gap-1.5 z-10"
                     >
                       <X className="w-3 h-3" />
                       {t.clearBtn}
@@ -191,7 +191,7 @@ export function AnalysisInputView() {
                 <>
                   <button 
                     onClick={() => setIsSavedJDsModalOpen(true)}
-                    className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted bg-white/[0.03] hover:bg-white/[0.06] rounded-2xl transition-all cursor-pointer hover:scale-[1.02] active:scale-95 border border-white/[0.04]"
+                    className="flex-1 h-12 sm:h-14 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted dark:bg-white/[0.03] bg-surface-muted dark:hover:bg-white/[0.06] hover:bg-surface-secondary rounded-2xl transition-all cursor-pointer hover:scale-[1.02] active:scale-95 border border-border"
                   >
                     <FolderOpen className="w-4 h-4" />
                     {t.jdStore}
@@ -220,7 +220,7 @@ export function AnalysisInputView() {
         </section>
 
         {/* Right Column: CV Upload */}
-        <section className="bg-white/[0.02] backdrop-blur-xl p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-white/[0.06] flex flex-col h-full">
+        <section className="dark:bg-white/[0.02] bg-white/60 backdrop-blur-xl p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-border flex flex-col h-full">
           <div className="flex flex-col gap-5 h-full">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

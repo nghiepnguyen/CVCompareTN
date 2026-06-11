@@ -56,7 +56,7 @@ function PriceTag({ plan, className }: { plan: Plan; className?: string }) {
   if (plan === 'recruiter') {
     return (
       <div className={cn('space-y-0.5', className)}>
-        <p className="text-2xl sm:text-3xl font-black text-purple-400">399.000đ</p>
+        <p className="text-2xl sm:text-3xl font-black dark:text-purple-400 text-purple-700">399.000đ</p>
         <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">/ tháng</p>
       </div>
     );
@@ -175,11 +175,11 @@ export function UpgradeView() {
                     )}
                   </div>
                 </th>
-                <th className={cn('w-[24%] p-5 border-b bg-purple-500/[0.03]', currentPlan === 'recruiter' && 'bg-purple-500/10')}>
+                <th className={cn('w-[24%] p-5 border-b dark:bg-purple-500/[0.03] bg-purple-50/50', currentPlan === 'recruiter' && 'dark:bg-purple-500/10 bg-purple-100')}>
                   <div className="text-center space-y-2">
-                    <h3 className="text-base font-black text-purple-400 uppercase tracking-wider">{t.planRecruiterLabel}</h3>
+                    <h3 className="text-base font-black dark:text-purple-400 text-purple-700 uppercase tracking-wider">{t.planRecruiterLabel}</h3>
                     <PriceTag plan="recruiter" />
-                    <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/10 text-purple-400 border border-purple-400/20">
+                    <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold dark:bg-purple-500/10 bg-purple-100 dark:text-purple-400 text-purple-700 border dark:border-purple-400/20 border-purple-300">
                       {t.pricingBadgeEnterprise}
                     </span>
                     {currentPlan === 'recruiter' && (
@@ -209,7 +209,7 @@ export function UpgradeView() {
                       <span className="text-sm text-text-muted tabular-nums">{row.pro.value}</span>
                     </div>
                   </td>
-                  <td className="py-4 px-5 text-center bg-purple-500/[0.02]">
+                  <td className="py-4 px-5 text-center dark:bg-purple-500/[0.02] bg-purple-50/30">
                     <div className="flex items-center justify-center gap-2">
                       <RowIcon type={row.recruiter.icon} />
                       <span className="text-sm text-text-muted tabular-nums">{row.recruiter.value}</span>
@@ -258,7 +258,7 @@ export function UpgradeView() {
                     </button>
                   )}
                 </td>
-                <td className="py-5 px-4 text-center bg-purple-500/[0.02]">
+                <td className="py-5 px-4 text-center dark:bg-purple-500/[0.02] bg-purple-50/30">
                   {currentPlan === 'recruiter' ? (
                     <button
                       type="button"
@@ -272,7 +272,7 @@ export function UpgradeView() {
                       type="button"
                       disabled={isCheckingOut}
                       onClick={() => handleCheckout('recruiter')}
-                      className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold bg-purple-500 text-white cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                      className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold dark:bg-purple-500 bg-purple-700 text-white cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {isCheckingOut && checkoutPlan === 'recruiter' ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -305,7 +305,7 @@ export function UpgradeView() {
               className={cn(
                 'relative overflow-hidden rounded-2xl border-2 bg-surface/50 backdrop-blur-sm',
                 isRecruiter
-                  ? 'border-purple-500/30'
+                  ? 'dark:border-purple-500/30 border-purple-300'
                   : isPro
                     ? 'border-accent/30'
                     : 'border-border',
@@ -316,7 +316,7 @@ export function UpgradeView() {
               {(isPro || isRecruiter) && (
                 <div className={cn(
                   'text-center py-1.5',
-                  isRecruiter ? 'bg-purple-500' : 'bg-accent',
+                  isRecruiter ? 'dark:bg-purple-500 bg-purple-700' : 'bg-accent',
                 )}>
                   <span className="text-[10px] font-black uppercase tracking-wider text-white">
                     {isRecruiter ? t.pricingBadgeEnterprise : t.pricingBadgePopular}
@@ -329,7 +329,7 @@ export function UpgradeView() {
                 <div className="flex items-center justify-center gap-2 mb-3">
                   <h3 className={cn(
                     'text-lg font-black uppercase tracking-wider',
-                    isRecruiter ? 'text-purple-400' : isPro ? 'text-accent' : 'text-text-main',
+                    isRecruiter ? 'dark:text-purple-400 text-purple-700' : isPro ? 'text-accent' : 'text-text-main',
                   )}>
                     {plan === 'recruiter' ? t.planRecruiterLabel : plan === 'pro' ? t.planProLabel : t.planFreeLabel}
                   </h3>
@@ -371,7 +371,7 @@ export function UpgradeView() {
                       type="button"
                       disabled={isCheckingOut}
                       onClick={() => handleCheckout('recruiter')}
-                      className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm bg-purple-500 text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                      className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm dark:bg-purple-500 bg-purple-700 text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                     >
                       {isCheckingOut && checkoutPlan === 'recruiter' ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -447,8 +447,8 @@ export function UpgradeView() {
           <span>{t.upgradeInstantActivation}</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="size-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-            <Briefcase className="size-4 text-purple-400" />
+          <div className="size-8 rounded-lg dark:bg-purple-500/10 bg-purple-100 border dark:border-purple-500/20 border-purple-300 flex items-center justify-center">
+            <Briefcase className="size-4 dark:text-purple-400 text-purple-700" />
           </div>
           <span>{t.upgradeRecruiterCampaignNote}</span>
         </div>

@@ -111,7 +111,7 @@ export function SavedJdsListModal({
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-slate-400 text-sm italic">
+                  <p className="text-text-light text-sm italic">
                     {formatLabel(t.jdStoreNoMatch, { term: searchTerm })}
                   </p>
                 </div>

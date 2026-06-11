@@ -18,7 +18,7 @@ export function HistoryView() {
     setResults,
     isLoadingHistory 
   } = useAnalysis();
-  const { t, setActiveTab, reportLanguage } = useUI();
+  const { t, setActiveTab, reportLanguage, isDarkMode } = useUI();
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
   const { user } = useAuth();
 
