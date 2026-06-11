@@ -1,3 +1,2 @@
 # Exclude library/utility files from being deployed as serverless functions
 api/lib/
-api/payment/lib/
