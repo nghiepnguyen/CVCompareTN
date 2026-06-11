@@ -25,16 +25,12 @@
       "destination": "/api/extract-pdf.ts"
     },
     {
-      "source": "/api/payment/create",
-      "destination": "/api/payment/create.ts"
+      "source": "/api/payment/:action(create|confirm|webhook)",
+      "destination": "/api/payment.ts?action=$action"
     },
     {
-      "source": "/api/payment/webhook",
-      "destination": "/api/payment/webhook.ts"
-    },
-    {
-      "source": "/api/payment/confirm",
-      "destination": "/api/payment/confirm.ts"
+      "source": "/api/recruiter/save-analysis",
+      "destination": "/api/recruiter/save-analysis.ts"
     },
     {
       "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
@@ -43,9 +39,6 @@
   ],
   "functions": {
     "api/*.ts": {
-      "maxDuration": 30
-    },
-    "api/payment/*.ts": {
       "maxDuration": 30
     },
     "api/recruiter/*.ts": {
