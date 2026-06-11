@@ -3,15 +3,16 @@ import { handlePaymentCreate, handlePaymentConfirm, handlePaymentWebhook } from 
 import type { PlanType } from '../_server-lib/payment/payos.js';
 
 /**
- * Unified payment handler — dispatches by query param `action`.
+ * Unified payment handler — dispatches by URL path segment.
  *
- * Rewrites in vercel.json map the old paths:
- *   /api/payment/create  → /api/payment?action=create
- *   /api/payment/confirm → /api/payment?action=confirm
- *   /api/payment/webhook → /api/payment?action=webhook
+ * Vercel rewrite maps /api/payment/{action} → /api/payment.ts
+ * The original path is still available via req.url, so we parse the last segment.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const action = (req.query.action as string) || '';
+  // Parse action from the last path segment (e.g., /api/payment/create → create)
+  const urlPath = new URL(req.url || '', `https://${req.headers.host}`).pathname;
+  const segments = urlPath.replace(/\/$/, '').split('/');
+  const action = segments[segments.length - 1] || '';
 
   switch (action) {
     case 'create': {
