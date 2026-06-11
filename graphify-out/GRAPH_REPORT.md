@@ -1,16 +1,16 @@
 # Graph Report - cv-compare-tn  (2026-06-11)
 
 ## Corpus Check
-- 186 files · ~111,796 words
+- 184 files · ~111,810 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1060 nodes · 2019 edges · 61 communities (55 shown, 6 thin omitted)
+- 1060 nodes · 2019 edges · 63 communities (57 shown, 6 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `43d28de8`
+- Built from commit: `2111ffac`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -68,7 +68,9 @@
 - [[_COMMUNITY_Community 50|Community 50]]
 - [[_COMMUNITY_Community 51|Community 51]]
 - [[_COMMUNITY_Community 52|Community 52]]
-- [[_COMMUNITY_Community 56|Community 56]]
+- [[_COMMUNITY_Community 53|Community 53]]
+- [[_COMMUNITY_Community 54|Community 54]]
+- [[_COMMUNITY_Community 58|Community 58]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `useUI()` - 79 edges
@@ -94,7 +96,7 @@
 - `AdminView()` --calls--> `cn()`  [EXTRACTED]
   AdminView.tsx → src/lib/utils.ts
 
-## Communities (61 total, 6 thin omitted)
+## Communities (63 total, 6 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.07
@@ -145,32 +147,32 @@ Cohesion: 0.07
 Nodes (26): 2a — `App.tsx` decomposition, 2b — Two analysis providers (B2), 2c — LandingView, code:gitignore (# Graphify — regenerate with `graphify update .`; keep human), code:block2 (src/app/), code:typescript (export { default } from './app/AppShell';), code:block4 (AuthProvider → UIProvider → AnalysisProvider (composer) → Ap), code:block5 (src/context/analysis/) (+18 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.19
-Nodes (18): Header(), formatPlanExpiryDate(), HISTORY_DAYS_BY_PLAN, isProPlan(), isRecruiterPlan(), MAX_CAMPAIGN_CVS, MAX_CAMPAIGNS, MAX_SAVED_JD_BY_PLAN (+10 more)
-
-### Community 13 - "Community 13"
-Cohesion: 0.12
-Nodes (15): MobileBottomNavProps, AnalysisDetailsTab, AnalysisDetailsTabProps, AnalysisLoadingState(), AnalysisLoadingStateProps, STEPS, ComparisonOverview(), ComparisonOverviewProps (+7 more)
-
-### Community 14 - "Community 14"
 Cohesion: 0.16
 Nodes (21): AnalyticsBootstrap(), CookieConsentBannerProps, AnalyticsConsent, applyGrantedConsent(), denyAnalyticsConsent(), ensureDataLayer(), eventQueue, flushEventQueue() (+13 more)
 
-### Community 15 - "Community 15"
+### Community 13 - "Community 13"
 Cohesion: 0.19
 Nodes (16): useAnalysis(), SavedCvProvider(), SavedJdProvider(), useSavedJds(), AppContent(), PrivacyPolicyPage(), TermsOfServicePage(), useAuth() (+8 more)
 
-### Community 16 - "Community 16"
+### Community 14 - "Community 14"
 Cohesion: 0.14
 Nodes (14): cvMarkdownHasHeadings(), fixMarkdownHeadingHashes(), fullRewrittenCvToPlainText(), isBulletLine(), isSectionLine(), normalizeSectionCandidate(), preprocessFullRewrittenCvMarkdown(), promotePlainTextCvToMarkdown() (+6 more)
 
-### Community 17 - "Community 17"
+### Community 15 - "Community 15"
+Cohesion: 0.16
+Nodes (12): MobileBottomNavProps, AnalysisDetailsTab, AnalysisDetailsTabProps, ComparisonOverview(), ComparisonOverviewProps, DetailedComparisonTab(), DetailedComparisonTabProps, getMatchingCategoryLabel() (+4 more)
+
+### Community 16 - "Community 16"
 Cohesion: 0.1
 Nodes (19): Auth — Leaked password protection (bạn cần bật một lần), Checklist thực hiện, code:sql (SELECT p.proname, r.rolname,), code:sql (-- Fix 1: Revoke quyền gọi activate_pro_plan từ anon và auth), code:typescript (// server/routes/payment.ts (hoặc tương đương)), code:sql (-- Fix 2: Revoke quyền gọi các hàm ghi từ anon), code:sql (-- Fix 3: Sửa policy SELECT của bucket cv-files), code:sql (-- Fix 4: Revoke quyền anon gọi các hàm đọc thông tin user) (+11 more)
 
-### Community 18 - "Community 18"
+### Community 17 - "Community 17"
 Cohesion: 0.14
 Nodes (15): htmlToText(), BLOCKED_HOSTNAME_PATTERNS, BLOCKED_HOSTNAMES, hasPathTraversal(), ipv4ToNumber(), isBlockedHostname(), isPrivateIPv4(), isPrivateIPv6() (+7 more)
+
+### Community 18 - "Community 18"
+Cohesion: 0.27
+Nodes (13): Header(), formatPlanExpiryDate(), HISTORY_DAYS_BY_PLAN, isProPlan(), isRecruiterPlan(), MAX_CAMPAIGN_CVS, MAX_CAMPAIGNS, MAX_SAVED_JD_BY_PLAN (+5 more)
 
 ### Community 19 - "Community 19"
 Cohesion: 0.11
@@ -213,12 +215,12 @@ Cohesion: 0.21
 Nodes (7): apiLimiter, emailLimiter, staticLimiter, strictLimiter, router, params, router
 
 ### Community 29 - "Community 29"
-Cohesion: 0.22
-Nodes (9): CvMarkdownBody, OptimizationTab, OptimizationTabProps, ViewMode, PrintView(), PrintViewProps, readPrintState(), UpgradePrompt() (+1 more)
-
-### Community 30 - "Community 30"
 Cohesion: 0.26
 Nodes (9): AuthContext, AuthContextType, AuthProvider(), EmailAuthResult, createUserProfile(), fetchEffectiveUserPlan(), getUserProfile(), mapProfile() (+1 more)
+
+### Community 30 - "Community 30"
+Cohesion: 0.22
+Nodes (9): CvMarkdownBody, OptimizationTab, OptimizationTabProps, ViewMode, PrintView(), PrintViewProps, readPrintState(), UpgradePrompt() (+1 more)
 
 ### Community 31 - "Community 31"
 Cohesion: 0.17
@@ -241,14 +243,10 @@ Cohesion: 0.25
 Nodes (7): AuthModal(), ERROR_KEY_MAP, FormErrors, getErrorKey(), resolveError(), TabMode, AuthModalMode
 
 ### Community 36 - "Community 36"
-Cohesion: 0.47
-Nodes (5): validateEmail(), validateFeedbackInput(), validateLength(), validateWelcomeEmailInput(), ValidationError
-
-### Community 37 - "Community 37"
 Cohesion: 0.25
 Nodes (7): 1. Tech Stack, 2. Folder Structure, Backend (Modular Express), code:text (/), cvFit - Repository Overview, Database & Auth, Frontend
 
-### Community 38 - "Community 38"
+### Community 37 - "Community 37"
 Cohesion: 0.29
 Nodes (6): createProgressSimulator(), ProgressSimulatorOptions, calls, lastCalled, maxCalled, { stop }
 
@@ -262,31 +260,43 @@ Nodes (6): Backend (Modular Express), Công nghệ sử dụng (cvFit), Dịch v
 
 ### Community 41 - "Community 41"
 Cohesion: 0.29
-Nodes (6): params, resendClient, router, safeUserEmail, safeUserName, validationErrors
-
-### Community 42 - "Community 42"
-Cohesion: 0.29
 Nodes (6): adminClient, { candidateId, analysisResult, matchScore, status }, router, serviceRoleKey, supabaseUrl, token
 
-### Community 45 - "Community 45"
-Cohesion: 0.4
-Nodes (4): Dự án cvFit, Mục tiêu chính (Core Objectives), Tài liệu kỹ thuật, Tính năng nổi bật (Key Features)
+### Community 42 - "Community 42"
+Cohesion: 0.67
+Nodes (5): validateEmail(), validateFeedbackInput(), validateLength(), validateWelcomeEmailInput(), ValidationError
+
+### Community 43 - "Community 43"
+Cohesion: 0.29
+Nodes (6): params, resendClient, router, safeUserEmail, safeUserName, validationErrors
+
+### Community 44 - "Community 44"
+Cohesion: 0.38
+Nodes (5): CreateCampaignModal(), CreateCampaignModalProps, useRecruiter(), CampaignDetailView(), RecruiterView()
 
 ### Community 46 - "Community 46"
 Cohesion: 0.4
-Nodes (3): buffer, PDF_HEADER, router
+Nodes (4): Dự án cvFit, Mục tiêu chính (Core Objectives), Tài liệu kỹ thuật, Tính năng nổi bật (Key Features)
 
 ### Community 47 - "Community 47"
-Cohesion: 0.67
-Nodes (3): handler(), isPdfBuffer(), PDF_HEADER
+Cohesion: 0.4
+Nodes (3): buffer, PDF_HEADER, router
 
 ### Community 48 - "Community 48"
-Cohesion: 0.5
-Nodes (3): binaryString, bytes, corsHeaders
+Cohesion: 0.67
+Nodes (3): handler(), isPdfBuffer(), PDF_HEADER
 
 ### Community 49 - "Community 49"
 Cohesion: 0.5
 Nodes (3): corsHeaders, params, secretKey
+
+### Community 50 - "Community 50"
+Cohesion: 0.5
+Nodes (3): binaryString, bytes, corsHeaders
+
+### Community 51 - "Community 51"
+Cohesion: 0.5
+Nodes (3): AnalysisLoadingState(), AnalysisLoadingStateProps, STEPS
 
 ## Knowledge Gaps
 - **342 isolated node(s):** `Project Context`, `1. Code Style & Conventions`, `2. Architecture & Data Flow`, `3. UI/UX Guidelines`, `6. Secrets & Repository Hygiene` (+337 more)
@@ -296,11 +306,11 @@ Nodes (3): corsHeaders, params, secretKey
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `useUI()` connect `Community 15` to `Community 1`, `Community 34`, `Community 3`, `Community 35`, `Community 9`, `Community 10`, `Community 12`, `Community 13`, `Community 14`, `Community 21`, `Community 22`, `Community 29`?**
+- **Why does `useUI()` connect `Community 13` to `Community 1`, `Community 34`, `Community 3`, `Community 35`, `Community 9`, `Community 10`, `Community 44`, `Community 12`, `Community 15`, `Community 18`, `Community 51`, `Community 21`, `Community 22`, `Community 30`?**
   _High betweenness centrality (0.054) - this node is a cross-community bridge._
-- **Why does `useAuth()` connect `Community 15` to `Community 1`, `Community 3`, `Community 35`, `Community 9`, `Community 10`, `Community 12`, `Community 13`, `Community 22`, `Community 29`, `Community 30`?**
+- **Why does `useAuth()` connect `Community 13` to `Community 1`, `Community 3`, `Community 35`, `Community 9`, `Community 10`, `Community 44`, `Community 15`, `Community 18`, `Community 22`, `Community 29`, `Community 30`?**
   _High betweenness centrality (0.029) - this node is a cross-community bridge._
-- **Why does `cn()` connect `Community 3` to `Community 1`, `Community 35`, `Community 10`, `Community 12`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 21`, `Community 22`, `Community 29`?**
+- **Why does `cn()` connect `Community 3` to `Community 1`, `Community 35`, `Community 10`, `Community 44`, `Community 13`, `Community 14`, `Community 15`, `Community 12`, `Community 18`, `Community 51`, `Community 21`, `Community 22`, `Community 30`?**
   _High betweenness centrality (0.023) - this node is a cross-community bridge._
 - **What connects `Project Context`, `1. Code Style & Conventions`, `2. Architecture & Data Flow` to the rest of the system?**
   _342 weakly-connected nodes found - possible documentation gaps or missing edges._

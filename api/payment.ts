@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handlePaymentCreate, handlePaymentConfirm, handlePaymentWebhook } from './payment/lib/handlers.js';
-import type { PlanType } from './payment/lib/payos.js';
+import { handlePaymentCreate, handlePaymentConfirm, handlePaymentWebhook } from '../_server-lib/payment/handlers.js';
+import type { PlanType } from '../_server-lib/payment/payos.js';
 
 /**
  * Unified payment handler — dispatches by query param `action`.
