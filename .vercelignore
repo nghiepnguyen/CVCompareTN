@@ -1,2 +1,2 @@
-# Exclude library/utility files from being deployed as serverless functions
-api/lib/
+# None currently — all api/*.ts files without handler exports 
+# are just modules bundled into the functions that import them.
