@@ -36,7 +36,6 @@ export function AdminView() {
   
   const [adminSubTab, setAdminSubTab] = useState<'users' | 'email'>('users');
   const [userSearchTerm, setUserSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
   const [planFilter, setPlanFilter] = useState<'all' | 'free' | 'pro' | 'recruiter'>('all');
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,12 +78,11 @@ export function AdminView() {
     () =>
       allUsers.filter(u => {
         const matchSearch = u.email.toLowerCase().includes(userSearchTerm.toLowerCase());
-        const matchRole = roleFilter === 'all' || u.role === roleFilter;
         const matchPlan =
           planFilter === 'all' || getDisplayEffectivePlan(u) === planFilter;
-        return matchSearch && matchRole && matchPlan;
+        return matchSearch && matchPlan;
       }),
-    [allUsers, userSearchTerm, roleFilter, planFilter]
+    [allUsers, userSearchTerm, planFilter]
   );
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const paginatedUsers = useMemo(
@@ -94,7 +92,7 @@ export function AdminView() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [userSearchTerm, roleFilter, planFilter]);
+  }, [userSearchTerm, planFilter]);
 
   const getLimitDraft = (u: UserProfile) => {
     if (limitDrafts[u.id] !== undefined) return limitDrafts[u.id];
@@ -403,34 +401,6 @@ export function AdminView() {
 
             {/* Filter Row */}
             <div className="flex flex-wrap items-center gap-3">
-              {/* Role Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
-                  {t.adminFilterRole}
-                </span>
-                <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
-                  {(['all', 'user', 'admin'] as const).map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setRoleFilter(opt)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer',
-                        roleFilter === opt
-                          ? 'bg-surface text-accent shadow-sm border border-border'
-                          : 'text-text-muted hover:text-text-main'
-                      )}
-                    >
-                      {opt === 'all'
-                        ? t.adminFilterRoleAll
-                        : opt === 'user'
-                          ? t.adminFilterRoleUser
-                          : t.adminFilterRoleAdmin}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Plan Filter */}
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
