@@ -67,7 +67,7 @@ export function RatingSection({ userId, analysisId }: RatingSectionProps) {
               <Star 
                 className={cn(
                   "w-8 h-8 transition-colors",
-                  star <= userRating ? "fill-warning text-warning" : "text-border-strong"
+                  star <= userRating ? "fill-accent text-accent" : "text-border-strong"
                 )} 
               />
             </button>
@@ -89,7 +89,7 @@ export function RatingSection({ userId, analysisId }: RatingSectionProps) {
         <button
           onClick={handleRateAnalysis}
           disabled={userRating === 0 || isSubmittingRating}
-          className="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-lg hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
+          className="w-full py-4 bg-accent text-white font-black rounded-2xl shadow-lg hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
         >
           {isSubmittingRating ? (
             <Loader2 className="w-5 h-5 animate-spin" />
