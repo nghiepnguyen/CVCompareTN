@@ -3,7 +3,7 @@ import {
   handlePaymentConfirm,
   handlePaymentCreate,
   handlePaymentWebhook,
-} from '../../api/payment/lib/handlers';
+} from '../../_server-lib/payment/handlers';
 
 const router = Router();
 
