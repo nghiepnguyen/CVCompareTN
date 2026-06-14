@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, Target, FileSearch, Activity, Zap, User } from 'lucide-react';
+import { ChevronRight, Target, FileSearch, Activity, Zap, User, FileText } from 'lucide-react';
 import { useAnalysis } from '../../context/AnalysisContext';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
@@ -13,12 +13,13 @@ import { AnalysisDetailsTab } from './result/AnalysisDetailsTab';
 import { DetailedComparisonTab } from './result/DetailedComparisonTab';
 import { OptimizationTab } from './result/OptimizationTab';
 import { ParsedCVTab } from './result/ParsedCVTab';
+import { FullCVTab } from './result/FullCVTab';
 import { RatingSection } from './result/RatingSection';
 
 export function ResultView() {
   const { user } = useAuth();
   const { t, reportLanguage } = useUI();
-  const [resultTab, setResultTab] = React.useState<'analysis' | 'comparison' | 'optimization' | 'parsed'>('analysis');
+  const [resultTab, setResultTab] = React.useState<'analysis' | 'comparison' | 'optimization' | 'parsed' | 'fullcv'>('analysis');
   
   const {
     isAnalyzing, analysisStatus, analysisProgress,
@@ -119,7 +120,8 @@ export function ResultView() {
                     { id: 'analysis', icon: Activity, label: t.analyze },
                     { id: 'parsed', icon: User, label: t.tabParsedCv },
                     { id: 'comparison', icon: FileSearch, label: t.tabComparison },
-                    { id: 'optimization', icon: Zap, label: t.optimized }
+                    { id: 'optimization', icon: Zap, label: t.optimized },
+                    { id: 'fullcv', icon: FileText, label: t.tabFullCv }
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -149,14 +151,13 @@ export function ResultView() {
                 {/* Animated Scan Line - Bottom of header */}
                 <motion.div 
                   className="absolute bottom-0 left-0 h-[2px] bg-accent shadow-[0_0_8px_rgba(5,150,105,0.5)]"
-                  initial={{ width: "25%" }}
-                  animate={{ 
-                    width: resultTab === 'analysis' ? '25%' : 
-                           resultTab === 'parsed' ? '50%' : 
-                           resultTab === 'comparison' ? '75%' : '100%',
-                    left: resultTab === 'analysis' ? '0%' : 
-                           resultTab === 'parsed' ? '0%' : 
-                           resultTab === 'comparison' ? '0%' : '0%'
+                  initial={{ width: "20%" }}
+                  animate={{
+                    width: resultTab === 'analysis' ? '20%' :
+                           resultTab === 'parsed' ? '40%' :
+                           resultTab === 'comparison' ? '60%' :
+                           resultTab === 'optimization' ? '80%' : '100%',
+                    left: '0%'
                   }}
                   transition={{ type: "spring", bounce: 0, duration: 0.8 }}
                 />
@@ -177,6 +178,10 @@ export function ResultView() {
 
               {resultTab === 'optimization' && (
                 <OptimizationTab selectedResult={selectedResult} />
+              )}
+
+              {resultTab === 'fullcv' && (
+                <FullCVTab selectedResult={selectedResult} />
               )}
 
               {/* Rating & Feedback - Only if logged in */}

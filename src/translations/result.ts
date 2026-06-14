@@ -352,6 +352,10 @@ export const result = {
     vi: "So sánh",
     en: "Comparison",
   },
+  tabFullCv: {
+    vi: "CV Tối ưu",
+    en: "Full CV",
+  },
   parsedCvEmpty: {
     vi: "Không có dữ liệu CV chuẩn hóa cho kết quả này.",
     en: "No parsed CV data available for this result.",

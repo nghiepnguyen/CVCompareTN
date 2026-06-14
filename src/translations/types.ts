@@ -427,6 +427,7 @@ export interface UiLabels {
   suggestions: string;
   supportPageTitle: string;
   tabComparison: string;
+  tabFullCv: string;
   tabParsedCv: string;
   targetUsersItem1: string;
   targetUsersItem2: string;
