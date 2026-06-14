@@ -49,7 +49,7 @@ function buildRows(t: UiLabels): ComparisonRow[] {
 function RowIcon({ type }: { type: 'check' | 'dash' | 'infinity' }) {
   if (type === 'infinity') return <Infinity className="w-4 h-4 text-accent" />;
   if (type === 'check') return <Check className="w-4 h-4 text-success" />;
-  return <Minus className="w-4 h-4 text-text-muted/30" />;
+  return null;
 }
 
 function PriceTag({ plan, className }: { plan: Plan; className?: string }) {
@@ -161,7 +161,7 @@ export function UpgradeView() {
                     )}
                   </div>
                 </th>
-                <th className={cn('w-[23%] p-5 border-b bg-accent/[0.02]', currentPlan === 'pro' && 'bg-accent/10')}>
+                <th className={cn('w-[23%] p-5 border-b bg-accent/[0.06]', currentPlan === 'pro' && 'bg-accent/10')}>
                   <div className="text-center space-y-2">
                     <h3 className="text-base font-black text-accent uppercase tracking-wider">{t.planProLabel}</h3>
                     <PriceTag plan="pro" />
@@ -203,7 +203,7 @@ export function UpgradeView() {
                       <span className="text-sm text-text-muted tabular-nums">{row.free.value}</span>
                     </div>
                   </td>
-                  <td className="py-4 px-5 text-center bg-accent/[0.01]">
+                  <td className="py-4 px-5 text-center bg-accent/[0.04]">
                     <div className="flex items-center justify-center gap-2">
                       <RowIcon type={row.pro.icon} />
                       <span className="text-sm text-text-muted tabular-nums">{row.pro.value}</span>
@@ -218,7 +218,7 @@ export function UpgradeView() {
                 </tr>
               ))}
               {/* CTA Row */}
-              <tr className="border-t-2 border-border/80">
+              <tr className="border-t border-border/50">
                 <td className="py-5 px-6" />
                 <td className="py-5 px-4 text-center">
                   <button
@@ -230,7 +230,7 @@ export function UpgradeView() {
                     {t.pricingCtaFree}
                   </button>
                 </td>
-                <td className="py-5 px-4 text-center bg-accent/[0.01]">
+                <td className="py-5 px-4 text-center bg-accent/[0.04]">
                   {currentPlan === 'pro' || currentPlan === 'recruiter' ? (
                     <button
                       type="button"
@@ -244,7 +244,7 @@ export function UpgradeView() {
                       type="button"
                       disabled={isCheckingOut}
                       onClick={() => handleCheckout('pro')}
-                      className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold bg-accent text-white cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                      className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold bg-accent text-white cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-accent/20"
                     >
                       {isCheckingOut && checkoutPlan === 'pro' ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -307,7 +307,7 @@ export function UpgradeView() {
                 isRecruiter
                   ? 'dark:border-purple-500/30 border-purple-300'
                   : isPro
-                    ? 'border-accent/30'
+                    ? 'border-accent/40 shadow-lg shadow-accent/10'
                     : 'border-border',
                 isCurrent && 'ring-2 ring-success/30',
               )}

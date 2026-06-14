@@ -33,11 +33,19 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-primary/80 backdrop-blur-2xl border-b border-border">
+    <header className={cn(
+      "sticky top-0 z-50 backdrop-blur-xl border-b transition-colors",
+      user
+        ? "bg-primary/95 border-border"
+        : "dark bg-[#0A0A0A]/95 border-white/[0.08]"
+    )}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* ---- Logo ---- */}
         <div className="flex items-center gap-3 cursor-pointer group shrink-0" onClick={() => { setActiveTab('analyze'); setSelectedResult(null); }}>
-          <div className="relative w-10 h-10 dark:bg-primary bg-accent rounded-xl flex items-center justify-center shadow-xl transition-transform group-hover:scale-110">
+          <div className={cn(
+            "relative w-10 h-10 rounded-xl flex items-center justify-center shadow-xl transition-transform group-hover:scale-110",
+            user ? "dark:bg-primary bg-accent" : "bg-accent"
+          )}>
             <div className="absolute inset-0 bg-accent opacity-20 blur-lg rounded-full" />
             <FileSearch className="text-white w-5 h-5 relative z-10" />
           </div>

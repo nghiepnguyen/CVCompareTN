@@ -32,7 +32,7 @@ function buildRows(t: any): ComparisonRow[] {
 function RowIcon({ type }: { type: 'check' | 'dash' | 'infinity' }) {
   if (type === 'infinity') return <Infinity className="w-4 h-4 text-accent" />;
   if (type === 'check') return <Check className="w-4 h-4 text-success" />;
-  return <Minus className="w-4 h-4 text-slate-300 dark:text-text-muted/30" />;
+  return null;
 }
 
 function PriceTag({ plan, t, isLight }: { plan: Plan; t: any; isLight: boolean }) {
@@ -133,22 +133,22 @@ export function PricingSection({
                     </span>
                   </th>
                   <th className={cn('w-[24%] border-b', borderClass)}>
-                    <div className={cn('text-center p-6 border-b', borderClass)}>
+                    <div className="text-center p-6">
                       <h3 className={cn('text-base font-black uppercase tracking-wider mb-3', labelText)}>{freeLabel}</h3>
                       <PriceTag plan="free" t={t} isLight={isLight} />
                     </div>
                   </th>
-                  <th className={cn('w-[24%] border-b', borderClass, isLight ? 'bg-emerald-50/30' : 'bg-accent/[0.02]')}>
-                    <div className={cn('text-center p-6 border-b', borderClass)}>
+                  <th className={cn('w-[24%] border-b', borderClass, isLight ? 'bg-emerald-50/50' : 'bg-accent/[0.06]')}>
+                    <div className="text-center p-6">
                       <h3 className="text-base font-black text-accent uppercase tracking-wider mb-3">{proLabel}</h3>
                       <PriceTag plan="pro" t={t} isLight={isLight} />
-                      <span className="inline-block mt-3 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-accent/10 text-accent border border-accent/20">
+                      <span className="inline-block mt-3 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-accent text-white shadow-sm shadow-accent/30">
                         {popularBadge}
                       </span>
                     </div>
                   </th>
                   <th className={cn('w-[24%] border-b', borderClass, isLight ? 'bg-purple-50/30' : 'bg-purple-500/[0.03]')}>
-                    <div className={cn('text-center p-6 border-b', borderClass)}>
+                    <div className="text-center p-6">
                       <h3 className="text-base font-black text-purple-500 uppercase tracking-wider mb-3">{recruiterLabel}</h3>
                       <PriceTag plan="recruiter" t={t} isLight={isLight} />
                       <span className="inline-block mt-3 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-500/10 text-purple-500 border border-purple-400/20">
@@ -166,7 +166,7 @@ export function PricingSection({
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.05 * idx }}
-                    className={cn('border-b transition-colors', borderClass + '/50', tableHoverRow)}
+                    className={cn('border-b transition-colors', isLight ? 'border-slate-200/60' : 'border-white/[0.04]', tableHoverRow)}
                   >
                     <td className="py-4 px-6">
                       <span className={cn('text-sm font-semibold', labelText)}>{t[row.labelKey] || row.labelKey}</span>
@@ -177,7 +177,7 @@ export function PricingSection({
                         <span className={cn('text-sm tabular-nums', labelMuted)}>{row.free.value}</span>
                       </div>
                     </td>
-                    <td className={cn('py-4 px-6 text-center', isLight ? 'bg-emerald-50/20' : 'bg-accent/[0.01]')}>
+                    <td className={cn('py-4 px-6 text-center', isLight ? 'bg-emerald-50/30' : 'bg-accent/[0.04]')}>
                       <div className="flex items-center justify-center gap-2">
                         <RowIcon type={row.pro.icon} />
                         <span className={cn('text-sm tabular-nums', labelMuted)}>{row.pro.value}</span>
@@ -192,7 +192,7 @@ export function PricingSection({
                   </motion.tr>
                 ))}
                 {/* CTA Row */}
-                <tr className={cn('border-t-2', borderClass + '/80')}>
+                <tr className={cn('border-t', isLight ? 'border-slate-200/60' : 'border-white/[0.05]')}>
                   <td className="py-5 px-6" />
                   <td className="py-5 px-3 text-center align-middle">
                     <button
@@ -204,11 +204,11 @@ export function PricingSection({
                       {t.pricingCtaFree || 'Bắt đầu miễn phí'}
                     </button>
                   </td>
-                  <td className={cn('py-5 px-3 text-center align-middle', isLight ? 'bg-emerald-50/20' : 'bg-accent/[0.01]')}>
+                  <td className={cn('py-5 px-3 text-center align-middle', isLight ? 'bg-emerald-50/30' : 'bg-accent/[0.04]')}>
                     <button
                       type="button"
                       onClick={onUpgrade ?? login}
-                      className="inline-flex w-full items-center justify-center gap-2 h-12 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all bg-accent text-white"
+                      className="inline-flex w-full items-center justify-center gap-2 h-12 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all bg-accent text-white shadow-lg shadow-accent/20"
                     >
                       <Sparkles className="w-4 h-4" />
                       {t.pricingCtaPro || 'Nâng cấp Pro'}
@@ -248,7 +248,7 @@ export function PricingSection({
                   isRecruiter
                     ? 'border-purple-500/30 bg-purple-500/[0.03] backdrop-blur-2xl'
                     : isPro
-                      ? 'border-accent/30 bg-accent/[0.02] backdrop-blur-2xl'
+                      ? 'border-accent/40 bg-accent/[0.06] backdrop-blur-2xl shadow-lg shadow-accent/10'
                       : cn(isLight ? 'border-slate-200 bg-white' : 'border-border bg-white/[0.02] backdrop-blur-2xl'),
                 )}
               >

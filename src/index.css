@@ -19,9 +19,9 @@
   /* ---- Light Theme (DEFAULT) — Optimized for readability ---- */
   --color-primary: #F8FAFC;
   --color-primary-light: #FFFFFF;
-  --color-accent: #059669;
+  --color-accent: #047857;        /* WCAG AA: 5.24:1 on #F8FAFC, 5.48:1 vs white text */
   --color-accent-light: #D1FAE5;
-  --color-accent-hover: #047857;
+  --color-accent-hover: #065F46;
   --color-success: #16A34A;
   --color-success-light: #DCFCE7;
   --color-warning: #D97706;
@@ -63,6 +63,8 @@ html.dark,
   --color-error-light: #450A0A;
   --color-warning-light: #422006;
   --color-success-light: #052E16;
+  --color-accent: #059669;        /* WCAG AA: 5.25:1 on #0A0A0A dark bg */
+  --color-accent-hover: #047857;
   --color-accent-light: #34D399;
 
   /* Glass morphism (dark mode) */
