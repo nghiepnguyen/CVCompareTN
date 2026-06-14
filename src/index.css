@@ -589,6 +589,26 @@ html.dark,
     --cv-md-text: #1e293b;
     --cv-md-text-strong: #0f172a;
   }
+
+  /* Force amber/gold accents to print — requires "Background graphics" OR
+     this explicit override so they don't disappear as grey on cheap printers */
+  .cv-print-accent {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* Prevent job entries from being orphaned across page breaks */
+  .cv-print-root h3,
+  #cv-print-root h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  #cv-print-root ul,
+  #cv-print-root ol {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
 }
 
 /* Reduced motion */

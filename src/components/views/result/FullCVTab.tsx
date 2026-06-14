@@ -6,6 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { isProPlan, isRecruiterPlan } from '../../../lib/planLimits';
 import { AnalysisResult } from '../../../services/ai';
 import { CvMarkdownBody, markdownToPlainText } from './CvMarkdownBody';
+import { extractCandidateName, cleanMarkdownForPremium } from './cvPremiumUtils';
 
 type ViewMode = 'premium' | 'free';
 
@@ -38,33 +39,8 @@ export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullC
     syncViewMode(canExportOptimized ? 'premium' : 'free');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Extract candidate name: parsedCV first, then fallback to H1 in markdown
-  const candidateName = React.useMemo(() => {
-    const n = selectedResult.parsedCV?.personal_information?.full_name?.trim();
-    if (n) return n;
-    const m = selectedResult.fullRewrittenCV?.match(/^#\s+(.+?)(?:\s*$)/m);
-    return m?.[1]?.trim() ?? '';
-  }, [selectedResult]);
-
-  // Premium markdown: strip H1 (in header), contact lines, Education + Skills + Languages (in sidebar)
-  const markdownCleaned = React.useMemo(() => {
-    if (!selectedResult.fullRewrittenCV) return '';
-    let md = selectedResult.fullRewrittenCV;
-    // Strip H1 name — displayed in the card header instead
-    md = md.replace(/^#\s+[^\n]+\n?/m, '');
-    // Strip contact lines right after H1 (email, phone, linkedin, .com, · separator)
-    md = md.replace(
-      /(^[^\n#\-*`>].*(?:·|@|linkedin|\.com)[^\n]*\n)+/m,
-      '',
-    );
-    // Strip Education (sidebar)
-    md = md.replace(/^##\s+(?:Học vấn|Education)\b[\s\S]*?(?=\n##\s|\n*$)/im, '');
-    // Strip Skills (sidebar — all variants)
-    md = md.replace(/^##\s+(?:Kỹ năng(?:\s+\w+)*|Technical\s+Skills?|Skills?)\b[\s\S]*?(?=\n##\s|\n*$)/im, '');
-    // Strip Languages (sidebar)
-    md = md.replace(/^##\s+(?:Ngôn\s+ngữ|Languages?)\b[\s\S]*?(?=\n##\s|\n*$)/im, '');
-    return md.trim();
-  }, [selectedResult.fullRewrittenCV]);
+  const candidateName = React.useMemo(() => extractCandidateName(selectedResult), [selectedResult]);
+  const markdownCleaned = React.useMemo(() => cleanMarkdownForPremium(selectedResult.fullRewrittenCV), [selectedResult.fullRewrittenCV]);
 
   if (!selectedResult.fullRewrittenCV) {
     return (
