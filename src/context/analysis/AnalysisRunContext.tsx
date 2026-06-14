@@ -18,6 +18,7 @@ import { MAX_BATCH_BY_PLAN } from '../../lib/planLimits';
 import type { UserPlan } from '../../services/userService';
 import type { AnalysisRunContextType } from './types';
 import { cleanText, processFile } from '../../hooks/useFileProcessor';
+import { isStoredCVRef, resolveToFile, type StoredCVRef } from '../../services/cvService';
 import { createProgressSimulator } from '../../hooks/useProgressSimulator';
 
 const AnalysisRunContext = createContext<AnalysisRunContextType | undefined>(undefined);
@@ -30,7 +31,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const [jd, setJd] = useState('');
   const [cvText, setCvText] = useState('');
   const [cvInputMode, setCvInputMode] = useState<'file' | 'text'>('file');
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<(File | StoredCVRef)[]>([]);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState<string | null>(null);
@@ -166,14 +167,15 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       if (cvInputMode === 'file') {
         const totalFiles = files.length;
         for (let i = 0; i < totalFiles; i++) {
-          const file = files[i];
+          const fileOrRef = files[i];
           const fileBaseProgress = 15 + (i / totalFiles) * 75;
 
           setAnalysisStatus(
-            reportLanguage === 'vi' ? `Đang đọc file: ${file.name}` : `Reading file: ${file.name}`
+            reportLanguage === 'vi' ? `Đang đọc file: ${fileOrRef.name}` : `Reading file: ${fileOrRef.name}`
           );
           setAnalysisProgress(fileBaseProgress + 5);
 
+          const file = isStoredCVRef(fileOrRef) ? await resolveToFile(fileOrRef) : fileOrRef;
           const { data, mimeType } = await processFile(file);
 
           setAnalysisStatus(

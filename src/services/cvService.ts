@@ -10,6 +10,28 @@ export interface SavedCV {
   timestamp: number;
 }
 
+/** Lazy reference to a CV stored in Supabase Storage — not yet downloaded. */
+export interface StoredCVRef {
+  readonly _storedRef: true;
+  readonly name: string;
+  readonly size: number;
+  readonly cvId: string;
+  readonly filePath: string;
+  readonly fileType: string;
+}
+
+export function makeStoredCVRef(cv: SavedCV): StoredCVRef {
+  return { _storedRef: true, name: cv.fileName, size: cv.fileSize, cvId: cv.cvId, filePath: cv.filePath, fileType: cv.fileType };
+}
+
+export function isStoredCVRef(f: File | StoredCVRef): f is StoredCVRef {
+  return (f as StoredCVRef)._storedRef === true;
+}
+
+export async function resolveToFile(ref: StoredCVRef): Promise<File> {
+  return downloadCVFromStorage(ref.filePath, ref.name, ref.fileType);
+}
+
 /**
  * Upload a CV file to Supabase Storage and save metadata to saved_cvs table.
  * Returns the public URL of the uploaded file.

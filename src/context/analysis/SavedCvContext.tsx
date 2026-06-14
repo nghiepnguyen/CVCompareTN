@@ -20,7 +20,6 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
   const [savedCVs, setSavedCVs] = useState<SavedCV[]>([]);
   const [isSavingCV, setIsSavingCV] = useState(false);
   const [isLoadingSavedCVs, setIsLoadingSavedCVs] = useState(false);
-  const [isLoadingCVFromStore, setIsLoadingCVFromStore] = useState(false);
   const [savedCVFileName, setSavedCVFileName] = useState<string | null>(null);
 
   const loadSavedCVs = useCallback(async () => {
@@ -110,7 +109,6 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
    */
   const loadCVFromSaved = useCallback(
     async (cv: SavedCV): Promise<File | null> => {
-      setIsLoadingCVFromStore(true);
       try {
         const file = await downloadCVFromStorage(cv.filePath, cv.fileName, cv.fileType);
         trackEvent('cv_load_from_saved', { cv_id: cv.cvId });
@@ -119,8 +117,6 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
         const message = err instanceof Error ? err.message : String(err);
         setError('Lỗi khi tải CV từ kho: ' + message);
         return null;
-      } finally {
-        setIsLoadingCVFromStore(false);
       }
     },
     [setError]
@@ -133,7 +129,6 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
         setSavedCVs,
         isSavingCV,
         isLoadingSavedCVs,
-        isLoadingCVFromStore,
         savedCVFileName,
         loadSavedCVs,
         saveCV,

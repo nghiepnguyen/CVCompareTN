@@ -1,7 +1,7 @@
 import type React from 'react';
 import type { AnalysisResult } from '../../services/ai';
 import type { SavedJD } from '../../services/historyService';
-import type { SavedCV } from '../../services/cvService';
+import type { SavedCV, StoredCVRef } from '../../services/cvService';
 
 export interface AnalysisRunContextType {
   jd: string;
@@ -10,8 +10,8 @@ export interface AnalysisRunContextType {
   setCvText: React.Dispatch<React.SetStateAction<string>>;
   cvInputMode: 'file' | 'text';
   setCvInputMode: React.Dispatch<React.SetStateAction<'file' | 'text'>>;
-  files: File[];
-  setFiles: React.Dispatch<React.SetStateAction<File[]>>;
+  files: (File | StoredCVRef)[];
+  setFiles: React.Dispatch<React.SetStateAction<(File | StoredCVRef)[]>>;
 
   isAnalyzing: boolean;
   analysisStatus: string | null;
@@ -45,7 +45,6 @@ export interface SavedCvContextType {
   setSavedCVs: React.Dispatch<React.SetStateAction<SavedCV[]>>;
   isSavingCV: boolean;
   isLoadingSavedCVs: boolean;
-  isLoadingCVFromStore: boolean;
   savedCVFileName: string | null;
   loadSavedCVs: () => Promise<void>;
   saveCV: (file: File) => Promise<void>;

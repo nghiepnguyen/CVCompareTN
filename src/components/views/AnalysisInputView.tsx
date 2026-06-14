@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileText, Search, FolderOpen, BookmarkPlus, Loader2, Upload, X, Trash2, Globe, TrendingUp, AlertCircle, Archive } from 'lucide-react';
 import { useAnalysis } from '../../context/AnalysisContext';
+import { isStoredCVRef } from '../../services/cvService';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../lib/utils';
@@ -12,7 +13,6 @@ export function AnalysisInputView() {
     jd, setJd,
     cvText, setCvText, cvInputMode, setCvInputMode, files, setFiles,
     isAnalyzing, isSavingJD, isSavingCV, saveCV, savedCVs, savedCVFileName,
-    isLoadingCVFromStore,
     handleAnalyze
   } = useAnalysis();
   const { t, reportLanguage, setReportLanguage, setIsSavedJDsModalOpen, setIsSaveJDNameModalOpen, setIsSavedCVsModalOpen } = useUI();
@@ -339,28 +339,16 @@ export function AnalysisInputView() {
                     </div>
                   )}
 
-                  {isLoadingCVFromStore && (
-                    <motion.div
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="mt-4 flex items-center gap-2 p-2.5 bg-surface-secondary rounded-xl border border-accent/30"
-                    >
-                      <Loader2 className="w-4 h-4 text-accent animate-spin shrink-0" />
-                      <span className="text-[11px] font-black text-accent truncate tracking-tight">
-                        {reportLanguage === 'vi' ? 'Đang tải CV từ kho...' : 'Loading CV from store...'}
-                      </span>
-                    </motion.div>
-                  )}
-
                   {files.length > 0 && (
                     <div className="mt-4 h-24 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                       {files.map((f, i) => {
-                        const isAlreadySaved = savedCVs.some((cv) => cv.fileName === f.name);
+                        const isStored = isStoredCVRef(f);
+                        const isAlreadySaved = isStored || savedCVs.some((cv) => cv.fileName === f.name);
                         return (
-                          <motion.div 
+                          <motion.div
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            key={i} 
+                            key={i}
                             className="flex items-center justify-between p-2.5 bg-surface-secondary rounded-xl border border-border group/item hover:border-accent transition-all"
                           >
                             <div className="flex items-center gap-2 overflow-hidden min-w-0">
@@ -375,11 +363,11 @@ export function AnalysisInputView() {
                               )}
                             </div>
                             <div className="flex items-center gap-1 shrink-0 ml-2">
-                              {user && !isAlreadySaved && (
+                              {user && !isAlreadySaved && !isStored && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    saveCV(f);
+                                    saveCV(f as File);
                                   }}
                                   disabled={isSavingCV}
                                   className="px-2 py-1 text-[9px] font-black uppercase tracking-widest text-accent bg-accent-light/50 hover:bg-accent-light rounded-lg transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-50 flex items-center gap-1"
