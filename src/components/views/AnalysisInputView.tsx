@@ -12,6 +12,7 @@ export function AnalysisInputView() {
     jd, setJd,
     cvText, setCvText, cvInputMode, setCvInputMode, files, setFiles,
     isAnalyzing, isSavingJD, isSavingCV, saveCV, savedCVs, savedCVFileName,
+    isLoadingCVFromStore,
     handleAnalyze
   } = useAnalysis();
   const { t, reportLanguage, setReportLanguage, setIsSavedJDsModalOpen, setIsSaveJDNameModalOpen, setIsSavedCVsModalOpen } = useUI();
@@ -336,6 +337,19 @@ export function AnalysisInputView() {
                         />
                       </div>
                     </div>
+                  )}
+
+                  {isLoadingCVFromStore && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="mt-4 flex items-center gap-2 p-2.5 bg-surface-secondary rounded-xl border border-accent/30"
+                    >
+                      <Loader2 className="w-4 h-4 text-accent animate-spin shrink-0" />
+                      <span className="text-[11px] font-black text-accent truncate tracking-tight">
+                        {reportLanguage === 'vi' ? 'Đang tải CV từ kho...' : 'Loading CV from store...'}
+                      </span>
+                    </motion.div>
                   )}
 
                   {files.length > 0 && (

@@ -17,7 +17,7 @@ export interface SavedCV {
 export async function saveCVToStorage(
   uid: string,
   file: File
-): Promise<{ cvId: string; publicUrl: string }> {
+): Promise<{ cvId: string; publicUrl: string; filePath: string }> {
   const cvId = Math.random().toString(36).substring(7);
   const storagePath = `${uid}/${cvId}/${file.name}`;
 
@@ -57,14 +57,14 @@ export async function saveCVToStorage(
     throw insertError;
   }
 
-  return { cvId, publicUrl };
+  return { cvId, publicUrl, filePath: storagePath };
 }
 
 export async function getSavedCVs(uid: string): Promise<SavedCV[]> {
   try {
     const { data, error } = await supabase
       .from("saved_cvs")
-      .select("*")
+      .select("cv_id, file_name, file_path, file_type, file_size, timestamp")
       .eq("user_id", uid)
       .order("timestamp", { ascending: false });
 

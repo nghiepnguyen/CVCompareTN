@@ -20,6 +20,7 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
   const [savedCVs, setSavedCVs] = useState<SavedCV[]>([]);
   const [isSavingCV, setIsSavingCV] = useState(false);
   const [isLoadingSavedCVs, setIsLoadingSavedCVs] = useState(false);
+  const [isLoadingCVFromStore, setIsLoadingCVFromStore] = useState(false);
   const [savedCVFileName, setSavedCVFileName] = useState<string | null>(null);
 
   const loadSavedCVs = useCallback(async () => {
@@ -61,8 +62,19 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
 
       setIsSavingCV(true);
       try {
-        await saveCVToStorage(user.id, file);
-        await loadSavedCVs();
+        const { cvId, filePath } = await saveCVToStorage(user.id, file);
+        setSavedCVs(prev => [
+          {
+            id: cvId,
+            cvId,
+            fileName: file.name,
+            filePath,
+            fileType: file.type,
+            fileSize: file.size,
+            timestamp: Date.now(),
+          },
+          ...prev,
+        ]);
         trackEvent('cv_save');
         setSavedCVFileName(file.name);
         setTimeout(() => setSavedCVFileName(null), 3000);
@@ -73,7 +85,7 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
         setIsSavingCV(false);
       }
     },
-    [user, effectivePlan, userProfile?.role, savedCVs.length, setError, t, navigateToUpgrade, loadSavedCVs]
+    [user, effectivePlan, userProfile?.role, savedCVs.length, setError, t, navigateToUpgrade]
   );
 
   const handleDeleteSavedCV = useCallback(
@@ -82,7 +94,7 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
       if (!window.confirm('Bạn có chắc chắn muốn xóa CV này khỏi kho lưu trữ không?')) return;
       try {
         await deleteSavedCV(user.id, cvId, filePath);
-        await loadSavedCVs();
+        setSavedCVs(prev => prev.filter(c => c.cvId !== cvId));
         trackEvent('cv_delete', { cv_id: cvId });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -98,6 +110,7 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
    */
   const loadCVFromSaved = useCallback(
     async (cv: SavedCV): Promise<File | null> => {
+      setIsLoadingCVFromStore(true);
       try {
         const file = await downloadCVFromStorage(cv.filePath, cv.fileName, cv.fileType);
         trackEvent('cv_load_from_saved', { cv_id: cv.cvId });
@@ -106,6 +119,8 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
         const message = err instanceof Error ? err.message : String(err);
         setError('Lỗi khi tải CV từ kho: ' + message);
         return null;
+      } finally {
+        setIsLoadingCVFromStore(false);
       }
     },
     [setError]
@@ -118,6 +133,7 @@ export function SavedCvProvider({ children }: { children: React.ReactNode }) {
         setSavedCVs,
         isSavingCV,
         isLoadingSavedCVs,
+        isLoadingCVFromStore,
         savedCVFileName,
         loadSavedCVs,
         saveCV,

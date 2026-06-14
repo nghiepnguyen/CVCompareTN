@@ -45,6 +45,7 @@ export interface SavedCvContextType {
   setSavedCVs: React.Dispatch<React.SetStateAction<SavedCV[]>>;
   isSavingCV: boolean;
   isLoadingSavedCVs: boolean;
+  isLoadingCVFromStore: boolean;
   savedCVFileName: string | null;
   loadSavedCVs: () => Promise<void>;
   saveCV: (file: File) => Promise<void>;

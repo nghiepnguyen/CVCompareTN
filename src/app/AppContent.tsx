@@ -99,7 +99,6 @@ export function AppContent() {
   const [savedJDSearchTerm, setSavedJDSearchTerm] = useState('');
   const [jdSaveTitle, setJdSaveTitle] = useState('');
   const [savedCVSearchTerm, setSavedCVSearchTerm] = useState('');
-  const [isLoadingCV, setIsLoadingCV] = useState(false);
 
   useEffect(() => {
     const isPolicyPage =
@@ -181,16 +180,9 @@ export function AppContent() {
   };
 
   const handleLoadSavedCV = async (cv: { cvId: string; fileName: string; filePath: string; fileType: string }) => {
-    setIsLoadingCV(true);
-    try {
-      const file = await loadCVFromSaved(cv as any);
-      if (file) {
-        setFiles(prev => [...prev, file]);
-        setIsSavedCVsModalOpen(false);
-      }
-    } finally {
-      setIsLoadingCV(false);
-    }
+    setIsSavedCVsModalOpen(false);
+    const file = await loadCVFromSaved(cv as any);
+    if (file) setFiles(prev => [...prev, file]);
   };
 
   const handleDeleteCV = async (cvId: string, filePath: string) => {
@@ -388,7 +380,7 @@ export function AppContent() {
           reportLanguage={reportLanguage}
           onLoadCV={handleLoadSavedCV}
           onDeleteCV={handleDeleteCV}
-          isLoadingCV={isLoadingCV}
+          isLoadingCV={false}
           t={{
             cvStoreModalTitle: t.cvStoreModalTitle,
             cvStoreModalSubtitle: t.cvStoreModalSubtitle,
