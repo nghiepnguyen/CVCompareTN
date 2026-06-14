@@ -210,10 +210,11 @@ export function AdminView() {
           console.error('reCAPTCHA admin test error:', e);
         }
       }
-      const res = await fetch('/api/send-welcome-email', {
+      const res = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          type: 'welcome',
           token: recaptchaToken,
           userEmail: testEmailRecipient,
           userName: testName || t.adminGuest,

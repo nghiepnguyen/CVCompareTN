@@ -60,10 +60,11 @@ export async function rateAnalysis(userId: string, analysisId: string, rating: n
 
   // Gửi email thông báo feedback cho Admin (qua API có reCAPTCHA)
   if (feedback || rating > 0) {
-    fetch('/api/send-feedback', {
+    fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        type: 'feedback',
         token: recaptchaToken,
         rating,
         title: `Đánh giá ${rating} sao cho analysis ${analysisId.substring(0, 8)}`,
