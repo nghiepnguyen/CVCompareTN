@@ -193,7 +193,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           }
 
           setAnalysisStatus(
-            reportLanguage === 'vi' ? `Đang phân tích: ${file.name}` : `Analyzing: ${file.name}`
+            reportLanguage === 'vi' ? `Đang phân tích: ${fileOrRef.name}` : `Analyzing: ${fileOrRef.name}`
           );
           setAnalysisProgress(fileBaseProgress + 15);
 
@@ -204,7 +204,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             jd,
             data,
             mimeType,
-            file.name,
+            fileOrRef.name,
             reportLanguage,
             recaptchaToken,
             authToken
