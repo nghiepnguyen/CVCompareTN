@@ -13,7 +13,7 @@ export function AnalysisInputView() {
     jd, setJd,
     cvText, setCvText, cvInputMode, setCvInputMode, files, setFiles,
     isAnalyzing, isSavingJD, isSavingCV, saveCV, savedCVs, savedCVFileName,
-    handleAnalyze
+    handleAnalyze, loadingCvIds,
   } = useAnalysis();
   const { t, reportLanguage, setReportLanguage, setIsSavedJDsModalOpen, setIsSaveJDNameModalOpen, setIsSavedCVsModalOpen } = useUI();
 
@@ -343,6 +343,7 @@ export function AnalysisInputView() {
                     <div className="mt-4 h-24 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                       {files.map((f, i) => {
                         const isStored = isStoredCVRef(f);
+                        const isLoadingFromStore = isStored && loadingCvIds.has(f.cvId);
                         const isAlreadySaved = isStored || savedCVs.some((cv) => cv.fileName === f.name);
                         return (
                           <motion.div
@@ -353,10 +354,17 @@ export function AnalysisInputView() {
                           >
                             <div className="flex items-center gap-2 overflow-hidden min-w-0">
                               <div className="w-7 h-7 rounded-lg bg-surface flex items-center justify-center shadow-sm shrink-0">
-                                <FileText className="w-3.5 h-3.5 text-accent" />
+                                {isLoadingFromStore
+                                  ? <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" />
+                                  : <FileText className="w-3.5 h-3.5 text-accent" />
+                                }
                               </div>
                               <span className="text-[11px] font-black text-text-main truncate tracking-tight">{f.name}</span>
-                              {isAlreadySaved && (
+                              {isLoadingFromStore ? (
+                                <span className="text-[8px] font-black text-accent bg-accent-light/60 px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0 animate-pulse">
+                                  Đang tải...
+                                </span>
+                              ) : isAlreadySaved && (
                                 <span className="text-[8px] font-black text-green-600 bg-green-100 px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0">
                                   ✓ Đã lưu
                                 </span>

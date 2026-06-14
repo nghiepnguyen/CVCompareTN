@@ -18,6 +18,8 @@ export interface StoredCVRef {
   readonly cvId: string;
   readonly filePath: string;
   readonly fileType: string;
+  /** Eager download+processing promise started as soon as CV is selected from store. */
+  eagerProcessing?: Promise<{ data: string; mimeType: string }>;
 }
 
 export function makeStoredCVRef(cv: SavedCV): StoredCVRef {

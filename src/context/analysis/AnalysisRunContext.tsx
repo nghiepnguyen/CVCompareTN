@@ -17,7 +17,10 @@ import { MAX_BATCH_BY_PLAN } from '../../lib/planLimits';
 import type { UserPlan } from '../../services/userService';
 import type { AnalysisRunContextType } from './types';
 import { cleanText, processFile } from '../../hooks/useFileProcessor';
-import { isStoredCVRef, resolveToFile, type StoredCVRef } from '../../services/cvService';
+import {
+  isStoredCVRef, resolveToFile, makeStoredCVRef, downloadCVFromStorage,
+  type StoredCVRef, type SavedCV,
+} from '../../services/cvService';
 import { createProgressSimulator } from '../../hooks/useProgressSimulator';
 
 const AnalysisRunContext = createContext<AnalysisRunContextType | undefined>(undefined);
@@ -31,6 +34,23 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const [cvText, setCvText] = useState('');
   const [cvInputMode, setCvInputMode] = useState<'file' | 'text'>('file');
   const [files, setFiles] = useState<(File | StoredCVRef)[]>([]);
+
+  const [loadingCvIds, setLoadingCvIds] = useState<Set<string>>(new Set());
+
+  const loadCVFromStore = useCallback((cv: SavedCV) => {
+    const ref = makeStoredCVRef(cv);
+    setLoadingCvIds(prev => new Set([...prev, cv.cvId]));
+    ref.eagerProcessing = downloadCVFromStorage(cv.filePath, cv.fileName, cv.fileType)
+      .then(file => processFile(file))
+      .finally(() => {
+        setLoadingCvIds(prev => {
+          const next = new Set(prev);
+          next.delete(cv.cvId);
+          return next;
+        });
+      });
+    setFiles(prev => [...prev, ref]);
+  }, [setFiles]);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState<string | null>(null);
@@ -160,8 +180,17 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           );
           setAnalysisProgress(fileBaseProgress + 5);
 
-          const file = isStoredCVRef(fileOrRef) ? await resolveToFile(fileOrRef) : fileOrRef;
-          const { data, mimeType } = await processFile(file);
+          let data: string;
+          let mimeType: string;
+          if (isStoredCVRef(fileOrRef) && fileOrRef.eagerProcessing) {
+            setAnalysisStatus(
+              reportLanguage === 'vi' ? `Đang tải CV: ${fileOrRef.name}...` : `Loading CV: ${fileOrRef.name}...`
+            );
+            ({ data, mimeType } = await fileOrRef.eagerProcessing);
+          } else {
+            const file = isStoredCVRef(fileOrRef) ? await resolveToFile(fileOrRef) : fileOrRef;
+            ({ data, mimeType } = await processFile(file));
+          }
 
           setAnalysisStatus(
             reportLanguage === 'vi' ? `Đang phân tích: ${file.name}` : `Analyzing: ${file.name}`
@@ -296,6 +325,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         handleAnalyze,
         clearHistory,
         deleteHistoryItem,
+        loadingCvIds,
+        loadCVFromStore,
       }}
     >
       {children}

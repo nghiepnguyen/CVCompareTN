@@ -14,7 +14,7 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { SavedJdsListModal } from './SavedJdsListModal';
 import { SaveJdNameModal } from './SaveJdNameModal';
 import { SavedCvsListModal } from './SavedCvsListModal';
-import { makeStoredCVRef, type SavedCV } from '../services/cvService';
+import type { SavedCV } from '../services/cvService';
 
 const LandingView = React.lazy(() =>
   import('../components/views/LandingView').then((m) => ({ default: m.LandingView }))
@@ -92,8 +92,7 @@ export function AppContent() {
     savedCVs,
     handleDeleteSavedCV,
     isLoadingSavedCVs,
-    files,
-    setFiles,
+    loadCVFromStore,
   } = useAnalysis();
 
   const [savedJDSearchTerm, setSavedJDSearchTerm] = useState('');
@@ -180,7 +179,7 @@ export function AppContent() {
   };
 
   const handleLoadSavedCV = (cv: SavedCV) => {
-    setFiles(prev => [...prev, makeStoredCVRef(cv)]);
+    loadCVFromStore(cv);
     setIsSavedCVsModalOpen(false);
   };
 

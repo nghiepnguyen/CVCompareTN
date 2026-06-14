@@ -3,6 +3,8 @@ import type { AnalysisResult } from '../../services/ai';
 import type { SavedJD } from '../../services/historyService';
 import type { SavedCV, StoredCVRef } from '../../services/cvService';
 
+export type EagerProcessResult = { data: string; mimeType: string };
+
 export interface AnalysisRunContextType {
   jd: string;
   setJd: React.Dispatch<React.SetStateAction<string>>;
@@ -28,6 +30,9 @@ export interface AnalysisRunContextType {
   handleAnalyze: () => Promise<void>;
   clearHistory: () => Promise<void>;
   deleteHistoryItem: (id: string) => Promise<void>;
+
+  loadingCvIds: Set<string>;
+  loadCVFromStore: (cv: SavedCV) => void;
 }
 
 export interface SavedJdContextType {
