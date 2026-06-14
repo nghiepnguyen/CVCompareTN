@@ -69,7 +69,7 @@ export async function rateAnalysis(userId: string, analysisId: string, rating: n
         rating,
         title: `Đánh giá ${rating} sao cho analysis ${analysisId.substring(0, 8)}`,
         content: feedback,
-        userEmail: user?.email || 'Ẩn danh',
+        userEmail: user?.email || '',
       }),
     }).catch(e => console.error("Lỗi gửi email feedback:", e));
   }
