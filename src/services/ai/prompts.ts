@@ -1,4 +1,3 @@
-import type { CategorizedScore, DetailedComparison } from "./types";
 
 export interface PromptParams {
   jdSection: string;
@@ -31,7 +30,12 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
     4. Liệt kê các điểm tương đồng cụ thể theo danh mục.
     5. Liệt kê các điểm còn thiếu (gaps).
     6. Xác định các từ khóa ATS quan trọng nên có trong CV.
-    7. Cung cấp các gợi ý viết lại cụ thể cho từng phần CV (Sử dụng công thức Google XYZ).
+    7. Cung cấp ít nhất 10–15 gợi ý viết lại cụ thể bằng cách:
+       - Đọc kỹ TOÀN BỘ nội dung CV đã cung cấp (không bỏ sót phần nào).
+       - Bắt buộc cover TẤT CẢ các section có trong CV: Professional Summary, từng vị trí Work Experience, Skills, Education, Projects, Certifications (nếu có).
+       - Với mỗi gợi ý: trích dẫn CHÍNH XÁC câu/đoạn gốc trong CV vào field "original" (không được để trống, không paraphrase), viết lại vào "optimized" theo công thức Google XYZ (Accomplished [X] as measured by [Y], by doing [Z]) với số liệu cụ thể nếu CV đã cung cấp, và giải thích lý do tối ưu vào "explanation".
+       - Mỗi Work Experience entry phải có ít nhất 2 gợi ý riêng biệt cho 2 bullet point khác nhau.
+       - Ưu tiên các bullet point thiếu số liệu định lượng, dùng động từ yếu, hoặc không liên quan đến yêu cầu JD.
     8. Viết lại toàn bộ CV (Full Rewritten CV) chuyên nghiệp, tối ưu 100% cho ATS.
     9. Ước tính xác suất thành công khi phỏng vấn và khả năng vượt qua vòng lọc CV.
     10. Cung cấp bảng so sánh chi tiết (Detailed Comparison) đối chiếu TẤT CẢ các yêu cầu trong JD.
@@ -113,7 +117,12 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
     4. List specific matching points by category.
     5. List missing gaps (gaps).
     6. Identify important ATS keywords.
-    7. Provide specific rewrite suggestions (Google XYZ formula).
+    7. Provide at least 10–15 specific rewrite suggestions by:
+       - Reading the ENTIRE CV content carefully (do not skip any section).
+       - Mandatory coverage of ALL sections present in the CV: Professional Summary, each Work Experience entry, Skills, Education, Projects, Certifications (if present).
+       - For each suggestion: quote the EXACT original sentence/bullet from the CV into the "original" field (never leave it empty, never paraphrase), rewrite into "optimized" using the Google XYZ formula (Accomplished [X] as measured by [Y], by doing [Z]) with specific metrics if the CV already contains them, and explain the reasoning in "explanation".
+       - Each Work Experience entry must have at least 2 separate suggestions for 2 different bullet points.
+       - Prioritize bullet points that lack quantitative metrics, use weak action verbs, or are not aligned with JD requirements.
     8. Generate a FULL REWRITTEN CV optimized 100% for ATS.
     9. Estimate success probability and pass probability.
     10. Provide a detailed comparison table against ALL JD requirements.
