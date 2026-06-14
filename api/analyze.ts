@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
-import { getUserFromBearerToken, getSupabaseAdmin } from '../_server-lib/payment/supabaseAdmin';
-import { analyzeCV } from '../_server-lib/ai/analysisService';
+import { getUserFromBearerToken, getSupabaseAdmin } from '../_server-lib/payment/supabaseAdmin.js';
+import { analyzeCV } from '../_server-lib/ai/analysisService.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

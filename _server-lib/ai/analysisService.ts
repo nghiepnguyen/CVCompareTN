@@ -1,5 +1,5 @@
-import { getGeminiClient, GEMINI_MODEL } from './geminiClient';
-import { normalizeParsedCV } from '../../src/services/ai/parsedCvNormalize';
+import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
+import { normalizeParsedCV } from '../../src/services/ai/parsedCvNormalize.js';
 import {
   normalizeCategoryScores,
   normalizeDetailedComparison,
@@ -7,9 +7,9 @@ import {
   normalizeMissingGaps,
   normalizeRewriteSuggestions,
   normalizeStringArray,
-} from '../../src/services/ai/resultPayloadNormalize';
-import type { AnalysisResult } from '../../src/services/ai/types';
-import { buildAnalyzePromptVi, buildAnalyzePromptEn } from '../../src/services/ai/prompts';
+} from '../../src/services/ai/resultPayloadNormalize.js';
+import type { AnalysisResult } from '../../src/services/ai/types.js';
+import { buildAnalyzePromptVi, buildAnalyzePromptEn } from '../../src/services/ai/prompts.js';
 
 function stripControlChars(s: string): string {
   // Remove ASCII control characters (0x00-0x1F, 0x7F-0x9F)
