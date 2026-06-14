@@ -3,7 +3,6 @@ import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
 import { analyzeCV, type AnalysisResult } from '../../services/ai';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
-import { incrementUsageCount } from '../../services/historyService';
 import { processFile as processFileUtil } from '../../hooks/useFileProcessor';
 import { cleanText } from '../../hooks/useFileProcessor';
 import { formatLabel } from '../../translations';
@@ -242,13 +241,18 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
 
             const { data: textData, mimeType } = await processFileUtil(file);
 
-            // Analyze with Gemini
+            // Get session token for authenticated API call
+            const { data: { session } } = await supabase.auth.getSession();
+            const authToken = session?.access_token;
+
             const analysis = await analyzeCV(
               jdContent,
               textData,
               mimeType,
               candidate.fileName,
               reportLanguage,
+              undefined,
+              authToken,
             );
 
             // Save result via backend API (service_role RPC)
@@ -258,11 +262,6 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
               analysis.matchScore,
               'done',
             );
-
-            // Increment usage count
-            if (user?.id) {
-              incrementUsageCount(user.id).catch(console.error);
-            }
 
             trackEvent('recruiter_analysis_done', {
               candidate_id: candidate.id,

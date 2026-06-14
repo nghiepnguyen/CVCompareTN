@@ -6,9 +6,10 @@ Canonical reference for **which runtime handles each capability**. The frontend 
 
 | Capability | Vercel (`api/`) | Express (`server/routes/`) | Supabase Edge |
 |------------|-----------------|---------------------------|---------------|
-| Public config (e.g. Gemini key) | `GET /api/config` → `api/config.ts` | `server/routes/config` | — |
+| Public config (Supabase keys) | `GET /api/config` → `api/config.ts` | `server/routes/config` | — |
+| **Gemini CV analysis** | `POST /api/analyze` → `api/analyze.ts` (60s timeout) | `POST /api/analyze` → `server/routes/analyze.ts` | — |
 | PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` | `POST /api/extract-pdf` → `server/routes/pdf.ts` (unified path, no suffix) | `extract-pdf` (legacy; không còn dùng) |
-| reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` (unified path, no suffix) | `verify-recaptcha` (analyze flow in `AnalysisRunContext`) |
+| reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` (unified path, no suffix) | `verify-recaptcha` (legacy; không còn dùng cho analyze flow) |
 | Feedback email | `POST /api/send-feedback` → `api/send-feedback.ts` | mirror under `server/routes/` | — |
 | Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | — |
 | VIP upgrade email | server-side via `api/payment/lib/vipUpgradeEmail.ts` (triggered by webhook/confirm handlers) | — | — |
@@ -28,12 +29,13 @@ flowchart TB
   Browser --> SupabaseAuth[Supabase Auth / Postgres / Storage]
   Browser --> VercelApi["/api/* on Vercel"]
   Browser --> ExpressApi["/api/* on localhost Express"]
-  Browser --> EdgeFn[supabase.functions.invoke]
   VercelApi --> Secrets[Vercel env secrets]
+  VercelApi --> Gemini[Gemini API - server-side only]
   ExpressApi --> SecretsLocal[.env.local]
-  EdgeFn --> EdgeSecrets[Supabase Edge secrets]
-  Browser --> Gemini[Gemini via src/services/ai + config key]
+  ExpressApi --> Gemini
 ```
+
+> **SEC-4 (2026-06):** Gemini không còn được gọi trực tiếp từ browser. `GEMINI_API_KEY` chỉ tồn tại trên server. Frontend gửi `POST /api/analyze` → backend xử lý toàn bộ AI call.
 
 ## When to use which stack
 
@@ -51,9 +53,8 @@ flowchart TB
 
 ### Supabase Edge Functions (`supabase/functions/`)
 
-- Invoked from the browser with the user's session JWT where applicable.
-- **`verify-recaptcha`:** Called before CV analysis in non-localhost environments (`AnalysisRunContext`).
-- **`extract-pdf`:** Legacy Supabase Edge Function — không còn được gọi từ frontend. PDF extraction cho cả CV và JD đều dùng backend API (xem `AnalysisInputView.tsx` và `AnalysisRunContext.tsx`).
+- **`verify-recaptcha`:** Legacy — **không còn dùng cho analyze flow**. reCAPTCHA verify cho analyze giờ chạy inline trong `POST /api/analyze`. Vẫn còn dùng cho auth flow (`AuthContext.tsx`).
+- **`extract-pdf`:** Legacy — không còn được gọi từ frontend. PDF extraction dùng `unpdf` client-side (trong `useFileProcessor.ts`) trước khi gửi text lên `/api/analyze`.
 
 Do **not** assume one Edge function replaces Express and Vercel handlers without checking call sites.
 

@@ -11,7 +11,6 @@ function publicConfig() {
     '';
 
   return {
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
     VITE_SUPABASE_URL: supabaseUrl,
     VITE_SUPABASE_ANON_KEY: supabaseAnonKey,
     SUPABASE_URL: supabaseUrl,

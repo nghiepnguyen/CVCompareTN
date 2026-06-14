@@ -9,7 +9,6 @@ import {
   saveToHistory,
   deleteFromHistory,
   clearUserHistory,
-  incrementUsageCount,
   getUserHistory,
 } from '../../services/historyService';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
@@ -123,35 +122,18 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     setError(null);
     setResults([]);
 
+    // Get reCAPTCHA token (verification handled server-side in /api/analyze)
+    let recaptchaToken: string | undefined;
     try {
-      setAnalysisProgress(5);
       const isLocal =
         window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-      if (isLocal) {
-        setAnalysisProgress(10);
-      } else {
-        if (!executeRecaptcha) {
-          setError('Hệ thống xác thực reCAPTCHA chưa sẵn sàng. Vui lòng thử lại sau.');
-          setIsAnalyzing(false);
-          return;
-        }
-        const token = await executeRecaptcha('analyze_cv');
-        const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
-          'verify-recaptcha',
-          { body: { token } }
-        );
-
-        if (verifyError || !verifyData?.success) {
-          setError('Xác nhận reCAPTCHA thất bại (điểm tin cậy thấp). Vui lòng thử lại.');
-          setIsAnalyzing(false);
-          return;
-        }
-        setAnalysisProgress(10);
+      if (!isLocal && executeRecaptcha) {
+        recaptchaToken = await executeRecaptcha('analyze_cv');
       }
     } catch (err) {
-      console.error('Lỗi xác thực reCAPTCHA:', err);
+      console.error('reCAPTCHA token error:', err);
     }
+    setAnalysisProgress(10);
 
     trackEvent('analyze_cv', {
       input_mode: cvInputMode,
@@ -163,6 +145,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       const newResults: AnalysisResult[] = [];
       setAnalysisStatus(reportLanguage === 'vi' ? 'Đang đọc CV...' : 'Reading CV...');
       setAnalysisProgress(15);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
 
       if (cvInputMode === 'file') {
         const totalFiles = files.length;
@@ -191,7 +176,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             data,
             mimeType,
             file.name,
-            reportLanguage
+            reportLanguage,
+            recaptchaToken,
+            authToken
           );
           stopFake();
           setAnalysisProgress(fakeEnd);
@@ -202,7 +189,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             input_mode: 'file',
           });
           setAnalysisProgress(fileBaseProgress + (1 / totalFiles) * 75);
-          if (user?.id) incrementUsageCount(user.id).catch(console.error);
         }
       } else {
         setAnalysisStatus(
@@ -220,7 +206,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           cvText,
           'text/plain',
           'CV_Pasted.txt',
-          reportLanguage
+          reportLanguage,
+          recaptchaToken,
+          authToken
         );
         stopFake();
         setAnalysisProgress(75);
@@ -231,7 +219,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           input_mode: 'text',
         });
         setAnalysisProgress(90);
-        if (user?.id) incrementUsageCount(user.id).catch(console.error);
       }
 
       setAnalysisStatus(

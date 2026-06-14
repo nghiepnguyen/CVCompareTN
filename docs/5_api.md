@@ -13,7 +13,33 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 ### `GET /api/config`
 
 - **Mục đích:** Cấu hình công khai cho frontend.
-- **Response:** `{ GEMINI_API_KEY: string }` (và các khóa public khác nếu được thêm trong `server/routes/config.ts` / `api/config.ts`).
+- **Response:** `{ VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, SUPABASE_URL, SUPABASE_ANON_KEY }`.
+- **Lưu ý:** `GEMINI_API_KEY` **không còn** trả về từ endpoint này (đã xóa sau SEC-4). Gemini chỉ chạy server-side qua `/api/analyze`.
+
+### Phân tích CV (Gemini — server-side)
+
+| Môi trường | Method & path | File |
+|------------|----------------|------|
+| **Vercel** | `POST /api/analyze` | `api/analyze.ts` |
+| **Express** | `POST /api/analyze` | `server/routes/analyze.ts` |
+
+- **Auth:** Bearer token (Supabase JWT) — optional. Nếu không có token, yêu cầu `recaptchaToken`.
+- **Body:**
+  ```json
+  {
+    "jd": "string (job description)",
+    "cvData": "string (plain text hoặc base64 cho image)",
+    "cvMimeType": "text/plain | image/jpeg | image/png | ...",
+    "cvName": "string (optional)",
+    "language": "vi | en (optional, default: vi)",
+    "recaptchaToken": "string (optional, bắt buộc nếu anonymous)"
+  }
+  ```
+- **Response:** `AnalysisResult` JSON (matchScore, categoryScores, matchingPoints, missingGaps, rewriteSuggestions, fullRewrittenCV, parsedCV, ...).
+- **Server-side flow:** xác thực reCAPTCHA (nếu anonymous) → kiểm tra quota → gọi Gemini (`_server-lib/ai/analysisService.ts`) → `increment_usage_count` (fire-and-forget).
+- **Timeout:** 60s (Vercel function).
+- **Rate limit:** 10 req/15 min (strictLimiter).
+- **Lưu ý PDF:** Frontend extract text bằng `unpdf` (client-side) trước khi gửi — không gửi base64 PDF lên backend (tránh vượt giới hạn 4.5MB của Vercel).
 
 ### Trích xuất PDF (path thống nhất)
 
@@ -85,8 +111,8 @@ Frontend dùng `src/lib/supabase.ts` (REST / Auth / Storage).
 
 | RPC | Gọi từ | Mô tả |
 |-----|---------|--------|
-| `check_analytics_quota(p_user_id, p_additional?)` | `analyticsQuotaService.ts` | Kiểm tra còn quota trước batch analyze; trả `allowed`, `used`, `limit`. |
-| `increment_usage_count(user_id)` | Service sau analyze thành công | Tăng `usage_count`; enforce limit server-side. |
+| `check_analytics_quota(p_user_id, p_additional?)` | `analyticsQuotaService.ts` (client, UX) + `api/analyze.ts` (server, enforce) | Kiểm tra còn quota trước batch analyze; trả `allowed`, `used`, `limit`. |
+| `increment_usage_count(user_id)` | `api/analyze.ts` / `server/routes/analyze.ts` (server-side, fire-and-forget) | Tăng `usage_count` sau mỗi lần phân tích thành công. **Không còn gọi từ client.** |
 | `get_default_monthly_analytics_limit()` | (SQL nội bộ / có thể gọi từ client) | Đọc default từ `app_settings`. |
 
 Chi tiết semantics, Admin UI, migration: [8_analytics.md](8_analytics.md).

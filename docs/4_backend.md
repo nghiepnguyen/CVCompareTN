@@ -23,16 +23,33 @@ Hệ thống sử dụng **Express** module hoá (`server/routes/`) khi chạy *
 -   **Express (`npm start`, `server.ts`):** `server/routes/pdf.ts` mount tại `/api/extract-pdf`, route **`POST /api/extract-pdf`** (unified path, không còn suffix `/extract`) — body `{ base64Data: string }`, response `{ text: string }`.
 -   **Vercel Serverless:** **`POST /api/extract-pdf`** (file `api/extract-pdf.ts`) — cùng body/response.
 
-### 3. Xác thực reCAPTCHA
+### 3. Phân tích CV với Gemini AI
+
+-   **Express:** **`POST /api/analyze`** (`server/routes/analyze.ts`).
+-   **Vercel:** **`POST /api/analyze`** (`api/analyze.ts`) — timeout 60s.
+-   **Logic:** `_server-lib/ai/analysisService.ts` (dùng `_server-lib/ai/geminiClient.ts` với `process.env.GEMINI_API_KEY`).
+
+**Flow server-side:**
+1. Verify Bearer token → lấy `userId` (optional — anonymous vẫn được phép)
+2. reCAPTCHA verify (bỏ qua nếu authenticated hoặc localhost)
+3. `check_analytics_quota` RPC (nếu authenticated)
+4. Gọi Gemini API → trả `AnalysisResult` JSON
+5. `increment_usage_count` RPC (fire-and-forget)
+
+**Lý do chuyển Gemini lên server:** `VITE_GEMINI_API_KEY` trước đây bị bundle vào client JS — bất kỳ ai mở DevTools đều lấy được key. Sau SEC-4, chỉ `process.env.GEMINI_API_KEY` trên server được dùng; frontend chỉ gọi `/api/analyze`.
+
+**PDF handling:** Frontend dùng `unpdf` (client-side) để extract text từ PDF trước khi gửi — tránh vượt giới hạn body 4.5MB của Vercel. Image (≤ 2MB) vẫn gửi dạng base64 để Gemini xử lý multimodal.
+
+### 4. Xác thực reCAPTCHA
 
 -   **Express:** **`POST /api/verify-recaptcha`** (`server/routes/recaptcha.ts`) — unified path, không còn suffix `/verify`.
 -   **Vercel:** **`POST /api/verify-recaptcha`** (`api/verify-recaptcha.ts`).
 
 Tự động bypass trên localhost để thuận tiện phát triển.
 
-**Sử dụng trong auth:** Frontend gọi `verifyCaptcha()` (trong `AuthContext.tsx`) trước mỗi lần `signInWithEmail()` / `signUpWithEmail()`. Token Google reCAPTCHA v3 được gửi đến `POST /api/verify-recaptcha` để verify với score ≥ 0.5. Nếu reCAPTCHA chưa sẵn sàng (chưa load) → bỏ qua để không block auth.
+**Sử dụng:** (1) `AuthContext.tsx` — verify trước `signInWithEmail()` / `signUpWithEmail()`. (2) `/api/analyze` — verify inline trong endpoint cho anonymous users (không cần gọi `/api/verify-recaptcha` riêng từ analyze flow nữa).
 
-### 4. Thanh toán PayOS (`/api/payment/create` & `/api/payment/webhook`)
+### 5. Thanh toán PayOS (`/api/payment/create` & `/api/payment/webhook`)
 
 -   **Files:** `server/routes/payment.ts` (Express), `api/payment/` (Vercel serverless), shared logic trong `api/payment/lib/`.
 -   Dùng **shared handlers** (`api/payment/lib/handlers.ts`) cho cả Express và Vercel — logic đồng nhất.
@@ -47,7 +64,7 @@ Tự động bypass trên localhost để thuận tiện phát triển.
     -   Gọi RPC `activate_pro_plan` -> cập nhật `profiles.plan = 'pro'`, cập nhật `payments.status = 'paid'`.
     -   Idempotent: đã `paid` thì bỏ qua.
 
-### 5. Hệ thống Email (Resend)
+### 7. Hệ thống Email (Resend)
 
 Hệ thống gởi 3 loại email qua dịch vụ **Resend**:
 
@@ -82,7 +99,7 @@ Storage bucket: `cv-files` — dùng cho upload CV (kho CV) và lưu file phân 
 Cần cấu hình các biến sau trong file `.env` hoặc hệ thống CI/CD:
 
 ```env
-GEMINI_API_KEY=          # Google AI API Key
+GEMINI_API_KEY=          # Google Gemini API Key (server-only — KHÔNG dùng prefix VITE_, không expose ra client)
 RECAPTCHA_SECRET_KEY=    # Google reCAPTCHA v3 Secret
 RESEND_API_KEY=          # Resend Platform API Key
 RESEND_FROM_EMAIL=       # Email gửi đi (ví dụ: noreply@cvfit.pro)

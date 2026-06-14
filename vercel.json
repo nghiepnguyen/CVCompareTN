@@ -29,11 +29,18 @@
       "destination": "/api/recruiter/save-analysis.ts"
     },
     {
+      "source": "/api/analyze",
+      "destination": "/api/analyze.ts"
+    },
+    {
       "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
       "destination": "/index.html"
     }
   ],
   "functions": {
+    "api/analyze.ts": {
+      "maxDuration": 60
+    },
     "api/*.ts": {
       "maxDuration": 30
     },
