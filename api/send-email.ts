@@ -70,7 +70,9 @@ async function handleWelcome(req: VercelRequest, res: VercelResponse) {
   const errors = validateWelcomeEmailInput(req.body as Record<string, unknown>);
   if (errors.length > 0) return res.status(400).json({ success: false, message: 'Invalid input', errors });
 
-  if (token) {
+  const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');
+  if (!isLocal) {
+    if (!token) return res.status(400).json({ success: false, message: 'reCAPTCHA token required' });
     const secretKey = process.env.RECAPTCHA_SECRET_KEY;
     if (secretKey) {
       const params = new URLSearchParams();
@@ -78,12 +80,11 @@ async function handleWelcome(req: VercelRequest, res: VercelResponse) {
       params.append('response', token);
 
       const { data } = await axios.post('https://www.google.com/recaptcha/api/siteverify', params);
-      const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');
 
-      if (!data.success && !isLocal) {
+      if (!data.success) {
         return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed' });
       }
-      if (data.success && data.score !== undefined && data.score < 0.2 && !isLocal) {
+      if (data.score !== undefined && data.score < 0.2) {
         return res.status(400).json({ success: false, message: 'reCAPTCHA score too low' });
       }
     } else {
@@ -131,7 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (type === 'welcome') return await handleWelcome(req, res);
     return res.status(400).json({ success: false, message: 'Invalid type. Use "feedback" or "welcome".' });
   } catch (error: any) {
-    console.error(`send-email [${type}] error:`, error);
-    return res.status(500).json({ success: false, message: error.message });
+    console.error('send-email [%s] error:', type, error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 }
