@@ -68,7 +68,7 @@ export function PricingSection({
   onUpgrade,
   theme = 'dark',
 }: {
-  t: Record<string, any>;
+  t: LandingLabels;
   login: () => void;
   onUpgrade?: () => void;
   theme?: SectionTheme;
