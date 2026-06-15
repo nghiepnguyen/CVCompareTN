@@ -8,7 +8,7 @@ Canonical reference for **which runtime handles each capability**. The frontend 
 |------------|-----------------|---------------------------|---------------|
 | Public config (Supabase keys) | `GET /api/config` → `api/config.ts` | `server/routes/config` | — |
 | **Gemini CV analysis** | `POST /api/analyze` → `api/analyze.ts` (60s timeout) | `POST /api/analyze` → `server/routes/analyze.ts` | — |
-| PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` | `POST /api/extract-pdf` → `server/routes/pdf.ts` (unified path, no suffix) | `extract-pdf` (legacy; không còn dùng) |
+| PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` (**Auth: Bearer or reCAPTCHA**) | `POST /api/extract-pdf` → `server/routes/pdf.ts` (unified path, no suffix) | `extract-pdf` (legacy; không còn dùng) |
 | reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` (unified path, no suffix) | `verify-recaptcha` (legacy; không còn dùng cho analyze flow) |
 | Feedback email | `POST /api/send-feedback` → `api/send-feedback.ts` | mirror under `server/routes/` | — |
 | Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | — |

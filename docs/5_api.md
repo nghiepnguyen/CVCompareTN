@@ -48,8 +48,10 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 | **Vercel** | `POST /api/extract-pdf` | `api/extract-pdf.ts` |
 | **Express** | `POST /api/extract-pdf` | `server/routes/pdf.ts` |
 
-- **Body:** `{ base64Data: string }`
+- **Auth (2026-06):** Bearer token (Supabase JWT) hoặc `recaptchaToken` trong body — bắt buộc. Anonymous request không có token sẽ nhận `401`.
+- **Body:** `{ base64Data: string, recaptchaToken?: string }`
 - **Response:** `{ text: string }`
+- **Dùng cho:** Trích xuất text từ PDF JD (Job Description) upload trong `AnalysisInputView`. CV PDF dùng `unpdf` client-side, không qua endpoint này.
 
 ### Xác thực reCAPTCHA (path thống nhất)
 
