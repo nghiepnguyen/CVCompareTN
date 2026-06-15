@@ -114,7 +114,7 @@ export async function analyzeCV(
       fullRewrittenCV: parsedResult.fullRewrittenCV || '',
       detailedComparison: normalizeDetailedComparison(parsedResult.detailedComparison),
       parsedCV: normalizeParsedCV(parsedResult.parsedCV),
-      id: Math.random().toString(36).substring(7),
+      id: crypto.randomUUID(),
       timestamp: Date.now(),
       cvName: cvName || 'Unnamed CV',
       jdTitle: jd.substring(0, 100) + '...',
