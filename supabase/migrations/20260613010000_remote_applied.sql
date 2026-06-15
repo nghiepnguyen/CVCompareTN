@@ -1,0 +1,5 @@
+-- Stub: this migration was applied directly on the remote database on 2026-06-13
+-- and does not have a corresponding local file.
+-- The schema changes from this migration are already live on the remote database.
+-- This stub exists only so the Supabase CLI migration chain is consistent.
+-- To inspect what was changed, check Supabase Dashboard → SQL Editor → History.
