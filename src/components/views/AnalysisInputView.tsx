@@ -89,7 +89,7 @@ export function AnalysisInputView() {
       }
       setJd(extractedText);
       setExtractedJDFileName(file.name);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('JD file extraction error:', err);
       setExtractedJDFileName(null);
     } finally {

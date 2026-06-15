@@ -322,8 +322,8 @@ export function AdminView() {
                             btn.style.opacity = '0.5';
                             try {
                               await markUserAsRead(u.id);
-                            } catch (err: any) {
-                              alert(formatLabel(t.adminMarkReadError, { message: err.message }));
+                            } catch (err: unknown) {
+                              alert(formatLabel(t.adminMarkReadError, { message: err instanceof Error ? err.message : String(err) }));
                             } finally {
                               btn.disabled = false;
                               btn.style.opacity = '1';

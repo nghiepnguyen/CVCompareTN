@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { FileText, Copy, Check, AlignLeft, Printer, Zap, Shield, Crown, Lock, Eye, Mail, Phone, MapPin, Globe } from 'lucide-react';
 import { useUI } from '../../../context/UIContext';
+import type { UiLabels } from '../../../translations';
 import { useAuth } from '../../../context/AuthContext';
 import { isProPlan, isRecruiterPlan } from '../../../lib/planLimits';
 import { AnalysisResult } from '../../../services/ai';
@@ -445,8 +446,7 @@ interface ActionButtonsProps {
   setCopiedId: (id: string | null) => void;
   fullRewrittenCV: string | undefined;
   navigateToUpgrade: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  t: UiLabels;
 }
 
 function ActionButtons({ canExport, copiedId, setCopiedId, fullRewrittenCV, navigateToUpgrade, t }: ActionButtonsProps) {

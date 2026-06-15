@@ -77,9 +77,9 @@ router.post('/', async (req, res) => {
     }
 
     res.json({ success: true, message: 'Feedback sent successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Feedback submission error:', error);
-    res.status(500).json({ success: false, message: `System error: ${error.message}` });
+    res.status(500).json({ success: false, message: `System error: ${error instanceof Error ? error.message : String(error)}` });
   }
 });
 

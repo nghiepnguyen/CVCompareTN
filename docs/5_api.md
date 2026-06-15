@@ -67,13 +67,15 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 
 | Môi trường | Method & path | File |
 |------------|----------------|------|
-| **Vercel** | `POST /api/payment/create` | `api/payment/create.ts` |
-| **Express** | `POST /api/payment/create` | `server/routes/payment.ts` → shared `api/payment/lib/handlers.ts` |
-| **Vercel** | `POST /api/payment/webhook` | `api/payment/webhook.ts` |
-| **Express** | `POST /api/payment/webhook` | `server/routes/payment.ts` → shared `api/payment/lib/handlers.ts` |
+| **Vercel** | `POST /api/payment/{create\|webhook\|confirm}` | `api/payment.ts` (unified, dispatch theo URL segment) |
+| **Express** | `POST /api/payment/{create\|webhook\|confirm}` | `server/routes/payment.ts` → shared `_server-lib/payment/handlers.ts` |
 
-- **`POST /api/payment/create`** — Tạo link thanh toán PayOS. Body (do PayOS sinh): `{ orderCode, amount, description, items, returnUrl, cancelUrl }`. Response: `{ checkoutUrl: string }`.
-- **`POST /api/payment/webhook`** — PayOS gọi callback khi có kết quả thanh toán. Xác thực HMAC-SHA256, gọi RPC `activate_pro_plan` nếu thành công.
+- **`POST /api/payment/create`** — Tạo link thanh toán PayOS. Auth: Bearer (Supabase JWT). Body: `{ planType?: "pro" | "recruiter" }`. Response: `{ checkoutUrl: string, orderCode: number }`.
+- **`POST /api/payment/webhook`** — PayOS callback khi có kết quả thanh toán. Xác thực hai lớp:
+  1. **HMAC-SHA256** (`verifyWebhookPayload`) — sorted-key object signing trên `data`.
+  2. **Timestamp freshness** (`isWebhookTimestampFresh`) — `data.transactionDateTime` phải trong cửa sổ ±30 phút. Webhook cũ bị replay → HTTP 400.
+  - Gọi RPC `activate_pro_plan` nếu thành công; idempotent (đã `paid` → bỏ qua).
+- **`POST /api/payment/confirm`** — Fallback khi webhook bị delay. Auth: Bearer. Body: `{ orderCode: number }`. Tự verify trạng thái qua PayOS API, sau đó activate nếu đã thanh toán.
 - **Yêu cầu:** `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`.
 
 ### Hệ thống Email (Resend)
@@ -94,7 +96,7 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 
 - **Mục đích:** Gởi email chúc mừng + quyền lợi khi user nâng cấp Pro/Recruiter thành công.
 - **Trigger:** Thanh toán PayOS thành công (webhook hoặc client confirm).
-- **File:** `api/payment/lib/vipUpgradeEmail.ts` — gọi trực tiếp từ `api/payment/lib/handlers.ts` (non-blocking, fire-and-forget).
+- **File:** `_server-lib/payment/vipUpgradeEmail.ts` — gọi trực tiếp từ `_server-lib/payment/handlers.ts` (non-blocking, fire-and-forget).
 - **Phân biệt plan:** Tự động nhận diện Pro vs Recruiter, hiển thị danh sách quyền lợi tương ứng (Pro: 5 CV batch, 10 saved CV; Recruiter: 50 CV batch, 50 saved CV, 10 campaigns).
 
 ### Edge Function (tùy chọn — Supabase)

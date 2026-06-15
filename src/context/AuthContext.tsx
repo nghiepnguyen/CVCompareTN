@@ -77,9 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         try {
           profile = await createUserProfile(currentUser, token);
-        } catch (createErr: any) {
+        } catch (createErr: unknown) {
           // Nếu báo lỗi trùng ID (23505), nghĩa là hồ sơ vừa được tạo hoặc đã tồn tại
-          if (createErr.code === '23505') {
+          if ((createErr as { code?: string })?.code === '23505') {
             profile = await getUserProfile(currentUser.id);
           } else {
             throw createErr;
@@ -94,9 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setEffectivePlan('free');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Lỗi khi tải thông tin người dùng:", err);
-      setError("Không thể tải thông tin hồ sơ: " + err.message);
+      setError("Không thể tải thông tin hồ sơ: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsLoadingProfile(false);
     }
@@ -180,9 +180,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       if (error) throw error;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Login Error:", err);
-      setError("Lỗi đăng nhập: " + err.message);
+      setError("Lỗi đăng nhập: " + (err instanceof Error ? err.message : String(err)));
     }
   };
 
@@ -238,10 +238,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       trackEvent('sign_in_email', { method: 'email' });
       return { success: true };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Sign in error:', err);
-      trackEvent('sign_in_email_error', { method: 'email', error: err.message?.slice(0, 100) || 'unknown' });
-      return { success: false, error: err.message || 'authGenericError' };
+      const message = err instanceof Error ? err.message : String(err);
+      trackEvent('sign_in_email_error', { method: 'email', error: message.slice(0, 100) || 'unknown' });
+      return { success: false, error: message || 'authGenericError' };
     }
   };
 
@@ -280,10 +281,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       trackEvent('sign_up_email', { method: 'email', needs_confirmation: false });
       return { success: true };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Sign up error:', err);
-      trackEvent('sign_up_email_error', { method: 'email', error: err.message?.slice(0, 100) || 'unknown' });
-      return { success: false, error: err.message || 'authGenericError' };
+      const message = err instanceof Error ? err.message : String(err);
+      trackEvent('sign_up_email_error', { method: 'email', error: message.slice(0, 100) || 'unknown' });
+      return { success: false, error: message || 'authGenericError' };
     }
   };
 
@@ -300,10 +302,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       trackEvent('reset_password', { method: 'email' });
       return { success: true };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Reset password error:', err);
-      trackEvent('reset_password_error', { method: 'email', error: err.message?.slice(0, 100) || 'unknown' });
-      return { success: false, error: err.message || 'authGenericError' };
+      const message = err instanceof Error ? err.message : String(err);
+      trackEvent('reset_password_error', { method: 'email', error: message.slice(0, 100) || 'unknown' });
+      return { success: false, error: message || 'authGenericError' };
     }
   };
 
@@ -318,7 +321,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setUserProfile(null);
       setEffectivePlan('free');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Logout Error:", err);
     }
   };

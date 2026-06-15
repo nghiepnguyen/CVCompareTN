@@ -90,9 +90,9 @@ router.post('/', async (req, res) => {
     }
 
     res.json({ success: true, message: 'Welcome email sent successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Welcome email error:', error);
-    res.status(500).json({ success: false, message: `System error: ${error.message}` });
+    res.status(500).json({ success: false, message: `System error: ${error instanceof Error ? error.message : String(error)}` });
   }
 });
 

@@ -5,6 +5,7 @@ import {
   generateOrderCode,
   getPlanConfig,
   isPayosPaymentPaid,
+  isWebhookTimestampFresh,
   PRO_DURATION_DAYS,
   verifyWebhookPayload,
   type PlanType,
@@ -181,6 +182,13 @@ export async function handlePaymentWebhook(
 
   if (!isWebhookPaymentSuccess(payload)) {
     return { status: 200, body: { success: true, ignored: true } };
+  }
+
+  // Replay-attack protection: reject successful webhooks whose transactionDateTime
+  // is outside the ±5-minute tolerance window.
+  if (!payload.data || !isWebhookTimestampFresh(payload.data)) {
+    console.error('PayOS webhook timestamp missing or outside tolerance window');
+    return { status: 400, body: { error: 'Webhook timestamp không hợp lệ' } };
   }
 
   const orderCode = normalizeOrderCode(payload.data?.orderCode);

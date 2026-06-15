@@ -225,7 +225,7 @@ export function RecruiterView() {
         onCreate={async (title, jdTitle, jdContent) => {
           await createCampaign(title, jdTitle, jdContent);
         }}
-        savedJds={savedJDs.map((jd: any) => ({
+        savedJds={savedJDs.map((jd) => ({
           id: jd.id,
           title: jd.title,
           content: jd.content,

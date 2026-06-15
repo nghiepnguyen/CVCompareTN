@@ -49,19 +49,19 @@ Tự động bypass trên localhost để thuận tiện phát triển.
 
 **Sử dụng:** (1) `AuthContext.tsx` — verify trước `signInWithEmail()` / `signUpWithEmail()`. (2) `/api/analyze` — verify inline trong endpoint cho anonymous users (không cần gọi `/api/verify-recaptcha` riêng từ analyze flow nữa).
 
-### 5. Thanh toán PayOS (`/api/payment/create` & `/api/payment/webhook`)
+### 5. Thanh toán PayOS (`/api/payment/*`)
 
--   **Files:** `server/routes/payment.ts` (Express), `api/payment/` (Vercel serverless), shared logic trong `api/payment/lib/`.
--   Dùng **shared handlers** (`api/payment/lib/handlers.ts`) cho cả Express và Vercel — logic đồng nhất.
+-   **Files:** Vercel serverless — `api/payment.ts` (unified handler, dispatch theo URL segment `/create` | `/webhook` | `/confirm`). Express — `server/routes/payment.ts`. Shared logic: `_server-lib/payment/handlers.ts`. PayOS utilities: `_server-lib/payment/payos.ts`. Supabase admin + JWT cache: `_server-lib/payment/supabaseAdmin.ts`.
 -   **`POST /api/payment/create`:**
-    -   Xác thực Bearer token (Supabase session).
+    -   Xác thực Bearer token (Supabase session) — dùng `getUserFromBearerToken()` với **in-memory cache 5 phút** để tránh gọi `admin.getUserById` trên mỗi request (xem `supabaseAdmin.ts`).
     -   Gọi PayOS API tạo link thanh toán (HMAC-SHA256 signed).
     -   Ghi bản ghi `payments` (status = `pending`) vào Supabase.
     -   Trả về `{ checkoutUrl }` → frontend redirect.
 -   **`POST /api/payment/webhook`:**
-    -   Xác thực chữ ký PayOS qua `verifyWebhookPayload()` (sorted-key object signing).
+    -   Xác thực chữ ký PayOS qua `verifyWebhookPayload()` (sorted-key object signing, HMAC-SHA256).
+    -   **Replay-attack protection:** sau khi verify chữ ký, kiểm tra `data.transactionDateTime` (format `YYYY-MM-DD HH:mm:ss`, UTC+7) phải nằm trong cửa sổ ±30 phút so với thời điểm hiện tại (`isWebhookTimestampFresh()` trong `payos.ts`). Webhook cũ bị reject với HTTP 400.
     -   Tra cứu payment theo `orderCode`.
-    -   Gọi RPC `activate_pro_plan` -> cập nhật `profiles.plan = 'pro'`, cập nhật `payments.status = 'paid'`.
+    -   Gọi RPC `activate_pro_plan` → cập nhật `profiles.plan`, `payments.status = 'paid'`.
     -   Idempotent: đã `paid` thì bỏ qua.
 
 ### 7. Hệ thống Email (Resend)
@@ -74,7 +74,7 @@ Hệ thống gởi 3 loại email qua dịch vụ **Resend**:
 | **Feedback** | User đánh giá kết quả phân tích | `POST /api/send-feedback` | Bắt buộc (score ≥ 0.5) |
 | **VIP Upgrade** | Thanh toán PayOS thành công (webhook/confirm) | Server-side (gọi trực tiếp từ `api/payment/lib/`) | Không (server-side, non-blocking) |
 
-- **Files Vercel:** `api/send-feedback.ts`, `api/send-welcome-email.ts`, `api/payment/lib/vipUpgradeEmail.ts`
+- **Files Vercel:** `api/send-feedback.ts`, `api/send-welcome-email.ts`, `_server-lib/payment/vipUpgradeEmail.ts`
 - **Files Express:** `server/routes/feedback.ts`, `server/routes/welcomeEmail.ts`
 - **VIP Upgrade Email:** Tự động phân biệt Pro vs Recruiter — hiển thị danh sách quyền lợi khác nhau (Pro: 5 CV batch, 10 saved CV; Recruiter: 50 CV batch, 50 saved CV, 10 campaigns).
 - **Rate limiting:** Express áp dụng `emailLimiter` (5 req/h) cho feedback & welcome.
@@ -91,6 +91,7 @@ Các bảng chính trong PostgreSQL (Supabase):
 | `saved_cvs` | **Kho CV đã lưu** (Free: 1, Pro: 10) — metadata file CV đã upload lên Storage |
 | `payments` | Bản ghi thanh toán PayOS |
 | `app_settings` | Cấu hình runtime (default_monthly_analytics_limit...) |
+| `admin_audit_log` | **Audit trail bất biến** cho mọi admin action (thay đổi role, plan, permission, quota, xóa user). Ghi bởi `logAdminAction()` trong `userService.ts` (fire-and-forget). RLS: admin SELECT; authenticated INSERT chính mình. |
 
 Storage bucket: `cv-files` — dùng cho upload CV (kho CV) và lưu file phân tích.
 

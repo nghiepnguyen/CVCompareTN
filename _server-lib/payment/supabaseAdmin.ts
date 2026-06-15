@@ -2,6 +2,34 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 let adminClient: SupabaseClient | null = null;
 
+// ---------------------------------------------------------------------------
+// JWT user cache — avoids a round-trip to Supabase auth.admin.getUserById on
+// every API request for the same user within a warm Vercel function instance.
+// ---------------------------------------------------------------------------
+
+const USER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+type CachedUser = {
+  user: { id: string; email?: string };
+  expiresAt: number;
+};
+
+const userCache = new Map<string, CachedUser>();
+
+function getCachedUser(userId: string): { id: string; email?: string } | null {
+  const entry = userCache.get(userId);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    userCache.delete(userId);
+    return null;
+  }
+  return entry.user;
+}
+
+function setCachedUser(userId: string, user: { id: string; email?: string }): void {
+  userCache.set(userId, { user, expiresAt: Date.now() + USER_CACHE_TTL_MS });
+}
+
 export function getSupabaseAdmin(): SupabaseClient {
   if (adminClient) return adminClient;
 
@@ -47,10 +75,15 @@ export async function getUserFromBearerToken(
   const userId = payload?.sub;
   if (!userId) return null;
 
-  // Use admin API to look up the user — more reliable
-  // than auth.getUser(jwt) with a service_role client
+  const cached = getCachedUser(userId);
+  if (cached) return cached;
+
+  // Cache miss — fetch from Supabase auth admin API
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase.auth.admin.getUserById(userId);
   if (error || !data.user) return null;
-  return { id: data.user.id, email: data.user.email ?? undefined };
+
+  const user = { id: data.user.id, email: data.user.email ?? undefined };
+  setCachedUser(userId, user);
+  return user;
 }

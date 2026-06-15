@@ -12,14 +12,17 @@ Canonical reference for **which runtime handles each capability**. The frontend 
 | reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` (unified path, no suffix) | `verify-recaptcha` (legacy; không còn dùng cho analyze flow) |
 | Feedback email | `POST /api/send-feedback` → `api/send-feedback.ts` | mirror under `server/routes/` | — |
 | Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | — |
-| VIP upgrade email | server-side via `api/payment/lib/vipUpgradeEmail.ts` (triggered by webhook/confirm handlers) | — | — |
-| PayOS — tạo link Pro | `POST /api/payment/create` → `api/payment/create.ts` | `POST /api/payment/create` → `server/routes/payment.ts` | — |
-| PayOS — webhook | `POST /api/payment/webhook` → `api/payment/webhook.ts` | `POST /api/payment/webhook` | — |
-| PayOS — xác nhận Pro (fallback) | `POST /api/payment/confirm` → `api/payment/confirm.ts` | `POST /api/payment/confirm` | — |
+| VIP upgrade email | server-side via `_server-lib/payment/vipUpgradeEmail.ts` (triggered by webhook/confirm handlers) | — | — |
+| PayOS — tạo link | `POST /api/payment/create` → `api/payment.ts` (unified) | `POST /api/payment/create` → `server/routes/payment.ts` | — |
+| PayOS — webhook | `POST /api/payment/webhook` → `api/payment.ts` (unified) | `POST /api/payment/webhook` | — |
+| PayOS — confirm (fallback) | `POST /api/payment/confirm` → `api/payment.ts` (unified) | `POST /api/payment/confirm` | — |
+| Recruiter — lưu kết quả phân tích | `POST /api/recruiter/save-analysis` → `api/recruiter/save-analysis.ts` | — | — |
 
 Rewrites are defined in [`vercel.json`](../vercel.json).
 
-**PayOS:** `POST /api/payment/create` yêu cầu `Authorization: Bearer <supabase_access_token>`. Webhook không dùng JWT; xác thực chữ ký PayOS trên `data`. Biến môi trường: `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`.
+**PayOS:** `POST /api/payment/create` yêu cầu `Authorization: Bearer <supabase_access_token>` (JWT được cache 5 phút in-memory). Webhook không dùng JWT; xác thực 2 lớp — HMAC-SHA256 + timestamp freshness (±30 phút, `transactionDateTime` UTC+7) để chống replay attack. Biến môi trường: `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`.
+
+**Recruiter save-analysis:** `POST /api/recruiter/save-analysis` yêu cầu `Authorization: Bearer <supabase_access_token>`. Dùng service role để ghi kết quả phân tích vào bảng recruiter campaigns.
 
 ## Request flow (high level)
 

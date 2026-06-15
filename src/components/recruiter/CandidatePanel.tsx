@@ -19,7 +19,19 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUI } from '../../context/UIContext';
+import type { UiLabels } from '../../translations';
 import type { CandidateCV, HrStatus } from '../../context/recruiter';
+
+type CandidateAnalysisData = {
+  successProbability?: string;
+  passProbability?: string;
+  mainFactor?: string;
+  matchingPoints?: Array<{ content?: string } | string>;
+  missingGaps?: Array<{ content?: string; impact?: string } | string>;
+  matched?: string[];
+  missing?: string[];
+  categoryScores?: Record<string, number>;
+};
 
 interface CandidatePanelProps {
   candidate: CandidateCV | null;
@@ -218,7 +230,7 @@ export function CandidatePanel({
   );
 }
 
-function StatusBadge({ candidate, t }: { candidate: CandidateCV; t: any }) {
+function StatusBadge({ candidate, t }: { candidate: CandidateCV; t: UiLabels }) {
   if (candidate.status === 'analyzing') {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent/10 text-accent border border-accent/20">
@@ -261,7 +273,7 @@ function CandidateDetail({
   onClose,
   saving,
 }: {
-  t: any;
+  t: UiLabels;
   candidate: CandidateCV;
   jdContent?: string;
   showJd: boolean;
@@ -275,15 +287,11 @@ function CandidateDetail({
   onClose: () => void;
   saving: boolean;
 }) {
-  const result = candidate.analysisResult as Record<string, unknown> | null;
+  const result = candidate.analysisResult as CandidateAnalysisData | null;
   const isDone = candidate.status === 'done';
 
-  const matchedSkills: string[] = Array.isArray((result as any)?.matched)
-    ? (result as any).matched
-    : [];
-  const missingSkills: string[] = Array.isArray((result as any)?.missing)
-    ? (result as any).missing
-    : [];
+  const matchedSkills: string[] = Array.isArray(result?.matched) ? result.matched : [];
+  const missingSkills: string[] = Array.isArray(result?.missing) ? result.missing : [];
 
   return (
     <div className="divide-y divide-border">
@@ -322,7 +330,7 @@ function CandidateDetail({
               <div className="min-w-0">
                 <p className="text-[9px] text-text-muted uppercase tracking-wide">{t.panelProbability}</p>
                 <p className="text-[11px] font-extrabold text-text-main truncate">
-                  {(result as any)?.successProbability || (result as any)?.passProbability || '—'}
+                  {result?.successProbability || result?.passProbability || '—'}
                 </p>
               </div>
             </div>
@@ -332,7 +340,7 @@ function CandidateDetail({
               <div className="min-w-0">
                 <p className="text-[9px] text-text-muted uppercase tracking-wide">{t.panelMainFactor}</p>
                 <p className="text-[11px] font-extrabold text-text-main truncate">
-                  {(result as any)?.mainFactor || '—'}
+                  {result?.mainFactor || '—'}
                 </p>
               </div>
             </div>
@@ -467,21 +475,21 @@ function CandidateDetail({
           </p>
 
           {/* Strengths */}
-          {Array.isArray((result as any)?.matchingPoints) && (result as any).matchingPoints.length > 0 && (
+          {Array.isArray(result?.matchingPoints) && result.matchingPoints.length > 0 && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <TrendingUp className="w-3.5 h-3.5 text-success" />
                 <span className="text-xs font-semibold text-text-main">
-                  {t.panelStrengths} ({(result as any).matchingPoints.length})
+                  {t.panelStrengths} ({result.matchingPoints.length})
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
-                {(result as any).matchingPoints.slice(0, 4).map((pt: any, i: number) => (
+                {result.matchingPoints.slice(0, 4).map((pt, i: number) => (
                   <span
                     key={i}
                     className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-success/10 text-success border border-success/20"
                   >
-                    {pt.content || pt}
+                    {typeof pt === 'string' ? pt : pt.content}
                   </span>
                 ))}
               </div>
@@ -489,28 +497,28 @@ function CandidateDetail({
           )}
 
           {/* Weaknesses */}
-          {Array.isArray((result as any)?.missingGaps) && (result as any).missingGaps.length > 0 && (
+          {Array.isArray(result?.missingGaps) && result.missingGaps.length > 0 && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <TrendingDown className="w-3.5 h-3.5 text-error" />
                 <span className="text-xs font-semibold text-text-main">
-                  {t.panelWeaknesses} ({(result as any).missingGaps.length})
+                  {t.panelWeaknesses} ({result.missingGaps.length})
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
-                {(result as any).missingGaps.slice(0, 4).map((gap: any, i: number) => (
+                {result.missingGaps.slice(0, 4).map((gap, i: number) => (
                   <span
                     key={i}
                     className={cn(
                       'px-2 py-0.5 rounded-md text-[10px] font-bold border',
-                      gap.impact === 'High'
+                      typeof gap !== 'string' && gap.impact === 'High'
                         ? 'bg-error/10 text-error border-error/20'
-                        : gap.impact === 'Medium'
+                        : typeof gap !== 'string' && gap.impact === 'Medium'
                           ? 'bg-amber-400/10 text-amber-600 border-amber-400/20'
                           : 'bg-surface-secondary text-text-muted border-border',
                     )}
                   >
-                    {gap.content || gap}
+                    {typeof gap === 'string' ? gap : gap.content}
                   </span>
                 ))}
               </div>
@@ -518,7 +526,7 @@ function CandidateDetail({
           )}
 
           {/* Category Scores */}
-          {candidate.analysisResult && (candidate.analysisResult as any).categoryScores && (
+          {result?.categoryScores && (
             <div className="space-y-2">
               <p className="text-[9px] font-extrabold uppercase tracking-wider text-text-muted">
                 {t.panelCategoryScores}
@@ -530,7 +538,7 @@ function CandidateDetail({
                   { key: 'tools', label: t.panelCatTools },
                   { key: 'education', label: t.panelCatEducation },
                 ] as const).map((cat) => {
-                  const val = (candidate.analysisResult as any)?.categoryScores?.[cat.key] ?? 0;
+                  const val = result?.categoryScores?.[cat.key] ?? 0;
                   const valNum = typeof val === 'number' ? val : 0;
                   return (
                     <div

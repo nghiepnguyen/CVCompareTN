@@ -28,7 +28,7 @@ const parseGeminiJson = (text: string) => {
           .replace(/,\s*([\}\]])/g, '$1')
           .trim();
         return JSON.parse(cleaned);
-      } catch (e2: any) {
+      } catch (e2: unknown) {
         console.error('JSON Parse Error (Extracted):', e2);
         try {
           let fixed = jsonMatch[0];
@@ -66,7 +66,8 @@ export async function analyzeCV(
       ? buildAnalyzePromptVi({ jdSection })
       : buildAnalyzePromptEn({ jdSection });
 
-  const parts: any[] = [{ text: finalPrompt }];
+  type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
+  const parts: GeminiPart[] = [{ text: finalPrompt }];
 
   if (cvMimeType === 'application/pdf' || cvMimeType.startsWith('image/')) {
     parts.push({
@@ -122,13 +123,12 @@ export async function analyzeCV(
     };
 
     return finalResult as AnalysisResult;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Gemini Analysis Error:', error);
     if (error instanceof SyntaxError) {
       throw new Error(`Invalid AI data (JSON Error). Please try again. Detail: ${error.message}`);
     }
-    throw new Error(
-      error.message || 'Could not perform analysis with Gemini. Please try again later.'
-    );
+    const message = error instanceof Error ? error.message : undefined;
+    throw new Error(message || 'Could not perform analysis with Gemini. Please try again later.');
   }
 }

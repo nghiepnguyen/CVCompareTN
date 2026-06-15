@@ -131,7 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (type === 'feedback') return await handleFeedback(req, res);
     if (type === 'welcome') return await handleWelcome(req, res);
     return res.status(400).json({ success: false, message: 'Invalid type. Use "feedback" or "welcome".' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('send-email [%s] error:', type, error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }

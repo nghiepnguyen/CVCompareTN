@@ -148,6 +148,36 @@ export function verifyWebhookPayload(body: {
   return expected === body.signature;
 }
 
+/** Replay-attack protection: max age of a valid webhook from PayOS. */
+export const WEBHOOK_TIMESTAMP_TOLERANCE_MS = 30 * 60 * 1000; // 30 minutes
+
+/**
+ * Parse PayOS `transactionDateTime` ("YYYY-MM-DD HH:mm:ss" in UTC+7) to a Date.
+ * Returns null when the field is absent or unparseable.
+ */
+function parseTransactionDateTime(raw: unknown): Date | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+  if (!m) return null;
+  // Append explicit UTC+7 offset so Date parses it correctly regardless of server TZ
+  const d = new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}+07:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Returns true when the webhook's `transactionDateTime` is within
+ * ±WEBHOOK_TIMESTAMP_TOLERANCE_MS of `nowMs` (defaults to Date.now()).
+ * Returns false when the field is missing or the timestamp is stale/future.
+ */
+export function isWebhookTimestampFresh(
+  data: Record<string, unknown>,
+  nowMs: number = Date.now()
+): boolean {
+  const txDate = parseTransactionDateTime(data.transactionDateTime);
+  if (txDate === null) return false;
+  return Math.abs(nowMs - txDate.getTime()) <= WEBHOOK_TIMESTAMP_TOLERANCE_MS;
+}
+
 export function generateOrderCode(): number {
   return (Date.now() % 1_000_000_000) + Math.floor(Math.random() * 1000);
 }

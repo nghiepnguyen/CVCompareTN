@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Briefcase, Check, Infinity, Minus, Sparkles, Zap } from 'lucide-react';
 import { cn } from '../../../lib/utils';
+import type { LandingLabels } from './types';
 import type { SectionTheme } from './shared';
 import { SectionHeading, SectionBadge } from './shared';
 
@@ -15,7 +16,7 @@ type ComparisonRow = {
   recruiter: { value: string; icon: 'check' | 'dash' | 'infinity' };
 };
 
-function buildRows(t: any): ComparisonRow[] {
+function buildRows(t: LandingLabels): ComparisonRow[] {
   return [
     { key: 'analyses', labelKey: 'pricingAnalyses', free: { value: '10', icon: 'dash' }, pro: { value: '100', icon: 'check' }, recruiter: { value: '500', icon: 'check' } },
     { key: 'batch', labelKey: 'pricingBatch', free: { value: '1', icon: 'dash' }, pro: { value: '5', icon: 'check' }, recruiter: { value: '50', icon: 'check' } },
@@ -35,7 +36,7 @@ function RowIcon({ type }: { type: 'check' | 'dash' | 'infinity' }) {
   return null;
 }
 
-function PriceTag({ plan, t, isLight }: { plan: Plan; t: any; isLight: boolean }) {
+function PriceTag({ plan, t, isLight }: { plan: Plan; t: LandingLabels; isLight: boolean }) {
   const mutedClass = isLight ? 'text-slate-400' : 'text-text-muted';
   if (plan === 'recruiter') {
     return (

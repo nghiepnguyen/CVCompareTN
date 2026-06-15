@@ -368,12 +368,21 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
         const XLSX = await import('xlsx');
 
         const rows = campaignCandidates.map((c, idx) => {
-          const catScores = (c.analysisResult as any)?.categoryScores;
-          const strengths = Array.isArray((c.analysisResult as any)?.matchingPoints)
-            ? (c.analysisResult as any).matchingPoints.map((p: any) => p.content || p).join('; ')
+          type ExportData = {
+            categoryScores?: Record<string, number>;
+            matchingPoints?: Array<{ content?: string } | string>;
+            missingGaps?: Array<{ content?: string } | string>;
+            successProbability?: string;
+            passProbability?: string;
+            mainFactor?: string;
+          };
+          const r = c.analysisResult as ExportData | null;
+          const catScores = r?.categoryScores;
+          const strengths = Array.isArray(r?.matchingPoints)
+            ? r.matchingPoints.map((p) => (typeof p === 'string' ? p : p.content)).join('; ')
             : '';
-          const weaknesses = Array.isArray((c.analysisResult as any)?.missingGaps)
-            ? (c.analysisResult as any).missingGaps.map((g: any) => g.content || g).join('; ')
+          const weaknesses = Array.isArray(r?.missingGaps)
+            ? r.missingGaps.map((g) => (typeof g === 'string' ? g : g.content)).join('; ')
             : '';
           return {
             STT: idx + 1,
@@ -383,8 +392,8 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             'Kinh nghiệm': catScores?.experience ?? '',
             'Công cụ': catScores?.tools ?? '',
             'Học vấn': catScores?.education ?? '',
-            'Xác suất': (c.analysisResult as any)?.successProbability || (c.analysisResult as any)?.passProbability || '',
-            'Yếu tố chính': (c.analysisResult as any)?.mainFactor || '',
+            'Xác suất': r?.successProbability || r?.passProbability || '',
+            'Yếu tố chính': r?.mainFactor || '',
             'Điểm mạnh': strengths,
             'Điểm yếu': weaknesses,
             'Trạng thái HR':

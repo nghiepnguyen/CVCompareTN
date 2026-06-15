@@ -43,7 +43,7 @@ export function FaqSection({
         <SectionHeading goldLine theme={theme}>{t.faqTitle}</SectionHeading>
 
         <div className="space-y-4">
-          {t.faqItems.map((item: any, index: number) => (
+          {t.faqItems.map((item, index: number) => (
             <motion.div
               layout
               key={index}

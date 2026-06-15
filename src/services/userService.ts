@@ -35,25 +35,25 @@ export function resolveEffectiveMonthlyAnalyticsLimit(
 }
 
 // Map database fields to UserProfile interface
-export function mapProfile(data: any): UserProfile {
+export function mapProfile(data: Record<string, unknown>): UserProfile {
   return {
-    id: data.id,
-    email: data.email,
-    displayName: data.display_name,
-    photoURL: data.photo_url || DEFAULT_AVATAR_URL,
-    role: data.role || 'user',
-    createdAt: data.created_at,
-    isNew: data.is_new,
-    hasPermission: data.has_permission,
-    usageCount: data.usage_count || 0,
+    id: data['id'] as string,
+    email: data['email'] as string,
+    displayName: data['display_name'] as string,
+    photoURL: (data['photo_url'] as string | undefined) || DEFAULT_AVATAR_URL,
+    role: data['role'] === 'admin' ? 'admin' : 'user',
+    createdAt: data['created_at'] as string,
+    isNew: Boolean(data['is_new']),
+    hasPermission: Boolean(data['has_permission']),
+    usageCount: (data['usage_count'] as number | undefined) || 0,
     monthlyAnalyticsLimit:
-      data.monthly_analytics_limit === null || data.monthly_analytics_limit === undefined
+      data['monthly_analytics_limit'] === null || data['monthly_analytics_limit'] === undefined
         ? null
-        : Number(data.monthly_analytics_limit),
-    monthlyAnalyticsLimitCustom: Boolean(data.monthly_analytics_limit_custom),
-    usageMonth: data.usage_month || '',
-    plan: (data.plan === 'pro' || data.plan === 'recruiter') ? data.plan : 'free',
-    planExpiresAt: data.plan_expires_at ?? null,
+        : Number(data['monthly_analytics_limit']),
+    monthlyAnalyticsLimitCustom: Boolean(data['monthly_analytics_limit_custom']),
+    usageMonth: (data['usage_month'] as string | undefined) || '',
+    plan: (data['plan'] === 'pro' || data['plan'] === 'recruiter') ? data['plan'] as UserPlan : 'free',
+    planExpiresAt: (data['plan_expires_at'] as string | null) ?? null,
   };
 }
 
@@ -88,7 +88,15 @@ export async function getUserProfile(id: string): Promise<UserProfile | null> {
   }
 }
 
-export async function createUserProfile(user: any, recaptchaToken?: string): Promise<UserProfile> {
+interface AuthUserInput {
+  id: string;
+  email?: string;
+  user_metadata?: { full_name?: string; avatar_url?: string };
+  displayName?: string;
+  photoURL?: string;
+}
+
+export async function createUserProfile(user: AuthUserInput, recaptchaToken?: string): Promise<UserProfile> {
   const profileData = {
     id: user.id,
     email: user.email || '',
@@ -136,6 +144,40 @@ export async function createUserProfile(user: any, recaptchaToken?: string): Pro
   }
 }
 
+// ---------------------------------------------------------------------------
+// Audit logging
+// ---------------------------------------------------------------------------
+
+type AuditAction =
+  | 'update_role'
+  | 'update_permission'
+  | 'update_plan'
+  | 'update_analytics_limit'
+  | 'reset_analytics_limit'
+  | 'delete_user';
+
+async function logAdminAction(
+  action: AuditAction,
+  targetUserId: string,
+  details?: Record<string, unknown>
+): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('admin_audit_log').insert({
+      admin_id: user.id,
+      action,
+      target_user_id: targetUserId,
+      details: details ?? null,
+    });
+  } catch (err) {
+    // Non-critical — log failure must never block the admin action
+    console.error('admin_audit_log insert failed:', err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 export async function markUserAsRead(uid: string): Promise<void> {
   const { error } = await supabase
     .from('profiles')
@@ -150,8 +192,9 @@ export async function updateUserPermission(uid: string, hasPermission: boolean):
     .from('profiles')
     .update({ has_permission: hasPermission })
     .eq('id', uid);
-  
+
   if (error) throw error;
+  void logAdminAction('update_permission', uid, { has_permission: hasPermission });
 }
 
 export async function updateUserMonthlyAnalyticsLimit(
@@ -167,6 +210,7 @@ export async function updateUserMonthlyAnalyticsLimit(
     .eq('id', uid);
 
   if (error) throw error;
+  void logAdminAction('update_analytics_limit', uid, { monthly_analytics_limit: limit });
 }
 
 export async function resetUserToGlobalAnalyticsLimit(uid: string): Promise<void> {
@@ -176,6 +220,7 @@ export async function resetUserToGlobalAnalyticsLimit(uid: string): Promise<void
     .eq('id', uid);
 
   if (error) throw error;
+  void logAdminAction('reset_analytics_limit', uid);
 }
 
 export async function updateUserRole(uid: string, role: 'admin' | 'user'): Promise<void> {
@@ -184,6 +229,7 @@ export async function updateUserRole(uid: string, role: 'admin' | 'user'): Promi
     p_role: role,
   });
   if (error) throw error;
+  void logAdminAction('update_role', uid, { role });
 }
 
 export type AdminPlanGrant = 'free' | 'pro_30' | 'pro_90' | 'pro_365' | 'recruiter_30';
@@ -226,14 +272,18 @@ export async function adminUpdateUserPlan(
   });
 
   if (error) throw error;
+  void logAdminAction('update_plan', uid, { grant, plan, duration_days: durationDays });
 }
 
 export async function deleteUser(id: string): Promise<void> {
+  // Log before delete so target_user_id still resolves in the DB
+  await logAdminAction('delete_user', id);
+
   const { error } = await supabase
     .from('profiles')
     .delete()
     .eq('id', id);
-  
+
   if (error) throw error;
 }
 
