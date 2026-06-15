@@ -179,11 +179,10 @@ export async function resetUserToGlobalAnalyticsLimit(uid: string): Promise<void
 }
 
 export async function updateUserRole(uid: string, role: 'admin' | 'user'): Promise<void> {
-  const { error } = await supabase
-    .from('profiles')
-    .update({ role })
-    .eq('id', uid);
-  
+  const { error } = await supabase.rpc('set_user_role', {
+    p_user_id: uid,
+    p_role: role,
+  });
   if (error) throw error;
 }
 
