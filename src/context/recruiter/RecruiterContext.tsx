@@ -365,7 +365,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
       );
 
       try {
-        const XLSX = await import('xlsx');
+        const ExcelJS = await import('exceljs');
 
         const rows = campaignCandidates.map((c, idx) => {
           type ExportData = {
@@ -415,13 +415,25 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
           };
         });
 
-        const ws = XLSX.utils.json_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Candidates');
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Candidates');
+        if (rows.length > 0) {
+          worksheet.columns = Object.keys(rows[0]).map((key) => ({ header: key, key }));
+        }
+        worksheet.addRows(rows);
 
         const campaignTitle =
           activeCampaign?.title || campaignId.slice(0, 8);
-        XLSX.writeFile(wb, `${campaignTitle}_ranking.xlsx`);
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `${campaignTitle}_ranking.xlsx`;
+        anchor.click();
+        URL.revokeObjectURL(url);
 
         trackEvent('recruiter_export_excel', {
           campaign_id: campaignId,

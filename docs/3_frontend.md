@@ -61,7 +61,7 @@ CI/CD: **GitHub Actions** (`.github/workflows/ci.yml`) — trigger `push`/`PR` t
 -   **`DashboardView.tsx`**: Workspace chính (CV/JD, phân tích, kết quả).
 -   **`UpgradeView.tsx`**: Bảng so sánh Free / Pro / Recruiter dạng table (desktop) và stacked cards (mobile), gọi `createProCheckout(planType)` hoặc `createRecruiterCheckout()` → redirect PayOS.
 -   **`RecruiterView.tsx`**: Danh sách đợt tuyển dụng (campaigns). Feature gate: chỉ hiển thị khi user có plan=recruiter, nếu không hiện `UpgradePrompt`.
--   **`CampaignDetailView.tsx`**: Bảng xếp hạng ứng viên theo điểm khớp, upload CV hàng loạt (50 CV/lần), phân tích batch, xuất Excel (SheetJS), JD toggle viewer, xóa CV.
+-   **`CampaignDetailView.tsx`**: Bảng xếp hạng ứng viên theo điểm khớp, upload CV hàng loạt (50 CV/lần), phân tích batch, xuất Excel (ExcelJS), JD toggle viewer, xóa CV.
 -   **`PaymentSuccessView.tsx`**: Polling Supabase mỗi 2s (tối đa 15 lần) để phát hiện plan activation, tự động redirect Dashboard sau 4s.
 -   **`PaymentCancelView.tsx`**: Trang thông báo hủy thanh toán, nút quay lại Dashboard.
 -   **`ProfileView.tsx`**: Trang thông tin cá nhân (Họ tên, Email, Loại tài khoản Free/Pro/Recruiter, hạn sử dụng, số lượt phân tích đã dùng/tháng).
@@ -138,7 +138,7 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
 -   Phân tích batch (`RecruiterContext.analyzeCampaign`) → tái dụng `analyzeCV` từ `ai/analysisService`.
 -   Kết quả hiển thị trong `CandidateTable` (xếp hạng theo match_score).
 -   Click ứng viên → `CandidatePanel` hiển thị chi tiết: ScoreGauge, category scores, matched/missing skills, strengths/weaknesses, HR status, ghi chú nội bộ.
--   Xuất Excel: `SheetJS` export 15 cột (STT, Tên, Điểm khớp, 4 category scores, Xác suất, Yếu tố chính, Điểm mạnh, Điểm yếu, Trạng thái HR, Ghi chú, Thời gian PT).
+-   Xuất Excel: `ExcelJS` export 14 cột (STT, Tên ứng viên, Điểm khớp, 4 category scores, Xác suất, Yếu tố chính, Điểm mạnh, Điểm yếu, Trạng thái HR, Ghi chú, Thời gian PT) — Blob download, không dùng `XLSX.writeFile`.
 
 ## Điểm nhấn UX
 -   **Real-time Progress:** Hiển thị tiến trình phân tích cho từng file khi xử lý hàng loạt.
