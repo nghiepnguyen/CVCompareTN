@@ -10,7 +10,7 @@ import { trackEvent } from '../../lib/ga4';
 import { cn } from '../../lib/utils';
 
 export function Header() {
-  const { user, userProfile, effectivePlan, allUsers, login, logout, openAuthModal } = useAuth();
+  const { user, userProfile, effectivePlan, adminNewUsersCount, login, logout, openAuthModal } = useAuth();
   const showProBadge =
     user && (userProfile?.role === 'admin' || isProPlan(effectivePlan));
   const showRecruiterBadge =
@@ -19,7 +19,7 @@ export function Header() {
   const { activeTab, setActiveTab, navigateToUpgrade, reportLanguage, setReportLanguage, isUserMenuOpen, setIsUserMenuOpen, isDarkMode, toggleTheme, t } = useUI();
   const { selectedResult, setSelectedResult } = useAnalysis();
 
-  const newUsersCount = allUsers.filter(u => u.isNew && u.role !== 'admin').length;
+  const newUsersCount = adminNewUsersCount;
   const planExpiryInMenu =
     (showProBadge || showRecruiterBadge) && userProfile?.planExpiresAt
       ? formatLabel(t.planExpiresUntil, {

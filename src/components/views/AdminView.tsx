@@ -25,14 +25,15 @@ import {
 } from '../../services/userService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
+import { useAdminUsers } from '../../hooks/useAdminUsers';
 
 export function AdminView() {
-  const { user, userProfile, allUsers } = useAuth();
+  const { user, userProfile } = useAuth();
   const { t, reportLanguage } = useUI();
   const { executeRecaptcha } = useGoogleReCaptcha();
+  const { users: allUsers, isLoading: isLoadingUsers, hasMore, loadMore } = useAdminUsers();
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
-  const newRegularUsers = allUsers.filter(u => u.isNew && u.role !== 'admin');
-  const newUsersCount = newRegularUsers.length;
+  const newUsersCount = allUsers.filter(u => u.isNew && u.role !== 'admin').length;
   
   const [adminSubTab, setAdminSubTab] = useState<'users' | 'email'>('users');
   const [userSearchTerm, setUserSearchTerm] = useState('');
@@ -299,7 +300,7 @@ export function AdminView() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {newRegularUsers.map(u => (
+                    {allUsers.filter(u => u.isNew && u.role !== 'admin').map(u => (
                       <div key={u.id} className="group bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl p-3 flex items-center justify-between gap-3 transition-all cursor-default">
                         <div className="flex items-center gap-3 overflow-hidden">
                           {u.photoURL ? (
@@ -675,6 +676,20 @@ export function AdminView() {
                 </button>
               </div>
             </div>
+
+            {hasMore && (
+              <div className="flex justify-center pt-2 pb-4">
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  disabled={isLoadingUsers}
+                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold text-accent border border-accent/30 hover:bg-accent/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoadingUsers ? <Loader2 className="size-4 animate-spin" /> : null}
+                  {isLoadingUsers ? 'Đang tải...' : `Tải thêm ${allUsers.length}+ người dùng`}
+                </button>
+              </div>
+            )}
           </div>
       ) : (
         <div className="max-w-xl mx-auto py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">

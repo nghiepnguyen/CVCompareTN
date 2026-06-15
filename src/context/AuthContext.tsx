@@ -6,7 +6,6 @@ import {
   UserPlan,
   getUserProfile,
   createUserProfile,
-  subscribeToAllUsers,
   fetchEffectiveUserPlan,
 } from '../services/userService';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
@@ -27,7 +26,8 @@ interface AuthContextType {
   /** Effective tier (expiry-aware); admins treated as pro for limits */
   effectivePlan: UserPlan;
   isLoadingProfile: boolean;
-  allUsers: UserProfile[];
+  /** Count of new non-admin users — lightweight badge for Header */
+  adminNewUsersCount: number;
   login: () => Promise<void>;
   logout: () => Promise<void>;
   error: string | React.ReactNode | null;
@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [effectivePlan, setEffectivePlan] = useState<UserPlan>('free');
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [adminNewUsersCount, setAdminNewUsersCount] = useState(0);
   const [error, setError] = useState<string | React.ReactNode | null>(null);
   const [isAuthInitialized, setIsAuthInitialized] = useState(false);
   const [isRedirectChecked, setIsRedirectChecked] = useState(true); // OAuth redirect handled by Supabase session
@@ -102,39 +102,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const fetchAllUsers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      const mappedUsers: UserProfile[] = data.map((u) => ({
-        id: u.id,
-        email: u.email,
-        displayName: u.display_name,
-        photoURL: u.photo_url,
-        role: u.role,
-        hasPermission: u.has_permission,
-        usageCount: u.usage_count,
-        monthlyAnalyticsLimit:
-          u.monthly_analytics_limit === null || u.monthly_analytics_limit === undefined
-            ? null
-            : Number(u.monthly_analytics_limit),
-        monthlyAnalyticsLimitCustom: Boolean(u.monthly_analytics_limit_custom),
-        usageMonth: u.usage_month || '',
-        plan: (u.plan === 'pro' || u.plan === 'recruiter') ? u.plan : 'free',
-        planExpiresAt: u.plan_expires_at ?? null,
-        createdAt: u.created_at,
-        isNew: u.is_new,
-      }));
-      
-      setAllUsers(mappedUsers);
-    } catch (err: any) {
-      console.error("Lỗi khi tải danh sách người dùng:", err);
-    }
+  const fetchAdminNewUsersCount = async () => {
+    const { count } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_new', true)
+      .neq('role', 'admin');
+    setAdminNewUsersCount(count ?? 0);
   };
 
   useEffect(() => {
@@ -181,16 +155,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (userProfile?.role === 'admin') {
-      fetchAllUsers();
-      
-      // Đăng ký lắng nghe thay đổi để cập nhật realtime
+      fetchAdminNewUsersCount();
+
       const channel = supabase
-        .channel('admin_profiles_changes')
+        .channel('admin_new_users_count')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-          fetchAllUsers();
+          fetchAdminNewUsersCount();
         })
         .subscribe();
-        
+
       return () => {
         supabase.removeChannel(channel);
       };
@@ -359,7 +332,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userProfile,
       effectivePlan: resolvedPlan,
       isLoadingProfile,
-      allUsers,
+      adminNewUsersCount,
       login,
       logout,
       error,

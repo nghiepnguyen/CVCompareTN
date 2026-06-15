@@ -35,7 +35,7 @@ export function resolveEffectiveMonthlyAnalyticsLimit(
 }
 
 // Map database fields to UserProfile interface
-function mapProfile(data: any): UserProfile {
+export function mapProfile(data: any): UserProfile {
   return {
     id: data.id,
     email: data.email,
