@@ -1,14 +1,17 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileText, Search, FolderOpen, BookmarkPlus, Loader2, Upload, X, Trash2, Globe, TrendingUp, AlertCircle, Archive } from 'lucide-react';
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { useAnalysis } from '../../context/AnalysisContext';
 import { isStoredCVRef } from '../../services/cvService';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
 
 export function AnalysisInputView() {
   const { user } = useAuth();
+  const { executeRecaptcha } = useGoogleReCaptcha();
   const {
     jd, setJd,
     cvText, setCvText, cvInputMode, setCvInputMode, files, setFiles,
@@ -48,10 +51,19 @@ export function AnalysisInputView() {
           reader.readAsDataURL(file);
         });
 
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        let recaptchaToken: string | undefined;
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        } else if (executeRecaptcha) {
+          recaptchaToken = await executeRecaptcha('extract_pdf');
+        }
+
         const response = await fetch('/api/extract-pdf', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ base64Data: pdfBase64 }),
+          headers,
+          body: JSON.stringify({ base64Data: pdfBase64, recaptchaToken }),
         });
         if (!response.ok) {
           let errorMsg = `HTTP ${response.status}`;

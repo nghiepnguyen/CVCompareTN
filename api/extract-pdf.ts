@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import axios from 'axios';
 import { extractText } from 'unpdf';
+import { getUserFromBearerToken } from '../_server-lib/payment/supabaseAdmin.js';
 
 const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB decoded
 const PDF_HEADER = Buffer.from('%PDF-');
@@ -11,6 +13,37 @@ function isPdfBuffer(buffer: Buffer): boolean {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  const authHeader =
+    typeof req.headers.authorization === 'string' ? req.headers.authorization : undefined;
+  const user = await getUserFromBearerToken(authHeader);
+
+  if (!user) {
+    const { recaptchaToken } = (req.body ?? {}) as { recaptchaToken?: string };
+    if (!recaptchaToken) {
+      return res.status(401).json({ error: 'Authentication or reCAPTCHA token required' });
+    }
+    const isLocal =
+      process.env.NODE_ENV !== 'production' ||
+      (req.headers.host ?? '').includes('localhost');
+    if (!isLocal) {
+      const secretKey = process.env.RECAPTCHA_SECRET_KEY?.trim();
+      if (!secretKey) {
+        return res.status(503).json({ error: 'reCAPTCHA not configured' });
+      }
+      const params = new URLSearchParams();
+      params.append('secret', secretKey);
+      params.append('response', recaptchaToken);
+      const captchaRes = await axios.post<{ success: boolean; score: number }>(
+        'https://www.google.com/recaptcha/api/siteverify',
+        params
+      );
+      const { success, score } = captchaRes.data;
+      if (!success || score < 0.5) {
+        return res.status(403).json({ error: 'reCAPTCHA verification failed' });
+      }
+    }
   }
 
   const { base64Data } = req.body;
