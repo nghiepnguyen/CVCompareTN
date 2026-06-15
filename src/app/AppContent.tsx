@@ -163,8 +163,7 @@ export function AppContent() {
     }
   }, [reportLanguage, t, activeTab]);
 
-  const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
-  const isAdmin = user?.email?.toLowerCase() === adminEmail;
+  const isAdmin = userProfile?.role === 'admin';
 
   const handleLoadSavedJD = (content: string) => {
     setJd(content);
@@ -253,8 +252,7 @@ export function AppContent() {
               <LandingView />
             ) : user &&
               userProfile?.hasPermission === false &&
-              userProfile?.role !== 'admin' &&
-              user.email?.toLowerCase() !== adminEmail ? (
+              userProfile?.role !== 'admin' ? (
               <NoPermissionView />
             ) : activeTab === 'admin' && isAdmin ? (
               <AdminView />
@@ -279,7 +277,7 @@ export function AppContent() {
             setActiveTab={setActiveTab}
             setSelectedResult={setSelectedResult}
             onOpenSavedJds={() => setIsSavedJDsModalOpen(true)}
-            showAdmin={isAdmin || userProfile?.role === 'admin'}
+            showAdmin={isAdmin}
             showRecruiter={!!user}
             labels={{
               analyze: t.analyze || 'Phân tích',

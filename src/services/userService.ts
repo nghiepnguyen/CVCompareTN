@@ -81,23 +81,7 @@ export async function getUserProfile(id: string): Promise<UserProfile | null> {
 
     if (!data) return null;
 
-    const profile = mapProfile(data);
-    
-    // Tự động nâng cấp admin dựa trên email
-    const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
-    if (profile.email.toLowerCase() === adminEmail && profile.role !== 'admin') {
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ role: 'admin', has_permission: true })
-        .eq('id', id);
-      
-      if (!updateError) {
-        profile.role = 'admin';
-        profile.hasPermission = true;
-      }
-    }
-    
-    return profile;
+    return mapProfile(data);
   } catch (error) {
     console.error('Lỗi nghiêm trọng trong getUserProfile:', error);
     throw error; // Đảm bảo lỗi được truyền đi
@@ -105,14 +89,12 @@ export async function getUserProfile(id: string): Promise<UserProfile | null> {
 }
 
 export async function createUserProfile(user: any, recaptchaToken?: string): Promise<UserProfile> {
-  const isAdmin = user.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
-  
   const profileData = {
     id: user.id,
     email: user.email || '',
     display_name: user.user_metadata?.full_name || user.displayName || '',
     photo_url: user.user_metadata?.avatar_url || user.photoURL || DEFAULT_AVATAR_URL,
-    role: isAdmin ? 'admin' : 'user',
+    role: 'user',
     has_permission: true,
     usage_count: 0,
     usage_month: new Date().toISOString().slice(0, 7),

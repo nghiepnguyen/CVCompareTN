@@ -96,7 +96,7 @@ export function Header() {
               )}
             </>
           )}
-          { (userProfile?.role === 'admin' || user?.email?.toLowerCase() === (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase()) && (
+          { userProfile?.role === 'admin' && (
             <button 
               onClick={() => { setActiveTab('admin'); setSelectedResult(null); }}
               className={cn(
