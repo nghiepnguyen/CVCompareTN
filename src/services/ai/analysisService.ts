@@ -1,4 +1,4 @@
-import type { AnalysisResult } from './types';
+import type { AnalysisResult } from './types.js';
 
 export async function analyzeCV(
   jd: string,

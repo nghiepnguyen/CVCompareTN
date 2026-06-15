@@ -6,7 +6,7 @@ import type {
   DetailedComparison,
   MissingGap,
   RewriteSuggestion,
-} from "./types";
+} from "./types.js";
 
 /** Supabase / legacy rows sometimes store JSON columns as double-encoded strings */
 export function coerceJsonField<T>(raw: unknown, fallback: T): T {

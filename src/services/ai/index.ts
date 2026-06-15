@@ -1,6 +1,6 @@
-export * from "./types";
-export { normalizeParsedCV } from "./parsedCvNormalize";
-export * from "./resultPayloadNormalize";
-export * from "./analysisService";
-export * from "./prompts";
-export * from "./fullRewrittenCvMarkdown";
+export * from "./types.js";
+export { normalizeParsedCV } from "./parsedCvNormalize.js";
+export * from "./resultPayloadNormalize.js";
+export * from "./analysisService.js";
+export * from "./prompts.js";
+export * from "./fullRewrittenCvMarkdown.js";
