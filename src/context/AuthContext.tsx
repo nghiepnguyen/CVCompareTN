@@ -8,7 +8,6 @@ import {
   createUserProfile,
   fetchEffectiveUserPlan,
 } from '../services/userService';
-import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { trackEvent } from '../lib/ga4';
 
 export type AuthModalMode = 'signIn' | 'signUp' | 'resetPassword' | null;
@@ -58,25 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isRedirectChecked, setIsRedirectChecked] = useState(true); // OAuth redirect handled by Supabase session
   const [authModalMode, setAuthModalMode] = useState<AuthModalMode>(null);
   
-  const { executeRecaptcha } = useGoogleReCaptcha();
-
   const loadUserProfileData = async (currentUser: User) => {
     setIsLoadingProfile(true);
     try {
       let profile = await getUserProfile(currentUser.id);
       
       if (!profile) {
-        let token = undefined;
-        if (executeRecaptcha) {
-          try {
-            token = await executeRecaptcha('welcome_email');
-          } catch (recaptchaErr) {
-            console.error("Lỗi thực thi reCAPTCHA cho email chào mừng:", recaptchaErr);
-          }
-        }
-        
         try {
-          profile = await createUserProfile(currentUser, token);
+          profile = await createUserProfile(currentUser);
         } catch (createErr: unknown) {
           // Nếu báo lỗi trùng ID (23505), nghĩa là hồ sơ vừa được tạo hoặc đã tồn tại
           if ((createErr as { code?: string })?.code === '23505') {
@@ -194,35 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthModalMode(null);
   };
 
-  const verifyCaptcha = async (action: string): Promise<boolean> => {
-    if (!executeRecaptcha) return true;
-    try {
-      const token = await executeRecaptcha(action);
-      const res = await fetch('/api/verify-recaptcha', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
-      if (!res.ok) {
-        console.warn(`reCAPTCHA verify failed (status ${res.status}) for ${action} — allowing`);
-        return true;
-      }
-      const data = await res.json();
-      if (!data.success) {
-        console.warn(`reCAPTCHA rejected for "${action}" — allowing anyway:`, data);
-      }
-      return true;
-    } catch (err) {
-      console.error(`reCAPTCHA error for ${action} — allowing:`, err);
-      return true;
-    }
-  };
-
   const signInWithEmail = async (email: string, password: string): Promise<EmailAuthResult> => {
-    const captchaOk = await verifyCaptcha('sign_in_email');
-    if (!captchaOk) {
-      return { success: false, error: 'authGenericError' };
-    }
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
@@ -250,10 +210,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, displayName: string): Promise<EmailAuthResult> => {
-    const captchaOk = await verifyCaptcha('sign_up_email');
-    if (!captchaOk) {
-      return { success: false, error: 'authGenericError' };
-    }
     try {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
