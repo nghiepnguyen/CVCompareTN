@@ -9,7 +9,6 @@ import { apiLimiter, strictLimiter, emailLimiter, staticLimiter } from './server
 
 // Routes
 import configRouter from './server/routes/config';
-import recaptchaRouter from './server/routes/recaptcha';
 import feedbackRouter from './server/routes/feedback';
 import welcomeEmailRouter from './server/routes/welcomeEmail';
 import pdfRouter from './server/routes/pdf';
@@ -42,7 +41,6 @@ async function startServer() {
 
   // Apply route-specific stricter limits for expensive operations
   app.use('/api/config', configRouter);
-  app.use('/api/verify-recaptcha', recaptchaRouter);
   app.use('/api/send-feedback', emailLimiter, feedbackRouter); // Resend email — 5 req / hour
   app.use('/api/send-welcome-email', emailLimiter, welcomeEmailRouter); // Resend email — 5 req / hour
   app.use('/api/extract-pdf', strictLimiter, pdfRouter); // PDF parsing — 10 req / 15 min

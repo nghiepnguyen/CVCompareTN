@@ -12,7 +12,7 @@ vi.mock('unpdf', () => ({
   extractText: vi.fn(),
 }));
 
-import handler from '../extract-pdf';
+import handler from '../extract-pdf.js';
 import * as supabaseAdmin from '../../_server-lib/payment/supabaseAdmin.js';
 import axios from 'axios';
 import { extractText } from 'unpdf';

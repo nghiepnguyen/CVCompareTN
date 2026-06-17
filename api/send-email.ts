@@ -84,7 +84,7 @@ async function handleWelcome(req: VercelRequest, res: VercelResponse) {
       if (!data.success) {
         return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed' });
       }
-      if (data.score !== undefined && data.score < 0.2) {
+      if (data.score !== undefined && data.score < 0.5) {
         return res.status(400).json({ success: false, message: 'reCAPTCHA score too low' });
       }
     } else {

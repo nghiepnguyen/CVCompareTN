@@ -17,29 +17,33 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid input', errors: validationErrors });
   }
 
-  if (!secretKey) {
-    console.error('RECAPTCHA_SECRET_KEY is missing.');
-    return res.status(500).json({ success: false, message: 'reCAPTCHA configuration error' });
-  }
+  const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');
 
   try {
-    // 1. Verify reCAPTCHA
-    const params = new URLSearchParams();
-    params.append('secret', secretKey);
-    params.append('response', token);
+    // 1. Verify reCAPTCHA (skip on localhost)
+    if (!isLocal) {
+      if (!secretKey) {
+        console.error('RECAPTCHA_SECRET_KEY is missing.');
+        return res.status(500).json({ success: false, message: 'reCAPTCHA configuration error' });
+      }
 
-    const recaptchaResponse = await axios.post(
-      'https://www.google.com/recaptcha/api/siteverify',
-      params
-    );
-    
-    const { success, score, 'error-codes': errorCodes } = recaptchaResponse.data;
-    const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');
+      const params = new URLSearchParams();
+      params.append('secret', secretKey);
+      params.append('response', token);
 
-    if (!success && !isLocal) {
-      return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed', details: errorCodes });
-    } else if (success && score !== undefined && score < 0.5 && !isLocal) {
-      return res.status(400).json({ success: false, message: 'reCAPTCHA score too low' });
+      const recaptchaResponse = await axios.post(
+        'https://www.google.com/recaptcha/api/siteverify',
+        params
+      );
+
+      const { success, score, 'error-codes': errorCodes } = recaptchaResponse.data;
+
+      if (!success) {
+        return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed', details: errorCodes });
+      }
+      if (score !== undefined && score < 0.5) {
+        return res.status(400).json({ success: false, message: 'reCAPTCHA score too low' });
+      }
     }
 
     // 2. Send the email using Resend
