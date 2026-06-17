@@ -30,19 +30,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       params
     );
     
-    const { success, score } = response.data;
-    
-    if (success && score !== undefined && score >= 0.5) {
-      return res.status(200).json(response.data);
-    } else {
-      console.warn('Low reCAPTCHA score:', score, response.data);
-      return res.status(200).json({ 
-        success: false, 
-        score, 
-        message: 'Low trust score',
-        errorCodes: response.data['error-codes']
-      });
+    const { success, score, action } = response.data;
+
+    if (!success) {
+      console.warn(`reCAPTCHA failed for action "${action}":`, response.data['error-codes']);
+      return res.status(200).json({ success: false, message: 'reCAPTCHA verification failed.', errorCodes: response.data['error-codes'] });
     }
+
+    if (score !== undefined && score < 0.3) {
+      console.warn(`reCAPTCHA very low score: ${score} for action: ${action} — possible bot`);
+    }
+
+    return res.status(200).json({ ...response.data, success: true });
   } catch (error) {
     console.error('reCAPTCHA error:', error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
