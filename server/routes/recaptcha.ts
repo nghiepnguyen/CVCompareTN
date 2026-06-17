@@ -29,15 +29,17 @@ router.post('/', async (req, res) => {
     );
     
     const { success, score, action } = response.data;
-    
-    if (success && score !== undefined) {
-      if (score < 0.5) {
-        console.warn(`Low reCAPTCHA score: ${score} for action: ${action}`);
-        return res.json({ success: false, message: 'Low trust score. Please try again.' });
-      }
+
+    if (!success) {
+      console.warn(`reCAPTCHA failed for action "${action}":`, response.data['error-codes']);
+      return res.json({ success: false, message: 'reCAPTCHA verification failed.', errorCodes: response.data['error-codes'] });
     }
-    
-    res.json(response.data);
+
+    if (score !== undefined && score < 0.3) {
+      console.warn(`reCAPTCHA very low score: ${score} for action: ${action} — possible bot`);
+    }
+
+    res.json({ ...response.data, success: true });
   } catch (error) {
     console.error('reCAPTCHA verification error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
