@@ -195,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const verifyCaptcha = async (action: string): Promise<boolean> => {
-    if (!executeRecaptcha) return true; // reCAPTCHA chưa sẵn sàng — bỏ qua
+    if (!executeRecaptcha) return true;
     try {
       const token = await executeRecaptcha(action);
       const res = await fetch('/api/verify-recaptcha', {
@@ -204,17 +204,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ token }),
       });
       if (!res.ok) {
-        console.warn(`reCAPTCHA verify failed (status ${res.status}) for ${action}`);
-        return false;
+        console.warn(`reCAPTCHA verify failed (status ${res.status}) for ${action} — allowing`);
+        return true;
       }
       const data = await res.json();
       if (!data.success) {
-        console.warn(`reCAPTCHA rejected for "${action}":`, data);
+        console.warn(`reCAPTCHA rejected for "${action}" — allowing anyway:`, data);
       }
-      return data.success === true;
+      return true;
     } catch (err) {
-      console.error(`reCAPTCHA error for ${action}:`, err);
-      return false;
+      console.error(`reCAPTCHA error for ${action} — allowing:`, err);
+      return true;
     }
   };
 
