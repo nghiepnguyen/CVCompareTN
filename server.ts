@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { initSentryServer, Sentry } from './_server-lib/sentry';
 import cors from 'cors';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
@@ -17,6 +18,7 @@ import recruiterRouter from './server/routes/recruiter';
 import analyzeRouter from './server/routes/analyze';
 
 async function startServer() {
+  initSentryServer();
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
@@ -63,6 +65,8 @@ app.use('/api/analyze', strictLimiter, analyzeRouter); // Gemini analysis — 10
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  Sentry.setupExpressErrorHandler(app);
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);

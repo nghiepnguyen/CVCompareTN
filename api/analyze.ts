@@ -2,8 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { getUserFromBearerToken, getSupabaseAdmin } from '../_server-lib/payment/supabaseAdmin.js';
 import { analyzeCV } from '../_server-lib/ai/analysisService.js';
+import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  initSentryServer();
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -95,6 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json(result);
   } catch (err) {
+    Sentry.captureException(err, { tags: { route: 'analyze' } });
     console.error('analyze error:', err);
     const message = err instanceof Error ? err.message : 'Server error';
     return res.status(500).json({ error: message });

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { handlePaymentCreate, handlePaymentConfirm, handlePaymentWebhook } from '../_server-lib/payment/handlers.js';
 import type { PlanType } from '../_server-lib/payment/payos.js';
+import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
 
 /**
  * Unified payment handler — dispatches by URL path segment.
@@ -9,6 +10,8 @@ import type { PlanType } from '../_server-lib/payment/payos.js';
  * The original path is still available via req.url, so we parse the last segment.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  initSentryServer();
+
   // Parse action from the last path segment (e.g., /api/payment/create → create)
   const urlPath = new URL(req.url || '', `https://${req.headers.host}`).pathname;
   const segments = urlPath.replace(/\/$/, '').split('/');
@@ -25,6 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const result = await handlePaymentCreate(authHeader, planType);
         return res.status(result.status).json(result.body);
       } catch (err) {
+        Sentry.captureException(err, { tags: { route: 'payment/create' } });
         console.error('payment/create error:', err);
         const message = err instanceof Error ? err.message : 'Server error';
         if (message.includes('not configured')) {
@@ -49,6 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
         return res.status(result.status).json(result.body);
       } catch (err) {
+        Sentry.captureException(err, { tags: { route: 'payment/confirm' } });
         console.error('payment/confirm error:', err);
         return res.status(500).json({ error: 'Xác nhận thanh toán thất bại' });
       }
@@ -60,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const result = await handlePaymentWebhook(req.body);
         return res.status(result.status).json(result.body);
       } catch (err) {
+        Sentry.captureException(err, { tags: { route: 'payment/webhook' } });
         console.error('payment/webhook error:', err);
         return res.status(500).json({ error: 'Webhook processing failed' });
       }

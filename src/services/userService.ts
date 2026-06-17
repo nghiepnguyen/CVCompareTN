@@ -139,7 +139,10 @@ export async function createUserProfile(user: AuthUserInput, recaptchaToken?: st
 
     return profile;
   } catch (error) {
-    console.error('Error creating user profile:', error);
+    // 23505 = duplicate key — expected race condition, caller retries with getUserProfile
+    if ((error as { code?: string })?.code !== '23505') {
+      console.error('Error creating user profile:', error);
+    }
     throw error;
   }
 }

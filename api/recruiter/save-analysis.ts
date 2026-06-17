@@ -1,7 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { initSentryServer, Sentry } from '../../_server-lib/sentry.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  initSentryServer();
+
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -64,6 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ success: true });
   } catch (err) {
+    Sentry.captureException(err, { tags: { route: 'recruiter/save-analysis' } });
     console.error('recruiter/save-analysis error:', err);
     const message = err instanceof Error ? err.message : 'Server error';
     return res.status(500).json({ error: 'Server error', detail: message });

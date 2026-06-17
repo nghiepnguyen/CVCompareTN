@@ -9,6 +9,7 @@ import {
   fetchEffectiveUserPlan,
 } from '../services/userService';
 import { trackEvent } from '../lib/ga4';
+import { setSentryUser } from '../lib/sentryUser';
 
 export type AuthModalMode = 'signIn' | 'signUp' | 'resetPassword' | null;
 
@@ -108,7 +109,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      
+      setSentryUser(currentUser?.id ?? null);
+
       if (currentUser) {
         loadUserProfileData(currentUser);
       } else {
@@ -121,10 +123,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return;
-      
+
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      
+      setSentryUser(currentUser?.id ?? null);
+
       if (currentUser) {
         loadUserProfileData(currentUser);
       } else {

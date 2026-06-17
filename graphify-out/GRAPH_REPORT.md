@@ -1,16 +1,16 @@
-# Graph Report - cv-compare-tn  (2026-06-16)
+# Graph Report - cv-compare-tn  (2026-06-17)
 
 ## Corpus Check
-- 198 files · ~117,674 words
+- 196 files · ~117,183 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1350 nodes · 2555 edges · 81 communities (75 shown, 6 thin omitted)
+- 1350 nodes · 2555 edges · 91 communities (84 shown, 7 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f26204ce`
+- Built from commit: `431687b4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -86,6 +86,16 @@
 - [[_COMMUNITY_Community 68|Community 68]]
 - [[_COMMUNITY_Community 69|Community 69]]
 - [[_COMMUNITY_Community 70|Community 70]]
+- [[_COMMUNITY_Community 71|Community 71]]
+- [[_COMMUNITY_Community 72|Community 72]]
+- [[_COMMUNITY_Community 73|Community 73]]
+- [[_COMMUNITY_Community 74|Community 74]]
+- [[_COMMUNITY_Community 75|Community 75]]
+- [[_COMMUNITY_Community 76|Community 76]]
+- [[_COMMUNITY_Community 77|Community 77]]
+- [[_COMMUNITY_Community 78|Community 78]]
+- [[_COMMUNITY_Community 79|Community 79]]
+- [[_COMMUNITY_Community 81|Community 81]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `useUI()` - 86 edges
@@ -102,168 +112,168 @@
 ## Surprising Connections (you probably didn't know these)
 - `Header()` --calls--> `useAnalysis()`  [INFERRED]
   components/layout/Header.tsx → src/context/analysis/AnalysisProvider.tsx
+- `AppContent()` --calls--> `useAnalysis()`  [INFERRED]
+  app/AppContent.tsx → src/context/analysis/AnalysisProvider.tsx
+- `mapHistory()` --calls--> `normalizeAnalysisPayload()`  [INFERRED]
+  historyService.ts → src/services/ai/resultPayloadNormalize.ts
+- `ResultView()` --calls--> `useAnalysis()`  [INFERRED]
+  components/views/ResultView.tsx → src/context/analysis/AnalysisProvider.tsx
 - `AboutPage()` --calls--> `useUI()`  [EXTRACTED]
   components/AboutPage.tsx → src/context/UIContext.tsx
-- `analyzeCV()` --calls--> `callAnalyzeProxy()`  [EXTRACTED]
-  _server-lib/ai/analysisService.ts → src/services/ai/geminiProvider.ts
-- `analyzeCV()` --calls--> `getGeminiClient()`  [EXTRACTED]
-  _server-lib/ai/analysisService.ts → src/services/ai/geminiProvider.ts
-- `handler()` --calls--> `handlePaymentCreate()`  [EXTRACTED]
-  api/payment/create.ts → _server-lib/payment/handlers.ts
 
-## Communities (81 total, 6 thin omitted)
+## Communities (91 total, 7 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.05
-Nodes (52): handler(), handleSendFeedback(), handleSendWelcomeEmail(), handleFeedback(), handler(), handleWelcome(), verifyRecaptcha(), AMP (+44 more)
+Cohesion: 0.11
+Nodes (38): SupabaseConfigError(), AuthContext, AuthContextType, AuthModalMode, AuthProvider(), EmailAuthResult, AdminUsersState, useAdminUsers() (+30 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.1
-Nodes (35): AboutPage(), SectionCardProps, CtaSection(), DemoResultSection(), FaqSection(), HeroSection(), HowItWorksSection(), buildRows() (+27 more)
-
-### Community 2 - "Community 2"
-Cohesion: 0.06
-Nodes (44): AppErrorBoundary, AnalyticsBootstrap(), CookieConsentBannerProps, AnalyticsConsent, applyGrantedConsent(), denyAnalyticsConsent(), ensureDataLayer(), eventQueue (+36 more)
-
-### Community 3 - "Community 3"
-Cohesion: 0.11
-Nodes (39): SupabaseConfigError(), AuthContext, AuthContextType, AuthModalMode, AuthProvider(), EmailAuthResult, AdminUsersState, useAdminUsers() (+31 more)
-
-### Community 4 - "Community 4"
-Cohesion: 0.09
-Nodes (43): handler(), activateProForOrder(), fetchProfileForEmail(), handlePaymentConfirm(), handlePaymentCreate(), handlePaymentWebhook(), isWebhookPaymentSuccess(), normalizeOrderCode() (+35 more)
-
-### Community 5 - "Community 5"
 Cohesion: 0.11
 Nodes (41): activateProForOrder(), fetchProfileForEmail(), handlePaymentConfirm(), handlePaymentCreate(), handlePaymentWebhook(), isWebhookPaymentSuccess(), normalizeOrderCode(), notifyVipUpgrade() (+33 more)
 
-### Community 6 - "Community 6"
-Cohesion: 0.09
-Nodes (37): AnalysisRunContext, useAnalysisRun(), SavedCvContext, useSavedCvs(), AnalysisContextType, AnalysisRunContextType, EagerProcessResult, SavedCvContextType (+29 more)
+### Community 2 - "Community 2"
+Cohesion: 0.1
+Nodes (41): handler(), activateProForOrder(), fetchProfileForEmail(), handlePaymentConfirm(), handlePaymentCreate(), handlePaymentWebhook(), isWebhookPaymentSuccess(), normalizeOrderCode() (+33 more)
 
-### Community 7 - "Community 7"
+### Community 3 - "Community 3"
+Cohesion: 0.08
+Nodes (39): AnalysisRunContext, useAnalysisRun(), SavedCvContext, useSavedCvs(), AnalysisContextType, AnalysisRunContextType, EagerProcessResult, SavedCvContextType (+31 more)
+
+### Community 4 - "Community 4"
+Cohesion: 0.13
+Nodes (30): AboutPage(), SectionCardProps, CtaSection(), DemoResultSection(), FaqSection(), HeroSection(), HowItWorksSection(), buildRows() (+22 more)
+
+### Community 5 - "Community 5"
 Cohesion: 0.04
 Nodes (45): Bước 1 — Migration Supabase, Bước 2 — Backend: endpoint PayOS Recruiter, Bước 3 — Frontend, Bước 4 — UpgradeView cập nhật, Bước 5 — Xử lý hết hạn, Bảng mới, Backend, Cấu trúc file mới (+37 more)
 
-### Community 8 - "Community 8"
+### Community 6 - "Community 6"
 Cohesion: 0.04
 Nodes (44): 1.1 File migration, 1.2 Cập nhật check_analytics_quota, 2.1 `POST /api/payment/create`, 2.2 `POST /api/payment/webhook`, 2.3 Đăng ký route trong `server.ts`, 2.4 Thêm vào `vercel.json`, 3.1 `analyticsQuotaService.ts` — đọc plan từ response, 3.2 Giới hạn batch CV (+36 more)
 
-### Community 9 - "Community 9"
+### Community 7 - "Community 7"
 Cohesion: 0.05
 Nodes (42): code:gitignore (# Graphify AST cache (regenerated by `graphify update`; keep), code:typescript (export interface SavedJdModalProps {), code:typescript (export default function AppShell() {), code:typescript (export { default } from './app/AppShell';), code:bash (npm run lint && npm run build), code:bash (git commit -m "$(cat <<'EOF'), code:typescript (confirmSaveJD: (title: string, jdContent: string) => Promise), code:typescript (const confirmSaveJD = async (title: string, jdContent: strin) (+34 more)
 
-### Community 10 - "Community 10"
+### Community 8 - "Community 8"
+Cohesion: 0.08
+Nodes (21): MobileBottomNavProps, Tab, tabFromPath(), UIContext, UIContextType, UIProvider(), AnalyticsBootstrap(), resetAnalyticsConsentPrompt() (+13 more)
+
+### Community 9 - "Community 9"
 Cohesion: 0.05
 Nodes (36): Admin UI (`AdminView`), API theo dõi sự kiện, Bảng & cột, Bảng event đang track, Bảo mật RPC (Security Advisor), Biến môi trường, Cấu hình privacy trên GA4, code:text (┌───────────────────────────────────────────────────────────) (+28 more)
 
-### Community 11 - "Community 11"
+### Community 10 - "Community 10"
 Cohesion: 0.07
-Nodes (19): SavedCvsListModalProps, getMatchingCategoryLabel(), about, admin, billing, footer, history, LocaleEntry (+11 more)
+Nodes (18): SavedCvsListModalProps, SavedJdsListModalProps, about, admin, billing, footer, history, LocaleEntry (+10 more)
+
+### Community 11 - "Community 11"
+Cohesion: 0.12
+Nodes (17): PrivacyPolicyPage(), TermsOfServicePage(), useUI(), RecruiterProvider(), AnalysisLoadingState(), AnalysisLoadingStateProps, STEPS, OptimizationTab (+9 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.14
-Nodes (22): Header(), formatPlanExpiryDate(), HISTORY_DAYS_BY_PLAN, isProPlan(), isRecruiterPlan(), MAX_BATCH_BY_PLAN, MAX_CAMPAIGN_CVS, MAX_CAMPAIGNS (+14 more)
+Cohesion: 0.25
+Nodes (21): analyzeCV(), parseGeminiJson(), stripControlChars(), buildAnalyzePromptEn(), buildAnalyzePromptVi(), coerceJsonField(), detailedComparisonHasRows(), IMPACTS (+13 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.15
-Nodes (19): useAnalysis(), AnalysisRunProvider(), SavedCvProvider(), SavedJdProvider(), useSavedJds(), AppContent(), PrivacyPolicyPage(), useAuth() (+11 more)
+Nodes (23): RecruiterContext, RecruiterContextValue, CampaignStatus, CandidateCV, CandidateStatus, createCampaign(), createCandidate(), deleteCampaign() (+15 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.12
-Nodes (25): AboutPage, AdminView, AuthModal, DashboardView, HistoryView, LandingView, NoPermissionView, PaymentCancelView (+17 more)
+Cohesion: 0.14
+Nodes (24): AboutPage, AdminView, AuthModal, DashboardView, HistoryView, LandingView, NoPermissionView, PaymentCancelView (+16 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.23
-Nodes (23): analyzeCV(), parseGeminiJson(), stripControlChars(), normalizeParsedCV(), buildAnalyzePromptEn(), buildAnalyzePromptVi(), coerceJsonField(), detailedComparisonHasRows() (+15 more)
-
-### Community 16 - "Community 16"
 Cohesion: 0.07
 Nodes (26): 2a — `App.tsx` decomposition, 2b — Two analysis providers (B2), 2c — LandingView, code:gitignore (# Graphify — regenerate with `graphify update .`; keep human), code:block2 (src/app/), code:typescript (export { default } from './app/AppShell';), code:block4 (AuthProvider → UIProvider → AnalysisProvider (composer) → Ap), code:block5 (src/context/analysis/) (+18 more)
 
+### Community 16 - "Community 16"
+Cohesion: 0.21
+Nodes (16): AppContent(), useAuth(), Header(), formatPlanExpiryDate(), isProPlan(), isRecruiterPlan(), AnalyticsQuota, formatLabel() (+8 more)
+
 ### Community 17 - "Community 17"
+Cohesion: 0.12
+Nodes (13): CampaignCard(), CampaignCardProps, useStatusConfig(), CandidateAnalysisData, CandidatePanel(), CandidatePanelProps, CandidateTable(), CandidateTableProps (+5 more)
+
+### Community 18 - "Community 18"
 Cohesion: 0.09
 Nodes (21): 1. Internal API (Backend Proxy), 2. Dịch vụ lưu trữ & xác thực (Supabase), code:json ({), CV Storage — Kho CV, Danh sách API Endpoints (cvFit), Edge Function (tùy chọn — Supabase), `GET /api/config`, Hệ thống Email (Resend) (+13 more)
 
-### Community 18 - "Community 18"
-Cohesion: 0.13
-Nodes (17): buildRewritePromptEn(), buildRewritePromptVi(), DetailedComparisonPromptParams, PromptParams, RewritePromptParams, CategorizedScore, handler(), stripCodeFence() (+9 more)
-
 ### Community 19 - "Community 19"
+Cohesion: 0.16
+Nodes (15): useAnalysis(), AnalysisRunProvider(), SavedCvProvider(), SavedJdContext, SavedJdProvider(), useSavedJds(), HISTORY_DAYS_BY_PLAN, MAX_CAMPAIGN_CVS (+7 more)
+
+### Community 20 - "Community 20"
+Cohesion: 0.14
+Nodes (16): isRecord(), normalizeParsedCV(), ATSEvaluation, CategorizedPoint, ComparisonItem, DetailedComparison, MissingGap, ParsedCV (+8 more)
+
+### Community 21 - "Community 21"
 Cohesion: 0.1
 Nodes (19): 1. Cấu hình (`/api/config`), 2. Trích xuất PDF, 3. Phân tích CV với Gemini AI, 3. Xác thực reCAPTCHA, 4. Thanh toán PayOS (`/api/payment/create` & `/api/payment/webhook`), 4. Xác thực reCAPTCHA, 5. Hệ thống Email (Resend), 5. Thanh toán PayOS (`/api/payment/*`) (+11 more)
 
-### Community 20 - "Community 20"
+### Community 22 - "Community 22"
 Cohesion: 0.2
 Nodes (14): CvMarkdownBody, markdownToPlainText(), cleanMarkdownForPremium(), extractCandidateName(), ActionButtons(), ActionButtonsProps, FullCVTab, FullCVTabProps (+6 more)
 
-### Community 21 - "Community 21"
-Cohesion: 0.14
-Nodes (13): cvMarkdownHasHeadings(), fixMarkdownHeadingHashes(), fullRewrittenCvToPlainText(), isBulletLine(), isSectionLine(), normalizeSectionCandidate(), preprocessFullRewrittenCvMarkdown(), promotePlainTextCvToMarkdown() (+5 more)
-
-### Community 22 - "Community 22"
-Cohesion: 0.15
-Nodes (14): isRecord(), ATSEvaluation, CategorizedPoint, ComparisonItem, DetailedComparison, MissingGap, ParsedCV, ParsedEducation (+6 more)
-
 ### Community 23 - "Community 23"
-Cohesion: 0.1
-Nodes (19): Auth — Leaked password protection (bạn cần bật một lần), Checklist thực hiện, code:sql (SELECT p.proname, r.rolname,), code:sql (-- Fix 1: Revoke quyền gọi activate_pro_plan từ anon và auth), code:typescript (// server/routes/payment.ts (hoặc tương đương)), code:sql (-- Fix 2: Revoke quyền gọi các hàm ghi từ anon), code:sql (-- Fix 3: Sửa policy SELECT của bucket cv-files), code:sql (-- Fix 4: Revoke quyền anon gọi các hàm đọc thông tin user) (+11 more)
+Cohesion: 0.2
+Nodes (18): CookieConsentBannerProps, AnalyticsConsent, applyGrantedConsent(), denyAnalyticsConsent(), ensureDataLayer(), eventQueue, flushEventQueue(), getAnalyticsConsent() (+10 more)
 
 ### Community 24 - "Community 24"
 Cohesion: 0.14
-Nodes (15): htmlToText(), BLOCKED_HOSTNAME_PATTERNS, BLOCKED_HOSTNAMES, hasPathTraversal(), ipv4ToNumber(), isBlockedHostname(), isPrivateIPv4(), isPrivateIPv6() (+7 more)
+Nodes (13): cvMarkdownHasHeadings(), fixMarkdownHeadingHashes(), fullRewrittenCvToPlainText(), isBulletLine(), isSectionLine(), normalizeSectionCandidate(), preprocessFullRewrittenCvMarkdown(), promotePlainTextCvToMarkdown() (+5 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.11
-Nodes (18): 1. Quản lý trạng thái tập trung, 2. Xử lý đa định dạng (Multi-format Support), 3. Hiển thị kết quả so sánh, 4. Luồng Recruiter (Nhà tuyển dụng), Đa ngôn ngữ UI (`src/translations/`), Auth components (`src/components/auth/`), Các luồng xử lý chính, Cấu trúc thư mục (Modular Architecture) (+10 more)
+Cohesion: 0.1
+Nodes (19): Auth — Leaked password protection (bạn cần bật một lần), Checklist thực hiện, code:sql (SELECT p.proname, r.rolname,), code:sql (-- Fix 1: Revoke quyền gọi activate_pro_plan từ anon và auth), code:typescript (// server/routes/payment.ts (hoặc tương đương)), code:sql (-- Fix 2: Revoke quyền gọi các hàm ghi từ anon), code:sql (-- Fix 3: Sửa policy SELECT của bucket cv-files), code:sql (-- Fix 4: Revoke quyền anon gọi các hàm đọc thông tin user) (+11 more)
 
 ### Community 26 - "Community 26"
 Cohesion: 0.14
-Nodes (9): CampaignCard(), CampaignCardProps, useStatusConfig(), CandidateAnalysisData, CandidatePanel(), CandidatePanelProps, CandidateTable(), CandidateTableProps (+1 more)
+Nodes (15): htmlToText(), BLOCKED_HOSTNAME_PATTERNS, BLOCKED_HOSTNAMES, hasPathTraversal(), ipv4ToNumber(), isBlockedHostname(), isPrivateIPv4(), isPrivateIPv6() (+7 more)
 
 ### Community 27 - "Community 27"
 Cohesion: 0.11
-Nodes (17): 1. General Principles, 2. Naming Conventions, 3. React Best Practices, 4. Performance Optimization, 4. Styling (Tailwind CSS), 5. TypeScript Usage, 6. Error Handling, 7. Comments and Documentation (+9 more)
+Nodes (18): 1. Quản lý trạng thái tập trung, 2. Xử lý đa định dạng (Multi-format Support), 3. Hiển thị kết quả so sánh, 4. Luồng Recruiter (Nhà tuyển dụng), Đa ngôn ngữ UI (`src/translations/`), Auth components (`src/components/auth/`), Các luồng xử lý chính, Cấu trúc thư mục (Modular Architecture) (+10 more)
 
 ### Community 28 - "Community 28"
-Cohesion: 0.13
-Nodes (12): handler(), isPdfBuffer(), PDF_HEADER, mockAxiosPost, mockExtractText, mockGetUser, notPdf, req (+4 more)
+Cohesion: 0.18
+Nodes (15): buildDetailedComparisonPromptEn(), buildDetailedComparisonPromptVi(), buildRewritePromptEn(), buildRewritePromptVi(), DetailedComparisonPromptParams, PromptParams, RewritePromptParams, CategorizedScore (+7 more)
 
 ### Community 29 - "Community 29"
-Cohesion: 0.15
-Nodes (11): AnalysisLoadingState(), AnalysisLoadingStateProps, STEPS, ComparisonOverview(), DetailedComparisonTab(), OptimizationTab, OptimizationTabProps, ParsedCVTab() (+3 more)
+Cohesion: 0.11
+Nodes (17): 1. General Principles, 2. Naming Conventions, 3. React Best Practices, 4. Performance Optimization, 4. Styling (Tailwind CSS), 5. TypeScript Usage, 6. Error Handling, 7. Comments and Documentation (+9 more)
 
 ### Community 30 - "Community 30"
-Cohesion: 0.17
-Nodes (14): buildDetailedComparisonPromptEn(), buildDetailedComparisonPromptVi(), handler(), parseGeminiJson(), stripCtrl(), authResult, detailedComparison, gemini (+6 more)
+Cohesion: 0.13
+Nodes (12): handler(), isPdfBuffer(), PDF_HEADER, mockAxiosPost, mockExtractText, mockGetUser, notPdf, req (+4 more)
 
 ### Community 31 - "Community 31"
 Cohesion: 0.13
 Nodes (14): 1. Triển khai trên Vercel, 2. Cấu hình Supabase (Bắt buộc), 3. Chế độ Phát triển (Local Development), 4. Cấu hình điều hướng (vercel.json), 5. Bảo mật mã nguồn và bí mật, Biến môi trường, Các bước thực hiện:, Các bước thực hiện: (+6 more)
 
 ### Community 32 - "Community 32"
-Cohesion: 0.19
-Nodes (9): MobileBottomNavProps, TermsOfServicePage(), Tab, tabFromPath(), UIContext, UIContextType, UIProvider(), resetAnalyticsConsentPrompt() (+1 more)
-
-### Community 33 - "Community 33"
 Cohesion: 0.13
 Nodes (14): 3 endpoint gộp trong `api/payment.ts`, Biến môi trường bắt buộc trên Vercel Production, Cấu trúc hiện tại (7/12 functions), code:block1 (_server-lib/), code:block2 (POST /api/payment/create  → action='create'  → handlePayment), code:block3 (PAYOS_CLIENT_ID), KHÔNG được, Khi thêm function mới (+6 more)
 
-### Community 34 - "Community 34"
+### Community 33 - "Community 33"
 Cohesion: 0.15
 Nodes (11): Adding a new endpoint, API routing matrix (Vercel · Express · Supabase), code:mermaid (flowchart TB), Express (`npm start` → `server.ts` + `server/routes/`), Out of scope (this doc), Quick reference, Request flow (high level), Supabase data plane (not HTTP `/api`) (+3 more)
 
-### Community 35 - "Community 35"
+### Community 34 - "Community 34"
 Cohesion: 0.17
 Nodes (5): buildMarkdown(), CvPremiumTemplate(), Icon, MOCK_DATA, T
 
-### Community 36 - "Community 36"
+### Community 35 - "Community 35"
 Cohesion: 0.26
 Nodes (12): BLOCKED_HOSTNAME_PATTERNS, BLOCKED_HOSTNAMES, extractTextFromHtml(), handler(), hasPathTraversal(), htmlToText(), ipv4ToNumber(), isBlockedHostname() (+4 more)
 
-### Community 37 - "Community 37"
+### Community 36 - "Community 36"
 Cohesion: 0.18
 Nodes (11): authResult, buffer, extraction, gemini, geminiApiKey, { jd, cvData, cvMimeType, cvName, language = 'vi' }, parsedResult, parseGeminiJson() (+3 more)
+
+### Community 37 - "Community 37"
+Cohesion: 0.18
+Nodes (11): code:typescript (// api/config.ts — CURRENT (VULNERABLE)), code:block12 (script-src 'self' 'unsafe-inline' 'unsafe-eval' ...), code:typescript (// FIXED), code:typescript (// api/extract-pdf.ts — no auth check), 🔴 CRITICAL-01: Gemini API Key Exposed via `/api/config`, Findings, 🟠 HIGH-02: No Authentication on PDF Extraction Endpoint, 🔵 LOW-01: CSP Allows `unsafe-inline` and `unsafe-eval` (+3 more)
 
 ### Community 38 - "Community 38"
 Cohesion: 0.18
@@ -271,127 +281,163 @@ Nodes (11): Appendix: Tested Request Patterns (Hypothetical Burp Repeater), code
 
 ### Community 39 - "Community 39"
 Cohesion: 0.18
-Nodes (11): code:typescript (// api/config.ts — CURRENT (VULNERABLE)), code:block12 (script-src 'self' 'unsafe-inline' 'unsafe-eval' ...), code:typescript (// FIXED), code:typescript (// api/extract-pdf.ts — no auth check), 🔴 CRITICAL-01: Gemini API Key Exposed via `/api/config`, Findings, 🟠 HIGH-02: No Authentication on PDF Extraction Endpoint, 🔵 LOW-01: CSP Allows `unsafe-inline` and `unsafe-eval` (+3 more)
+Nodes (9): action, body, resendClient, router, safeContent, safeTitle, safeUserEmail, safeUserName (+1 more)
 
 ### Community 40 - "Community 40"
 Cohesion: 0.18
 Nodes (10): 1. Code Style & Conventions, 2. Architecture & Data Flow, 3. UI/UX Guidelines, 4. Specific Workflows, 5. Vercel Deployment Constraints (Hobby Plan), 6. Agent Behavior, 6. Secrets & Repository Hygiene, AI Studio Agent Instructions (+2 more)
 
 ### Community 41 - "Community 41"
+Cohesion: 0.29
+Nodes (8): ConfirmPaymentResponse, confirmProPayment(), CreateCheckoutResponse, createProCheckout(), createRecruiterCheckout(), parsePaymentApiResponse(), PaymentApiError, PaymentSuccessView()
+
+### Community 42 - "Community 42"
+Cohesion: 0.22
+Nodes (9): authResult, detailedComparison, gemini, geminiApiKey, parsed, { parsedCV, jd, language = 'vi' }, parseGeminiJson(), router (+1 more)
+
+### Community 43 - "Community 43"
 Cohesion: 0.2
 Nodes (9): 1. Luồng phân tích đồng thời (Batch Analysis Flow), 2. Luồng tối ưu hóa & Xuất bản, 4. Luồng thanh toán Pro (PayOS Flow), 5. Quản lý dữ liệu, Các bước trọng tâm:, code:mermaid (graph TD), code:mermaid (graph TD), Gia hạn cộng dồn (nhiều lần mua Pro) (+1 more)
 
-### Community 42 - "Community 42"
-Cohesion: 0.33
-Nodes (7): ConfirmPaymentResponse, confirmProPayment(), CreateCheckoutResponse, createProCheckout(), createRecruiterCheckout(), parsePaymentApiResponse(), PaymentApiError
-
-### Community 43 - "Community 43"
-Cohesion: 0.22
-Nodes (8): adminClient, gemini, geminiApiKey, { imageData, mimeType }, router, serviceRoleKey, supabaseUrl, token
-
 ### Community 44 - "Community 44"
+Cohesion: 0.22
+Nodes (7): authResult, fullRewrittenCV, gemini, geminiApiKey, params, { parsedCV, atsKeywords, rewriteSuggestions, language = 'vi' }, router
+
+### Community 45 - "Community 45"
+Cohesion: 0.42
+Nodes (6): handleFeedback(), handler(), handleWelcome(), verifyRecaptcha(), escapeHtml(), AMP
+
+### Community 46 - "Community 46"
+Cohesion: 0.22
+Nodes (7): resendClient, router, safeContent, safeTitle, safeUserEmail, safeUserName, validationErrors
+
+### Community 47 - "Community 47"
 Cohesion: 0.22
 Nodes (8): authResult, buffer, encodedPath, { filePath }, json, router, supabaseUrl, userJwt
 
-### Community 45 - "Community 45"
+### Community 48 - "Community 48"
+Cohesion: 0.22
+Nodes (8): adminClient, gemini, geminiApiKey, { imageData, mimeType }, router, serviceRoleKey, supabaseUrl, token
+
+### Community 49 - "Community 49"
 Cohesion: 0.25
 Nodes (7): Attack Surface Inventory, 🛡️ Burp Suite Security Audit Report — CV Matcher & Optimizer, Executive Summary, Fix Implementation Status, Positive Findings (What's Done Well) ✅, Risk Matrix, Verification
 
-### Community 46 - "Community 46"
+### Community 50 - "Community 50"
+Cohesion: 0.25
+Nodes (7): params, resendClient, router, safeContent, safeTitle, safeUserEmail, validationErrors
+
+### Community 51 - "Community 51"
+Cohesion: 0.39
+Nodes (7): err, errors, longLocal, validateEmail(), validateFeedbackInput(), validateLength(), validateWelcomeEmailInput()
+
+### Community 52 - "Community 52"
+Cohesion: 0.54
+Nodes (6): validateEmail(), validateFeedbackInput(), validateLength(), validateWelcomeEmailInput(), ValidationError, ValidationError
+
+### Community 53 - "Community 53"
 Cohesion: 0.29
 Nodes (6): AuthModal(), ERROR_KEY_MAP, FormErrors, getErrorKey(), resolveError(), TabMode
 
-### Community 47 - "Community 47"
+### Community 54 - "Community 54"
 Cohesion: 0.25
 Nodes (7): 1. Tech Stack, 2. Folder Structure, Backend (Modular Express), code:text (/), cvFit - Repository Overview, Database & Auth, Frontend
 
-### Community 48 - "Community 48"
+### Community 55 - "Community 55"
 Cohesion: 0.25
 Nodes (7): authResult, encodedPath, { filePath }, json, router, supabaseUrl, userJwt
 
-### Community 49 - "Community 49"
-Cohesion: 0.48
-Nodes (5): SavedJdContext, deleteSavedJD(), getSavedJDs(), SavedJD, saveJDToProfile()
-
-### Community 50 - "Community 50"
+### Community 56 - "Community 56"
 Cohesion: 0.38
 Nodes (4): extractTextFromImage(), AnalyzeRequest, callAnalyzeProxy(), getGeminiClient()
 
-### Community 51 - "Community 51"
+### Community 57 - "Community 57"
 Cohesion: 0.29
 Nodes (4): body, payload, result, token
 
-### Community 52 - "Community 52"
+### Community 58 - "Community 58"
+Cohesion: 0.29
+Nodes (6): params, resendClient, router, safeUserEmail, safeUserName, validationErrors
+
+### Community 59 - "Community 59"
 Cohesion: 0.29
 Nodes (6): Backend (Modular Express), Công nghệ sử dụng (cvFit), Dịch vụ & Cơ sở dữ liệu (Cloud Services), Frontend, Quản lý mã nguồn & Triển khai, Trí tuệ nhân tạo (AI)
 
-### Community 53 - "Community 53"
+### Community 60 - "Community 60"
 Cohesion: 0.48
 Nodes (4): apiLimiter, emailLimiter, staticLimiter, strictLimiter
 
-### Community 54 - "Community 54"
+### Community 61 - "Community 61"
 Cohesion: 0.29
 Nodes (6): adminClient, { candidateId, analysisResult, matchScore, status }, router, serviceRoleKey, supabaseUrl, token
 
-### Community 55 - "Community 55"
+### Community 62 - "Community 62"
 Cohesion: 0.33
 Nodes (3): buffer, PDF_HEADER, router
 
-### Community 56 - "Community 56"
+### Community 64 - "Community 64"
 Cohesion: 0.4
 Nodes (5): Immediate (0-7 days), Long-term (1-3 months), Medium-term (2-4 weeks), Remediation Priority, Short-term (1-2 weeks)
 
-### Community 57 - "Community 57"
+### Community 65 - "Community 65"
+Cohesion: 0.5
+Nodes (3): AMP, escapeHtml(), AMP
+
+### Community 66 - "Community 66"
 Cohesion: 0.4
 Nodes (4): Dự án cvFit, Mục tiêu chính (Core Objectives), Tài liệu kỹ thuật, Tính năng nổi bật (Key Features)
 
-### Community 58 - "Community 58"
-Cohesion: 0.5
-Nodes (3): corsHeaders, params, secretKey
+### Community 67 - "Community 67"
+Cohesion: 0.83
+Nodes (3): handler(), handleSendFeedback(), handleSendWelcomeEmail()
 
-### Community 59 - "Community 59"
+### Community 68 - "Community 68"
 Cohesion: 0.5
 Nodes (3): binaryString, bytes, corsHeaders
 
-### Community 62 - "Community 62"
-Cohesion: 0.67
-Nodes (3): code:typescript (const isLocal = process.env.NODE_ENV !== 'production' || req), code:typescript (// Only trust NODE_ENV, never the request Host header), 🟡 MEDIUM-01: reCAPTCHA Bypass via Host Header Spoofing
+### Community 69 - "Community 69"
+Cohesion: 0.5
+Nodes (3): corsHeaders, params, secretKey
 
-### Community 63 - "Community 63"
+### Community 73 - "Community 73"
 Cohesion: 0.67
 Nodes (3): code:typescript (catch (error: any) {), code:typescript (catch (error: unknown) {), 🟡 MEDIUM-02: Error Message Information Disclosure
 
-### Community 64 - "Community 64"
+### Community 74 - "Community 74"
 Cohesion: 0.67
 Nodes (3): code:typescript (app.use(express.json({ limit: '50mb' }));       // ← TOO LAR), code:typescript (app.use(express.json({ limit: '15mb' }));   // 15MB is enoug), 🟠 HIGH-03: Large Body Parser Limit (DoS Vector)
 
-### Community 65 - "Community 65"
+### Community 75 - "Community 75"
 Cohesion: 0.67
-Nodes (3): code:sql (-- CURRENT (VULNERABLE)), code:sql (-- FIXED), 🟠 HIGH-01: CV Storage Bucket World-Readable (PII Exposure)
+Nodes (3): code:typescript (const isLocal = process.env.NODE_ENV !== 'production' || req), code:typescript (// Only trust NODE_ENV, never the request Host header), 🟡 MEDIUM-01: reCAPTCHA Bypass via Host Header Spoofing
 
-### Community 66 - "Community 66"
+### Community 76 - "Community 76"
 Cohesion: 0.67
 Nodes (3): code:typescript (cors({), code:typescript (const ALLOWED_ORIGINS = process.env.NODE_ENV === 'production), 🔵 LOW-03: CORS Allows Localhost in Production
 
+### Community 77 - "Community 77"
+Cohesion: 0.67
+Nodes (3): code:sql (-- CURRENT (VULNERABLE)), code:sql (-- FIXED), 🟠 HIGH-01: CV Storage Bucket World-Readable (PII Exposure)
+
 ## Knowledge Gaps
-- **476 isolated node(s):** `Entry & shell (`src/app/`)`, `Recruiter state (`src/context/recruiter/`)`, `Global state (`src/context/`)`, `Custom hooks (`src/hooks/`)`, `Test suite (`src/__tests__/`)` (+471 more)
+- **476 isolated node(s):** `mockGetUser`, `mockAxiosPost`, `mockExtractText`, `VALID_PDF_BASE64`, `req` (+471 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `supabase` connect `Community 3` to `Community 2`, `Community 6`, `Community 42`, `Community 13`, `Community 49`, `Community 50`, `Community 22`?**
-  _High betweenness centrality (0.110) - this node is a cross-community bridge._
-- **Why does `AnalysisResult` connect `Community 15` to `Community 20`, `Community 22`?**
-  _High betweenness centrality (0.088) - this node is a cross-community bridge._
-- **Why does `useUI()` connect `Community 13` to `Community 32`, `Community 1`, `Community 2`, `Community 3`, `Community 6`, `Community 42`, `Community 12`, `Community 14`, `Community 46`, `Community 49`, `Community 20`, `Community 26`, `Community 29`?**
-  _High betweenness centrality (0.085) - this node is a cross-community bridge._
-- **What connects `Entry & shell (`src/app/`)`, `Recruiter state (`src/context/recruiter/`)`, `Global state (`src/context/`)` to the rest of the system?**
+- **Why does `supabase` connect `Community 0` to `Community 3`, `Community 41`, `Community 11`, `Community 13`, `Community 19`, `Community 20`, `Community 56`?**
+  _High betweenness centrality (0.133) - this node is a cross-community bridge._
+- **Why does `AnalysisResult` connect `Community 12` to `Community 20`, `Community 22`?**
+  _High betweenness centrality (0.086) - this node is a cross-community bridge._
+- **Why does `useUI()` connect `Community 11` to `Community 0`, `Community 3`, `Community 4`, `Community 8`, `Community 41`, `Community 13`, `Community 14`, `Community 16`, `Community 17`, `Community 19`, `Community 53`, `Community 22`, `Community 23`?**
+  _High betweenness centrality (0.081) - this node is a cross-community bridge._
+- **What connects `mockGetUser`, `mockAxiosPost`, `mockExtractText` to the rest of the system?**
   _476 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.1 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.06 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1 - nodes in this community are weakly interconnected._

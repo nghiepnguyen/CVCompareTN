@@ -13,6 +13,7 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 -   **Analytics (kép):**
     -   [Vercel Analytics](https://vercel.com/analytics) — pageview / Web Vitals trên dashboard Vercel (luôn bật, `<Analytics />`).
     -   **Google Analytics 4 (GA4)** — event sản phẩm (`analyze_cv`, `analysis_success`, …) qua `src/lib/ga4.ts`, **chỉ sau cookie consent**. Chi tiết: [`docs/8_analytics.md`](8_analytics.md).
+-   **Error Tracking:** [Sentry](https://sentry.io/) (`@sentry/react`) — capture lỗi runtime, unhandled rejection, và React error boundary. Khởi tạo tại `src/lib/sentry.ts`; PII (CV content, JD, email) bị scrub trong `beforeSend` trước khi gửi lên Sentry. User chỉ được track bằng ID ẩn danh (không email) qua `src/lib/sentryUser.ts`.
 -   **State Management:** React Context — `AuthContext`, `UIContext`, `AnalysisProvider` (`src/context/analysis/`: `AnalysisRunProvider` + `SavedJdProvider`; `useAnalysis()` merged). Shim: `src/context/AnalysisContext.tsx`.
 
 ## Backend (Modular Express)
@@ -46,5 +47,6 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 -   **Version Control:** Git & GitHub.
 -   **Deployment Platform:** **Vercel** (Frontend & Modular API).
 -   **Database Provider:** **Supabase**.
+-   **Error Monitoring:** **Sentry** — backend (`@sentry/node`) tích hợp vào Express (`server.ts`) và tất cả Vercel Functions (`api/*.ts`); khởi tạo idempotent qua `_server-lib/sentry.ts`.
 -   **Secrets hygiene:** Root `.gitignore` loại trừ `.env`, cache `supabase/.temp/`, khóa TLS/SSH và file backup PII — chi tiết tại [`docs/7_deployment.md` §5](7_deployment.md#5-bảo-mật-mã-nguồn-và-bi-mật).
 -   **Graphify (tùy chọn):** Skill Graphify; trên Git **chỉ** track `graphify-out/GRAPH_REPORT.md` (toàn bộ `graphify-out/*` khác ignore). Local: `graphify update .` sau clone; cache AST trong `graphify-out/cache/` không commit.

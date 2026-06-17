@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import * as Sentry from '@sentry/react';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
 import { formatLabel } from '../../translations';
@@ -263,6 +264,16 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       setAnalysisProgress(100);
     } catch (err: unknown) {
       console.error(err);
+      Sentry.captureException(err, {
+        tags: { feature: 'analyze_cv' },
+        contexts: {
+          analysis: {
+            cvInputMode,
+            fileCount: cvInputMode === 'file' ? files.length : 1,
+            language: reportLanguage,
+          },
+        },
+      });
       const message = err instanceof Error ? err.message : String(err);
       setError(message || 'Đã xảy ra lỗi trong quá trình phân tích.');
     } finally {
