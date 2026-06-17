@@ -208,6 +208,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
       const data = await res.json();
+      if (!data.success) {
+        console.warn(`reCAPTCHA rejected for "${action}":`, data);
+      }
       return data.success === true;
     } catch (err) {
       console.error(`reCAPTCHA error for ${action}:`, err);
