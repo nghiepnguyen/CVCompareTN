@@ -528,6 +528,7 @@ export interface UiLabels {
   profileExpiryNone: string;
   profileAnalyticsLabel: string;
   profileAnalyticsUnlimited: string;
+  profileAnalyticsResetOn: string;
   profileBack: string;
   profilePlanRecruiter: string;
   profileRecruiterLabel: string;

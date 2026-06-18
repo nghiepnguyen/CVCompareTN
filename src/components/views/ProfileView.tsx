@@ -9,7 +9,7 @@ import { formatLabel } from '../../translations';
 
 export function ProfileView() {
   const { user, userProfile, effectivePlan } = useAuth();
-  const { setActiveTab, t } = useUI();
+  const { setActiveTab, t, reportLanguage } = useUI();
   const { campaigns } = useRecruiter();
 
   const [quota, setQuota] = useState<AnalyticsQuota | null>(null);
@@ -46,6 +46,19 @@ export function ProfileView() {
     : quota.limit == null
       ? `${quota.used} / ${t.profileAnalyticsUnlimited}`
       : `${quota.used} / ${quota.limit}`;
+
+  const analyticsResetText = (() => {
+    if (!quota?.month || quota.limit == null) return null;
+    const [y, m] = quota.month.split('-').map(Number);
+    if (!y || !m) return null;
+    const nextY = m === 12 ? y + 1 : y;
+    const nextM = m === 12 ? 1 : m + 1;
+    const d = new Date(nextY, nextM - 1, 1);
+    const date = reportLanguage === 'vi'
+      ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return formatLabel(t.profileAnalyticsResetOn, { date });
+  })();
 
   const campaignLimit = MAX_CAMPAIGNS.recruiter;
   const campaignUsed = campaigns.length;
@@ -182,9 +195,16 @@ export function ProfileView() {
                 {isLoadingQuota ? (
                   <Loader2 className="w-4 h-4 animate-spin text-accent" />
                 ) : (
-                  <p className="text-sm font-bold text-text-main tabular-nums">
-                    {analyticsText}
-                  </p>
+                  <>
+                    <p className="text-sm font-bold text-text-main tabular-nums">
+                      {analyticsText}
+                    </p>
+                    {analyticsResetText && (
+                      <p className="text-[11px] text-text-muted mt-0.5">
+                        {analyticsResetText}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>

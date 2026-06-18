@@ -105,7 +105,7 @@ export async function createUserProfile(user: AuthUserInput, recaptchaToken?: st
     role: 'user',
     has_permission: true,
     usage_count: 0,
-    usage_month: new Date().toISOString().slice(0, 7),
+    usage_month: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7),
     monthly_analytics_limit_custom: false,
     created_at: new Date().toISOString(),
     is_new: true,

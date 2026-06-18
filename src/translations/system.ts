@@ -124,6 +124,10 @@ export const system = {
     vi: "Không giới hạn",
     en: "Unlimited",
   },
+  profileAnalyticsResetOn: {
+    vi: "Reset ngày {{date}}",
+    en: "Resets on {{date}}",
+  },
   profileBack: {
     vi: "Quay lại",
     en: "Back",
