@@ -40,7 +40,7 @@ Frontend của dự án **cvFit** được thiết kế để xử lý việc so
 
 ### Test suite (`src/__tests__/`)
 
-Sử dụng **Vitest** (89 tests, 6 test files — cập nhật **2026-06**):
+Sử dụng **Vitest** (98 tests, 7 test files — cập nhật **2026-06**):
 
 | Test file | Target | Tests |
 |-----------|--------|-------|

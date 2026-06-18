@@ -1,22 +1,22 @@
 # API routing matrix (Vercel · Express · Supabase)
 
-Canonical reference for **which runtime handles each capability**. The frontend uses different paths in production (Vercel) vs local Express (`npm start`). Supabase Edge Functions are invoked directly from the client via `supabase.functions.invoke`.
+Canonical reference for **which runtime handles each capability**. Từ 2026-06, **tất cả path và logic đều thống nhất** — không có sự khác biệt giữa Express (local dev) và Vercel (production). Business logic nằm trong `_server-lib/`, route handlers là thin wrappers.
 
 ## Quick reference
 
-| Capability | Vercel (`api/`) | Express (`server/routes/`) | Supabase Edge |
-|------------|-----------------|---------------------------|---------------|
-| Public config (Supabase keys) | `GET /api/config` → `api/config.ts` | `server/routes/config` | — |
-| **Gemini CV analysis** | `POST /api/analyze` → `api/analyze.ts` (60s timeout) | `POST /api/analyze` → `server/routes/analyze.ts` | — |
-| PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` (**Auth: Bearer or reCAPTCHA**) | `POST /api/extract-pdf` → `server/routes/pdf.ts` (unified path, no suffix) | `extract-pdf` (legacy; không còn dùng) |
-| reCAPTCHA verify | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` (unified path, no suffix) | `verify-recaptcha` (legacy; không còn dùng cho analyze flow) |
-| Feedback email | `POST /api/send-feedback` → `api/send-feedback.ts` | mirror under `server/routes/` | — |
-| Welcome email | `POST /api/send-welcome-email` → `api/send-welcome-email.ts` | mirror | — |
-| VIP upgrade email | server-side via `_server-lib/payment/vipUpgradeEmail.ts` (triggered by webhook/confirm handlers) | — | — |
-| PayOS — tạo link | `POST /api/payment/create` → `api/payment.ts` (unified) | `POST /api/payment/create` → `server/routes/payment.ts` | — |
-| PayOS — webhook | `POST /api/payment/webhook` → `api/payment.ts` (unified) | `POST /api/payment/webhook` | — |
-| PayOS — confirm (fallback) | `POST /api/payment/confirm` → `api/payment.ts` (unified) | `POST /api/payment/confirm` | — |
-| Recruiter — lưu kết quả phân tích | `POST /api/recruiter/save-analysis` → `api/recruiter/save-analysis.ts` | — | — |
+| Capability | Vercel (`api/`) | Express (`server/routes/`) | Shared logic |
+|------------|-----------------|---------------------------|--------------|
+| Public config (Supabase keys) | `GET /api/config` → `api/config.ts` | `server/routes/config.ts` | Inline (env vars only) |
+| **Gemini CV analysis** | `POST /api/analyze` → `api/analyze.ts` (60s timeout) | `POST /api/analyze` → `server/routes/analyze.ts` | `_server-lib/analyze/handler.ts` |
+| PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` (Auth: Bearer or reCAPTCHA) | `POST /api/extract-pdf` → `server/routes/pdf.ts` (idem) | `_server-lib/pdf/handler.ts` |
+| reCAPTCHA verify (auth flow) | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` | `_server-lib/recaptcha.ts` |
+| Feedback email | `POST /api/send-email` (`type:'feedback'`) → `api/send-email.ts` | `POST /api/send-feedback` → `server/routes/feedback.ts` | `_server-lib/email/handlers.ts` |
+| Welcome email | `POST /api/send-email` (`type:'welcome'`) → `api/send-email.ts` | `POST /api/send-welcome-email` → `server/routes/welcomeEmail.ts` | `_server-lib/email/handlers.ts` |
+| VIP upgrade email | server-side via `_server-lib/payment/vipUpgradeEmail.ts` | — | — |
+| PayOS — tạo link | `POST /api/payment/create` → `api/payment.ts` (unified) | `POST /api/payment/create` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
+| PayOS — webhook | `POST /api/payment/webhook` → `api/payment.ts` | `POST /api/payment/webhook` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
+| PayOS — confirm (fallback) | `POST /api/payment/confirm` → `api/payment.ts` | `POST /api/payment/confirm` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
+| Recruiter — lưu phân tích | `POST /api/recruiter/save-analysis` → `api/recruiter/save-analysis.ts` | `POST /api/recruiter/save-analysis` → `server/routes/recruiter.ts` | Inline (RPC call) |
 
 Rewrites are defined in [`vercel.json`](../vercel.json).
 
@@ -51,8 +51,8 @@ flowchart TB
 ### Express (`npm start` → `server.ts` + `server/routes/`)
 
 - **Local development** full-stack: Vite dev server proxies or hits Express for `/api`.
-- Path suffixes may differ from Vercel (e.g. `/api/extract-pdf/extract` vs `/api/extract-pdf`).
-- Keep handlers in sync with `api/` when adding endpoints.
+- **Paths và behavior giống hệt Vercel** — cả hai gọi cùng `_server-lib/` handlers.
+- Rate limiting via `server/lib/rateLimiter.ts` (thay thế cho Vercel edge rate limiting).
 
 ### Supabase Edge Functions (`supabase/functions/`)
 
@@ -71,10 +71,11 @@ Do **not** assume one Edge function replaces Express and Vercel handlers without
 
 ## Adding a new endpoint
 
-1. Implement **Vercel** handler under `api/`.
-2. Add **Express** route under `server/routes/` for local parity.
-3. Add **rewrite** in `vercel.json` if the path is new.
-4. Update this matrix and [`docs/5_api.md`](./5_api.md).
+1. Implement **shared handler** in `_server-lib/<module>/handler.ts` — tất cả business logic ở đây.
+2. Add **Vercel** thin wrapper under `api/` (unpack headers/body → call handler → return result).
+3. Add **Express** thin wrapper under `server/routes/` (mount on router, same pattern).
+4. Add **rewrite** in `vercel.json` if the path is new.
+5. Update this matrix and [`docs/5_api.md`](./5_api.md).
 
 ## Out of scope (this doc)
 

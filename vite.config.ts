@@ -53,21 +53,40 @@ export default defineConfig(({ mode }) => {
       alias: [{ find: '@', replacement: path.resolve(__dirname, '.') }],
     },
     build: {
-      chunkSizeWarningLimit: 800,
+      chunkSizeWarningLimit: 1800,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom'],
-            'vendor-ui': ['motion/react', 'lucide-react', 'clsx', 'tailwind-merge'],
-            'vendor-charts': ['recharts'],
-            'vendor-markdown': [
-              'react-markdown',
-              'remark-gfm',
-              'remark-breaks',
-              'rehype-sanitize',
-              'rehype-raw',
-            ],
-            'vendor-utils': ['axios'],
+          manualChunks(id) {
+            if (
+              id.includes('/node_modules/react/') ||
+              id.includes('/node_modules/react-dom/') ||
+              id.includes('/node_modules/react-is/') ||
+              id.includes('/node_modules/scheduler/')
+            ) return 'vendor-react';
+
+            if (
+              id.includes('/node_modules/motion/') ||
+              id.includes('/node_modules/lucide-react/') ||
+              id.includes('/node_modules/clsx/') ||
+              id.includes('/node_modules/tailwind-merge/')
+            ) return 'vendor-ui';
+
+            if (id.includes('/node_modules/recharts/') || id.includes('/node_modules/victory-vendor/'))
+              return 'vendor-charts';
+
+            if (
+              id.includes('/node_modules/react-markdown/') ||
+              id.includes('/node_modules/remark-') ||
+              id.includes('/node_modules/rehype-') ||
+              id.includes('/node_modules/unified/') ||
+              id.includes('/node_modules/hast') ||
+              id.includes('/node_modules/mdast') ||
+              id.includes('/node_modules/micromark')
+            ) return 'vendor-markdown';
+
+            if (id.includes('/node_modules/axios/')) return 'vendor-utils';
+
+            if (id.includes('/node_modules/@supabase/')) return 'vendor-supabase';
           },
         },
       },

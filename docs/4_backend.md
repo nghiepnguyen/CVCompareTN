@@ -1,13 +1,31 @@
 # Kiến trúc Backend (Modular Express Server)
 
-Hệ thống sử dụng **Express** module hoá (`server/routes/`) khi chạy **`npm start`**. Trên **Vercel**, các endpoint tương ứng triển khai dưới dạng Serverless trong `api/*.ts` (rewrite trong `vercel.json`) — đường dẫn chi tiết có thể khác một chút (ví dụ PDF / reCAPTCHA).
+Hệ thống sử dụng **Express** module hoá (`server/routes/`) khi chạy **`npm start`**. Trên **Vercel**, các endpoint tương ứng triển khai dưới dạng Serverless trong `api/*.ts` (rewrite trong `vercel.json`). **Cả hai đều dùng cùng path và cùng logic** — toàn bộ business logic nằm trong `_server-lib/`, các route handler chỉ là thin wrappers unpack HTTP request/response.
 
 ## Cấu trúc & Runtime
 -   **Entry Point:** `server.ts` (Tích hợp Vite Middleware trong môi trường Dev).
--   **Route Handlers:** `server/routes/*.ts` (Ví dụ: `config.ts`, `pdf.ts`, `feedback.ts`).
+-   **Route Handlers:** `server/routes/*.ts` (thin wrappers — Express) và `api/*.ts` (thin wrappers — Vercel).
+-   **Shared Business Logic:** `_server-lib/` — mọi logic quan trọng nằm tại đây, dùng chung cho cả hai runtime.
 -   **Runtime:** Node.js 20.x+.
 -   **Ngôn ngữ:** TypeScript.
 -   **CI/CD:** GitHub Actions (`.github/workflows/ci.yml`) — lint → test → build trên mỗi push/PR lên `main`.
+
+## Kiến trúc Thin Handler (Shared Core)
+
+Pattern này (áp dụng từ 2026-06) đảm bảo Express và Vercel **không bao giờ drift** về logic:
+
+```
+Express handler → _server-lib/module/handler.ts → _server-lib/services
+Vercel handler  → _server-lib/module/handler.ts → _server-lib/services
+```
+
+| Module | Shared handler | Mô tả |
+|--------|---------------|--------|
+| Analyze | `_server-lib/analyze/handler.ts` | `handleAnalyze()` — auth, reCAPTCHA, quota, Gemini call |
+| PDF | `_server-lib/pdf/handler.ts` | `handleExtractPdf()` — auth, reCAPTCHA, PDF validation |
+| Email | `_server-lib/email/handlers.ts` | `handleSendFeedback()`, `handleSendWelcomeEmail()` |
+| Payment | `_server-lib/payment/handlers.ts` | `handlePaymentCreate/Webhook/Confirm()` |
+| reCAPTCHA | `_server-lib/recaptcha.ts` | `verifyRecaptcha(token, threshold?)` — shared utility |
 
 ## Các chức năng chính (Routes)
 
@@ -20,8 +38,9 @@ Hệ thống sử dụng **Express** module hoá (`server/routes/`) khi chạy *
 
 ### 2. Trích xuất PDF
 
--   **Express (`npm start`, `server.ts`):** `server/routes/pdf.ts` mount tại `/api/extract-pdf`, route **`POST /api/extract-pdf`** (unified path, không còn suffix `/extract`) — body `{ base64Data: string }`, response `{ text: string }`.
--   **Vercel Serverless:** **`POST /api/extract-pdf`** (file `api/extract-pdf.ts`) — cùng body/response.
+-   **Express:** `server/routes/pdf.ts` → **`POST /api/extract-pdf`** — body `{ base64Data: string, recaptchaToken?: string }`, response `{ text: string }`. **Auth bắt buộc** (Bearer token hoặc reCAPTCHA).
+-   **Vercel:** `api/extract-pdf.ts` → **`POST /api/extract-pdf`** — cùng body/response/auth.
+-   **Shared logic:** `_server-lib/pdf/handler.ts` (`handleExtractPdf()`).
 
 ### 3. Phân tích CV với Gemini AI
 
@@ -42,12 +61,15 @@ Hệ thống sử dụng **Express** module hoá (`server/routes/`) khi chạy *
 
 ### 4. Xác thực reCAPTCHA
 
--   **Express:** **`POST /api/verify-recaptcha`** (`server/routes/recaptcha.ts`) — unified path, không còn suffix `/verify`.
--   **Vercel:** **`POST /api/verify-recaptcha`** (`api/verify-recaptcha.ts`).
+Shared utility: **`_server-lib/recaptcha.ts`** — `verifyRecaptcha(token, threshold = 0.5)`.
 
-Tự động bypass trên localhost để thuận tiện phát triển.
+-   Tự động bypass khi `NODE_ENV !== 'production'` (không dùng host header).
+-   Missing secret key → trả `{ ok: false, status: 503 }`.
+-   Score < threshold → `{ ok: false, status: 403 }`.
 
-**Sử dụng:** (1) `AuthContext.tsx` — verify trước `signInWithEmail()` / `signUpWithEmail()`. (2) `/api/analyze` — verify inline trong endpoint cho anonymous users (không cần gọi `/api/verify-recaptcha` riêng từ analyze flow nữa).
+**Standalone endpoint (`POST /api/verify-recaptcha`):** Dùng bởi `AuthContext.tsx` trước `signInWithEmail()` / `signUpWithEmail()`.
+
+**Inline verification:** `/api/analyze` và `/api/extract-pdf` verify reCAPTCHA inline (cho anonymous users) qua `_server-lib/recaptcha.ts` — không gọi endpoint riêng.
 
 ### 5. Thanh toán PayOS (`/api/payment/*`)
 
@@ -70,13 +92,14 @@ Hệ thống gởi 3 loại email qua dịch vụ **Resend**:
 
 | Email | Trigger | Endpoint | reCAPTCHA |
 |-------|---------|----------|-----------|
-| **Welcome** | User mới đăng ký (Google OAuth hoặc email) | `POST /api/send-welcome-email` | Tuỳ chọn — nếu có token thì verify, không có thì bỏ qua (welcome từ auth event, không phải form public) |
-| **Feedback** | User đánh giá kết quả phân tích | `POST /api/send-feedback` | Bắt buộc (score ≥ 0.5) |
-| **VIP Upgrade** | Thanh toán PayOS thành công (webhook/confirm) | Server-side (gọi trực tiếp từ `api/payment/lib/`) | Không (server-side, non-blocking) |
+| **Welcome** | User mới đăng ký (Google OAuth hoặc email) | `POST /api/send-email` (`type: 'welcome'`) | Production: bắt buộc (score ≥ 0.5); dev: bypass |
+| **Feedback** | User đánh giá kết quả phân tích | `POST /api/send-email` (`type: 'feedback'`) | Bắt buộc (score ≥ 0.5) |
+| **VIP Upgrade** | Thanh toán PayOS thành công (webhook/confirm) | Server-side (gọi trực tiếp từ `_server-lib/payment/handlers.ts`) | Không (server-side, non-blocking) |
 
-- **Files Vercel:** `api/send-feedback.ts`, `api/send-welcome-email.ts`, `_server-lib/payment/vipUpgradeEmail.ts`
-- **Files Express:** `server/routes/feedback.ts`, `server/routes/welcomeEmail.ts`
-- **VIP Upgrade Email:** Tự động phân biệt Pro vs Recruiter — hiển thị danh sách quyền lợi khác nhau (Pro: 5 CV batch, 10 saved CV; Recruiter: 50 CV batch, 50 saved CV, 10 campaigns).
+- **Files Vercel:** `api/send-email.ts` (unified dispatcher, type: 'feedback' | 'welcome')
+- **Files Express:** `server/routes/feedback.ts`, `server/routes/welcomeEmail.ts` (thin wrappers)
+- **Shared logic:** `_server-lib/email/handlers.ts` (`handleSendFeedback()`, `handleSendWelcomeEmail()`)
+- **VIP Upgrade Email:** `_server-lib/payment/vipUpgradeEmail.ts` — phân biệt Pro vs Recruiter (Pro: 5 CV batch, 10 saved CV; Recruiter: 50 CV batch, 50 saved CV, 10 campaigns).
 - **Rate limiting:** Express áp dụng `emailLimiter` (5 req/h) cho feedback & welcome.
 
 ## Supabase Database Schema

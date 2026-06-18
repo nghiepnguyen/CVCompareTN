@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
 import { analyzeCV, type AnalysisResult } from '../../services/ai';
@@ -229,7 +230,6 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
 
           try {
             // Get file content from storage URL
-            const { supabase } = await import('../../lib/supabase');
             const { data: publicUrl } = supabase.storage
               .from('cv-files')
               .getPublicUrl(candidate.filePath);

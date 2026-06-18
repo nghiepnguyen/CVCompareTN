@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+import { getUserFromBearerToken, getSupabaseAdmin } from '../../_server-lib/payment/supabaseAdmin.js';
 import { initSentryServer, Sentry } from '../../_server-lib/sentry.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -14,24 +14,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       typeof req.headers.authorization === 'string'
         ? req.headers.authorization
         : undefined;
-    if (!authHeader?.startsWith('Bearer ')) {
+
+    const user = await getUserFromBearerToken(authHeader);
+    if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const token = authHeader.slice(7);
-
-    const supabaseUrl = process.env.SUPABASE_URL?.trim();
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-    if (!supabaseUrl || !serviceRoleKey) {
-      return res.status(503).json({ error: 'Service configuration missing' });
-    }
-
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-
-    // Verify the user token
-    const { data: userData, error: userError } = await adminClient.auth.getUser(token);
-    if (userError || !userData?.user) {
-      return res.status(401).json({ error: 'Invalid token' });
     }
 
     const body = req.body as {
@@ -50,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing candidateId or analysisResult' });
     }
 
-    const { error: rpcError } = await adminClient.rpc('save_candidate_analysis', {
+    const { error: rpcError } = await getSupabaseAdmin().rpc('save_candidate_analysis', {
       p_candidate_id: candidateId,
       p_analysis_result: analysisResult,
       p_match_score: matchScore,

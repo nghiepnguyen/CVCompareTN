@@ -1,27 +1,16 @@
 import { Router } from 'express';
-import { createClient } from '@supabase/supabase-js';
+import { getUserFromBearerToken, getSupabaseAdmin } from '../../_server-lib/payment/supabaseAdmin';
 
 const router = Router();
 
 router.post('/save-analysis', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
+    const authHeader =
+      typeof req.headers.authorization === 'string' ? req.headers.authorization : undefined;
+
+    const user = await getUserFromBearerToken(authHeader);
+    if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const token = authHeader.slice(7);
-    const supabaseUrl = process.env.SUPABASE_URL?.trim();
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-    if (!supabaseUrl || !serviceRoleKey) {
-      return res.status(503).json({ error: 'Service configuration missing' });
-    }
-
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-
-    const { data: userData, error: userError } = await adminClient.auth.getUser(token);
-    if (userError || !userData?.user) {
-      return res.status(401).json({ error: 'Invalid token' });
     }
 
     const { candidateId, analysisResult, matchScore, status } = req.body as {
@@ -35,7 +24,7 @@ router.post('/save-analysis', async (req, res) => {
       return res.status(400).json({ error: 'Missing candidateId or analysisResult' });
     }
 
-    const { error: rpcError } = await adminClient.rpc('save_candidate_analysis', {
+    const { error: rpcError } = await getSupabaseAdmin().rpc('save_candidate_analysis', {
       p_candidate_id: candidateId,
       p_analysis_result: analysisResult,
       p_match_score: typeof matchScore === 'number' ? matchScore : 0,

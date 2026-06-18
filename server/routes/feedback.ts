@@ -1,89 +1,15 @@
 import { Router } from 'express';
-import axios from 'axios';
-import { Resend } from 'resend';
-import { escapeHtml } from '../lib/escapeHtml';
-import { validateFeedbackInput } from '../lib/validate';
+import { handleSendFeedback } from '../../_server-lib/email/handlers';
 
 const router = Router();
 
 router.post('/', async (req, res) => {
-  const { token, rating, title, content, userEmail } = req.body;
-  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
-  const apiKey = process.env.RESEND_API_KEY;
-
-  // Validate input lengths/format before processing
-  const validationErrors = validateFeedbackInput(req.body as Record<string, unknown>);
-  if (validationErrors.length > 0) {
-    return res.status(400).json({ success: false, message: 'Invalid input', errors: validationErrors });
-  }
-
-  const isLocal = process.env.NODE_ENV !== 'production' || req.headers.host?.includes('localhost');
-
   try {
-    // 1. Verify reCAPTCHA (skip on localhost)
-    if (!isLocal) {
-      if (!secretKey) {
-        console.error('RECAPTCHA_SECRET_KEY is missing.');
-        return res.status(500).json({ success: false, message: 'reCAPTCHA configuration error' });
-      }
-
-      const params = new URLSearchParams();
-      params.append('secret', secretKey);
-      params.append('response', token);
-
-      const recaptchaResponse = await axios.post(
-        'https://www.google.com/recaptcha/api/siteverify',
-        params
-      );
-
-      const { success, score, 'error-codes': errorCodes } = recaptchaResponse.data;
-
-      if (!success) {
-        return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed', details: errorCodes });
-      }
-      if (score !== undefined && score < 0.5) {
-        return res.status(400).json({ success: false, message: 'reCAPTCHA score too low' });
-      }
-    }
-
-    // 2. Send the email using Resend
-    if (apiKey) {
-      const resendClient = new Resend(apiKey);
-      const safeTitle = escapeHtml(title ?? '');
-      const safeContent = escapeHtml(content ?? '');
-      const safeUserEmail = escapeHtml(userEmail ?? 'Anonymous');
-      const safeRating = typeof rating === 'number' ? String(rating) : '—';
-
-      const { data, error } = await resendClient.emails.send({
-        from: `CV Matcher <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
-        to: [process.env.FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'],
-        subject: `Feedback: ${safeTitle}`,
-        html: `
-          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-            <h2 style="color: #4f46e5;">New feedback from CV Matcher</h2>
-            <p><strong>Rating:</strong> ${safeRating}/5 stars</p>
-            <p><strong>Title:</strong> ${safeTitle}</p>
-            <p><strong>From:</strong> ${safeUserEmail}</p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p><strong>Content:</strong></p>
-            <p style="white-space: pre-wrap; line-height: 1.6;">${safeContent}</p>
-          </div>
-        `
-      });
-
-      if (error) {
-        console.error('Resend API Error:', error);
-        return res.status(500).json({ success: false, message: `Email service error: ${error.message}` });
-      }
-    } else {
-      console.warn('RESEND_API_KEY is missing.');
-      return res.status(500).json({ success: false, message: 'RESEND_API_KEY is not configured.' });
-    }
-
-    res.json({ success: true, message: 'Feedback sent successfully' });
+    const result = await handleSendFeedback(req.body);
+    return res.status(result.status).json(result.body);
   } catch (error: unknown) {
     console.error('Feedback submission error:', error);
-    res.status(500).json({ success: false, message: `System error: ${error instanceof Error ? error.message : String(error)}` });
+    return res.status(500).json({ success: false, message: `System error: ${error instanceof Error ? error.message : String(error)}` });
   }
 });
 

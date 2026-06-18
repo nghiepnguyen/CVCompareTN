@@ -23,9 +23,9 @@ Dự án được xây dựng trên một nền tảng công nghệ hiện đạ
 -   **Rate Limiting:** `server/lib/rateLimiter.ts` — 3 mức: `apiLimiter` (100 req/15ph toàn cục), `strictLimiter` (10 req/15ph cho PDF và payment), `emailLimiter` (5 req/h cho email).
 -   **PDF/Docx Processing:**
     -   `Google Gemini AI`: Xử lý đa phương thức (Vision) trực tiếp cho các file PDF/Hình ảnh từ Frontend.
-    -   `mammoth`: Chuyển đổi tệp .doc/.docx sang văn bản thuần túy (Lazy-loaded để tối ưu bundle) — dùng cho cả CV và JD file extraction.
-    -   **Backend API:** `POST /api/extract-pdf` (Vercel) / `POST /api/extract-pdf/extract` (Express) — trích xuất text từ PDF cho JD file uploads (và CV flow), sử dụng `pdf-parse`.
--   **Security:** `Google reCAPTCHA v3` bảo vệ các endpoint API (Feedback, Welcome Email).
+    -   `mammoth`: Chuyển đổi tệp .doc/.docx sang văn bản thuần túy (Lazy-loaded để tối ưu bundle).
+    -   `unpdf`: Trích xuất text từ PDF — dùng cả client-side (CV PDF qua `useFileProcessor.ts`) và server-side (`_server-lib/pdf/handler.ts` cho JD PDF uploads qua `POST /api/extract-pdf`).
+-   **Security:** `Google reCAPTCHA v3` bảo vệ các endpoint API. Shared utility: `_server-lib/recaptcha.ts`.
 
 ## Trí tuệ nhân tạo (AI)
 

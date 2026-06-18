@@ -53,7 +53,7 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 - **Response:** `{ text: string }`
 - **Dùng cho:** Trích xuất text từ PDF JD (Job Description) upload trong `AnalysisInputView`. CV PDF dùng `unpdf` client-side, không qua endpoint này.
 
-### Xác thực reCAPTCHA (path thống nhất)
+### Xác thực reCAPTCHA (standalone — chỉ cho auth flow)
 
 | Môi trường | Method & path |
 |------------|----------------|
@@ -61,7 +61,9 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 | **Express** | `POST /api/verify-recaptcha` |
 
 - **Body:** `{ token: string }`
-- **Ghi chú:** Localhost thường được bypass (xem code route).
+- **Sử dụng:** `AuthContext.tsx` — verify trước `signInWithEmail()` / `signUpWithEmail()`.
+- **Ghi chú:** Localhost bypass tự động (`NODE_ENV !== 'production'`). Shared logic: `_server-lib/recaptcha.ts`.
+- Analyze và extract-pdf verify reCAPTCHA **inline** trong shared handler, không gọi endpoint này.
 
 ### Thanh toán PayOS
 
@@ -80,17 +82,17 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 
 ### Hệ thống Email (Resend)
 
-#### `POST /api/send-welcome-email`
+#### `POST /api/send-email` (unified — Vercel)
 
-- **Mục đích:** Gởi email chào mừng khi user mới đăng ký (Google OAuth hoặc email signup).
-- **Body:** `{ token, userEmail, userName }`
-- **reCAPTCHA:** Tuỳ chọn — nếu `token` có thì verify (score ≥ 0.2), nếu không (Google OAuth redirect, reCAPTCHA chưa kịp load) thì bỏ qua. Welcome email được trigger từ auth event, không phải form public.
+Vercel dùng một handler duy nhất dispatch theo `type` field. Express dùng hai route riêng (`/api/send-feedback`, `/api/send-welcome-email`) nhưng cùng logic từ `_server-lib/email/handlers.ts`.
 
-#### `POST /api/send-feedback`
+**Feedback** (`type: 'feedback'`):
+- **Body:** `{ type: 'feedback', token, rating, title, content, userEmail }`
+- **reCAPTCHA:** Bắt buộc (score ≥ 0.5).
 
-- **Mục đích:** Gởi phản hồi của user về admin qua email (Resend).
-- **Body:** `{ token, rating, title, content, userEmail }`
-- **reCAPTCHA:** Bắt buộc (score ≥ 0.5) — feedback từ UI action, reCAPTCHA đã load sẵn.
+**Welcome** (`type: 'welcome'`):
+- **Body:** `{ type: 'welcome', token, userEmail, userName }`
+- **reCAPTCHA:** Production: bắt buộc (score ≥ 0.5); dev: bypass. Token bắt buộc khi `NODE_ENV === 'production'`.
 
 #### VIP Upgrade Email (server-side)
 
