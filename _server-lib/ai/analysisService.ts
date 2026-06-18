@@ -1,3 +1,4 @@
+import { extractText } from 'unpdf';
 import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
 import { normalizeParsedCV } from '../../src/services/ai/parsedCvNormalize.js';
 import {
@@ -85,7 +86,28 @@ export async function analyzeCV(
   type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
   const parts: GeminiPart[] = [{ text: finalPrompt }];
 
-  if (cvMimeType === 'application/pdf' || cvMimeType.startsWith('image/')) {
+  if (cvMimeType === 'application/pdf') {
+    let usedText = false;
+    try {
+      const base64Data = cvData.split(',')[1] || cvData;
+      const buffer = Buffer.from(base64Data, 'base64');
+      const { text } = await extractText(new Uint8Array(buffer), { mergePages: true });
+      if (text && text.trim().length >= 100) {
+        parts.push({ text: `CV Content:\n${text}` });
+        usedText = true;
+      }
+    } catch {
+      // fall through to inlineData (scanned or malformed PDF)
+    }
+    if (!usedText) {
+      parts.push({
+        inlineData: {
+          data: cvData.split(',')[1] || cvData,
+          mimeType: 'application/pdf',
+        },
+      });
+    }
+  } else if (cvMimeType.startsWith('image/')) {
     parts.push({
       inlineData: {
         data: cvData.split(',')[1] || cvData,
