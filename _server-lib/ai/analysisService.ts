@@ -17,6 +17,27 @@ function stripControlChars(s: string): string {
   return s.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
 }
 
+const repairTruncatedJson = (raw: string): string => {
+  // Strip trailing partial string (truncation often ends mid-string)
+  let fixed = raw.replace(/,?\s*"[^"\\]*(?:\\.[^"\\]*)*$/, '');
+  // Strip trailing dangling comma
+  fixed = fixed.replace(/,\s*$/, '');
+  // Walk the JSON to build a close-bracket stack, skipping string contents
+  const stack: string[] = [];
+  let inString = false;
+  let escape = false;
+  for (const ch of fixed) {
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') stack.push('}');
+    else if (ch === '[') stack.push(']');
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+  return fixed + stack.reverse().join('');
+};
+
 const parseGeminiJson = (text: string) => {
   try {
     return JSON.parse(text);
@@ -31,12 +52,7 @@ const parseGeminiJson = (text: string) => {
       } catch (e2: unknown) {
         console.error('JSON Parse Error (Extracted):', e2);
         try {
-          let fixed = jsonMatch[0];
-          const openBraces = (fixed.match(/\{/g) || []).length;
-          const closeBraces = (fixed.match(/\}/g) || []).length;
-          if (openBraces > closeBraces) {
-            fixed += '}'.repeat(openBraces - closeBraces);
-          }
+          const fixed = repairTruncatedJson(jsonMatch[0]);
           return JSON.parse(stripControlChars(fixed));
         } catch {
           throw e2;
@@ -86,6 +102,7 @@ export async function analyzeCV(
       contents: [{ role: 'user', parts }],
       config: {
         responseMimeType: 'application/json',
+        maxOutputTokens: 65536,
       },
     });
 
