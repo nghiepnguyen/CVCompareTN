@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "start": "tsx server.ts",
+    "start": "tsx --import ./instrument.ts server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
