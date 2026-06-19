@@ -9,7 +9,7 @@
     <meta name="description" content="Tải lên CV và so sánh với bất kỳ JD nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu, gợi ý tối ưu CV và ước lượng khả năng trúng tuyển. Hoàn toàn miễn phí." />
     <meta name="keywords" content="phân tích CV, tối ưu CV, so sánh CV với JD, kiểm tra CV ATS, cvfit, công cụ so sánh CV" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://cvfit.pro/vi" />
+    <link rel="canonical" href="https://cvfit.pro/vi/" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="https://data.cvfit.pro/favicon.ico" />
@@ -23,7 +23,7 @@
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="fb:app_id" content="1339934464104295" />
-    <meta property="og:url" content="https://cvfit.pro/vi" />
+    <meta property="og:url" content="https://cvfit.pro/vi/" />
     <meta property="og:title" content="cvFit - Phân tích & Tối ưu CV bằng AI | So khớp ATS Miễn Phí" />
     <meta property="og:description" content="Tải lên CV và so sánh với bất kỳ JD nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu, gợi ý tối ưu CV và ước lượng khả năng trúng tuyển. Hoàn toàn miễn phí." />
     <meta property="og:image" content="https://data.cvfit.pro/img/thumb.jpeg" />
@@ -36,15 +36,15 @@
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://cvfit.pro/vi" />
+    <meta name="twitter:url" content="https://cvfit.pro/vi/" />
     <meta name="twitter:title" content="cvFit - Phân tích & Tối ưu CV bằng AI | So khớp ATS Miễn Phí" />
     <meta name="twitter:description" content="Tải lên CV và so sánh với bất kỳ JD nào. Nhận ngay điểm tương thích ATS, phân tích kỹ năng còn thiếu, gợi ý tối ưu CV và ước lượng khả năng trúng tuyển. Hoàn toàn miễn phí." />
     <meta name="twitter:image" content="https://data.cvfit.pro/img/thumb.jpeg" />
 
     <!-- Hreflang - Default to Vietnamese homepage -->
-    <link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi" />
-    <link rel="alternate" hreflang="en" href="https://cvfit.pro/en" />
-    <link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi" />
+    <link rel="alternate" hreflang="vi" href="https://cvfit.pro/vi/" />
+    <link rel="alternate" hreflang="en" href="https://cvfit.pro/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://cvfit.pro/vi/" />
 
     <!-- Schema.org -->
     <script type="application/ld+json">
@@ -157,7 +157,7 @@
       var title = lang === 'vi' ? route.titleVi : route.titleEn;
       var desc = lang === 'vi' ? route.descVi : route.descEn;
       var kw = lang === 'vi' ? route.kwVi : route.kwEn;
-      var canonical = DOMAIN + '/' + lang + (subPath === '/' ? '' : subPath);
+      var canonical = DOMAIN + '/' + lang + (subPath === '/' ? '/' : subPath);
 
       // Set document language
       document.documentElement.lang = lang;
@@ -194,7 +194,7 @@
 
       // Update hreflang links
       var hreflangLinks = document.querySelectorAll('link[rel="alternate"][hreflang]');
-      var sub = subPath === '/' ? '' : subPath;
+      var sub = subPath === '/' ? '/' : subPath;
       for (var i = 0; i < hreflangLinks.length; i++) {
         var hl = hreflangLinks[i].getAttribute('hreflang');
         if (hl === 'vi') hreflangLinks[i].setAttribute('href', DOMAIN + '/vi' + sub);

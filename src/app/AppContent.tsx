@@ -132,7 +132,7 @@ export function AppContent() {
       activeTab === 'upgrade' ? '/upgrade' :
       activeTab === 'about' ? '/about' :
       '';
-    const canonicalUrl = `https://cvfit.pro${langPrefix}${routePath}`;
+    const canonicalUrl = `https://cvfit.pro${langPrefix}${routePath || '/'}`;
     const canonicalEl = document.querySelector('link[rel="canonical"]');
     if (canonicalEl) canonicalEl.setAttribute('href', canonicalUrl);
 
@@ -140,9 +140,9 @@ export function AppContent() {
     const hreflangLinks = document.querySelectorAll('link[rel="alternate"][hreflang]');
     for (let i = 0; i < hreflangLinks.length; i++) {
       const hl = hreflangLinks[i].getAttribute('hreflang');
-      if (hl === 'vi') hreflangLinks[i].setAttribute('href', `https://cvfit.pro/vi${routePath}`);
-      else if (hl === 'en') hreflangLinks[i].setAttribute('href', `https://cvfit.pro/en${routePath}`);
-      else if (hl === 'x-default') hreflangLinks[i].setAttribute('href', `https://cvfit.pro/vi${routePath}`);
+      if (hl === 'vi') hreflangLinks[i].setAttribute('href', `https://cvfit.pro/vi${routePath || '/'}`);
+      else if (hl === 'en') hreflangLinks[i].setAttribute('href', `https://cvfit.pro/en${routePath || '/'}`);
+      else if (hl === 'x-default') hreflangLinks[i].setAttribute('href', `https://cvfit.pro/vi${routePath || '/'}`);
     }
 
     document.documentElement.lang = reportLanguage;
