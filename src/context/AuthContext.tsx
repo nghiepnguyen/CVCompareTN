@@ -104,6 +104,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
 
     const initAuth = async () => {
+      // Detect OAuth error redirects from Supabase (e.g. bad_oauth_state, access_denied)
+      const urlParams = new URLSearchParams(window.location.search);
+      const oauthErrorCode = urlParams.get('error_code');
+      const oauthError = urlParams.get('error');
+      if (oauthError || oauthErrorCode) {
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('error');
+        cleanUrl.searchParams.delete('error_code');
+        cleanUrl.searchParams.delete('error_description');
+        window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+
+        if (oauthErrorCode === 'bad_oauth_state' || oauthErrorCode === 'pkce_not_found') {
+          setError('Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng thử đăng nhập lại.');
+        } else if (oauthError !== 'access_denied') {
+          // access_denied = user cancelled, no need to show an error
+          setError('Đăng nhập thất bại. Vui lòng thử lại.');
+        }
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!isMounted) return;
 

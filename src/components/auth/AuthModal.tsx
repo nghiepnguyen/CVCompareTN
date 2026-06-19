@@ -90,12 +90,10 @@ export function AuthModal() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync mode with authModalMode
+  // Always open on signIn tab; resetPassword is a special deep-link case
   useEffect(() => {
-    if (authModalMode && authModalMode !== 'signUp' && authModalMode !== 'signIn' && authModalMode !== 'resetPassword') {
-      setMode('signIn');
-    } else if (authModalMode) {
-      setMode(authModalMode);
+    if (authModalMode) {
+      setMode(authModalMode === 'resetPassword' ? 'resetPassword' : 'signIn');
     }
   }, [authModalMode]);
 

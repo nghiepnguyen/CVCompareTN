@@ -278,6 +278,18 @@ export const system = {
     vi: "Đã xảy ra lỗi. Vui lòng thử lại.",
     en: "An error occurred. Please try again.",
   },
+  authEmailNotConfirmed: {
+    vi: "Email chưa được xác nhận. Vui lòng kiểm tra hộp thư của bạn.",
+    en: "Email not confirmed. Please check your inbox.",
+  },
+  authOAuthStateError: {
+    vi: "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng thử đăng nhập lại.",
+    en: "Login session expired or invalid. Please try signing in again.",
+  },
+  authOAuthError: {
+    vi: "Đăng nhập thất bại. Vui lòng thử lại.",
+    en: "Sign-in failed. Please try again.",
+  },
   authResetPasswordTitle: {
     vi: "Đặt lại mật khẩu",
     en: "Reset Password",

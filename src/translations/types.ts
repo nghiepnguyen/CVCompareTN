@@ -712,6 +712,9 @@ export interface UiLabels {
   authSignUpSuccess: string;
   authSignUpSuccessDesc: string;
   authGenericError: string;
+  authEmailNotConfirmed: string;
+  authOAuthStateError: string;
+  authOAuthError: string;
   authResetPasswordTitle: string;
   authResetPasswordDesc: string;
   authResetPasswordBtn: string;
