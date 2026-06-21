@@ -163,6 +163,7 @@ export interface UiLabels {
 
   // footer/input
   feedbackPlaceholder: string;
+  footerBlog: string;
   footerContactSupport: string;
   footerCookieSettings: string;
   footerCopyright: string;
