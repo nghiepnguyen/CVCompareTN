@@ -141,43 +141,20 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
 -   Xuất Excel: `ExcelJS` export 14 cột (STT, Tên ứng viên, Điểm khớp, 4 category scores, Xác suất, Yếu tố chính, Điểm mạnh, Điểm yếu, Trạng thái HR, Ghi chú, Thời gian PT) — Blob download, không dùng `XLSX.writeFile`.
 
 ## Điểm nhấn UX
--   **Real-time Progress:** Hiển thị tiến trình phân tích cho từng file khi xử lý hàng loạt.
--   **Multi-language:** Hỗ trợ chuyển đổi ngôn ngữ báo cáo (Tiếng Việt/Tiếng Anh) một cách tức thì.
--   **Pro/Recruiter Feature Gate:** Các tính năng được kiểm tra qua `isProPlan()` / `isRecruiterPlan()` từ `planLimits.ts`; giao diện hiển thị `UpgradePrompt` khi người dùng Free/Pro truy cập tính năng Recruiter.
--   **Collapsible Sidebar:** Tối ưu không gian hiển thị với thanh điều hướng có thể thu gọn, giúp tập trung vào nội dung phân tích.
--   **In-App Browser detection:** Cảnh báo người dùng khi truy cập từ Zalo/Facebook để đảm bảo quyền đăng nhập Google.
--   **Auth Modal (Email + Google):** `AuthModal.tsx` cung cấp Sign In/Sign Up/Reset Password với Motion layoutId animation, reCAPTCHA v3, và hỗ trợ cả Google OAuth. Hiển thị qua `openAuthModal()` từ AuthContext.
--   **Pre-hydration SEO (2026-05):** `<script>` đồng bộ trong `index.html` chạy trước React — set đúng meta (title, description, OG, Twitter, canonical), hreflang (`vi`, `en`, `x-default`), Schema.org (`SoftwareApplication`, `Organization`, `BreadcrumbList`, `FAQPage`, `HowTo`), và `robots` meta (`noindex` cho payment/admin). Có full SEO metadata cho 6 route (home, privacy, terms, support, upgrade, about) bằng cả 2 ngôn ngữ.
--   **Hreflang & Canonical:** URL-based language routing (`/vi`, `/en` prefix) với hreflang tags + canonical per-route. Legacy paths (`/privacy`...) redirect 301 về `/vi/privacy`.
--   **Dynamic SEO Sync:** `AppContent.tsx` đồng bộ canonical, hreflang, meta, schema sau mỗi SPA navigation — kế thừa và cập nhật seed từ pre-hydration script.
--   **Performance (Lazy Loading):** Áp dụng `React.lazy` và `Suspense` cho các View lớn để giảm thời gian tải trang ban đầu.
--   **Thiết kế Industrial Utilitarian:** 
-    - Ngôn ngữ thiết kế tập trung vào sự chính xác, các đường nét rõ ràng và phản hồi xúc giác cao cấp.
-    - Sử dụng `layoutId` của Motion (`motion/react`) để hiệu ứng "sliding pill" khi chuyển tab kết quả.
-    - Thanh điều hướng kết quả tích hợp **"Scan Line"** - hiệu ứng đường quét chạy theo tiến trình xem báo cáo, tạo cảm giác về một hệ thống phân tích dữ liệu chuyên nghiệp.
--   **Mobile-First Optimization:** 
-    - **Bottom Navigation:** Thanh điều hướng cố định phía dưới màn hình trên mobile giúp thao tác bằng một tay dễ dàng.
-    - **Sticky Results Nav:** Thanh điều hướng các phần của kết quả (Analyze, Comparison...) luôn dính ở phía trên để dễ dàng chuyển đổi nội dung dài mà không cần cuộn ngược lên.
-    - **Smart Auto-Scroll:** Tự động căn chỉnh vị trí màn hình khi chuyển tab báo cáo, đảm bảo người dùng luôn đọc từ đầu mục nội dung mới.
-    - **Bottom Sheets:** Chuyển đổi các Modals thành dạng vuốt từ dưới lên trên thiết bị di động.
-    - **Adaptive Layouts:** Chuyển đổi bảng dữ liệu thành dạng thẻ (Cards) và tối ưu hóa padding cho màn hình nhỏ.
--   **Instant Startup:** Tối ưu hóa luồng khởi tạo (System initialization) bằng cách song song hóa việc kiểm tra Auth và Redirect Result, giúp ứng dụng sẵn sàng sử dụng chỉ sau ~100-200ms.
--   **Recruiter Dashboard UX (2026-06):**
-    - **Sticky Header** với upload, analyze all, export Excel, JD toggle.
-    - **Candidate Panel** với ScoreGauge SVG, category scores 4 ô, strengths/weaknesses chips, JD viewer accordion.
-    - **Status badges** rõ ràng: Chờ PT, Đang PT, Lỗi, điểm số.
-    - **Modal confirm** cho admin set plan (Free/Pro/Recruiter) + analytics limit.
--   **Dual-Mode Optimized CV Tab (2026-06):**
-    -   **Tab Toggle** trong OptimizationTab: `Premium View` (Crown icon) / `Free Preview` (Eye icon) với Motion `layoutId` sliding pill indicator.
-    -   **Premium View layout — Black+Gold Liquid Glass** (ui-ux-pro-max):
-        -   **Tên (H1):** Ultra-bold black `#0C0A09` với gold underline `amber-500→amber-400`.
-        -   **Section (H2):** Gold ribbon nền `amber-50/80`, vertical gradient accent bar (emerald/blue/violet/amber/rose/cyan), icon trong gold pill badge.
-        -   **Bullet points:** Gold dot `size-1.5` có glow `shadow-[0_0_6px_rgba(202,138,4,0.25)]` với hover glow mạnh hơn.
-        -   **Blockquote:** Border-left `amber-400`, nền gradient `amber-50/70`, dấu ngoặc kép lớn mờ góc phải.
-        -   **Table header:** `bg-gradient-to-r from-[#1C1917] to-[#292524]` text `amber-100`.
-        -   **Strong text:** Highlight nền vàng nhạt `bg-amber-100/60`.
-    -   **Free Preview layout:** Simple markdown rendering (`.cv-markdown-specimen`) không có accent colors/icons.
-    -   **Watermark cho Free user:** 6 lớp watermark (gradient overlay, diagonal stripe, "cvFit.pro" lớn giữa, grid amber, text "NÂNG CẤP ĐỂ MỞ KHÓA" lặp, badge "Xem trước" góc phải) — áp dụng cho cả Premium View và Free Preview tab.
-    -   **Print/Copy đồng bộ variant:** `sessionStorage` (`cvFit_viewMode` + `cvFit_printVersion`) + Custom Event `cvfit:viewModeChanged` giữa `OptimizationTab` và `PrintView` — đảm bảo Print luôn dùng đúng layout user đang chọn.
-    -   **Paid user (pro/recruiter/admin):** Access đầy đủ Copy Markdown, Copy Plain Text, Print ở cả 2 tab. Free user chỉ thấy "Nâng cấp lên Pro".
-    -   **Files:** `OptimizationTab.tsx` (tab toggle, watermark logic), `CvMarkdownBody.tsx` (variant prop → `buildPremiumComponents` / `buildDefaultComponents`), `PrintView.tsx` (sessionStorage sync), `result.ts` (6 translation keys mới), `types.ts` (6 UiLabels keys mới).
+
+-   **Real-time Progress:** Tiến trình phân tích từng file trong batch.
+-   **Multi-language:** Chuyển đổi ngôn ngữ báo cáo VI/EN tức thì.
+-   **Feature Gate:** `isProPlan()` / `isRecruiterPlan()` từ `planLimits.ts`; hiển thị `UpgradePrompt` khi Free/Pro truy cập tính năng Recruiter.
+-   **In-App Browser detection:** Cảnh báo khi vào từ Zalo/Facebook (Google login bị block).
+-   **Auth Modal:** `AuthModal.tsx` — Sign In/Sign Up/Reset Password, Motion layoutId animation, reCAPTCHA v3, Google OAuth. Mở qua `openAuthModal()`.
+-   **SEO Pre-hydration:** `<script>` sync trong `index.html` — title, OG, hreflang (vi/en/x-default), Schema.org, `noindex` cho payment/admin. `AppContent.tsx` đồng bộ sau mỗi SPA nav. Legacy paths redirect 301 → `/vi/:path`.
+-   **Lazy Loading:** `React.lazy` + `Suspense` cho tất cả View lớn.
+-   **Industrial Utilitarian Design:** Motion `layoutId` "sliding pill" khi chuyển tab; "Scan Line" trên result nav bar.
+-   **Mobile-First:** Bottom Navigation, Sticky Results Nav, Smart Auto-Scroll, Bottom Sheets, adaptive card layouts. Startup: auth check song song (~100–200ms).
+-   **Recruiter Dashboard UX:** Sticky header (upload/analyze all/export Excel/JD toggle); CandidatePanel với ScoreGauge SVG, category scores, strengths/weaknesses chips, JD accordion; status badges rõ ràng.
+-   **Dual-Mode CV Tab:**
+    -   **Premium View** (Crown) — Black+Gold Liquid Glass: H1 ultra-bold với gold underline, H2 gold ribbon + gradient accent bar, bullet gold glow, table header dark gradient.
+    -   **Free Preview** (Eye) — simple markdown (`.cv-markdown-specimen`), không accent colors.
+    -   **Watermark Free user:** 6 lớp (gradient, diagonal stripe, "cvFit.pro" giữa, grid amber, text lặp, badge góc phải).
+    -   **Print sync:** `sessionStorage` (`cvFit_viewMode`, `cvFit_printVersion`) + Custom Event `cvfit:viewModeChanged` → `PrintView` luôn dùng đúng variant.
+    -   **Files:** `OptimizationTab.tsx`, `CvMarkdownBody.tsx` (variant prop), `PrintView.tsx`.

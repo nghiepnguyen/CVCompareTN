@@ -86,7 +86,7 @@ Shared utility: **`_server-lib/recaptcha.ts`** — `verifyRecaptcha(token, thres
     -   Gọi RPC `activate_pro_plan` → cập nhật `profiles.plan`, `payments.status = 'paid'`.
     -   Idempotent: đã `paid` thì bỏ qua.
 
-### 7. Hệ thống Email (Resend)
+### 6. Hệ thống Email (Resend)
 
 Hệ thống gởi 3 loại email qua dịch vụ **Resend**:
 

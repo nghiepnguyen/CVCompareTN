@@ -42,11 +42,11 @@ This document outlines the coding standards and conventions for the CV Matcher &
 
 ## 4. Performance Optimization
 
--   **React.memo:** Use `React.memo` for heavy components that receive stable data (e.g., Analysis Result Tabs). This prevents unnecessary re-renders when parent states (like scrolling or navigation) change.
--   **Code Splitting:** Use dynamic `import()` or `React.lazy` for large components or entire pages that are not needed immediately.
--   **Dependency Optimization:** Be cautious with `useEffect` and `useMemo` dependencies to avoid infinite loops or redundant computations.
+-   **React.memo:** Use for heavy components receiving stable data (e.g., Analysis Result Tabs) to prevent unnecessary re-renders.
+-   **Code Splitting:** Use `React.lazy` / dynamic `import()` for large pages not needed on initial load.
+-   **Dependency Optimization:** Be precise with `useEffect`/`useMemo` deps to avoid infinite loops.
 
-## 4. Styling (Tailwind CSS)
+## 5. Styling (Tailwind CSS)
 
 -   **Utility Classes:** Use Tailwind utility classes directly in the `className` attribute.
 -   **Conditional Styling:** Use the `cn` utility (from `clsx` and `tailwind-merge`) for conditional class names to avoid conflicts.
@@ -57,7 +57,7 @@ This document outlines the coding standards and conventions for the CV Matcher &
     ```
 -   **Responsive Design:** Use Tailwind's responsive prefixes (`sm:`, `md:`, `lg:`) to build mobile-first layouts.
 
-## 5. TypeScript Usage
+## 6. TypeScript Usage
 
 -   **Explicit Types:** Define explicit types or interfaces for component props, API responses, and complex state objects.
 -   **Avoid `any`:** Use `unknown` if the type is truly unknown, and use type narrowing. Use generics where appropriate.
@@ -70,18 +70,18 @@ This document outlines the coding standards and conventions for the CV Matcher &
     enum Status { Pending, Success, Error }
     ```
 
-## 6. Error Handling
+## 7. Error Handling
 
 -   **Try/Catch:** Wrap asynchronous operations in `try/catch` blocks.
 -   **User Feedback:** Always provide clear, actionable feedback to the user when an error occurs (e.g., using toast notifications or error messages in the UI).
 -   **Logging:** Log errors to the console (`console.error`) with sufficient context for debugging.
 
-## 7. Comments and Documentation
+## 8. Comments and Documentation
 
 -   **Why, not What:** Code should be self-documenting regarding *what* it does. Use comments to explain *why* a particular approach was taken, especially for complex logic or workarounds.
 -   **JSDoc:** Use JSDoc comments for complex utility functions or services to describe parameters, return types, and behavior.
 
-## 8. File Structure within Components
+## 9. File Structure within Components
 
 Organize the contents of a React component file in the following order:
 1.  Imports (External libraries, then internal modules, then styles/assets).
@@ -92,7 +92,7 @@ Organize the contents of a React component file in the following order:
 6.  Return statement (JSX).
 7.  Exports.
 
-## 9. Secrets & Environment
+## 10. Secrets & Environment
 
 -   Copy `.env.example` to `.env` for local work; never commit `.env` or real API keys.
 -   Do not add `supabase/.temp/`, `.vercel/`, private keys (`*.pem`), `*-backup.json`, or generated `graphify-out/*` to Git — except `graphify-out/GRAPH_REPORT.md` (see root `.gitignore`).

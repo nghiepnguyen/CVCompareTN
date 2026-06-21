@@ -1,31 +1,32 @@
 # Dự án cvFit
 
-**cvFit** là một giải pháp đột phá sử dụng Trí tuệ nhân tạo (Generative AI) để giúp ứng viên và nhà tuyển dụng so sánh, phân tích mức độ phù hợp giữa hồ sơ năng lực (CV) với mô tả công việc (Job Description - JD). 
+**cvFit** — ứng dụng AI giúp ứng viên và nhà tuyển dụng so sánh CV với JD, tối ưu ATS và tạo CV cải thiện tự động.
 
-## Mục tiêu chính (Core Objectives)
+## Mục tiêu chính
 
-1.  **Tối ưu hóa ATS (ATS Optimization):** Phân tích và chấm điểm CV dựa trên các tiêu chí mà hệ thống ATS thường sử dụng (từ khóa, cấu trúc, định dạng).
-2.  **Thông minh hóa quy trình (AI-Powered Analysis):** Tận dụng sức mạnh AI Engine để "đọc" và "hiểu" nội dung CV cũng như yêu cầu của JD như một chuyên gia tuyển dụng thực thụ.
-3.  **Hỗ trợ đa ngôn ngữ (Multilingual Support):** Hỗ trợ tốt cả tiếng Việt và tiếng Anh, phù hợp cho cả thị trường trong nước và quốc tế.
-4.  **Trải nghiệm người dùng cao cấp (Premium UX/UI):** Giao diện Landing Page phong cách Bento Grid hiện đại, mượt mà với các hiệu ứng chuyển động ([Motion](https://motion.dev/), import `motion/react`).
-5.  **Tối ưu hóa SEO (Pre-hydration + Dynamic Sync):** Pre-hydration `<script>` trong `index.html` chạy trước React — set đúng title, meta, OG, Twitter, canonical, hreflang (`vi`/`en`/`x-default`), Schema.org (`FAQPage`, `HowTo`, `BreadcrumbList`), và `noindex` cho payment/admin. Hỗ trợ 6 route x 2 ngôn ngữ. `AppContent.tsx` đồng bộ sau mỗi SPA navigation. Sitemap 14 URL với `xhtml:link` hreflang. Legacy paths redirect 301. Xem chi tiết: [3_frontend.md](3_frontend.md).
-6.  **Bảo mật & Riêng tư (Security & Privacy):** Dữ liệu CV qua Supabase (RLS, Auth, Storage); API proxy giữ secret phía server (Gemini, reCAPTCHA, Resend). Không commit `.env`, khóa riêng, cache CLI (`supabase/.temp/`) — xem `.gitignore` và [Triển khai §5](7_deployment.md#5-bảo-mật-mã-nguồn-và-bi-mật).
-7. **Kiến trúc Mobile-First (Mobile-First Design):** Tối ưu hóa trải nghiệm trên thiết bị di động với Bottom Navigation, Bottom Sheets và giao diện thích ứng linh hoạt, đảm bảo tính ergonomic cho người dùng.
-8. **Xác thực đa kênh (Multi-channel Auth):** Hỗ trợ đăng nhập/đăng ký qua **Google OAuth** và **Email/Password** (Supabase Auth). Email auth được bảo vệ bởi Google reCAPTCHA v3 qua backend `/api/verify-recaptcha`. Modal Auth (`AuthModal.tsx`) cung cấp giao diện Sign In / Sign Up / Reset Password thống nhất với Motion layoutId animation.
+1.  **ATS Optimization:** Chấm điểm CV theo từ khóa, cấu trúc, định dạng ATS.
+2.  **AI-Powered Analysis:** Gemini 3.5 Flash phân tích CV + JD như chuyên gia tuyển dụng.
+3.  **Multilingual:** Tiếng Việt + tiếng Anh.
+4.  **Premium UX:** Industrial Utilitarian design, Motion animations, mobile-first.
+5.  **SEO:** Pre-hydration `<script>` trong `index.html` (title, OG, hreflang vi/en/x-default, Schema.org); `AppContent.tsx` đồng bộ sau SPA navigation; sitemap 14 URL; legacy paths redirect 301. Chi tiết: [3_frontend.md](3_frontend.md).
+6.  **Security & Privacy:** Supabase RLS/Auth/Storage; API proxy giữ secret server-side (Gemini, reCAPTCHA). Không commit `.env` — xem [Triển khai §5](7_deployment.md#5-bảo-mật-mã-nguồn-và-bi-mật).
+7.  **Mobile-First:** Bottom Navigation, Bottom Sheets, adaptive layouts.
+8.  **Multi-channel Auth:** Google OAuth + Email/Password (Supabase Auth). Email auth bảo vệ bởi reCAPTCHA v3 qua `/api/verify-recaptcha`. `AuthModal.tsx`: Sign In / Sign Up / Reset Password với Motion layoutId animation.
 
-## Tính năng nổi bật (Key Features)
+## Tính năng nổi bật
 
--   **Phân tích CV đa định dạng:** Hỗ trợ PDF, DOCX và hình ảnh (OCR). Đặc biệt tích hợp Gemini 3.0 Flash: Model AI đa phương thức xử lý trực tiếp file nhị phân (PDF/Image) qua Vision API với độ chính xác cao.
--   **Trích xuất JD thông minh:** Lấy dữ liệu JD từ văn bản thuần túy hoặc từ đường link tuyển dụng.
--   **Chấm điểm tương thích (Matching Score):** Đánh giá mức độ phù hợp giữa CV và JD theo tỷ lệ phần trăm.
--   **Phân tích khoảng trống kỹ năng (Skill Gap):** Chỉ ra những kỹ năng còn thiếu mà ứng viên cần bổ sung.
--   **Gợi ý chỉnh sửa (Rewrite Suggestions):** Đề xuất cách viết lại từng phần trong CV để tăng tính thuyết phục.
--   **CV Tối ưu (Optimized CV):** AI tự động tạo ra một bản thảo CV mới đã được tối ưu hóa hoàn toàn dựa trên thông tin gốc của ứng viên.
--   **Kho lưu trữ JD cá nhân (JD Store):** Lưu lại các mô tả công việc mẫu để tái sử dụng nhanh chóng cho nhiều đợt tuyển dụng khác nhau.
--   **Kho lưu trữ CV (CV Store):** Lưu trữ file CV trên Supabase Storage để tái sử dụng mà không cần tải lên nhiều lần. Free: tối đa 1 CV, Pro: 10 CV. Hỗ trợ upload, download, xóa, và thông báo lưu thành công.
--   **Gói Pro & Recruiter (PayOS):** Người dùng có thể nâng cấp lên gói **Pro** (69.000 VNĐ/tháng) hoặc **Recruiter** (399.000 VNĐ/tháng) qua [PayOS](https://payos.vn/). Gói Pro: 100 lượt phân tích/tháng, batch 5 CV, kho JD không giới hạn. Gói Recruiter: 500 lượt, batch 50 CV, 10 đợt tuyển dụng với upload hàng loạt, xếp hạng tự động, xuất Excel, ghi chú nội bộ HR. Thanh toán được xử lý qua PayOS với webhook xác thực HMAC-SHA256.
--   **Lịch sử & Quản trị:** Người dùng xem lại lịch sử phân tích; admin quản lý user, quyền, và **hạn mức phân tích/tháng** (mặc định **20** lượt, cấu hình runtime qua `app_settings` — không cần deploy lại khi đổi default).
--   **Đăng nhập/Đăng ký Email:** Ngoài Google OAuth, người dùng có thể đăng ký và đăng nhập bằng email/password qua Supabase Auth. Modal Auth (`AuthModal.tsx`) hỗ trợ 3 chế độ: Sign In, Sign Up (có nhập tên), và Reset Password. Tất cả được bảo vệ bởi reCAPTCHA v3 (verify qua `POST /api/verify-recaptcha`).
+-   **Phân tích CV đa định dạng:** PDF, DOCX, hình ảnh (OCR qua Gemini Vision).
+-   **Trích xuất JD:** Từ văn bản thuần hoặc link tuyển dụng.
+-   **Matching Score:** Điểm phù hợp CV–JD theo %.
+-   **Skill Gap:** Kỹ năng còn thiếu.
+-   **Rewrite Suggestions:** Đề xuất viết lại từng phần CV.
+-   **Optimized CV:** AI tạo bản CV tối ưu hoàn chỉnh (Markdown GFM).
+-   **JD Store:** Kho JD cá nhân để tái sử dụng.
+-   **CV Store:** Lưu file CV trên Supabase Storage. Free: 1 CV, Pro: 10 CV.
+-   **Gói Pro (69.000đ/tháng):** 100 phân tích/tháng, batch 5 CV, JD store không giới hạn, xuất CV tối ưu.
+-   **Gói Recruiter (399.000đ/tháng):** 500 phân tích/tháng, batch 50 CV, 10 đợt tuyển dụng, xếp hạng tự động, xuất Excel, ghi chú nội bộ HR. Thanh toán qua [PayOS](https://payos.vn/) (webhook HMAC-SHA256).
+-   **Lịch sử & Quản trị:** Lịch sử phân tích per-user; admin quản lý hạn mức/tháng qua `app_settings` (mặc định **20** lượt, đổi runtime không cần redeploy).
+-   **Email Auth:** Sign In / Sign Up / Reset Password qua Supabase Auth + reCAPTCHA v3.
 
 ---
 
