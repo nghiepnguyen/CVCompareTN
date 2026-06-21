@@ -277,7 +277,7 @@ export function PricingSection({
                   <PriceTag plan={plan} t={t} isLight={isLight} />
                 </div>
 
-                <div className={cn('border-t divide-y', borderClass, borderClass + '/50')}>
+                <div className={cn('border-t divide-y', isLight ? 'border-slate-200/50 divide-slate-200/50' : 'border-border/50 divide-border/50')}>
                   {Rows.map((row) => (
                     <div key={row.key} className="flex items-center justify-between px-5 py-3.5">
                       <span className={cn('text-xs font-semibold', labelText)}>{t[row.labelKey] || row.labelKey}</span>
