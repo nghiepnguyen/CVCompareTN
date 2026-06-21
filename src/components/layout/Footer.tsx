@@ -101,6 +101,14 @@ export function Footer() {
             >
               {t.footerCookieSettings}
             </button>
+            <a
+              href="https://blog.cvfit.pro"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-accent transition-colors"
+            >
+              {t.footerBlog}
+            </a>
             <button
               type="button"
               onClick={() => {

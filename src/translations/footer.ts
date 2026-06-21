@@ -44,6 +44,10 @@ export const footer = {
     vi: "Cài đặt cookie",
     en: "Cookie settings",
   },
+  footerBlog: {
+    vi: "Bài viết / Blog",
+    en: "Blog",
+  },
   footerCopyright: {
     vi: "Tất cả quyền được bảo lưu.",
     en: "All rights reserved.",
