@@ -29,7 +29,7 @@
       "destination": "/api/analyze.ts"
     },
     {
-      "source": "/((?!api|blog|wp-content|wp-includes|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
+      "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
       "destination": "/index.html"
     }
   ],
