@@ -45,7 +45,7 @@ export const footer = {
     en: "Cookie settings",
   },
   footerBlog: {
-    vi: "Bài viết / Blog",
+    vi: "Bài viết",
     en: "Blog",
   },
   footerCopyright: {
