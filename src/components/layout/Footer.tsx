@@ -3,7 +3,7 @@ import { useUI } from '../../context/UIContext';
 import { resetAnalyticsConsentPrompt } from '../../lib/ga4';
 
 export function Footer() {
-  const { setActiveTab, t } = useUI();
+  const { setActiveTab, reportLanguage, t } = useUI();
 
   return (
     <footer className="relative z-10 border-t border-border bg-primary-light pt-12 pb-24 lg:py-20">
@@ -54,43 +54,34 @@ export function Footer() {
                   {import.meta.env.VITE_FEEDBACK_RECIPIENT_EMAIL || 'admin@example.com'}
                 </a>
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('support');
-                  window.scrollTo(0, 0);
-                }}
-                className="group flex items-center gap-3 rounded-2xl dark:bg-white/[0.03] bg-surface-muted px-5 py-3 text-sm font-bold text-text-main transition-all hover:bg-accent/10 hover:text-accent active:scale-95 cursor-pointer border border-border"
+              <a
+                href={`/${reportLanguage}/support`}
+                onClick={(e) => { e.preventDefault(); setActiveTab('support'); window.scrollTo(0, 0); }}
+                className="group flex items-center gap-3 rounded-2xl dark:bg-white/[0.03] bg-surface-muted px-5 py-3 text-sm font-bold text-text-main transition-all hover:bg-accent/10 hover:text-accent active:scale-95 border border-border"
               >
                 <Heart className="h-4 w-4 fill-accent/10 text-accent transition-transform group-hover:scale-125" />
                 <span>{t.footerSupportDev}</span>
-              </button>
+              </a>
             </div>
           </div>
         </div>
 
         <div className="mt-10 lg:mt-20 flex flex-col items-center justify-between gap-6 border-t border-border pt-10 md:flex-row">
           <div className="flex flex-wrap gap-8 justify-center md:justify-start text-xs font-bold text-text-light">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('privacy');
-                window.scrollTo(0, 0);
-              }}
-              className="hover:text-accent transition-colors cursor-pointer"
+            <a
+              href={`/${reportLanguage}/privacy`}
+              onClick={(e) => { e.preventDefault(); setActiveTab('privacy'); window.scrollTo(0, 0); }}
+              className="hover:text-accent transition-colors"
             >
               {t.footerPrivacyPolicy}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('terms');
-                window.scrollTo(0, 0);
-              }}
-              className="hover:text-accent transition-colors cursor-pointer"
+            </a>
+            <a
+              href={`/${reportLanguage}/terms`}
+              onClick={(e) => { e.preventDefault(); setActiveTab('terms'); window.scrollTo(0, 0); }}
+              className="hover:text-accent transition-colors"
             >
               {t.footerTermsOfService}
-            </button>
+            </a>
             <button
               type="button"
               onClick={() => {
@@ -109,16 +100,13 @@ export function Footer() {
             >
               {t.footerBlog}
             </a>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('about');
-                window.scrollTo(0, 0);
-              }}
-              className="hover:text-accent transition-colors cursor-pointer"
+            <a
+              href={`/${reportLanguage}/about`}
+              onClick={(e) => { e.preventDefault(); setActiveTab('about'); window.scrollTo(0, 0); }}
+              className="hover:text-accent transition-colors"
             >
               {t.aboutPageTitle}
-            </button>
+            </a>
           </div>
           <p className="text-xs font-bold text-text-light text-center md:text-right">
             © {new Date().getFullYear()} {t.appBrandName}. {t.footerCopyright}

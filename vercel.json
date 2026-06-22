@@ -79,6 +79,11 @@
       "source": "/vi",
       "destination": "/vi/",
       "permanent": true
+    },
+    {
+      "source": "/",
+      "destination": "/vi/",
+      "permanent": true
     }
   ],
   "headers": [

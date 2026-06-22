@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://data.cvfit.pro" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
     <!-- Default meta (overridden by pre-hydration script before crawlers see it) -->
     <title>cvFit - Phân tích & Tối ưu CV bằng AI | So khớp ATS Miễn Phí</title>
@@ -97,7 +99,7 @@
       }
 
       // Noindex for payment/admin routes
-      var noindexPaths = ['/payment/success', '/payment/cancel'];
+      var noindexPaths = ['/payment/success', '/payment/cancel', '/analyze', '/history', '/recruiter', '/admin', '/profile'];
       var isNoindex = noindexPaths.indexOf(subPath) >= 0;
       var robotsContent = isNoindex ? 'noindex, follow' : 'index, follow';
 
@@ -238,6 +240,13 @@
           name: 'cvFit',
           url: DOMAIN,
           logo: ASSETS + '/android-chrome-192x192.png'
+        },
+        {
+          '@type': 'WebSite',
+          '@id': DOMAIN + '/#website',
+          name: 'cvFit',
+          url: DOMAIN,
+          inLanguage: lang === 'vi' ? 'vi-VN' : 'en-US'
         },
         {
           '@type': 'BreadcrumbList',
