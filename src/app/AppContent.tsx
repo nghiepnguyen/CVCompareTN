@@ -100,12 +100,22 @@ export function AppContent() {
   const [savedCVSearchTerm, setSavedCVSearchTerm] = useState('');
 
   useEffect(() => {
-    const isPolicyPage =
-      activeTab === 'privacy' || activeTab === 'terms' || activeTab === 'support';
-    const pageTitle = isPolicyPage
-      ? `${activeTab === 'privacy' ? t.privacyPolicyPageTitle : activeTab === 'terms' ? t.termsPageTitle : t.supportPageTitle} | cvFit`
-      : t.seoTitle || 'cvFit';
+    const titleMap: Partial<Record<string, string>> = {
+      privacy: `${t.privacyPolicyPageTitle} | cvFit`,
+      terms:   `${t.termsPageTitle} | cvFit`,
+      support: `${t.supportPageTitle} | cvFit`,
+      upgrade: `${t.upgradePageTitle} | cvFit`,
+      about:   `${t.aboutPageTitle} | cvFit`,
+    };
+    const descMap: Partial<Record<string, string>> = {
+      privacy: t.privacySeoDescription,
+      terms:   t.termsSeoDescription,
+      support: t.supportSeoDescription,
+      upgrade: t.upgradePageDesc,
+      about:   t.aboutHeroSub,
+    };
 
+    const pageTitle = titleMap[activeTab] ?? t.seoTitle ?? 'cvFit';
     document.title = pageTitle;
 
     const updateMeta = (selector: string, content: string) => {
@@ -113,7 +123,7 @@ export function AppContent() {
       if (el) el.setAttribute('content', content);
     };
 
-    const description = t.seoDescription || '';
+    const description = descMap[activeTab] ?? t.seoDescription ?? '';
     const keywords = t.seoKeywords || '';
 
     updateMeta('meta[name="description"]', description);

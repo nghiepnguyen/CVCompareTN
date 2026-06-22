@@ -411,6 +411,9 @@ export interface UiLabels {
   scoreDistribution: string;
   sectionOther: string;
   seoDescription: string;
+  privacySeoDescription: string;
+  termsSeoDescription: string;
+  supportSeoDescription: string;
   seoKeywords: string;
   seoTitle: string;
   skillDistribution: string;

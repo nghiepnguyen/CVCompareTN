@@ -68,6 +68,18 @@ export const footer = {
     vi: "Công cụ so sánh CV, ATS resume checker, tối ưu CV, phân tích CV, HR AI",
     en: "CV Comparison Tool, ATS resume checker, CV optimization, CV analysis, HR AI",
   },
+  privacySeoDescription: {
+    vi: 'Chính sách bảo mật của cvFit — cách chúng tôi thu thập, sử dụng và bảo vệ dữ liệu cá nhân của bạn.',
+    en: 'cvFit Privacy Policy — how we collect, use, and protect your personal data when using our CV analysis tool.',
+  },
+  termsSeoDescription: {
+    vi: 'Điều khoản dịch vụ của cvFit — quy định sử dụng công cụ phân tích CV và so khớp JD bằng AI.',
+    en: 'cvFit Terms of Service — rules for using our AI-powered CV analysis and JD matching tool.',
+  },
+  supportSeoDescription: {
+    vi: 'Ủng hộ cvFit phát triển — hỗ trợ tài chính để duy trì và phát triển công cụ phân tích CV miễn phí cho cộng đồng.',
+    en: 'Support cvFit development — contribute financially to maintain and grow our free community CV analysis tool.',
+  },
   privacyPolicyPageTitle: {
     vi: "Chính sách bảo mật",
     en: "Privacy Policy",

@@ -133,7 +133,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
                 <div className="w-12 h-12 dark:bg-white/[0.05] bg-accent/10 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <item.icon className="w-6 h-6 text-accent" />
                 </div>
-                <h3 className="font-bold text-text-main mb-2">{item.title}</h3>
+                <p className="font-bold text-text-main mb-2">{item.title}</p>
                 <p className="text-sm text-text-muted leading-relaxed">{item.desc}</p>
               </div>
             ))}
@@ -213,10 +213,17 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
           </div>
 
           {/* Footer Message */}
-          <div className="mt-12 text-center">
+          <div className="mt-12 text-center space-y-4">
             <p className="text-text-light text-sm">
               {t.thanks}
             </p>
+            <a
+              href={`/${language === 'en' ? 'en' : 'vi'}/`}
+              onClick={(e) => { e.preventDefault(); onBack(); window.scrollTo(0, 0); }}
+              className="inline-flex items-center gap-2 text-sm font-bold text-accent hover:underline"
+            >
+              {t.back}
+            </a>
           </div>
         </div>
       </div>

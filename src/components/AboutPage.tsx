@@ -52,9 +52,9 @@ function SectionCard({ icon: Icon, iconBg, iconColor, title, body, stat, reverse
 
       {/* Content Column */}
       <div className="min-w-0 flex-1 rounded-2xl p-6 transition-all duration-500 dark:glass dark:group-hover:border-white/[0.12] dark:group-hover:bg-white/[0.05] bg-surface border border-border hover:border-accent/20 lg:p-8">
-        <h3 className="mb-3 font-sans text-lg font-extrabold tracking-tight text-text-main lg:text-xl">
+        <h2 className="mb-3 font-sans text-lg font-extrabold tracking-tight text-text-main lg:text-xl">
           {title}
-        </h3>
+        </h2>
         <p className="text-sm leading-relaxed text-text-muted lg:text-base">{body}</p>
 
         {stat && (
@@ -75,7 +75,7 @@ function SectionCard({ icon: Icon, iconBg, iconColor, title, body, stat, reverse
 /* ── Main Component ──────────────────────────────────── */
 
 export function AboutPage({ onBack }: { onBack: () => void }) {
-  const { t, setActiveTab } = useUI();
+  const { t, setActiveTab, reportLanguage } = useUI();
 
   return (
     <div className="relative mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
@@ -222,9 +222,10 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
             Phân tích CV miễn phí, không cần đăng ký. Bắt đầu ngay hôm nay.
           </p>
 
-          <button
-            type="button"
-            onClick={() => {
+          <a
+            href={`/${reportLanguage}/`}
+            onClick={(e) => {
+              e.preventDefault();
               setActiveTab('analyze');
               window.scrollTo(0, 0);
             }}
@@ -235,7 +236,7 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
           >
             <Sparkles className="h-4 w-4" />
             {t.aboutCta}
-          </button>
+          </a>
         </div>
       </motion.div>
     </div>

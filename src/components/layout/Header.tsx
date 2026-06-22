@@ -41,7 +41,11 @@ export function Header() {
     )}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* ---- Logo ---- */}
-        <div className="flex items-center gap-3 cursor-pointer group shrink-0" onClick={() => { setActiveTab('analyze'); setSelectedResult(null); }}>
+        <a
+          href={`/${reportLanguage}/`}
+          className="flex items-center gap-3 cursor-pointer group shrink-0"
+          onClick={(e) => { e.preventDefault(); setActiveTab('analyze'); setSelectedResult(null); }}
+        >
           <div className={cn(
             "relative w-10 h-10 rounded-xl flex items-center justify-center shadow-xl transition-transform group-hover:scale-110",
             user ? "dark:bg-primary bg-accent" : "bg-accent"
@@ -52,8 +56,8 @@ export function Header() {
           <span className="text-xl font-extrabold tracking-tighter text-text-main hidden sm:inline font-sans">
             cv<span className="text-accent">Fit</span>.pro
           </span>
-        </div>
-          
+        </a>
+
         {/* ---- Desktop Nav ---- */}
         <nav className="hidden lg:flex items-center gap-1 dark:bg-white/[0.03] bg-surface-muted p-1 rounded-xl backdrop-blur-md shrink-0">
           {user && (
