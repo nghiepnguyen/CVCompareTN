@@ -1,6 +1,12 @@
 
 export interface PromptParams {
   jdSection: string;
+  language?: 'vi' | 'en';
+}
+
+export function buildAnalyzePrompt({ jdSection, language = 'vi' }: PromptParams): string {
+  if (language === 'en') return buildAnalyzePromptEn({ jdSection });
+  return buildAnalyzePromptVi({ jdSection });
 }
 
 /**
@@ -9,12 +15,12 @@ export interface PromptParams {
 export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
   return `
     Bạn là một chuyên gia tuyển dụng HR và chuyên gia về hệ thống ATS (Applicant Tracking System).
-    Hãy thực hiện đồng thời hai nhiệm vụ quan trọng: 
+    Hãy thực hiện đồng thời hai nhiệm vụ quan trọng:
     1. Trích xuất và chuẩn hóa thông tin từ CV thành định dạng JSON chi tiết (Parsed CV).
     2. Phân tích sự phù hợp của CV này so với Mô tả công việc (JD).
-    
+
     ${jdSection}
-    
+
     Nhiệm vụ 1: Trích xuất và chuẩn hóa CV (Parsed CV):
     - Trích xuất thông tin cá nhân: Họ tên, Email, Số điện thoại, LinkedIn, Portfolio.
     - Học vấn: Trích xuất đầy đủ bằng cấp, trường, chuyên ngành, năm tốt nghiệp, GPA.
@@ -22,7 +28,7 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
     - Kỹ năng: Phân loại rõ ràng thành: technical_skills (kỹ năng kỹ thuật), soft_skills (kỹ năng mềm), tools_software (công cụ/phần mềm).
     - Dự án & Chứng chỉ: Trích xuất tên, mô tả, công nghệ sử dụng.
     - ATS Evaluation sơ bộ: Tính toán tổng số năm kinh nghiệm thực tế (dựa trên các mốc thời gian kinh nghiệm, không chỉ là lấy năm hiện tại trừ năm bắt đầu).
-    
+
     Nhiệm vụ 2: Phân tích và So sánh với JD:
     1. Xác định chức danh công việc (Job Title) từ JD.
     2. Tính toán điểm phù hợp tổng thể (0-100).
@@ -39,8 +45,8 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
     8. Viết lại toàn bộ CV (Full Rewritten CV) chuyên nghiệp, tối ưu 100% cho ATS.
     9. Ước tính xác suất thành công khi phỏng vấn và khả năng vượt qua vòng lọc CV.
     10. Cung cấp bảng so sánh chi tiết (Detailed Comparison) đối chiếu TẤT CẢ các yêu cầu trong JD.
-    
-    YÊU CẦU QUAN TRỌNG: 
+
+    YÊU CẦU QUAN TRỌNG:
     - Toàn bộ nội dung phân tích (điểm số, nhận xét, giải thích) phải bằng TIẾNG VIỆT.
     - RIÊNG PHẦN VIẾT LẠI CV (fullRewrittenCV), các gợi ý 'optimized' và PHẦN PARSED CV (trừ phần đánh giá) phải dùng ĐÚNG NGÔN NGỮ GỐC của CV.
     - fullRewrittenCV là một chuỗi Markdown (GFM), KHÔNG được là một khối văn phẳng chỉ xuống dòng:
@@ -51,42 +57,6 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
        • Luôn dùng gạch đầu dòng cho danh sách; không được chỉ có các đoạn văn liền mạch không có tiêu đề Markdown.
     - Mốc thời gian phải chuẩn hóa về MM/YYYY.
     - Phân loại (category) trong matchingPoints và missingGaps phải thuộc danh sách: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Experience", "Tools", "Education".
-    - Trả về kết quả dưới định dạng JSON tuân thủ cấu trúc sau:
-    {
-      "jobTitle": "...",
-      "matchScore": 85,
-      "categoryScores": {
-        "skills": 90,
-        "experience": 80,
-        "tools": 85,
-        "education": 70
-      },
-      "matchingPoints": [{"category": "Skills", "content": "..."}],
-      "missingGaps": [{"category": "Skills", "content": "...", "impact": "High"}],
-      "successProbability": "High",
-      "passProbability": "High",
-      "passExplanation": "...",
-      "mainFactor": "...",
-      "atsKeywords": ["...", "..."],
-      "rewriteSuggestions": [{"section": "...", "original": "...", "optimized": "...", "explanation": "..."}],
-      "fullRewrittenCV": "...",
-      "detailedComparison": {
-        "skills": [{"requirement": "...", "status": "matched", "cvEvidence": "...", "improvement": "..."}],
-        "experience": [{"requirement": "...", "status": "missing", "improvement": "..."}],
-        "tools": [{"requirement": "...", "status": "partial", "cvEvidence": "...", "improvement": "..."}],
-        "education": [{"requirement": "...", "status": "matched", "cvEvidence": "..."}],
-        "keywords": [{"requirement": "...", "status": "matched", "cvEvidence": "...", "improvement": "..."}]
-      },
-      "parsedCV": {
-        "personal_information": {"full_name": "...", "contact": {"email": "...", "phone": "...", "location": "...", "linkedin": "...", "website_portfolio": "..."}, "summary": "..."},
-        "education": [{"degree": "...", "institution": "...", "major": "...", "graduation_year": 2020, "gpa": "..."}],
-        "work_experience": [{"company": "...", "job_title": "...", "duration": {"start": "01/2020", "end": "12/2022", "is_current": false}, "responsibilities": ["..."], "achievements": ["..."]}],
-        "skills": {"technical_skills": ["..."], "soft_skills": ["..."], "tools_software": ["..."], "languages": [{"language": "...", "proficiency": "..."}]},
-        "projects": [{"name": "...", "description": "...", "tech_stack": ["..."], "link": "..."}],
-        "certifications": ["..."],
-        "ats_evaluation": {"years_of_experience": 5, "relevant_score": 85, "key_match_highlights": ["..."], "missing_keywords": ["..."]}
-      }
-    }
   `;
 }
 
@@ -99,9 +69,9 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
     Perform two critical tasks simultaneously:
     1. Extract and standardize CV information into a detailed JSON format (Parsed CV).
     2. Analyze the suitability of this CV against the Job Description (JD).
-    
+
     ${jdSection}
-    
+
     Task 1: CV Extraction & Standardization (Parsed CV):
     - Personal Info: Full name, Email, Phone, LinkedIn, Portfolio.
     - Education: ALL degrees, institutions, majors, graduation years, GPA.
@@ -109,7 +79,7 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
     - Skills: Categorize clearly into technical_skills, soft_skills, tools_software.
     - Projects & Certifications: Names, descriptions, tech stack used.
     - Preliminary ATS Evaluation: Calculate total years of actual experience (based on experience milestones, not just subtracting start year from current year).
-    
+
     Task 2: Analysis & Comparison with JD:
     1. Identify the Job Title from the JD.
     2. Calculate an overall match score (0-100).
@@ -126,7 +96,7 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
     8. Generate a FULL REWRITTEN CV optimized 100% for ATS.
     9. Estimate success probability and pass probability.
     10. Provide a detailed comparison table against ALL JD requirements.
-    
+
     IMPORTANT REQUIREMENTS:
     - All analysis content (scores, comments, explanations) must be in ENGLISH.
     - The FULL REWRITTEN CV (fullRewrittenCV field), 'optimized' suggestions, and the PARSED CV data (except evaluation) must use the EXACT ORIGINAL LANGUAGE of the CV.
@@ -138,41 +108,5 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
        • Always use hyphen bullet lists; do not output only paragraph breaks without Markdown headings.
     - Standardize dates to MM/YYYY format.
     - Categories in matchingPoints and missingGaps must be one of: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Experience", "Tools", "Education".
-    - Return the result in JSON format following this structure:
-    {
-      "jobTitle": "...",
-      "matchScore": 85,
-      "categoryScores": {
-        "skills": 90,
-        "experience": 80,
-        "tools": 85,
-        "education": 70
-      },
-      "matchingPoints": [{"category": "Skills", "content": "..."}],
-      "missingGaps": [{"category": "Skills", "content": "...", "impact": "High"}],
-      "successProbability": "High",
-      "passProbability": "High",
-      "passExplanation": "...",
-      "mainFactor": "...",
-      "atsKeywords": ["...", "..."],
-      "rewriteSuggestions": [{"section": "...", "original": "...", "optimized": "...", "explanation": "..."}],
-      "fullRewrittenCV": "...",
-      "detailedComparison": {
-        "skills": [{"requirement": "...", "status": "matched", "cvEvidence": "...", "improvement": "..."}],
-        "experience": [{"requirement": "...", "status": "missing", "improvement": "..."}],
-        "tools": [{"requirement": "...", "status": "partial", "cvEvidence": "...", "improvement": "..."}],
-        "education": [{"requirement": "...", "status": "matched", "cvEvidence": "..."}],
-        "keywords": [{"requirement": "...", "status": "matched", "cvEvidence": "...", "improvement": "..."}]
-      },
-      "parsedCV": {
-        "personal_information": {"full_name": "...", "contact": {"email": "...", "phone": "...", "location": "...", "linkedin": "...", "website_portfolio": "..."}, "summary": "..."},
-        "education": [{"degree": "...", "institution": "...", "major": "...", "graduation_year": 2020, "gpa": "..."}],
-        "work_experience": [{"company": "...", "job_title": "...", "duration": {"start": "01/2020", "end": "12/2022", "is_current": false}, "responsibilities": ["..."], "achievements": ["..."]}],
-        "skills": {"technical_skills": ["..."], "soft_skills": ["..."], "tools_software": ["..."], "languages": [{"language": "...", "proficiency": "..."}]},
-        "projects": [{"name": "...", "description": "...", "tech_stack": ["..."], "link": "..."}],
-        "certifications": ["..."],
-        "ats_evaluation": {"years_of_experience": 5, "relevant_score": 85, "key_match_highlights": ["..."], "missing_keywords": ["..."]}
-      }
-    }
   `;
 }

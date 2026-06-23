@@ -21,13 +21,12 @@ describe("prompts — buildAnalyzePromptVi", () => {
     expect(result).toContain("chuyên gia tuyển dụng");
   });
 
-  it("contains required JSON structure keys in Vietnamese", () => {
+  it("contains key analysis instructions in Vietnamese", () => {
     const result = buildAnalyzePromptVi({ jdSection: mockJdSection });
-    expect(result).toContain('"jobTitle"');
-    expect(result).toContain('"matchScore"');
-    expect(result).toContain('"categoryScores"');
-    expect(result).toContain('"fullRewrittenCV"');
-    expect(result).toContain('"parsedCV"');
+    expect(result).toContain("fullRewrittenCV");
+    expect(result).toContain("Parsed CV");
+    expect(result).toContain("Google XYZ");
+    expect(result).toContain("MM/YYYY");
   });
 
   it("contains Markdown formatting instructions", () => {
@@ -56,11 +55,11 @@ describe("prompts — buildAnalyzePromptEn", () => {
     expect(result).toContain("ATS (Applicant Tracking System)");
   });
 
-  it("contains required JSON structure keys in English", () => {
+  it("contains key analysis instructions in English", () => {
     const result = buildAnalyzePromptEn({ jdSection: mockJdSection });
-    expect(result).toContain('"jobTitle"');
-    expect(result).toContain('"matchScore"');
-    expect(result).toContain('"parsedCV"');
-    expect(result).toContain('"fullRewrittenCV"');
+    expect(result).toContain("fullRewrittenCV");
+    expect(result).toContain("Parsed CV");
+    expect(result).toContain("Google XYZ");
+    expect(result).toContain("MM/YYYY");
   });
 });

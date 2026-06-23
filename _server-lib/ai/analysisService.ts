@@ -1,5 +1,6 @@
 import { extractText } from 'unpdf';
 import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
+import { ANALYSIS_RESPONSE_SCHEMA } from './responseSchema.js';
 import { normalizeParsedCV } from '../../src/services/ai/parsedCvNormalize.js';
 import {
   normalizeCategoryScores,
@@ -10,54 +11,20 @@ import {
   normalizeStringArray,
 } from '../../src/services/ai/resultPayloadNormalize.js';
 import type { AnalysisResult } from '../../src/services/ai/types.js';
-import { buildAnalyzePromptVi, buildAnalyzePromptEn } from '../../src/services/ai/prompts.js';
-
-function stripControlChars(s: string): string {
-  // Remove ASCII control characters (0x00-0x1F, 0x7F-0x9F)
-  // eslint-disable-next-line no-control-regex
-  return s.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
-}
-
-const repairTruncatedJson = (raw: string): string => {
-  // Strip trailing partial string (truncation often ends mid-string)
-  let fixed = raw.replace(/,?\s*"[^"\\]*(?:\\.[^"\\]*)*$/, '');
-  // Strip trailing dangling comma
-  fixed = fixed.replace(/,\s*$/, '');
-  // Walk the JSON to build a close-bracket stack, skipping string contents
-  const stack: string[] = [];
-  let inString = false;
-  let escape = false;
-  for (const ch of fixed) {
-    if (escape) { escape = false; continue; }
-    if (ch === '\\' && inString) { escape = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === '{') stack.push('}');
-    else if (ch === '[') stack.push(']');
-    else if (ch === '}' || ch === ']') stack.pop();
-  }
-  return fixed + stack.reverse().join('');
-};
+import { buildAnalyzePrompt } from '../../src/services/ai/prompts.js';
 
 const parseGeminiJson = (text: string) => {
   try {
     return JSON.parse(text);
-  } catch {
+  } catch (e) {
+    // responseSchema should guarantee valid JSON, but guard against edge cases
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
-        const cleaned = stripControlChars(jsonMatch[0])
-          .replace(/,\s*([\}\]])/g, '$1')
-          .trim();
-        return JSON.parse(cleaned);
-      } catch (e2: unknown) {
-        console.error('JSON Parse Error (Extracted):', e2);
-        try {
-          const fixed = repairTruncatedJson(jsonMatch[0]);
-          return JSON.parse(stripControlChars(fixed));
-        } catch {
-          throw e2;
-        }
+        // eslint-disable-next-line no-control-regex
+        return JSON.parse(jsonMatch[0].replace(/[\x00-\x1F\x7F-\x9F]/g, '').replace(/,\s*([\}\]])/g, '$1'));
+      } catch {
+        throw e;
       }
     }
     throw new SyntaxError('No JSON object found in Gemini response');
@@ -78,10 +45,7 @@ export async function analyzeCV(
       ? `Mô tả công việc (JD):\n${jd}`
       : `Job Description (JD):\n${jd}`;
 
-  const finalPrompt =
-    language === 'vi'
-      ? buildAnalyzePromptVi({ jdSection })
-      : buildAnalyzePromptEn({ jdSection });
+  const finalPrompt = buildAnalyzePrompt({ jdSection, language });
 
   type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
   const parts: GeminiPart[] = [{ text: finalPrompt }];
@@ -124,6 +88,7 @@ export async function analyzeCV(
       contents: [{ role: 'user', parts }],
       config: {
         responseMimeType: 'application/json',
+        responseSchema: ANALYSIS_RESPONSE_SCHEMA,
         maxOutputTokens: 65536,
       },
     });
