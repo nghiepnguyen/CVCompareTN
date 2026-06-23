@@ -28,7 +28,13 @@ export async function processFile(
     const arrayBuffer = await file.arrayBuffer();
     const { extractText } = await import('unpdf');
     const { text } = await extractText(new Uint8Array(arrayBuffer), { mergePages: true });
-    return { data: cleanText(text), mimeType: 'text/plain' };
+    const cleaned = cleanText(text);
+    if (!cleaned) {
+      throw new Error(
+        `Không thể đọc nội dung "${file.name}". PDF dạng scan/ảnh không được hỗ trợ — vui lòng chuyển sang PDF có thể chọn text hoặc dán nội dung thủ công.`
+      );
+    }
+    return { data: cleaned, mimeType: 'text/plain' };
   }
 
   // DOCX → mammoth extraction

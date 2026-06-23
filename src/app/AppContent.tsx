@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { ChunkLoadErrorBoundary } from '../components/ChunkLoadErrorBoundary';
 import { motion, AnimatePresence } from 'motion/react';
 import { AlertCircle, Loader2, FileSearch, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -227,6 +228,7 @@ export function AppContent() {
             !user ? 'w-full' : 'max-w-7xl px-3 sm:px-6 lg:px-8 py-6 lg:py-8'
           )}
         >
+          <ChunkLoadErrorBoundary>
           <React.Suspense
             fallback={
               <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
@@ -276,6 +278,7 @@ export function AppContent() {
               <RecruiterView />
             ) : null}
           </React.Suspense>
+          </ChunkLoadErrorBoundary>
         </main>
 
         <Footer />
@@ -402,9 +405,11 @@ export function AppContent() {
         />
 
           {!user && (
-            <React.Suspense fallback={null}>
-              <AuthModal />
-            </React.Suspense>
+            <ChunkLoadErrorBoundary>
+              <React.Suspense fallback={null}>
+                <AuthModal />
+              </React.Suspense>
+            </ChunkLoadErrorBoundary>
           )}
 
         <CookieConsentBanner
@@ -416,9 +421,11 @@ export function AppContent() {
       </div>
 
       {selectedResult && (
-        <React.Suspense fallback={null}>
-          <PrintView selectedResult={selectedResult} />
-        </React.Suspense>
+        <ChunkLoadErrorBoundary>
+          <React.Suspense fallback={null}>
+            <PrintView selectedResult={selectedResult} />
+          </React.Suspense>
+        </ChunkLoadErrorBoundary>
       )}
     </div>
   );
