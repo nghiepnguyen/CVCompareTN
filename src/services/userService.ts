@@ -100,6 +100,22 @@ interface AuthUserInput {
 }
 
 export async function createUserProfile(user: AuthUserInput, recaptchaToken?: string): Promise<UserProfile> {
+  // Compute usage_month in YYYY-MM-DD format matching public.current_quota_cycle(reset_day)
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const today = now.getDate();
+  const resetDay = Math.min(today, 28);
+  const pad = (n: number) => String(n).padStart(2, '0');
+
+  let usageMonth: string;
+  if (today >= resetDay) {
+    // Cycle starts this month on resetDay
+    usageMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(resetDay)}`;
+  } else {
+    // Cycle started last month on resetDay (today is before resetDay in current month)
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, resetDay);
+    usageMonth = `${lastMonth.getFullYear()}-${pad(lastMonth.getMonth() + 1)}-${pad(resetDay)}`;
+  }
+
   const profileData = {
     id: user.id,
     email: user.email || '',
@@ -108,10 +124,10 @@ export async function createUserProfile(user: AuthUserInput, recaptchaToken?: st
     role: 'user',
     has_permission: true,
     usage_count: 0,
-    usage_month: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7),
+    usage_month: usageMonth,
     monthly_analytics_limit_custom: false,
-    quota_reset_day: Math.min(new Date().getDate(), 28),
-    created_at: new Date().toISOString(),
+    quota_reset_day: resetDay,
+    created_at: now.toISOString(),
     is_new: true,
   };
 
