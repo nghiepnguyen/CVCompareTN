@@ -42,6 +42,14 @@ export const billing = {
     vi: 'Gia hạn thêm 30 ngày',
     en: 'Extend by 30 days',
   },
+  recruiterRenewalNotice: {
+    vi: 'Mua thêm gói Recruiter sẽ cộng thêm 30 ngày vào hạn hiện tại. Lượt phân tích chưa dùng hết sẽ được reset về 0.',
+    en: 'Buying another Recruiter plan adds 30 days to your current expiry. Unused analyses will reset to 0.',
+  },
+  recruiterRenewalCta: {
+    vi: 'Gia hạn thêm 30 ngày',
+    en: 'Extend by 30 days',
+  },
   upgradeCompareAnalyses: {
     vi: 'Lượt phân tích / tháng',
     en: 'Analyses / month',

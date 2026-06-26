@@ -171,6 +171,8 @@ Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_
 - **Plan expiry:** Khi `plan_expires_at <= now()`, `sync_profile_usage_month` tự động downgrade về `free`, reset `usage_count = 0`. Không cần cron job.
 - **Perpetual plan (`plan_expires_at IS NULL`):** Admin có thể grant plan không hạn (NULL expiry). Khi user tự gia hạn qua PayOS, `plan_expires_at` vẫn giữ NULL (không bị convert thành finite). Nếu cần revoke, admin downgrade về free.
 - **Frontend refresh:** `AuthContext` tự refresh `effectivePlan` mỗi 5 phút và khi tab trở lại foreground (`visibilitychange`) — plan hết hạn mid-session được phát hiện mà không cần reload trang.
+- **Pro/Recruiter renewal UI (`UpgradeView`):** User đang Pro thấy nút **"Gia hạn thêm 30 ngày"** (Pro) hoặc **"Gia hạn thêm 30 ngày"** (Recruiter) thay vì badge "Gói hiện tại". Banner thông báo ở đầu trang giải thích: gia hạn sẽ cộng 30 ngày vào hạn hiện tại và reset `usage_count` về 0. Key dịch: `proRenewalNotice`, `proRenewalCta`, `recruiterRenewalNotice`, `recruiterRenewalCta` (trong `billing.ts`).
+- **Quota exhausted CTA (`ProfileView`):** Khi `used >= limit`, hiển thị link inline: "Mua thêm" (Pro/Recruiter → `/upgrade`) hoặc "Nâng cấp Pro" (Free → `/upgrade`). Key dịch: `quotaExhaustedBuyMore`, `quotaExhaustedUpgradePro`.
 
 ### Bảo mật RPC (Security Advisor)
 
@@ -237,7 +239,7 @@ flowchart TD
 | `current_quota_cycle(reset_day)` | Trả về key chu kỳ `YYYY-MM-DD` cho `reset_day` (1–28). |
 | `effective_plan_from_row(plan, expires_at)` | Trả về plan hiệu lực (`free`/`pro`/`recruiter`) dựa trên `plan_expires_at`. |
 | `get_user_plan(user_id)` | RPC convenience — trả về plan hiệu lực của user. |
-| `activate_pro_plan(user_id, order_code, duration, data, plan)` | Service role only — kích hoạt pro/recruiter sau thanh toán PayOS. **Free→paid:** giữ `usage_count`. **Paid renewal:** reset `usage_count = 0`. |
+| `activate_pro_plan(user_id, order_code, duration, data, plan)` | Service role only — kích hoạt pro/recruiter sau thanh toán PayOS. **Free→paid:** giữ `usage_count`. **Paid renewal (same plan, future expiry):** cộng thêm duration vào `plan_expires_at`, reset `usage_count = 0`. **Perpetual (NULL expiry):** giữ nguyên NULL khi renewal. **Plan thay đổi hoặc hết hạn:** reset `plan_expires_at = now() + duration`. |
 
 ### Migration (thứ tự)
 
@@ -257,6 +259,7 @@ Chạy **theo thứ tự timestamp** trong `supabase/migrations/`:
 | `20260626130000_fix_quota_reset_day_from_created_at.sql` | Backfill `quota_reset_day` từ `created_at` cho user cũ bị gán nhầm = 1 ở migration trước. |
 | `20260626140000_fix_perpetual_plan_stacking.sql` | Fix `activate_pro_plan` + `admin_set_user_plan`: plan perpetual (`plan_expires_at IS NULL`) giữ nguyên NULL khi user gia hạn, không bị convert thành finite. |
 | `20260626150000_preserve_usage_on_free_to_paid_upgrade.sql` | `activate_pro_plan` + `admin_set_user_plan`: free→paid giữ `usage_count`; paid renewal reset về 0. |
+| `20260627000000_fix_perpetual_plan_regression.sql` | Fix regression từ `20260626150000`: tách lại 2 CASE branch riêng cho perpetual (`IS NULL`) và stacking (future expiry), tránh `COALESCE(NULL, now())` làm mất NULL. |
 
 Áp dụng: `supabase db push` hoặc chạy từng file trong SQL Editor.
 

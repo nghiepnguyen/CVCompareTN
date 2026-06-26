@@ -134,6 +134,12 @@ export function UpgradeView() {
             {planExpiryLabel}
           </div>
         )}
+        {alreadyRecruiter && (
+          <div className="inline-flex items-start gap-2 rounded-xl border dark:border-purple-400/30 border-purple-300 dark:bg-purple-500/10 bg-purple-50 px-4 py-3 text-sm dark:text-purple-400 text-purple-700 max-w-md mx-auto text-left">
+            <AlertCircle className="size-4 shrink-0 mt-0.5" />
+            <span>{t.recruiterRenewalNotice}</span>
+          </div>
+        )}
         {alreadyPro && !alreadyRecruiter && (
           <div className="inline-flex items-start gap-2 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-accent max-w-md mx-auto text-left">
             <AlertCircle className="size-4 shrink-0 mt-0.5" />
@@ -284,10 +290,18 @@ export function UpgradeView() {
                   {currentPlan === 'recruiter' ? (
                     <button
                       type="button"
-                      onClick={() => setActiveTab('analyze')}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold border border-border text-text-muted cursor-pointer hover:scale-105 active:scale-95 transition-all bg-surface-secondary"
+                      disabled={isCheckingOut}
+                      onClick={() => handleCheckout('recruiter')}
+                      className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold dark:bg-purple-500/15 bg-purple-100 dark:text-purple-400 text-purple-700 border dark:border-purple-400/30 border-purple-300 cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                     >
-                      {t.upgradeBadgeCurrentPlan}
+                      {isCheckingOut && checkoutPlan === 'recruiter' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Briefcase className="h-4 w-4" />
+                          <span>{t.recruiterRenewalCta}</span>
+                        </>
+                      )}
                     </button>
                   ) : (
                     <button
@@ -383,10 +397,18 @@ export function UpgradeView() {
                   currentPlan === 'recruiter' ? (
                     <button
                       type="button"
-                      onClick={() => setActiveTab('analyze')}
-                      className="w-full h-12 rounded-xl font-bold text-sm border border-border text-text-muted bg-surface-secondary cursor-pointer"
+                      disabled={isCheckingOut}
+                      onClick={() => handleCheckout('recruiter')}
+                      className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm dark:bg-purple-500/15 bg-purple-100 dark:text-purple-400 text-purple-700 border dark:border-purple-400/30 border-purple-300 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                     >
-                      {t.upgradeBadgeCurrentPlan}
+                      {isCheckingOut && checkoutPlan === 'recruiter' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Briefcase className="h-4 w-4" />
+                          {t.recruiterRenewalCta}
+                        </>
+                      )}
                     </button>
                   ) : (
                     <button

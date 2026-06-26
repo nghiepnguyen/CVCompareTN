@@ -478,6 +478,8 @@ export interface UiLabels {
   planStackingNote: string;
   proRenewalNotice: string;
   proRenewalCta: string;
+  recruiterRenewalNotice: string;
+  recruiterRenewalCta: string;
   upgradeCompareAnalyses: string;
   upgradeCompareBatch: string;
   upgradeCompareCV: string;
