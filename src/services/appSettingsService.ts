@@ -10,7 +10,7 @@ function parseLimitValue(value: unknown): number {
     const parsed = parseInt(value, 10);
     if (!Number.isNaN(parsed) && parsed >= 0) return parsed;
   }
-  return 20;
+  return 10;
 }
 
 export async function getDefaultMonthlyAnalyticsLimit(): Promise<number> {
@@ -25,7 +25,7 @@ export async function getDefaultMonthlyAnalyticsLimit(): Promise<number> {
     throw error;
   }
 
-  return parseLimitValue(data?.value ?? 20);
+  return parseLimitValue(data?.value ?? 10);
 }
 
 export async function updateDefaultMonthlyAnalyticsLimit(limit: number): Promise<void> {

@@ -49,14 +49,23 @@ export function ProfileView() {
 
   const analyticsResetText = (() => {
     if (!quota?.month || quota.limit == null) return null;
-    const [y, m] = quota.month.split('-').map(Number);
-    if (!y || !m) return null;
-    const nextY = m === 12 ? y + 1 : y;
-    const nextM = m === 12 ? 1 : m + 1;
-    const d = new Date(nextY, nextM - 1, 1);
+    const [y, m, d] = quota.month.split('-').map(Number);
+    if (!y || !m || !d) {
+      // Fallback: old YYYY-MM format — show next month day 1
+      if (!y || !m) return null;
+      const nextY = m === 12 ? y + 1 : y;
+      const nextM = m === 12 ? 1 : m + 1;
+      const nextDate = new Date(nextY, nextM - 1, quota.resetDay ?? 1);
+      const date = reportLanguage === 'vi'
+        ? nextDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return formatLabel(t.profileAnalyticsResetOn, { date });
+    }
+    // YYYY-MM-DD format: add one month from cycle start, clamp to resetDay
+    const nextDate = new Date(y, m - 1 + 1, Math.min(quota.resetDay, new Date(y, m - 1 + 1, 0).getDate()));
     const date = reportLanguage === 'vi'
-      ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      ? nextDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return formatLabel(t.profileAnalyticsResetOn, { date });
   })();
 

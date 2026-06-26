@@ -7,6 +7,8 @@ export type AnalyticsQuota = {
   limit: number | null;
   month: string;
   plan?: UserPlan;
+  /** Day of month (1–28) when the quota resets. */
+  resetDay: number;
 };
 
 export async function checkAnalyticsQuota(
@@ -39,5 +41,6 @@ export async function checkAnalyticsQuota(
           : Number(row.limit),
     month: typeof row.month === 'string' ? row.month : '',
     plan,
+    resetDay: typeof row.resetDay === 'number' ? row.resetDay : 1,
   };
 }

@@ -21,6 +21,8 @@ export interface UserProfile {
   usageMonth: string;
   plan: UserPlan;
   planExpiresAt: string | null;
+  /** Day of month (1–28) when the monthly usage_count resets. */
+  quotaResetDay: number;
 }
 
 /** Effective limit for display/enforcement (pass global default from app_settings). */
@@ -54,6 +56,7 @@ export function mapProfile(data: Record<string, unknown>): UserProfile {
     usageMonth: (data['usage_month'] as string | undefined) || '',
     plan: (data['plan'] === 'pro' || data['plan'] === 'recruiter') ? data['plan'] as UserPlan : 'free',
     planExpiresAt: (data['plan_expires_at'] as string | null) ?? null,
+    quotaResetDay: typeof data['quota_reset_day'] === 'number' ? data['quota_reset_day'] : 1,
   };
 }
 
@@ -107,6 +110,7 @@ export async function createUserProfile(user: AuthUserInput, recaptchaToken?: st
     usage_count: 0,
     usage_month: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7),
     monthly_analytics_limit_custom: false,
+    quota_reset_day: Math.min(new Date().getDate(), 28),
     created_at: new Date().toISOString(),
     is_new: true,
   };

@@ -140,21 +140,34 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 
 ## Hạn mức phân tích CV/tháng (Supabase — không phải GA4)
 
-Giới hạn số lượt **phân tích CV–JD thành công** mỗi user trong **tháng lịch UTC** (`YYYY-MM`). Mặc định hệ thống: **20** lượt/tháng (có thể đổi runtime qua `app_settings`).
+Giới hạn số lượt **phân tích CV–JD thành công** mỗi user. Mặc định hệ thống: **10** lượt/chu kỳ (có thể đổi runtime qua `app_settings`).
 
-### Gói Free vs Pro
+### Chu kỳ quota (quota_reset_day)
 
-| | Free | Pro (PayOS) |
-|---|------|-------------|
-| Phân tích / tháng | `app_settings` (mặc định 20) hoặc override admin | **100** (trừ khi admin đặt unlimited) |
-| CV / lần | 1 | 5 |
-| Kho JD | 3 | Không giới hạn |
-| Lịch sử | 7 ngày | Toàn bộ |
-| Xuất CV tối ưu | Không | Có |
+Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_count` được reset về 0. Mặc định = 1 (tương thích ngược với cơ chế cũ theo đầu tháng).
 
-- Cột `profiles.plan`, `plan_expires_at`; RPC `get_user_plan`, `activate_pro_plan` (webhook PayOS).
-- Migration: `supabase/migrations/20260601000000_add_plan_to_profiles.sql`.
+- **User mới:** `quota_reset_day` = ngày đăng ký (clamped ≤28).
+- **Upgrade lên Pro/Recruiter:** Giữ nguyên `quota_reset_day` hiện tại.
+- **Pro/Recruiter hết hạn → Free:** `usage_count` reset về 0, giữ nguyên `quota_reset_day`.
+- **Chu kỳ:** Tính từ ngày reset tháng này đến trước ngày reset tháng sau (VD: `quota_reset_day=20` → chu kỳ 20/6–19/7).
+
+`usage_month` lưu key chu kỳ dạng `YYYY-MM-DD` (ngày bắt đầu chu kỳ hiện tại). Hàm `current_quota_cycle(reset_day)` trả về key này.
+
+### Gói Free vs Pro vs Recruiter
+
+| | Free | Pro (PayOS) | Recruiter (PayOS) |
+|---|------|-------------|-------------------|
+| Phân tích / chu kỳ | `app_settings` (mặc định 10) hoặc override admin | **100** (trừ khi admin đặt unlimited) | **500** |
+| CV / lần | 1 | 5 | 50 |
+| Kho JD | 3 | Không giới hạn | Không giới hạn |
+| Lịch sử | 7 ngày | Toàn bộ | Toàn bộ |
+| Chiến dịch tuyển dụng | Không | Không | 10 campaigns × 50 CV |
+| Xuất CV tối ưu | Không | Có | Có |
+
+- Cột `profiles.plan`, `plan_expires_at`, `quota_reset_day`; RPC `get_user_plan`, `activate_pro_plan` (webhook PayOS).
+- Migration: `supabase/migrations/20260601000000_add_plan_to_profiles.sql`, `20260601300000_add_recruiter_campaigns.sql`, `20260626110000_quota_reset_by_registration_day.sql`.
 - UI: `/upgrade`, `/payment/success`, `/payment/cancel`.
+- **Plan expiry:** Khi `plan_expires_at <= now()`, `sync_profile_usage_month` tự động downgrade về `free`, reset `usage_count = 0`. Không cần cron job.
 
 ### Bảo mật RPC (Security Advisor)
 
@@ -205,18 +218,23 @@ flowchart TD
 | **`app_settings`** | `key = 'default_monthly_analytics_limit'`, `value` (jsonb số) | Hạn mức **mặc định toàn hệ thống**. Đổi tại đây **không cần deploy** Vercel. |
 | **`profiles`** | `monthly_analytics_limit_custom` | `false` → theo `app_settings`. `true` → dùng override cột dưới. |
 | **`profiles`** | `monthly_analytics_limit` | Chỉ khi `custom = true`: số ≥ 0, hoặc `NULL` = **không giới hạn**. |
-| **`profiles`** | `usage_count`, `usage_month` | Số lượt **thành công** trong tháng UTC; `sync_profile_usage_month` reset `usage_count` khi sang tháng mới. |
+| **`profiles`** | `usage_count`, `usage_month` | Số lượt **thành công** trong chu kỳ hiện tại; `sync_profile_usage_month` reset `usage_count` khi sang chu kỳ mới (dựa trên `quota_reset_day`) hoặc khi plan hết hạn. |
+| **`profiles`** | `quota_reset_day` | Ngày trong tháng (1–28) reset `usage_count` về 0. Mặc định = 1. User mới set = ngày đăng ký. |
 
 ### Hàm SQL (Supabase)
 
 | Hàm | Vai trò |
 |-----|---------|
-| `get_default_monthly_analytics_limit()` | Đọc `app_settings` (fallback **20**). |
+| `get_default_monthly_analytics_limit()` | Đọc `app_settings` (fallback **10**). |
 | `effective_monthly_analytics_limit(custom, stored_limit)` | `custom = false` → global default; `custom = true` → `stored_limit` (`NULL` = unlimited). |
-| `check_analytics_quota(user_id, additional?)` | Trả JSON `allowed`, `used`, `limit`, `month`, `reason`. Gọi **trước** khi chạy batch analyze. |
+| `resolve_monthly_analytics_limit(plan, custom, stored_limit)` | Plan-aware: `recruiter` = 500, `pro` = 100, `free` = effective limit. |
+| `check_analytics_quota(user_id, additional?)` | Trả JSON `allowed`, `used`, `limit`, `month` (chu kỳ `YYYY-MM-DD`), `plan`, `resetDay`, `reason`. Gọi **trước** khi chạy batch analyze. |
 | `increment_usage_count(user_id)` | Tăng `usage_count` sau mỗi CV thành công; chặn nếu đã đạt limit. |
-| `sync_profile_usage_month(user_id)` | Reset usage khi `usage_month` ≠ tháng UTC hiện tại. |
-| `current_usage_month()` | Chuỗi `YYYY-MM` (UTC). |
+| `sync_profile_usage_month(user_id)` | Reset `usage_count` khi chu kỳ thay đổi (theo `quota_reset_day`) **HOẶC** khi plan pro/recruiter hết hạn → tự động downgrade về free + reset usage. |
+| `current_quota_cycle(reset_day)` | Trả về key chu kỳ `YYYY-MM-DD` cho `reset_day` (1–28). |
+| `effective_plan_from_row(plan, expires_at)` | Trả về plan hiệu lực (`free`/`pro`/`recruiter`) dựa trên `plan_expires_at`. |
+| `get_user_plan(user_id)` | RPC convenience — trả về plan hiệu lực của user. |
+| `activate_pro_plan(user_id, order_code, duration, data, plan)` | Service role only — kích hoạt pro/recruiter sau thanh toán PayOS. |
 
 ### Migration (thứ tự)
 
@@ -227,6 +245,11 @@ Chạy **theo thứ tự timestamp** trong `supabase/migrations/`:
 | `20260520120000_profiles_monthly_analytics_limit.sql` | Cột `monthly_analytics_limit`, `usage_month`, RPC quota cơ bản. |
 | `20260520130000_profiles_default_monthly_limit_20.sql` | `DEFAULT 20` trên cột profile (thế hệ cũ — trước `app_settings`). |
 | `20260523100000_app_settings_analytics_default.sql` | Bảng `app_settings`, cột `monthly_analytics_limit_custom`, hàm effective limit, cập nhật RPC, RLS, backfill. |
+| `20260601000000_add_plan_to_profiles.sql` | Cột `plan`, `plan_expires_at`, bảng `payments`, RPC `get_user_plan`, `activate_pro_plan`, `resolve_monthly_analytics_limit` (pro=100). |
+| `20260601300000_add_recruiter_campaigns.sql` | Plan `recruiter` (500 quota), bảng `recruitment_campaigns` + `candidate_cvs`, RPC campaign. |
+| `20260619000000_switch_usage_month_to_gmt7.sql` | `current_usage_month()` chuyển từ UTC → GMT+7. |
+| `20260626100000_fix_plan_expiry_reset_usage_count.sql` | `sync_profile_usage_month` + `admin_set_user_plan`: reset `usage_count` khi plan hết hạn. |
+| `20260626110000_quota_reset_by_registration_day.sql` | Cột `quota_reset_day` (1–28), `current_quota_cycle()`, quota theo chu kỳ user thay vì đầu tháng. |
 
 Áp dụng: `supabase db push` hoặc chạy từng file trong SQL Editor.
 
@@ -289,7 +312,7 @@ Chỉ user có `monthly_analytics_limit_custom = false` nhận giá trị mới.
 
 ### Kiểm tra (quota)
 
-1. User `custom = false`, global = 20, `usage_count = 20` → lượt 21 bị `check_analytics_quota` từ chối.
+1. User `custom = false`, global = 10, `usage_count = 10` → lượt 11 bị `check_analytics_quota` từ chối.
 2. `UPDATE app_settings` → 30 → cùng user được thêm quota (không redeploy frontend).
 3. User `custom = true`, `monthly_analytics_limit = 5` → vẫn 5 dù global = 30.
 4. User `custom = true`, `monthly_analytics_limit IS NULL` → unlimited.
