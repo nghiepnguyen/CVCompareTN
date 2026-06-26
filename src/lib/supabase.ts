@@ -43,7 +43,7 @@ export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
   get(_target, prop, receiver) {
     if (!supabaseClient) {
       throw new Error(
-        'Supabase chưa được cấu hình. Thêm VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY (project Vercel cvcompare) rồi redeploy.'
+        'Supabase chưa được cấu hình. Thêm VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY (project Vercel cv-compare-tn) rồi redeploy.'
       );
     }
     const value = Reflect.get(supabaseClient as object, prop, receiver);

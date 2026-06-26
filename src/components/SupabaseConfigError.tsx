@@ -13,7 +13,7 @@ export function SupabaseConfigError() {
         <p className="text-sm text-text-muted leading-relaxed mb-4">
           Thêm <code className="text-text-main">VITE_SUPABASE_URL</code> và{' '}
           <code className="text-text-main">VITE_SUPABASE_ANON_KEY</code> trên Vercel (project{' '}
-          <strong className="text-text-main">cvcompare</strong>) → Environment Variables → Redeploy.
+          <strong className="text-text-main">cv-compare-tn</strong>) → Environment Variables → Redeploy.
         </p>
         <button
           type="button"

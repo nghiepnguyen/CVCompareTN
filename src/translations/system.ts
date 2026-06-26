@@ -76,6 +76,18 @@ export const system = {
     vi: "(Đã dùng {used}/{limit} lượt phân tích)",
     en: "(Used {used}/{limit} analyses)",
   },
+  quotaExhaustedBuyMore: {
+    vi: "Mua thêm",
+    en: "Buy more",
+  },
+  quotaExhaustedOrWait: {
+    vi: "hoặc chờ đến {date} để reset.",
+    en: "or wait until {date} to reset.",
+  },
+  quotaExhaustedUpgradePro: {
+    vi: "Nâng cấp Pro để tiếp tục.",
+    en: "Upgrade to Pro to continue.",
+  },
   savedCvLimitFree: {
     vi: "Gói Free chỉ lưu được 1 CV. Nâng cấp Pro để lưu tối đa 10 CV.",
     en: "Free plan allows only 1 saved CV. Upgrade to Pro to save up to 10 CVs.",

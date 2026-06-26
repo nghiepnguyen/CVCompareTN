@@ -28,7 +28,7 @@ const AnalysisRunContext = createContext<AnalysisRunContextType | undefined>(und
 
 export function AnalysisRunProvider({ children }: { children: React.ReactNode }) {
   const { user, userProfile, effectivePlan, setError, refreshUserProfile } = useAuth();
-  const { reportLanguage, t } = useUI();
+  const { reportLanguage, t, navigateToUpgrade } = useUI();
   const { executeRecaptcha } = useGoogleReCaptcha();
 
   const [jd, setJd] = useState('');
@@ -129,7 +129,45 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
                   limit: String(quota.limit),
                 })
               : '';
-          setError(limitText ? `${t.monthlyUsageLimitExceeded} ${limitText}` : t.monthlyUsageLimitExceeded);
+          const isPaidPlan = effectivePlan === 'pro' || effectivePlan === 'recruiter';
+          let resetDateText = '';
+          if (quota.month && quota.limit != null) {
+            const [y, m] = quota.month.split('-').map(Number);
+            if (y && m) {
+              const nextDate = new Date(y, m - 1 + 1, Math.min(quota.resetDay, new Date(y, m - 1 + 1, 0).getDate()));
+              const formatted = reportLanguage === 'vi'
+                ? nextDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                : nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              resetDateText = formatLabel(t.quotaExhaustedOrWait, { date: formatted });
+            }
+          }
+          setError(
+            <span>
+              {t.monthlyUsageLimitExceeded}
+              {limitText && ` ${limitText}`}
+              {' '}
+              {isPaidPlan ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setError(null); navigateToUpgrade(); }}
+                    className="underline cursor-pointer hover:opacity-80"
+                  >
+                    {t.quotaExhaustedBuyMore}
+                  </button>
+                  {resetDateText && ` ${resetDateText}`}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setError(null); navigateToUpgrade(); }}
+                  className="underline cursor-pointer hover:opacity-80"
+                >
+                  {t.quotaExhaustedUpgradePro}
+                </button>
+              )}
+            </span>
+          );
           return;
         }
       } catch (err) {

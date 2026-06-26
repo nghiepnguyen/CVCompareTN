@@ -324,7 +324,7 @@ export function AppContent() {
                       {t.appErrorNotice}
                     </h4>
                     <div className="text-sm font-bold text-text-main leading-relaxed pr-8">
-                      {typeof error === 'string' ? error : t.appUnknownError}
+                      {error != null ? error : t.appUnknownError}
                     </div>
                   </div>
                   <button

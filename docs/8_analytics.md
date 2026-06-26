@@ -147,8 +147,9 @@ Giới hạn số lượt **phân tích CV–JD thành công** mỗi user. Mặc
 Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_count` được reset về 0. Mặc định = 1 (tương thích ngược với cơ chế cũ theo đầu tháng).
 
 - **User mới:** `quota_reset_day` = ngày đăng ký (clamped ≤28).
-- **Upgrade lên Pro/Recruiter:** Giữ nguyên `quota_reset_day` hiện tại.
-- **Pro/Recruiter hết hạn → Free:** `usage_count` reset về 0, giữ nguyên `quota_reset_day`.
+- **Upgrade Free → Pro/Recruiter:** Giữ nguyên `usage_count` + `usage_month` — user thấy tally thực tế trên limit mới (VD: đã dùng 10/10 free → upgrade → thấy **10/100**).
+- **Gia hạn cùng plan (Pro → Pro, Recruiter → Recruiter):** `usage_count` reset về 0 — user nhận **quota mới 0/100** khi mua thêm.
+- **Pro/Recruiter hết hạn tự nhiên → Free:** `usage_count` reset về 0, `quota_reset_day` giữ nguyên (xử lý bởi `sync_profile_usage_month`).
 - **Chu kỳ:** Tính từ ngày reset tháng này đến trước ngày reset tháng sau (VD: `quota_reset_day=20` → chu kỳ 20/6–19/7).
 
 `usage_month` lưu key chu kỳ dạng `YYYY-MM-DD` (ngày bắt đầu chu kỳ hiện tại). Hàm `current_quota_cycle(reset_day)` trả về key này.
@@ -236,7 +237,7 @@ flowchart TD
 | `current_quota_cycle(reset_day)` | Trả về key chu kỳ `YYYY-MM-DD` cho `reset_day` (1–28). |
 | `effective_plan_from_row(plan, expires_at)` | Trả về plan hiệu lực (`free`/`pro`/`recruiter`) dựa trên `plan_expires_at`. |
 | `get_user_plan(user_id)` | RPC convenience — trả về plan hiệu lực của user. |
-| `activate_pro_plan(user_id, order_code, duration, data, plan)` | Service role only — kích hoạt pro/recruiter sau thanh toán PayOS. |
+| `activate_pro_plan(user_id, order_code, duration, data, plan)` | Service role only — kích hoạt pro/recruiter sau thanh toán PayOS. **Free→paid:** giữ `usage_count`. **Paid renewal:** reset `usage_count = 0`. |
 
 ### Migration (thứ tự)
 
@@ -255,6 +256,7 @@ Chạy **theo thứ tự timestamp** trong `supabase/migrations/`:
 | `20260626120000_free_quota_default_10.sql` | Đổi giới hạn mặc định Free từ 20 → **10** lượt/chu kỳ (cả `app_settings` lẫn fallback hàm). |
 | `20260626130000_fix_quota_reset_day_from_created_at.sql` | Backfill `quota_reset_day` từ `created_at` cho user cũ bị gán nhầm = 1 ở migration trước. |
 | `20260626140000_fix_perpetual_plan_stacking.sql` | Fix `activate_pro_plan` + `admin_set_user_plan`: plan perpetual (`plan_expires_at IS NULL`) giữ nguyên NULL khi user gia hạn, không bị convert thành finite. |
+| `20260626150000_preserve_usage_on_free_to_paid_upgrade.sql` | `activate_pro_plan` + `admin_set_user_plan`: free→paid giữ `usage_count`; paid renewal reset về 0. |
 
 Áp dụng: `supabase db push` hoặc chạy từng file trong SQL Editor.
 
@@ -268,7 +270,9 @@ User mới (`createUserProfile`): `monthly_analytics_limit_custom = false`, **kh
 ### Luồng ứng dụng
 
 1. User bấm phân tích → `AnalysisRunContext.handleAnalyze` gọi `checkAnalyticsQuota(userId, plannedRuns)` (`src/services/analyticsQuotaService.ts`).
-2. Nếu `allowed = false` → hiển thị `monthlyUsageLimitExceeded` / `monthlyUsageLimitExceededDetail` (không gọi Gemini).
+2. Nếu `allowed = false` → hiển thị toast lỗi kèm CTA:
+   - **Free plan:** nút "Nâng cấp Pro để tiếp tục" → navigate `/upgrade`.
+   - **Pro/Recruiter plan:** nút "Mua thêm" → navigate `/upgrade`, kèm ngày reset ("hoặc chờ đến {date} để reset").
 3. Mỗi CV thành công → `increment_usage_count` (server-side, qua service hiện có).
 
 ### Admin UI (`AdminView`)
@@ -329,8 +333,11 @@ Chỉ user có `monthly_analytics_limit_custom = false` nhận giá trị mới.
 |----------|---------|
 | `monthlyUsageLimitExceeded` | Vượt hạn mức (tiêu đề ngắn) |
 | `monthlyUsageLimitExceededDetail` | `{used} / {limit}` chi tiết |
+| `quotaExhaustedBuyMore` | CTA khi Pro/Recruiter hết quota — nút navigate `/upgrade` |
+| `quotaExhaustedOrWait` | `{date}` — ngày reset để quay về Free; hiển thị kèm "Mua thêm" |
+| `quotaExhaustedUpgradePro` | CTA khi Free hết quota — nút navigate `/upgrade` |
 
-Định nghĩa trong `src/translations/system.ts`.
+Định nghĩa trong `src/translations/system.ts`. Toast lỗi (`AppContent.tsx`) render `ReactNode` để chứa các nút CTA inline. `ProfileView` cũng hiển thị link tương tự ngay dưới dòng usage khi `used >= limit`.
 
 **Không** liên quan Google Analytics hay Vercel Analytics.
 

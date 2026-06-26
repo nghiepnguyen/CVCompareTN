@@ -106,15 +106,7 @@ export async function createUserProfile(user: AuthUserInput, recaptchaToken?: st
   const resetDay = Math.min(today, 28);
   const pad = (n: number) => String(n).padStart(2, '0');
 
-  let usageMonth: string;
-  if (today >= resetDay) {
-    // Cycle starts this month on resetDay
-    usageMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(resetDay)}`;
-  } else {
-    // Cycle started last month on resetDay (today is before resetDay in current month)
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, resetDay);
-    usageMonth = `${lastMonth.getFullYear()}-${pad(lastMonth.getMonth() + 1)}-${pad(resetDay)}`;
-  }
+  const usageMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(resetDay)}`;
 
   const profileData = {
     id: user.id,

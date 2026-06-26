@@ -213,6 +213,15 @@ export function ProfileView() {
                         {analyticsResetText}
                       </p>
                     )}
+                    {quota != null && quota.limit != null && quota.used >= quota.limit && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('upgrade')}
+                        className="mt-1.5 text-[11px] font-bold text-accent underline cursor-pointer hover:opacity-80"
+                      >
+                        {(isPro || isRecruiter) ? t.quotaExhaustedBuyMore : t.quotaExhaustedUpgradePro}
+                      </button>
+                    )}
                   </>
                 )}
               </div>

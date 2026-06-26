@@ -92,6 +92,9 @@ export interface UiLabels {
   appUnknownError: string;
   monthlyUsageLimitExceeded: string;
   monthlyUsageLimitExceededDetail: string;
+  quotaExhaustedBuyMore: string;
+  quotaExhaustedOrWait: string;
+  quotaExhaustedUpgradePro: string;
   savedCvLimitFree: string;
   savedCvLimitPro: string;
 

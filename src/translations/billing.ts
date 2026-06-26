@@ -1,7 +1,7 @@
 export const billing = {
   upgradePageTitle: {
-    vi: 'Nâng cấp CV Compare Pro',
-    en: 'Upgrade to CV Compare Pro',
+    vi: 'Nâng cấp cvFit Pro',
+    en: 'Upgrade to cvFit Pro',
   },
   upgradePageDesc: {
     vi: 'Mở khóa phân tích sâu, nhiều CV mỗi lần, kho JD không giới hạn và xuất CV tối ưu.',
