@@ -180,6 +180,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userProfile]);
 
+  // Refresh effectivePlan periodically so an expired plan is detected without
+  // requiring a full page reload. Skipped for admins (always 'pro').
+  useEffect(() => {
+    if (!user || userProfile?.role === 'admin') return;
+
+    const refresh = async () => {
+      const plan = await fetchEffectiveUserPlan(user.id);
+      setEffectivePlan(plan);
+    };
+
+    const interval = setInterval(refresh, 5 * 60 * 1000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refresh();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, userProfile?.role]);
+
   const login = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
