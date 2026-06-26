@@ -476,6 +476,8 @@ export interface UiLabels {
   planBadgePro: string;
   planExpiresUntil: string;
   planStackingNote: string;
+  proRenewalNotice: string;
+  proRenewalCta: string;
   upgradeCompareAnalyses: string;
   upgradeCompareBatch: string;
   upgradeCompareCV: string;

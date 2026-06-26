@@ -34,6 +34,14 @@ export const billing = {
     vi: 'Mua thêm gói được cộng thêm 30 ngày vào hạn hiện tại.',
     en: 'Each purchase adds 30 more days to your current expiry.',
   },
+  proRenewalNotice: {
+    vi: 'Mua thêm gói Pro sẽ cộng thêm 30 ngày vào hạn hiện tại. Lượt phân tích chưa dùng hết sẽ được reset về 0.',
+    en: 'Buying another Pro plan adds 30 days to your current expiry. Unused analyses will reset to 0.',
+  },
+  proRenewalCta: {
+    vi: 'Gia hạn thêm 30 ngày',
+    en: 'Extend by 30 days',
+  },
   upgradeCompareAnalyses: {
     vi: 'Lượt phân tích / tháng',
     en: 'Analyses / month',
