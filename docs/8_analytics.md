@@ -168,6 +168,8 @@ Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_
 - Migration: `supabase/migrations/20260601000000_add_plan_to_profiles.sql`, `20260601300000_add_recruiter_campaigns.sql`, `20260626110000_quota_reset_by_registration_day.sql`.
 - UI: `/upgrade`, `/payment/success`, `/payment/cancel`.
 - **Plan expiry:** Khi `plan_expires_at <= now()`, `sync_profile_usage_month` tự động downgrade về `free`, reset `usage_count = 0`. Không cần cron job.
+- **Perpetual plan (`plan_expires_at IS NULL`):** Admin có thể grant plan không hạn (NULL expiry). Khi user tự gia hạn qua PayOS, `plan_expires_at` vẫn giữ NULL (không bị convert thành finite). Nếu cần revoke, admin downgrade về free.
+- **Frontend refresh:** `AuthContext` tự refresh `effectivePlan` mỗi 5 phút và khi tab trở lại foreground (`visibilitychange`) — plan hết hạn mid-session được phát hiện mà không cần reload trang.
 
 ### Bảo mật RPC (Security Advisor)
 
@@ -250,6 +252,9 @@ Chạy **theo thứ tự timestamp** trong `supabase/migrations/`:
 | `20260619000000_switch_usage_month_to_gmt7.sql` | `current_usage_month()` chuyển từ UTC → GMT+7. |
 | `20260626100000_fix_plan_expiry_reset_usage_count.sql` | `sync_profile_usage_month` + `admin_set_user_plan`: reset `usage_count` khi plan hết hạn. |
 | `20260626110000_quota_reset_by_registration_day.sql` | Cột `quota_reset_day` (1–28), `current_quota_cycle()`, quota theo chu kỳ user thay vì đầu tháng. |
+| `20260626120000_free_quota_default_10.sql` | Đổi giới hạn mặc định Free từ 20 → **10** lượt/chu kỳ (cả `app_settings` lẫn fallback hàm). |
+| `20260626130000_fix_quota_reset_day_from_created_at.sql` | Backfill `quota_reset_day` từ `created_at` cho user cũ bị gán nhầm = 1 ở migration trước. |
+| `20260626140000_fix_perpetual_plan_stacking.sql` | Fix `activate_pro_plan` + `admin_set_user_plan`: plan perpetual (`plan_expires_at IS NULL`) giữ nguyên NULL khi user gia hạn, không bị convert thành finite. |
 
 Áp dụng: `supabase db push` hoặc chạy từng file trong SQL Editor.
 
