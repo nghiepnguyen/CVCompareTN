@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ChunkLoadErrorBoundary } from '../components/ChunkLoadErrorBoundary';
+import { SupabaseConfigError } from '../components/SupabaseConfigError';
 import { motion, AnimatePresence } from 'motion/react';
 import { AlertCircle, Loader2, FileSearch, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -67,7 +68,7 @@ const PaymentCancelView = React.lazy(() =>
 );
 
 export function AppContent() {
-  const { user, userProfile, error, setError, isAuthInitialized, isRedirectChecked } = useAuth();
+  const { user, userProfile, error, setError, isAuthInitialized, isRedirectChecked, isSupabaseConfigured } = useAuth();
   const {
     activeTab,
     setActiveTab,
@@ -196,6 +197,10 @@ export function AppContent() {
   const handleDeleteCV = async (cvId: string, filePath: string) => {
     await handleDeleteSavedCV(cvId, filePath);
   };
+
+  if (isSupabaseConfigured === false) {
+    return <SupabaseConfigError />;
+  }
 
   if (!isAuthInitialized || !isRedirectChecked) {
     return (

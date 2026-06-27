@@ -2,7 +2,7 @@ import React from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3';
-import { AuthProvider } from '../context/AuthContext';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import { UIProvider } from '../context/UIContext';
 import { AnalysisProvider } from '../context/AnalysisContext';
 import { RecruiterProvider } from '../context/recruiter';
@@ -12,12 +12,22 @@ import { AppContent } from './AppContent';
 
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string;
 
+// Only inject the reCAPTCHA script for logged-in users — saves ~100KB for guests
+function RecaptchaWrapper({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  return (
+    <GoogleReCaptchaProvider reCaptchaKey={user ? RECAPTCHA_SITE_KEY : ''}>
+      {children}
+    </GoogleReCaptchaProvider>
+  );
+}
+
 export default function AppShell() {
   return (
     <AppErrorBoundary>
-      <GoogleReCaptchaProvider reCaptchaKey={RECAPTCHA_SITE_KEY}>
-        <AuthProvider>
-          <UIProvider>
+      <AuthProvider>
+        <UIProvider>
+          <RecaptchaWrapper>
             <AnalysisProvider>
               <RecruiterProvider>
                 <AppContent />
@@ -26,9 +36,9 @@ export default function AppShell() {
                 <SpeedInsights />
               </RecruiterProvider>
             </AnalysisProvider>
-          </UIProvider>
-        </AuthProvider>
-      </GoogleReCaptchaProvider>
+          </RecaptchaWrapper>
+        </UIProvider>
+      </AuthProvider>
     </AppErrorBoundary>
   );
 }

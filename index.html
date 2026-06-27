@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://data.cvfit.pro" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <link rel="preconnect" href="https://pgchcnmpuknbgyljdlyp.supabase.co" />
 
     <!-- Default meta (overridden by pre-hydration script before crawlers see it) -->
     <title>cvFit - Phân tích & Tối ưu CV bằng AI | So khớp ATS Miễn Phí</title>
@@ -315,27 +316,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Google tag (gtag.js) - Base install; consent defaults managed by src/lib/ga4.ts -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GVTPXY9S3D"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      // Default deny until user grants consent (handled by ga4.ts)
-      gtag('consent', 'default', {
-        'analytics_storage': 'denied',
-        'ad_storage': 'denied',
-        'ad_user_data': 'denied',
-        'ad_personalization': 'denied',
-        'wait_for_update': 500,
-      });
-      // config with anonymize - measurement will only flow after consent granted
-      gtag('config', 'G-GVTPXY9S3D', {
-        'anonymize_ip': true,
-        'allow_google_signals': false,
-        'allow_ad_personalization_signals': false,
-      });
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

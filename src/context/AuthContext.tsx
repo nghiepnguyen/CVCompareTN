@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, bootstrapSupabase } from '../lib/supabase';
 import {
   UserProfile,
   UserPlan,
@@ -34,6 +34,8 @@ interface AuthContextType {
   setError: React.Dispatch<React.SetStateAction<string | React.ReactNode | null>>;
   isAuthInitialized: boolean;
   isRedirectChecked: boolean;
+  /** null = still bootstrapping, false = config missing */
+  isSupabaseConfigured: boolean | null;
   refreshUserProfile: () => Promise<void>;
   /** Auth modal */
   authModalMode: AuthModalMode;
@@ -56,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | React.ReactNode | null>(null);
   const [isAuthInitialized, setIsAuthInitialized] = useState(false);
   const [isRedirectChecked, setIsRedirectChecked] = useState(true); // OAuth redirect handled by Supabase session
+  const [isSupabaseConfigured, setIsSupabaseConfigured] = useState<boolean | null>(null);
   const [authModalMode, setAuthModalMode] = useState<AuthModalMode>(null);
   
   const loadUserProfileData = async (currentUser: User) => {
@@ -102,8 +105,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    let subscription: { unsubscribe: () => void } | undefined;
 
-    const initAuth = async () => {
+    const run = async () => {
+      const ready = await bootstrapSupabase();
+      if (!isMounted) return;
+
+      if (!ready) {
+        setIsSupabaseConfigured(false);
+        setIsAuthInitialized(true);
+        return;
+      }
+      setIsSupabaseConfigured(true);
+
       // Detect OAuth error redirects from Supabase (e.g. bad_oauth_state, access_denied)
       const urlParams = new URLSearchParams(window.location.search);
       const oauthErrorCode = urlParams.get('error_code');
@@ -118,7 +132,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (oauthErrorCode === 'bad_oauth_state' || oauthErrorCode === 'pkce_not_found') {
           setError('Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng thử đăng nhập lại.');
         } else if (oauthError !== 'access_denied') {
-          // access_denied = user cancelled, no need to show an error
           setError('Đăng nhập thất bại. Vui lòng thử lại.');
         }
       }
@@ -136,30 +149,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoadingProfile(false);
       }
       setIsAuthInitialized(true);
+
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!isMounted) return;
+
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        setSentryUser(currentUser?.id ?? null);
+
+        if (currentUser) {
+          loadUserProfileData(currentUser);
+        } else {
+          setUserProfile(null);
+          setEffectivePlan('free');
+          setIsLoadingProfile(false);
+        }
+        setIsAuthInitialized(true);
+      });
+      subscription = data.subscription;
     };
 
-    initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!isMounted) return;
-
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setSentryUser(currentUser?.id ?? null);
-
-      if (currentUser) {
-        loadUserProfileData(currentUser);
-      } else {
-        setUserProfile(null);
-        setEffectivePlan('free');
-        setIsLoadingProfile(false);
-      }
-      setIsAuthInitialized(true);
-    });
+    run();
 
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []); // Không phụ thuộc vào executeRecaptcha để tránh re-subscribe loop
 
@@ -346,6 +360,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError,
       isAuthInitialized,
       isRedirectChecked,
+      isSupabaseConfigured,
       refreshUserProfile,
       authModalMode,
       openAuthModal,
