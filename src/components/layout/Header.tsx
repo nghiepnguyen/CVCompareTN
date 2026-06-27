@@ -8,6 +8,7 @@ import { useUI } from '../../context/UIContext';
 import { useAnalysis } from '../../context/AnalysisContext';
 import { trackEvent } from '../../lib/ga4';
 import { cn } from '../../lib/utils';
+import { UserAvatar } from '../ui/UserAvatar';
 
 export function Header() {
   const { user, userProfile, effectivePlan, adminNewUsersCount, login, logout, openAuthModal } = useAuth();
@@ -170,13 +171,14 @@ export function Header() {
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center focus:outline-none cursor-pointer"
               >
-                {(userProfile?.photoURL || user.user_metadata?.avatar_url) ? (
-                  <img src={userProfile?.photoURL || user.user_metadata?.avatar_url || ''} alt={user.user_metadata?.full_name || ''} className="w-9 h-9 rounded-full border-2 dark:border-white/[0.1] border-border hover:border-accent/50 transition-all" />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center text-accent border-2 dark:border-white/[0.1] border-border hover:border-accent/50 transition-all">
-                    <UserIcon className="w-5 h-5" />
-                  </div>
-                )}
+                <UserAvatar
+                  src={userProfile?.photoURL || user.user_metadata?.avatar_url}
+                  alt={user.user_metadata?.full_name || ''}
+                  imgClassName="w-9 h-9 rounded-full border-2 dark:border-white/[0.1] border-border hover:border-accent/50 transition-all"
+                  fallbackClassName="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center text-accent border-2 dark:border-white/[0.1] border-border hover:border-accent/50 transition-all"
+                >
+                  <UserIcon className="w-5 h-5" />
+                </UserAvatar>
               </button>
               
               <AnimatePresence>

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
 import { cn } from '../../lib/utils';
+import { UserAvatar } from '../ui/UserAvatar';
 import { supabase } from '../../lib/supabase';
 import {
   getDefaultMonthlyAnalyticsLimit,
@@ -303,13 +304,13 @@ export function AdminView() {
                     {allUsers.filter(u => u.isNew && u.role !== 'admin').map(u => (
                       <div key={u.id} className="group bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl p-3 flex items-center justify-between gap-3 transition-all cursor-default">
                         <div className="flex items-center gap-3 overflow-hidden">
-                          {u.photoURL ? (
-                            <img src={u.photoURL} alt="" className="w-8 h-8 rounded-lg border border-white/20" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-lg bg-surface-secondary flex items-center justify-center text-text-light border border-white/10">
-                              <UserIcon className="w-4 h-4" />
-                            </div>
-                          )}
+                          <UserAvatar
+                            src={u.photoURL}
+                            imgClassName="w-8 h-8 rounded-lg border border-white/20"
+                            fallbackClassName="w-8 h-8 rounded-lg bg-surface-secondary flex items-center justify-center text-text-light border border-white/10"
+                          >
+                            <UserIcon className="w-4 h-4" />
+                          </UserAvatar>
                           <div className="overflow-hidden">
                             <div className="text-xs font-black text-white truncate">{u.displayName || t.adminGuest}</div>
                             <div className="text-[9px] text-accent-light/60 truncate font-mono">{u.email}</div>
@@ -459,13 +460,13 @@ export function AdminView() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="relative shrink-0">
-                            {u.photoURL ? (
-                              <img src={u.photoURL} alt="" className="w-9 h-9 rounded-xl border border-border object-cover" />
-                            ) : (
-                              <div className="w-9 h-9 rounded-xl bg-surface-secondary flex items-center justify-center text-text-light border border-border">
-                                <UserIcon className="w-4 h-4" />
-                              </div>
-                            )}
+                            <UserAvatar
+                              src={u.photoURL}
+                              imgClassName="w-9 h-9 rounded-xl border border-border object-cover"
+                              fallbackClassName="w-9 h-9 rounded-xl bg-surface-secondary flex items-center justify-center text-text-light border border-border"
+                            >
+                              <UserIcon className="w-4 h-4" />
+                            </UserAvatar>
                             {u.isNew && <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent border-2 border-surface rounded-full" />}
                           </div>
                           <div className="overflow-hidden">

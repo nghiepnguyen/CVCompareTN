@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { User, ArrowLeft, Mail, Shield, Calendar, BarChart3, Loader2, Briefcase, FileSpreadsheet, FileText, StickyNote } from 'lucide-react';
+import { UserAvatar } from '../ui/UserAvatar';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { useRecruiter } from '../../context/recruiter';
@@ -101,17 +102,14 @@ export function ProfileView() {
         <div className="bg-surface border border-border rounded-3xl p-8 shadow-2xl">
           {/* Avatar & Name */}
           <div className="flex flex-col items-center mb-8">
-            {(userProfile?.photoURL || user?.user_metadata?.avatar_url) ? (
-              <img
-                src={userProfile?.photoURL || user?.user_metadata?.avatar_url || ''}
-                alt={displayName}
-                className="w-20 h-20 rounded-full border-2 dark:border-white/[0.1] border-border mb-4"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mb-4 border-2 dark:border-white/[0.1] border-border">
-                <User className="w-10 h-10 text-accent" />
-              </div>
-            )}
+            <UserAvatar
+              src={userProfile?.photoURL || user?.user_metadata?.avatar_url}
+              alt={displayName}
+              imgClassName="w-20 h-20 rounded-full border-2 dark:border-white/[0.1] border-border mb-4"
+              fallbackClassName="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mb-4 border-2 dark:border-white/[0.1] border-border"
+            >
+              <User className="w-10 h-10 text-accent" />
+            </UserAvatar>
             <h2 className="text-xl font-extrabold text-text-main tracking-tight">
               {displayName || email}
             </h2>
