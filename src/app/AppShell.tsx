@@ -15,8 +15,9 @@ const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string;
 // Only inject the reCAPTCHA script for logged-in users — saves ~100KB for guests
 function RecaptchaWrapper({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  if (!user) return <>{children}</>;
   return (
-    <GoogleReCaptchaProvider reCaptchaKey={user ? RECAPTCHA_SITE_KEY : ''}>
+    <GoogleReCaptchaProvider reCaptchaKey={RECAPTCHA_SITE_KEY}>
       {children}
     </GoogleReCaptchaProvider>
   );
