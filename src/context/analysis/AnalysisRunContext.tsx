@@ -294,9 +294,10 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       );
       setAnalysisProgress(95);
       setResults(newResults);
-      setHistory((prev) => [...newResults, ...prev].slice(0, 20));
+      const historyLimit = effectivePlan === 'free' ? 50 : 500;
+      setHistory((prev) => [...newResults, ...prev].slice(0, historyLimit));
 
-      if (user?.id) saveToHistory(newResults).catch(console.error);
+      if (user?.id) saveToHistory(newResults, effectivePlan).catch(console.error);
       if (newResults.length === 1) setSelectedResult(newResults[0]);
 
       setAnalysisProgress(100);

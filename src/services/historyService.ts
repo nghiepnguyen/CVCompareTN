@@ -75,11 +75,12 @@ export async function rateAnalysis(userId: string, analysisId: string, rating: n
   }
 }
 
-export async function saveToHistory(results: AnalysisResult | AnalysisResult[]): Promise<void> {
+export async function saveToHistory(results: AnalysisResult | AnalysisResult[], plan: UserPlan = 'free'): Promise<void> {
   const resultsArray = Array.isArray(results) ? results : [results];
   if (resultsArray.length === 0 || !resultsArray[0].userId) return;
-  
+
   const userId = resultsArray[0].userId;
+  const maxItems = plan === 'free' ? 50 : 500;
   
   const historyData = resultsArray.map(h => ({
     user_id: userId,
@@ -114,15 +115,15 @@ export async function saveToHistory(results: AnalysisResult | AnalysisResult[]):
     
     if (error) throw error;
 
-    // Optional: Limit history to 20 items (Supabase doesn't have a direct batch delete for this, so we do it manually)
+    // Trim DB to plan-based limit
     const { data: currentHistory } = await supabase
       .from('history')
       .select('id')
       .eq('user_id', userId)
       .order('timestamp', { ascending: false });
 
-    if (currentHistory && currentHistory.length > 20) {
-      const idsToDelete = currentHistory.slice(20).map(item => item.id);
+    if (currentHistory && currentHistory.length > maxItems) {
+      const idsToDelete = currentHistory.slice(maxItems).map(item => item.id);
       await supabase
         .from('history')
         .delete()

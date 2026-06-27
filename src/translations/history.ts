@@ -124,4 +124,12 @@ export const history = {
     vi: "Kỹ năng (K): {skills}%\nKinh nghiệm (N): {experience}%\nCông cụ (C): {tools}%\nHọc vấn (H): {education}%",
     en: "Skills (S): {skills}%\nExperience (E): {experience}%\nTools (T): {tools}%\nEducation (Ed): {education}%",
   },
+  historyFreeRetentionNotice: {
+    vi: "Lịch sử phân tích của tài khoản miễn phí sẽ tự động xóa sau 7 ngày. Nâng cấp lên Pro để lưu trữ không giới hạn.",
+    en: "Free plan analysis history is automatically deleted after 7 days. Upgrade to Pro for unlimited storage.",
+  },
+  historyFreeRetentionUpgrade: {
+    vi: "Nâng cấp Pro",
+    en: "Upgrade to Pro",
+  },
 } as const;

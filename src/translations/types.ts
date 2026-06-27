@@ -253,6 +253,8 @@ export interface UiLabels {
   historyShowingResults: string;
   historyTopMatch: string;
   historyUnknownPosition: string;
+  historyFreeRetentionNotice: string;
+  historyFreeRetentionUpgrade: string;
   howItWorksFooter: string;
   howItWorksStep1Desc: string;
   howItWorksStep1Title: string;

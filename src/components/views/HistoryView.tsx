@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Trash2, TrendingUp, Download, Eye, FileText, CheckCircle2, AlertCircle, History as HistoryIcon, Clock, ChevronRight, Sparkles, Target, BarChart3, Search, Filter, Calendar } from 'lucide-react';
+import { Trash2, TrendingUp, Download, Eye, FileText, CheckCircle2, AlertCircle, History as HistoryIcon, Clock, ChevronRight, Sparkles, Target, BarChart3, Search, Filter, Calendar, ChevronLeft, Clock3 } from 'lucide-react';
 import { useAnalysis } from '../../context/AnalysisContext';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -20,11 +20,13 @@ export function HistoryView() {
   } = useAnalysis();
   const { t, setActiveTab, reportLanguage, isDarkMode } = useUI();
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
-  const { user } = useAuth();
+  const { user, effectivePlan } = useAuth();
 
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [historyScoreFilter, setHistoryScoreFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [historyDateFilter, setHistoryDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const filteredHistory = useMemo(() => {
     return history.filter(item => {
@@ -60,8 +62,18 @@ export function HistoryView() {
       }
       
       return matchesSearch && matchesScore && matchesDate;
-    });
+    }).sort((a, b) => b.timestamp - a.timestamp);
   }, [history, historySearchQuery, historyScoreFilter, historyDateFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [historySearchQuery, historyScoreFilter, historyDateFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredHistory.length / PAGE_SIZE));
+  const paginatedHistory = useMemo(
+    () => filteredHistory.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredHistory, currentPage]
+  );
 
   return (
     <>
@@ -81,6 +93,19 @@ export function HistoryView() {
                 </button>
               )}
             </div>
+
+            {effectivePlan === 'free' && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-warning-light border border-warning/20 rounded-2xl text-sm">
+                <Clock3 className="w-4 h-4 text-warning shrink-0" />
+                <p className="text-text-muted flex-1">{t.historyFreeRetentionNotice}</p>
+                <button
+                  onClick={() => setActiveTab('upgrade')}
+                  className="shrink-0 text-xs font-bold text-accent hover:text-accent-hover transition-colors"
+                >
+                  {t.historyFreeRetentionUpgrade}
+                </button>
+              </div>
+            )}
 
             {isLoadingHistory ? (
               <div className="text-center py-24 bg-surface rounded-[2rem] border border-border shadow-sm flex flex-col items-center justify-center">
@@ -256,7 +281,7 @@ export function HistoryView() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
-                    {filteredHistory.sort((a, b) => b.timestamp - a.timestamp).map((item) => (
+                    {paginatedHistory.map((item) => (
                       <motion.article 
                         layout
                         initial={{ opacity: 0, y: 10 }}
@@ -367,6 +392,29 @@ export function HistoryView() {
                         </div>
                       </motion.article>
                     ))}
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-3 pt-2">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-xl border border-border bg-surface text-text-muted hover:text-accent hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm font-bold text-text-muted">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-xl border border-border bg-surface text-text-muted hover:text-accent hover:border-accent/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
               </div>
