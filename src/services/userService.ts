@@ -27,12 +27,16 @@ export interface UserProfile {
 
 /** Effective limit for display/enforcement (pass global default from app_settings). */
 export function resolveEffectiveMonthlyAnalyticsLimit(
-  profile: Pick<UserProfile, 'monthlyAnalyticsLimitCustom' | 'monthlyAnalyticsLimit'>,
+  profile: Pick<UserProfile, 'monthlyAnalyticsLimitCustom' | 'monthlyAnalyticsLimit' | 'plan' | 'planExpiresAt' | 'role'>,
   globalDefault: number
 ): number | null {
   if (profile.monthlyAnalyticsLimitCustom) {
     return profile.monthlyAnalyticsLimit;
   }
+  // Plan-based limits matching DB resolve_monthly_analytics_limit
+  const effectivePlan = getDisplayEffectivePlan(profile);
+  if (effectivePlan === 'recruiter') return 500;
+  if (effectivePlan === 'pro') return 100;
   return globalDefault;
 }
 
