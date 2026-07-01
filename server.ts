@@ -16,6 +16,7 @@ import pdfRouter from './server/routes/pdf';
 import paymentRouter from './server/routes/payment';
 import recruiterRouter from './server/routes/recruiter';
 import analyzeRouter from './server/routes/analyze';
+import adminRouter from './server/routes/admin';
 
 async function startServer() {
   initSentryServer();
@@ -49,6 +50,7 @@ async function startServer() {
 app.use('/api/payment', strictLimiter, paymentRouter); // Payment ops — 10 req / 15 min
 app.use('/api/recruiter', strictLimiter, recruiterRouter); // Recruiter save-analysis — 10 req / 15 min
 app.use('/api/analyze', strictLimiter, analyzeRouter); // Gemini analysis — 10 req / 15 min
+app.use('/api/admin', strictLimiter, adminRouter); // Admin operations — 10 req / 15 min
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {

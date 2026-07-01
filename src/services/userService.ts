@@ -243,11 +243,23 @@ export async function resetUserToGlobalAnalyticsLimit(uid: string): Promise<void
 }
 
 export async function updateUserRole(uid: string, role: 'admin' | 'user'): Promise<void> {
-  const { error } = await supabase.rpc('set_user_role', {
-    p_user_id: uid,
-    p_role: role,
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Not authenticated');
+
+  const res = await fetch('/api/admin/set-user-role', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ p_user_id: uid, p_role: role }),
   });
-  if (error) throw error;
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string })?.error || `Request failed: ${res.status}`);
+  }
+
   void logAdminAction('update_role', uid, { role });
 }
 
@@ -280,17 +292,31 @@ export async function adminUpdateUserPlan(
   uid: string,
   grant: AdminPlanGrant
 ): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Not authenticated');
+
   const plan = grant === 'free' ? 'free' : grant === 'recruiter_30' ? 'recruiter' : 'pro';
   const durationDays =
     grant === 'pro_90' ? 90 : grant === 'pro_365' ? 365 : grant === 'pro_30' ? 30 : 30;
 
-  const { error } = await supabase.rpc('admin_set_user_plan', {
-    p_user_id: uid,
-    p_plan: plan,
-    p_duration_days: plan === 'free' ? 30 : durationDays,
+  const res = await fetch('/api/admin/set-user-plan', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      p_user_id: uid,
+      p_plan: plan,
+      p_duration_days: plan === 'free' ? 30 : durationDays,
+    }),
   });
 
-  if (error) throw error;
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string })?.error || `Request failed: ${res.status}`);
+  }
+
   void logAdminAction('update_plan', uid, { grant, plan, duration_days: durationDays });
 }
 

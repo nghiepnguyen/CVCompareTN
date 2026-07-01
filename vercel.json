@@ -25,6 +25,10 @@
       "destination": "/api/recruiter/save-analysis.ts"
     },
     {
+      "source": "/api/admin/:action(set-user-role|set-user-plan)",
+      "destination": "/api/admin.ts"
+    },
+    {
       "source": "/api/analyze",
       "destination": "/api/analyze.ts"
     },
