@@ -5,7 +5,7 @@ import { useUI } from '../UIContext';
 import { formatLabel } from '../../translations';
 import { trackEvent } from '../../lib/ga4';
 import { supabase } from '../../lib/supabase';
-import { AnalysisResult, analyzeCV } from '../../services/ai';
+import { AnalysisResult, analyzeCV, rewriteFullCV } from '../../services/ai';
 import {
   saveToHistory,
   deleteFromHistory,
@@ -60,6 +60,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const [history, setHistory] = useState<AnalysisResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<AnalysisResult | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [fullCVGeneratingIds, setFullCVGeneratingIds] = useState<Set<string>>(new Set());
 
   const loadHistory = useCallback(async () => {
     if (user?.id) {
@@ -82,6 +83,44 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       setHistory([]);
     }
   }, [user?.id, effectivePlan, loadHistory]);
+
+  const generateFullCV = useCallback(
+    async (
+      resultId: string,
+      jd: string,
+      cvData: string,
+      cvMimeType: string,
+      language: 'vi' | 'en',
+      authToken?: string,
+      recaptchaToken?: string
+    ) => {
+      setFullCVGeneratingIds((prev) => new Set([...prev, resultId]));
+      try {
+        const fullRewrittenCV = await rewriteFullCV(
+          jd,
+          cvData,
+          cvMimeType,
+          language,
+          recaptchaToken,
+          authToken
+        );
+        const patcher = (r: AnalysisResult) =>
+          r.id === resultId ? { ...r, fullRewrittenCV } : r;
+        setResults((prev) => prev.map(patcher));
+        setSelectedResult((prev) => (prev?.id === resultId ? { ...prev, fullRewrittenCV } : prev));
+        setHistory((prev) => prev.map(patcher));
+      } catch (err) {
+        console.error('generateFullCV failed for', resultId, err);
+      } finally {
+        setFullCVGeneratingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(resultId);
+          return next;
+        });
+      }
+    },
+    []
+  );
 
   const progressStopRef = useRef<(() => void) | null>(null);
 
@@ -202,6 +241,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
     try {
       const newResults: AnalysisResult[] = [];
+      const cvDataMap = new Map<string, { data: string; mimeType: string }>();
       setAnalysisStatus(reportLanguage === 'vi' ? 'Đang đọc CV...' : 'Reading CV...');
       setAnalysisProgress(15);
 
@@ -251,6 +291,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           stopFake();
           setAnalysisProgress(fakeEnd);
           newResults.push({ ...analysis, userId: user?.id });
+          cvDataMap.set(analysis.id, { data, mimeType });
 
           trackEvent('analysis_success', {
             match_score: analysis.matchScore,
@@ -281,6 +322,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         stopFake();
         setAnalysisProgress(75);
         newResults.push({ ...analysis, userId: user?.id });
+        cvDataMap.set(analysis.id, { data: cvText, mimeType: 'text/plain' });
 
         trackEvent('analysis_success', {
           match_score: analysis.matchScore,
@@ -296,6 +338,12 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       setResults(newResults);
       const historyLimit = effectivePlan === 'free' ? 50 : 500;
       setHistory((prev) => [...newResults, ...prev].slice(0, historyLimit));
+
+      // Background: generate fullRewrittenCV for each result via a separate call so
+      // the main analyze stays fast (no fullRewrittenCV in the main Gemini prompt).
+      for (const [resultId, { data, mimeType }] of cvDataMap) {
+        void generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, recaptchaToken);
+      }
 
       if (user?.id) saveToHistory(newResults, effectivePlan).catch(console.error);
       if (newResults.length === 1) setSelectedResult(newResults[0]);
@@ -377,6 +425,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         deleteHistoryItem,
         loadingCvIds,
         loadCVFromStore,
+        fullCVGeneratingIds,
       }}
     >
       {children}

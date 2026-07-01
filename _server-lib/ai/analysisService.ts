@@ -51,9 +51,9 @@ export async function analyzeCV(
   const parts: GeminiPart[] = [{ text: finalPrompt }];
 
   // Start the timeout BEFORE PDF extraction so the whole analyzeCV budget is bounded.
-  // 45s covers PDF extraction + Gemini combined, leaving ~15s for auth + quota overhead
-  // before Vercel's 60s maxDuration hard-limit kills the function.
-  const ANALYZE_TIMEOUT_MS = 45_000;
+  // 38s covers PDF extraction + Gemini combined; auth (≤4s) + quota (≤5s) + 38s = 47s,
+  // leaving a 13s buffer before Vercel's 60s maxDuration hard-limit kills the function.
+  const ANALYZE_TIMEOUT_MS = 38_000;
   let analyzeTimer: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     analyzeTimer = setTimeout(
@@ -110,7 +110,7 @@ export async function analyzeCV(
       config: {
         responseMimeType: 'application/json',
         responseSchema: ANALYSIS_RESPONSE_SCHEMA,
-        maxOutputTokens: 32768,
+        maxOutputTokens: 16384,
       },
     });
 
@@ -139,7 +139,7 @@ export async function analyzeCV(
       mainFactor: parsedResult.mainFactor || '',
       atsKeywords: normalizeStringArray(parsedResult.atsKeywords),
       rewriteSuggestions: normalizeRewriteSuggestions(parsedResult.rewriteSuggestions),
-      fullRewrittenCV: parsedResult.fullRewrittenCV || '',
+      fullRewrittenCV: '',
       detailedComparison: normalizeDetailedComparison(parsedResult.detailedComparison),
       parsedCV: normalizeParsedCV(parsedResult.parsedCV),
       id: crypto.randomUUID(),

@@ -36,25 +36,18 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
     4. Liệt kê các điểm tương đồng cụ thể theo danh mục.
     5. Liệt kê các điểm còn thiếu (gaps).
     6. Xác định các từ khóa ATS quan trọng nên có trong CV.
-    7. Cung cấp ít nhất 10–15 gợi ý viết lại cụ thể bằng cách:
+    7. Cung cấp 5–8 gợi ý viết lại cụ thể bằng cách:
        - Đọc kỹ TOÀN BỘ nội dung CV đã cung cấp (không bỏ sót phần nào).
        - Bắt buộc cover TẤT CẢ các section có trong CV: Professional Summary, từng vị trí Work Experience, Skills, Education, Projects, Certifications (nếu có).
        - Với mỗi gợi ý: trích dẫn CHÍNH XÁC câu/đoạn gốc trong CV vào field "original" (không được để trống, không paraphrase), viết lại vào "optimized" theo công thức Google XYZ (Accomplished [X] as measured by [Y], by doing [Z]) với số liệu cụ thể nếu CV đã cung cấp, và giải thích lý do tối ưu vào "explanation".
        - Mỗi Work Experience entry phải có ít nhất 2 gợi ý riêng biệt cho 2 bullet point khác nhau.
        - Ưu tiên các bullet point thiếu số liệu định lượng, dùng động từ yếu, hoặc không liên quan đến yêu cầu JD.
-    8. Viết lại toàn bộ CV (Full Rewritten CV) chuyên nghiệp, tối ưu 100% cho ATS.
-    9. Ước tính xác suất thành công khi phỏng vấn và khả năng vượt qua vòng lọc CV.
-    10. Cung cấp bảng so sánh chi tiết (Detailed Comparison) đối chiếu TẤT CẢ các yêu cầu trong JD.
+    8. Ước tính xác suất thành công khi phỏng vấn và khả năng vượt qua vòng lọc CV.
+    9. Cung cấp bảng so sánh chi tiết (Detailed Comparison) đối chiếu TẤT CẢ các yêu cầu trong JD.
 
     YÊU CẦU QUAN TRỌNG:
     - Toàn bộ nội dung phân tích (điểm số, nhận xét, giải thích) phải bằng TIẾNG VIỆT.
-    - RIÊNG PHẦN VIẾT LẠI CV (fullRewrittenCV), các gợi ý 'optimized' và PHẦN PARSED CV (trừ phần đánh giá) phải dùng ĐÚNG NGÔN NGỮ GỐC của CV.
-    - fullRewrittenCV là một chuỗi Markdown (GFM), KHÔNG được là một khối văn phẳng chỉ xuống dòng:
-       • Dòng đầu: tiêu đề cấp 1 (một ký tự # + khoảng trắng + họ tên đầy đủ)
-       • Tiếp theo có thể 1–3 dòng tagline / liên hệ (không dùng #)
-       • Mỗi mục chính phải mở bằng tiêu đề cấp 2 (## và khoảng trắng + tên mục; ví dụ Professional Summary, Work Experience / Kinh nghiệm làm việc…)
-       • Mỗi vị trí công việc: tiêu đề cấp 3 (### và khoảng trắng + chức danh — công ty | MM/YYYY – MM/YYYY), sau đó các dòng gạch đầu dòng (gạch ngang và khoảng trắng)
-       • Luôn dùng gạch đầu dòng cho danh sách; không được chỉ có các đoạn văn liền mạch không có tiêu đề Markdown.
+    - RIÊNG các gợi ý 'optimized' và PHẦN PARSED CV (trừ phần đánh giá) phải dùng ĐÚNG NGÔN NGỮ GỐC của CV.
     - Mốc thời gian phải chuẩn hóa về MM/YYYY.
     - Phân loại (category) trong matchingPoints và missingGaps phải thuộc danh sách: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Experience", "Tools", "Education".
   `;
@@ -87,25 +80,18 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
     4. List specific matching points by category.
     5. List missing gaps (gaps).
     6. Identify important ATS keywords.
-    7. Provide at least 10–15 specific rewrite suggestions by:
+    7. Provide 5–8 specific rewrite suggestions by:
        - Reading the ENTIRE CV content carefully (do not skip any section).
        - Mandatory coverage of ALL sections present in the CV: Professional Summary, each Work Experience entry, Skills, Education, Projects, Certifications (if present).
        - For each suggestion: quote the EXACT original sentence/bullet from the CV into the "original" field (never leave it empty, never paraphrase), rewrite into "optimized" using the Google XYZ formula (Accomplished [X] as measured by [Y], by doing [Z]) with specific metrics if the CV already contains them, and explain the reasoning in "explanation".
        - Each Work Experience entry must have at least 2 separate suggestions for 2 different bullet points.
        - Prioritize bullet points that lack quantitative metrics, use weak action verbs, or are not aligned with JD requirements.
-    8. Generate a FULL REWRITTEN CV optimized 100% for ATS.
-    9. Estimate success probability and pass probability.
-    10. Provide a detailed comparison table against ALL JD requirements.
+    8. Estimate success probability and pass probability.
+    9. Provide a detailed comparison table against ALL JD requirements.
 
     IMPORTANT REQUIREMENTS:
     - All analysis content (scores, comments, explanations) must be in ENGLISH.
-    - The FULL REWRITTEN CV (fullRewrittenCV field), 'optimized' suggestions, and the PARSED CV data (except evaluation) must use the EXACT ORIGINAL LANGUAGE of the CV.
-    - fullRewrittenCV MUST be a GitHub-Flavored Markdown string, NOT a single flat prose block:
-       • First line: level-1 heading (one hash #, space, full name)
-       • Optionally next 1–3 lines for title / contact (no leading #)
-       • Each major section starts with a level-2 heading (## followed by space and section name; e.g. Professional Summary, Work Experience, Education, Skills…)
-       • Each job: level-3 heading (### followed by space + Job Title — Company | MM/YYYY – MM/YYYY), then hyphen bullets for responsibilities / achievements
-       • Always use hyphen bullet lists; do not output only paragraph breaks without Markdown headings.
+    - The 'optimized' suggestions and the PARSED CV data (except evaluation) must use the EXACT ORIGINAL LANGUAGE of the CV.
     - Standardize dates to MM/YYYY format.
     - Categories in matchingPoints and missingGaps must be one of: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Experience", "Tools", "Education".
   `;

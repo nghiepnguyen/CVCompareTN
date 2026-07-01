@@ -65,7 +65,6 @@ export const ANALYSIS_RESPONSE_SCHEMA = {
         required: ['section', 'original', 'optimized', 'explanation'],
       },
     },
-    fullRewrittenCV: { type: 'STRING' },
     detailedComparison: {
       type: 'OBJECT',
       properties: {
@@ -186,6 +185,6 @@ export const ANALYSIS_RESPONSE_SCHEMA = {
   required: [
     'jobTitle', 'matchScore', 'categoryScores', 'matchingPoints', 'missingGaps',
     'successProbability', 'passProbability', 'passExplanation', 'mainFactor',
-    'atsKeywords', 'rewriteSuggestions', 'fullRewrittenCV', 'detailedComparison', 'parsedCV',
+    'atsKeywords', 'rewriteSuggestions', 'detailedComparison', 'parsedCV',
   ],
 };

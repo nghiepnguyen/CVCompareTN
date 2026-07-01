@@ -4,6 +4,7 @@ import { FileText, Copy, Check, AlignLeft, Printer, Zap, Shield, Crown, Lock, Ey
 import { useUI } from '../../../context/UIContext';
 import type { UiLabels } from '../../../translations';
 import { useAuth } from '../../../context/AuthContext';
+import { useAnalysis } from '../../../context/AnalysisContext';
 import { isProPlan, isRecruiterPlan } from '../../../lib/planLimits';
 import { AnalysisResult } from '../../../services/ai';
 import { CvMarkdownBody, markdownToPlainText } from './CvMarkdownBody';
@@ -18,6 +19,8 @@ interface FullCVTabProps {
 export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullCVTabProps) {
   const { t, reportLanguage, navigateToUpgrade } = useUI();
   const { effectivePlan, userProfile } = useAuth();
+  const { fullCVGeneratingIds } = useAnalysis();
+  const isGenerating = fullCVGeneratingIds.has(selectedResult.id);
   const canExportOptimized =
     userProfile?.role === 'admin' || isProPlan(effectivePlan) || isRecruiterPlan(effectivePlan);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
@@ -45,8 +48,19 @@ export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullC
 
   if (!selectedResult.fullRewrittenCV) {
     return (
-      <div className="flex items-center justify-center py-24 text-text-muted text-sm font-medium">
-        {reportLanguage === 'vi' ? 'Chưa có dữ liệu CV tối ưu.' : 'No optimized CV data available.'}
+      <div className="flex flex-col items-center justify-center gap-3 py-24">
+        {isGenerating ? (
+          <>
+            <div className="size-8 animate-spin rounded-full border-2 border-accent/20 border-t-accent" />
+            <p className="text-sm font-medium text-text-muted">
+              {reportLanguage === 'vi' ? 'Đang tạo CV tối ưu hoá...' : 'Generating optimized CV…'}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm font-medium text-text-muted">
+            {reportLanguage === 'vi' ? 'Chưa có dữ liệu CV tối ưu.' : 'No optimized CV data available.'}
+          </p>
+        )}
       </div>
     );
   }

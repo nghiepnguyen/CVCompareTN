@@ -33,6 +33,8 @@ export interface AnalysisRunContextType {
 
   loadingCvIds: Set<string>;
   loadCVFromStore: (cv: SavedCV) => void;
+
+  fullCVGeneratingIds: Set<string>;
 }
 
 export interface SavedJdContextType {

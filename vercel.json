@@ -33,12 +33,19 @@
       "destination": "/api/analyze.ts"
     },
     {
+      "source": "/api/rewrite-cv",
+      "destination": "/api/rewrite-cv.ts"
+    },
+    {
       "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
       "destination": "/index.html"
     }
   ],
   "functions": {
     "api/analyze.ts": {
+      "maxDuration": 60
+    },
+    "api/rewrite-cv.ts": {
       "maxDuration": 60
     },
     "api/*.ts": {
