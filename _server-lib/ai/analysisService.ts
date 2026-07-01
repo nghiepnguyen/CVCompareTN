@@ -83,15 +83,32 @@ export async function analyzeCV(
   }
 
   try {
-    const response = await client.models.generateContent({
+    // Use Promise.race with a 50s timeout so we return a proper error before Vercel's 60s hard limit.
+    // httpOptions.timeout on the Gemini client (50s) serves as a backup.
+    const ANALYZE_TIMEOUT_MS = 50_000;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              'Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại với JD ngắn hơn hoặc CV đơn giản hơn. (Timeout)'
+            )
+          ),
+        ANALYZE_TIMEOUT_MS
+      )
+    );
+
+    const geminiPromise = client.models.generateContent({
       model: GEMINI_MODEL,
       contents: [{ role: 'user', parts }],
       config: {
         responseMimeType: 'application/json',
         responseSchema: ANALYSIS_RESPONSE_SCHEMA,
-        maxOutputTokens: 65536,
+        maxOutputTokens: 32768,
       },
     });
+
+    const response = await Promise.race([geminiPromise, timeoutPromise]);
 
     const resultText = response.text || '';
     const parsedResult = parseGeminiJson(resultText);
@@ -129,6 +146,12 @@ export async function analyzeCV(
     return finalResult as AnalysisResult;
   } catch (error: unknown) {
     console.error('Gemini Analysis Error:', error);
+
+    // If the error already has a message (e.g., our timeout error), re-throw directly
+    if (error instanceof Error && error.message.includes('(Timeout)')) {
+      throw error;
+    }
+
     if (error instanceof SyntaxError) {
       throw new Error(`Invalid AI data (JSON Error). Please try again. Detail: ${error.message}`);
     }
