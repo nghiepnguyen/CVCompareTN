@@ -51,9 +51,11 @@ export async function analyzeCV(
   const parts: GeminiPart[] = [{ text: finalPrompt }];
 
   // Start the timeout BEFORE PDF extraction so the whole analyzeCV budget is bounded.
-  // 38s covers PDF extraction + Gemini combined; auth (≤4s) + quota (≤5s) + 38s = 47s,
-  // leaving a 13s buffer before Vercel's 60s maxDuration hard-limit kills the function.
-  const ANALYZE_TIMEOUT_MS = 38_000;
+  // 45s covers PDF extraction + Gemini combined; auth (≤4s) + quota (≤5s) + 45s = 54s,
+  // leaving a 6s buffer before Vercel's 60s maxDuration hard-limit kills the function.
+  // fullRewrittenCV is no longer generated here (moved to /api/rewrite-cv), so output
+  // is small enough that 45s is generous rather than risky.
+  const ANALYZE_TIMEOUT_MS = 45_000;
   let analyzeTimer: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     analyzeTimer = setTimeout(
