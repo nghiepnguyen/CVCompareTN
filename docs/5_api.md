@@ -37,7 +37,11 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
   ```
 - **Response:** `AnalysisResult` JSON (matchScore, categoryScores, matchingPoints, missingGaps, rewriteSuggestions, fullRewrittenCV, parsedCV, ...).
 - **Server-side flow:** xác thực reCAPTCHA (nếu anonymous) → kiểm tra quota → gọi Gemini (`_server-lib/ai/analysisService.ts`) → `increment_usage_count` (fire-and-forget).
-- **Timeout:** 60s (Vercel function).
+- **Timeout:**
+  - Vercel function hard limit: **60s** (Hobby plan).
+  - Gemini HTTP client timeout: **50s** (`httpOptions.timeout` trong `_server-lib/ai/geminiClient.ts`).
+  - Application-level timeout: **50s** (`Promise.race` trong `_server-lib/ai/analysisService.ts`) — nếu Gemini phản hồi chậm hơn 50s, server trả về lỗi có message tiếng Việt thay vì 504 Gateway Timeout.
+- **maxOutputTokens:** 32768 (giảm từ 65536 để cắt thời gian generation).
 - **Rate limit:** 10 req/15 min (strictLimiter).
 - **Lưu ý PDF:** Frontend extract text bằng `unpdf` (client-side) trước khi gửi — không gửi base64 PDF lên backend (tránh vượt giới hạn 4.5MB của Vercel).
 
