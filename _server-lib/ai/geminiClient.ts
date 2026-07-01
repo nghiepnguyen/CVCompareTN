@@ -7,6 +7,6 @@ export function getGeminiClient(): GoogleGenAI {
   if (!key) throw new Error('GEMINI_API_KEY is not configured on this server.');
   return new GoogleGenAI({
     apiKey: key,
-    httpOptions: { timeout: 50_000 },
+    httpOptions: { timeout: 45_000 },
   });
 }

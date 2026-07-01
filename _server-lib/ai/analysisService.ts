@@ -85,7 +85,9 @@ export async function analyzeCV(
   try {
     // Use Promise.race with a 50s timeout so we return a proper error before Vercel's 60s hard limit.
     // httpOptions.timeout on the Gemini client (50s) serves as a backup.
-    const ANALYZE_TIMEOUT_MS = 50_000;
+    // 45s leaves ~15s headroom for auth, quota check, and response serialization
+    // before Vercel Hobby's 60s maxDuration hard-limit kills the function.
+    const ANALYZE_TIMEOUT_MS = 45_000;
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(
         () =>

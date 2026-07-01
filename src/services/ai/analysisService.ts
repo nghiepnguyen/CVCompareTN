@@ -20,7 +20,8 @@ export async function analyzeCV(
     method: 'POST',
     headers,
     body: JSON.stringify({ jd, cvData, cvMimeType, cvName, language, recaptchaToken }),
-    signal: AbortSignal.timeout(90_000),
+    // 55s client-side timeout: gives server 45s for AI + ~10s for auth/quota/network
+    signal: AbortSignal.timeout(55_000),
   });
 
   if (!res.ok) {
