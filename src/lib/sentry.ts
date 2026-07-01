@@ -18,9 +18,13 @@ export function initSentry() {
     dsn,
     environment: import.meta.env.MODE,
     release: import.meta.env.VITE_APP_VERSION as string | undefined,
-    integrations: [Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] })],
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
+    ],
     enableLogs: true,
     tracesSampleRate: 0.1,
+    tracePropagationTargets: ['localhost', /^https:\/\/cvfit\.pro\/api/],
     replaysOnErrorSampleRate: 0,
     denyUrls: [/extensions\//i, /^chrome:\/\//i],
     beforeSend(event, hint) {
