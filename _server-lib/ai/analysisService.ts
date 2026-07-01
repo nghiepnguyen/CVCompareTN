@@ -149,9 +149,16 @@ export async function analyzeCV(
   } catch (error: unknown) {
     console.error('Gemini Analysis Error:', error);
 
-    // If the error already has a message (e.g., our timeout error), re-throw directly
-    if (error instanceof Error && error.message.includes('(Timeout)')) {
-      throw error;
+    // Treat both our Promise.race timeout and SDK-level DEADLINE_EXCEEDED as timeouts
+    if (error instanceof Error) {
+      const isTimeout =
+        error.message.includes('(Timeout)') ||
+        error.message.includes('DEADLINE_EXCEEDED');
+      if (isTimeout) {
+        throw new Error(
+          'Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại với JD ngắn hơn hoặc CV đơn giản hơn. (Timeout)'
+        );
+      }
     }
 
     if (error instanceof SyntaxError) {
