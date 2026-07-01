@@ -50,55 +50,59 @@ export async function analyzeCV(
   type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
   const parts: GeminiPart[] = [{ text: finalPrompt }];
 
-  if (cvMimeType === 'application/pdf') {
-    let usedText = false;
-    try {
-      const base64Data = cvData.split(',')[1] || cvData;
-      const buffer = Buffer.from(base64Data, 'base64');
-      const { text } = await extractText(new Uint8Array(buffer), { mergePages: true });
-      if (text && text.trim().length >= 100) {
-        parts.push({ text: `CV Content:\n${text}` });
-        usedText = true;
+  // Start the timeout BEFORE PDF extraction so the whole analyzeCV budget is bounded.
+  // 45s covers PDF extraction + Gemini combined, leaving ~15s for auth + quota overhead
+  // before Vercel's 60s maxDuration hard-limit kills the function.
+  const ANALYZE_TIMEOUT_MS = 45_000;
+  let analyzeTimer: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    analyzeTimer = setTimeout(
+      () =>
+        reject(
+          new Error(
+            'Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại với JD ngắn hơn hoặc CV đơn giản hơn. (Timeout)'
+          )
+        ),
+      ANALYZE_TIMEOUT_MS
+    );
+  });
+
+  try {
+    if (cvMimeType === 'application/pdf') {
+      let usedText = false;
+      try {
+        const base64Data = cvData.split(',')[1] || cvData;
+        const buffer = Buffer.from(base64Data, 'base64');
+        const { text } = await Promise.race([
+          extractText(new Uint8Array(buffer), { mergePages: true }),
+          timeoutPromise,
+        ]);
+        if (text && text.trim().length >= 100) {
+          parts.push({ text: `CV Content:\n${text}` });
+          usedText = true;
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message.includes('(Timeout)')) throw e;
+        // Non-timeout error (scanned/malformed PDF) → fall through to inlineData
       }
-    } catch {
-      // fall through to inlineData (scanned or malformed PDF)
-    }
-    if (!usedText) {
+      if (!usedText) {
+        parts.push({
+          inlineData: {
+            data: cvData.split(',')[1] || cvData,
+            mimeType: 'application/pdf',
+          },
+        });
+      }
+    } else if (cvMimeType.startsWith('image/')) {
       parts.push({
         inlineData: {
           data: cvData.split(',')[1] || cvData,
-          mimeType: 'application/pdf',
+          mimeType: cvMimeType,
         },
       });
+    } else {
+      parts.push({ text: `CV Content:\n${cvData}` });
     }
-  } else if (cvMimeType.startsWith('image/')) {
-    parts.push({
-      inlineData: {
-        data: cvData.split(',')[1] || cvData,
-        mimeType: cvMimeType,
-      },
-    });
-  } else {
-    parts.push({ text: `CV Content:\n${cvData}` });
-  }
-
-  try {
-    // Use Promise.race with a 50s timeout so we return a proper error before Vercel's 60s hard limit.
-    // httpOptions.timeout on the Gemini client (50s) serves as a backup.
-    // 45s leaves ~15s headroom for auth, quota check, and response serialization
-    // before Vercel Hobby's 60s maxDuration hard-limit kills the function.
-    const ANALYZE_TIMEOUT_MS = 45_000;
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(
-        () =>
-          reject(
-            new Error(
-              'Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại với JD ngắn hơn hoặc CV đơn giản hơn. (Timeout)'
-            )
-          ),
-        ANALYZE_TIMEOUT_MS
-      )
-    );
 
     const geminiPromise = client.models.generateContent({
       model: GEMINI_MODEL,
@@ -166,5 +170,7 @@ export async function analyzeCV(
     }
     const message = error instanceof Error ? error.message : undefined;
     throw new Error(message || 'Could not perform analysis with Gemini. Please try again later.');
+  } finally {
+    clearTimeout(analyzeTimer);
   }
 }
