@@ -51,7 +51,8 @@ export async function generateFullRewrite(
   jd: string,
   cvData: string,
   cvMimeType: string,
-  language: 'vi' | 'en' = 'vi'
+  language: 'vi' | 'en' = 'vi',
+  timeoutMs: number = REWRITE_TIMEOUT_MS
 ): Promise<string> {
   const client = getGeminiClient();
 
@@ -72,7 +73,7 @@ export async function generateFullRewrite(
             'CV rewrite is taking too long. Please try again. (Timeout)'
           )
         ),
-      REWRITE_TIMEOUT_MS
+      timeoutMs
     );
   });
 

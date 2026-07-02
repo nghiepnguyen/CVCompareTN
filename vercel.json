@@ -37,6 +37,10 @@
       "destination": "/api/rewrite-cv.ts"
     },
     {
+      "source": "/api/parse-cv",
+      "destination": "/api/parse-cv.ts"
+    },
+    {
       "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
       "destination": "/index.html"
     }
@@ -46,6 +50,9 @@
       "maxDuration": 60
     },
     "api/rewrite-cv.ts": {
+      "maxDuration": 60
+    },
+    "api/parse-cv.ts": {
       "maxDuration": 60
     },
     "api/*.ts": {

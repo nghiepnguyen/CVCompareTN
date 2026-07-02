@@ -5,7 +5,7 @@ import { useUI } from '../UIContext';
 import { formatLabel } from '../../translations';
 import { trackEvent } from '../../lib/ga4';
 import { supabase } from '../../lib/supabase';
-import { AnalysisResult, analyzeCV, rewriteFullCV } from '../../services/ai';
+import { AnalysisResult, analyzeCV, rewriteFullCV, parseCV } from '../../services/ai';
 import {
   saveToHistory,
   deleteFromHistory,
@@ -61,6 +61,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const [selectedResult, setSelectedResult] = useState<AnalysisResult | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [fullCVGeneratingIds, setFullCVGeneratingIds] = useState<Set<string>>(new Set());
+  const [parsedCVGeneratingIds, setParsedCVGeneratingIds] = useState<Set<string>>(new Set());
 
   const loadHistory = useCallback(async () => {
     if (user?.id) {
@@ -113,6 +114,37 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         console.error('generateFullCV failed for', resultId, err);
       } finally {
         setFullCVGeneratingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(resultId);
+          return next;
+        });
+      }
+    },
+    []
+  );
+
+  const generateParsedCVForResult = useCallback(
+    async (
+      resultId: string,
+      jd: string,
+      cvData: string,
+      cvMimeType: string,
+      language: 'vi' | 'en',
+      authToken?: string,
+      recaptchaToken?: string
+    ) => {
+      setParsedCVGeneratingIds((prev) => new Set([...prev, resultId]));
+      try {
+        const parsedCV = await parseCV(jd, cvData, cvMimeType, language, recaptchaToken, authToken);
+        const patcher = (r: AnalysisResult) =>
+          r.id === resultId ? { ...r, parsedCV } : r;
+        setResults((prev) => prev.map(patcher));
+        setSelectedResult((prev) => (prev?.id === resultId ? { ...prev, parsedCV } : prev));
+        setHistory((prev) => prev.map(patcher));
+      } catch (err) {
+        console.error('generateParsedCVForResult failed for', resultId, err);
+      } finally {
+        setParsedCVGeneratingIds((prev) => {
           const next = new Set(prev);
           next.delete(resultId);
           return next;
@@ -339,10 +371,11 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       const historyLimit = effectivePlan === 'free' ? 50 : 500;
       setHistory((prev) => [...newResults, ...prev].slice(0, historyLimit));
 
-      // Background: generate fullRewrittenCV for each result via a separate call so
-      // the main analyze stays fast (no fullRewrittenCV in the main Gemini prompt).
+      // Background: generate fullRewrittenCV and parsedCV for each result via separate
+      // calls so the main analyze stays fast (neither is in the main Gemini prompt).
       for (const [resultId, { data, mimeType }] of cvDataMap) {
         void generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, recaptchaToken);
+        void generateParsedCVForResult(resultId, jd, data, mimeType, reportLanguage, authToken, recaptchaToken);
       }
 
       if (user?.id) saveToHistory(newResults, effectivePlan).catch(console.error);
@@ -426,6 +459,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         loadingCvIds,
         loadCVFromStore,
         fullCVGeneratingIds,
+        parsedCVGeneratingIds,
       }}
     >
       {children}

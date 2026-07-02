@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleRewriteCv } from '../_server-lib/rewriteCv/handler.js';
+import { handleParseCv } from '../_server-lib/parseCv/handler.js';
 import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -12,11 +12,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const authHeader =
       typeof req.headers.authorization === 'string' ? req.headers.authorization : undefined;
-    const result = await handleRewriteCv(authHeader, req.body);
+    const result = await handleParseCv(authHeader, req.body);
     return res.status(result.status).json(result.body);
   } catch (err) {
-    Sentry.captureException(err, { tags: { route: 'rewrite-cv' } });
-    console.error('rewrite-cv error:', err);
+    Sentry.captureException(err, { tags: { route: 'parse-cv' } });
+    console.error('parse-cv error:', err);
     const message = err instanceof Error ? err.message : 'Server error';
     return res.status(500).json({ error: message });
   }

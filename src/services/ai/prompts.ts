@@ -15,21 +15,11 @@ export function buildAnalyzePrompt({ jdSection, language = 'vi' }: PromptParams)
 export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
   return `
     Bạn là một chuyên gia tuyển dụng HR và chuyên gia về hệ thống ATS (Applicant Tracking System).
-    Hãy thực hiện đồng thời hai nhiệm vụ quan trọng:
-    1. Trích xuất và chuẩn hóa thông tin từ CV thành định dạng JSON chi tiết (Parsed CV).
-    2. Phân tích sự phù hợp của CV này so với Mô tả công việc (JD).
+    Hãy phân tích sự phù hợp của CV này so với Mô tả công việc (JD).
 
     ${jdSection}
 
-    Nhiệm vụ 1: Trích xuất và chuẩn hóa CV (Parsed CV):
-    - Trích xuất thông tin cá nhân: Họ tên, Email, Số điện thoại, LinkedIn, Portfolio.
-    - Học vấn: Trích xuất đầy đủ bằng cấp, trường, chuyên ngành, năm tốt nghiệp, GPA.
-    - Kinh nghiệm làm việc: Trích xuất TẤT CẢ các công việc trong CV (không giới hạn số lượng). Với mỗi công việc, lấy đầy đủ thông tin: công ty, chức danh, mốc thời gian (Chuẩn hóa về định dạng MM/YYYY), chi tiết các nhiệm vụ và thành tựu (không tóm tắt quá ngắn).
-    - Kỹ năng: Phân loại rõ ràng thành: technical_skills (kỹ năng kỹ thuật), soft_skills (kỹ năng mềm), tools_software (công cụ/phần mềm).
-    - Dự án & Chứng chỉ: Trích xuất tên, mô tả, công nghệ sử dụng.
-    - ATS Evaluation sơ bộ: Tính toán tổng số năm kinh nghiệm thực tế (dựa trên các mốc thời gian kinh nghiệm, không chỉ là lấy năm hiện tại trừ năm bắt đầu).
-
-    Nhiệm vụ 2: Phân tích và So sánh với JD:
+    Nhiệm vụ: Phân tích và So sánh với JD:
     1. Xác định chức danh công việc (Job Title) từ JD.
     2. Tính toán điểm phù hợp tổng thể (0-100).
     3. Cung cấp điểm thành phần (0-100) cho: Kỹ năng (Skills), Kinh nghiệm (Experience), Công cụ/Công nghệ (Tools), và Học văn/Chứng chỉ (Education).
@@ -47,9 +37,60 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
 
     YÊU CẦU QUAN TRỌNG:
     - Toàn bộ nội dung phân tích (điểm số, nhận xét, giải thích) phải bằng TIẾNG VIỆT.
-    - RIÊNG các gợi ý 'optimized' và PHẦN PARSED CV (trừ phần đánh giá) phải dùng ĐÚNG NGÔN NGỮ GỐC của CV.
+    - RIÊNG các gợi ý 'optimized' phải dùng ĐÚNG NGÔN NGỮ GỐC của CV.
     - Mốc thời gian phải chuẩn hóa về MM/YYYY.
     - Phân loại (category) trong matchingPoints và missingGaps phải thuộc danh sách: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Experience", "Tools", "Education".
+  `;
+}
+
+/**
+ * CV extraction (Parsed CV) is generated separately via /api/parse-cv in the
+ * background — see _server-lib/ai/parseCvService.ts — so the main analyze
+ * call's output stays small enough to reliably finish within Vercel's 60s
+ * maxDuration (Hobby plan hard limit; can't be raised).
+ */
+export function buildParseCvPrompt({ jdSection, language = 'vi' }: PromptParams): string {
+  if (language === 'en') return buildParseCvPromptEn({ jdSection });
+  return buildParseCvPromptVi({ jdSection });
+}
+
+function buildParseCvPromptVi({ jdSection }: PromptParams): string {
+  return `
+    Bạn là chuyên gia phân tích CV và hệ thống ATS (Applicant Tracking System).
+    Nhiệm vụ: Trích xuất và chuẩn hóa toàn bộ thông tin từ CV được cung cấp thành định dạng JSON chi tiết, đối chiếu sơ bộ với JD dưới đây.
+
+    ${jdSection}
+
+    - Trích xuất thông tin cá nhân: Họ tên, Email, Số điện thoại, LinkedIn, Portfolio.
+    - Học vấn: Trích xuất đầy đủ bằng cấp, trường, chuyên ngành, năm tốt nghiệp, GPA.
+    - Kinh nghiệm làm việc: Trích xuất TẤT CẢ các công việc trong CV (không giới hạn số lượng). Với mỗi công việc, lấy đầy đủ thông tin: công ty, chức danh, mốc thời gian (Chuẩn hóa về định dạng MM/YYYY), chi tiết các nhiệm vụ và thành tựu (không tóm tắt quá ngắn).
+    - Kỹ năng: Phân loại rõ ràng thành: technical_skills (kỹ năng kỹ thuật), soft_skills (kỹ năng mềm), tools_software (công cụ/phần mềm).
+    - Dự án & Chứng chỉ: Trích xuất tên, mô tả, công nghệ sử dụng.
+    - ATS Evaluation: Tính tổng số năm kinh nghiệm thực tế (dựa trên mốc thời gian kinh nghiệm, không chỉ lấy năm hiện tại trừ năm bắt đầu); relevant_score (0-100) là mức độ phù hợp tổng thể của CV với JD; key_match_highlights là các điểm nổi bật khớp với JD; missing_keywords là từ khóa quan trọng trong JD còn thiếu trong CV.
+
+    YÊU CẦU QUAN TRỌNG:
+    - Toàn bộ dữ liệu trích xuất (trừ phần ATS Evaluation) phải dùng ĐÚNG NGÔN NGỮ GỐC của CV (không dịch).
+    - Mốc thời gian phải chuẩn hóa về MM/YYYY.
+  `;
+}
+
+function buildParseCvPromptEn({ jdSection }: PromptParams): string {
+  return `
+    You are a CV analysis and ATS (Applicant Tracking System) expert.
+    Task: Extract and standardize all information from the provided CV into a detailed JSON format, cross-referenced against the JD below.
+
+    ${jdSection}
+
+    - Personal Info: Full name, Email, Phone, LinkedIn, Portfolio.
+    - Education: ALL degrees, institutions, majors, graduation years, GPA.
+    - Work Experience: Extract ALL work experiences listed in the CV (no limit). For each role, provide complete details: company, title, duration (standardize to MM/YYYY), detailed responsibilities and achievements (do not truncate or over-summarize).
+    - Skills: Categorize clearly into technical_skills, soft_skills, tools_software.
+    - Projects & Certifications: Names, descriptions, tech stack used.
+    - ATS Evaluation: Calculate total years of actual experience (based on experience milestones, not just subtracting start year from current year); relevant_score (0-100) is the CV's overall fit against the JD; key_match_highlights are standout points matching the JD; missing_keywords are important JD keywords absent from the CV.
+
+    IMPORTANT REQUIREMENTS:
+    - All extracted data (except the ATS Evaluation) must use the EXACT ORIGINAL LANGUAGE of the CV (do not translate).
+    - Standardize dates to MM/YYYY format.
   `;
 }
 
@@ -59,21 +100,11 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
 export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
   return `
     You are an HR recruitment expert and an ATS (Applicant Tracking System) specialist.
-    Perform two critical tasks simultaneously:
-    1. Extract and standardize CV information into a detailed JSON format (Parsed CV).
-    2. Analyze the suitability of this CV against the Job Description (JD).
+    Analyze the suitability of this CV against the Job Description (JD).
 
     ${jdSection}
 
-    Task 1: CV Extraction & Standardization (Parsed CV):
-    - Personal Info: Full name, Email, Phone, LinkedIn, Portfolio.
-    - Education: ALL degrees, institutions, majors, graduation years, GPA.
-    - Work Experience: Extract ALL work experiences listed in the CV (no limit). For each role, provide complete details: companies, titles, durations (Standardize to MM/YYYY), detailed responsibilities, and achievements (do not truncate or over-summarize).
-    - Skills: Categorize clearly into technical_skills, soft_skills, tools_software.
-    - Projects & Certifications: Names, descriptions, tech stack used.
-    - Preliminary ATS Evaluation: Calculate total years of actual experience (based on experience milestones, not just subtracting start year from current year).
-
-    Task 2: Analysis & Comparison with JD:
+    Task: Analysis & Comparison with JD:
     1. Identify the Job Title from the JD.
     2. Calculate an overall match score (0-100).
     3. Provide component scores (0-100) for Skills, Experience, Tools, and Education.
@@ -91,7 +122,7 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
 
     IMPORTANT REQUIREMENTS:
     - All analysis content (scores, comments, explanations) must be in ENGLISH.
-    - The 'optimized' suggestions and the PARSED CV data (except evaluation) must use the EXACT ORIGINAL LANGUAGE of the CV.
+    - The 'optimized' suggestions must use the EXACT ORIGINAL LANGUAGE of the CV.
     - Standardize dates to MM/YYYY format.
     - Categories in matchingPoints and missingGaps must be one of: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Experience", "Tools", "Education".
   `;

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
+import { useAnalysis } from '../../../context/AnalysisContext';
 import { AnalysisResult } from '../../../services/ai';
 
 interface ParsedCVTabProps {
@@ -15,15 +16,26 @@ interface ParsedCVTabProps {
 }
 
 export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
-  const { t } = useUI();
+  const { t, reportLanguage } = useUI();
+  const { parsedCVGeneratingIds } = useAnalysis();
   const parsedCV = selectedResult.parsedCV;
+  const isGenerating = parsedCVGeneratingIds.has(selectedResult.id);
 
   if (!parsedCV) {
     return (
-      <div className="bg-white/[0.02] backdrop-blur-sm p-12 rounded-3xl border border-white/[0.06] text-center">
-        <p className="text-text-muted italic">
-          {t.parsedCvEmpty}
-        </p>
+      <div className="flex flex-col items-center justify-center gap-3 py-24 bg-white/[0.02] backdrop-blur-sm rounded-3xl border border-white/[0.06]">
+        {isGenerating ? (
+          <>
+            <div className="size-8 animate-spin rounded-full border-2 border-accent/20 border-t-accent" />
+            <p className="text-sm font-medium text-text-muted">
+              {reportLanguage === 'vi' ? 'Đang trích xuất dữ liệu CV...' : 'Extracting CV data…'}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm font-medium text-text-muted italic">
+            {t.parsedCvEmpty}
+          </p>
+        )}
       </div>
     );
   }

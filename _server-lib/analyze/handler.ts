@@ -1,25 +1,30 @@
 import { getUserFromBearerToken, getSupabaseAdmin } from '../payment/supabaseAdmin.js';
 import { analyzeCV } from '../ai/analysisService.js';
 import { verifyRecaptcha } from '../recaptcha.js';
+import { withTimeout } from '../withTimeout.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
 // Timeouts for Supabase operations — keep them short to preserve budget for AI analysis.
 const AUTH_TIMEOUT_MS = 4_000;
 const QUOTA_CHECK_TIMEOUT_MS = 5_000;
+const RECAPTCHA_TIMEOUT_MS = 5_000;
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  let timer: NodeJS.Timeout;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
+// Wall-clock budget for the whole handler, measured from the first line of
+// handleAnalyze. Vercel hard-kills the function at maxDuration=60s with no
+// JSON body (client sees a bare HTTP 504). Previously each step (auth/quota/
+// analyze) had its own independent timeout and recaptcha had none at all —
+// their worst cases could sum past 60s. Using a single deadline and handing
+// analyzeCV whatever is actually left guarantees the total never exceeds the
+// budget regardless of how long the earlier steps took.
+const TOTAL_BUDGET_MS = 50_000;
+const MIN_ANALYZE_BUDGET_MS = 10_000;
 
 export async function handleAnalyze(
   authHeader: string | undefined,
   body: unknown
 ): Promise<HandlerResult> {
+  const requestStart = Date.now();
   const b = (body ?? {}) as {
     jd?: string;
     cvData?: string;
@@ -53,7 +58,14 @@ export async function handleAnalyze(
     if (!recaptchaToken) {
       return { status: 401, body: { error: 'Authentication or reCAPTCHA token required' } };
     }
-    const captcha = await verifyRecaptcha(recaptchaToken);
+    const captcha = await withTimeout(
+      verifyRecaptcha(recaptchaToken),
+      RECAPTCHA_TIMEOUT_MS,
+      'reCAPTCHA verification'
+    ).catch((err) => {
+      console.warn('reCAPTCHA verification failed:', err.message);
+      return { ok: false, status: 503 as const, error: 'reCAPTCHA verification unavailable' };
+    });
     if (!captcha.ok) {
       return { status: captcha.status ?? 403, body: { error: captcha.error } };
     }
@@ -88,8 +100,20 @@ export async function handleAnalyze(
     }
   }
 
+  const remainingBudgetMs = TOTAL_BUDGET_MS - (Date.now() - requestStart);
+  if (remainingBudgetMs < MIN_ANALYZE_BUDGET_MS) {
+    return {
+      status: 504,
+      body: {
+        error:
+          'Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại với JD ngắn hơn hoặc CV đơn giản hơn. (Timeout)',
+        retryable: true,
+      },
+    };
+  }
+
   try {
-    const result = await analyzeCV(jd, cvData, cvMimeType, cvName, language);
+    const result = await analyzeCV(jd, cvData, cvMimeType, cvName, language, remainingBudgetMs);
 
     if (userId) {
       void (async () => {

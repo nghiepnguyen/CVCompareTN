@@ -1,7 +1,6 @@
 import { extractText } from 'unpdf';
 import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
 import { ANALYSIS_RESPONSE_SCHEMA } from './responseSchema.js';
-import { normalizeParsedCV } from '../../src/services/ai/parsedCvNormalize.js';
 import {
   normalizeCategoryScores,
   normalizeDetailedComparison,
@@ -36,7 +35,8 @@ export async function analyzeCV(
   cvData: string,
   cvMimeType: string,
   cvName?: string,
-  language: 'vi' | 'en' = 'vi'
+  language: 'vi' | 'en' = 'vi',
+  timeoutMs = 45_000
 ): Promise<AnalysisResult> {
   const client = getGeminiClient();
 
@@ -51,11 +51,9 @@ export async function analyzeCV(
   const parts: GeminiPart[] = [{ text: finalPrompt }];
 
   // Start the timeout BEFORE PDF extraction so the whole analyzeCV budget is bounded.
-  // 45s covers PDF extraction + Gemini combined; auth (≤4s) + quota (≤5s) + 45s = 54s,
-  // leaving a 6s buffer before Vercel's 60s maxDuration hard-limit kills the function.
-  // fullRewrittenCV is no longer generated here (moved to /api/rewrite-cv), so output
-  // is small enough that 45s is generous rather than risky.
-  const ANALYZE_TIMEOUT_MS = 45_000;
+  // `timeoutMs` is whatever budget the caller has left after auth/quota/recaptcha —
+  // see _server-lib/analyze/handler.ts, which derives it from a single wall-clock
+  // deadline so the total handler time can't exceed Vercel's 60s maxDuration.
   let analyzeTimer: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     analyzeTimer = setTimeout(
@@ -65,7 +63,7 @@ export async function analyzeCV(
             'Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại với JD ngắn hơn hoặc CV đơn giản hơn. (Timeout)'
           )
         ),
-      ANALYZE_TIMEOUT_MS
+      timeoutMs
     );
   });
 
@@ -143,7 +141,8 @@ export async function analyzeCV(
       rewriteSuggestions: normalizeRewriteSuggestions(parsedResult.rewriteSuggestions),
       fullRewrittenCV: '',
       detailedComparison: normalizeDetailedComparison(parsedResult.detailedComparison),
-      parsedCV: normalizeParsedCV(parsedResult.parsedCV),
+      // parsedCV is generated separately via /api/parse-cv in the background — see
+      // _server-lib/ai/parseCvService.ts — to keep this call's output small.
       id: crypto.randomUUID(),
       timestamp: Date.now(),
       cvName: cvName || 'Unnamed CV',
