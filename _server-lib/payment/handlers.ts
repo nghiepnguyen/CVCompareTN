@@ -131,6 +131,24 @@ export async function handlePaymentCreate(
   }
 
   const supabase = getSupabaseAdmin();
+
+  if (planType === 'pro') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('plan, plan_expires_at')
+      .eq('id', user.id)
+      .maybeSingle();
+    const isActiveRecruiter =
+      profile?.plan === 'recruiter' &&
+      (!profile.plan_expires_at || new Date(profile.plan_expires_at) > new Date());
+    if (isActiveRecruiter) {
+      return {
+        status: 409,
+        body: { error: 'Tài khoản đang dùng Recruiter (cao hơn Pro), không thể mua Pro để hạ cấp.' },
+      };
+    }
+  }
+
   const orderCode = generateOrderCode();
   const config = getPlanConfig(planType);
 

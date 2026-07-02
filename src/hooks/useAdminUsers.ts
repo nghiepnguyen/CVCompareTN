@@ -26,7 +26,7 @@ export function useAdminUsers(): AdminUsersState {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, effective_usage_count')
       .order('created_at', { ascending: false })
       .range(from, to);
 

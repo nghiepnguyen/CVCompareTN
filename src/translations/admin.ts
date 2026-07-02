@@ -20,6 +20,66 @@ export const admin = {
     vi: "Kiểm tra Email",
     en: "Email test",
   },
+  adminTabReport: {
+    vi: "Báo cáo",
+    en: "Report",
+  },
+  adminReportFilterToday: {
+    vi: "Hôm nay",
+    en: "Today",
+  },
+  adminReportFilterWeek: {
+    vi: "7 ngày",
+    en: "7 days",
+  },
+  adminReportFilterMonth: {
+    vi: "30 ngày",
+    en: "30 days",
+  },
+  adminReportNewUsers: {
+    vi: "User mới đăng ký",
+    en: "New registrations",
+  },
+  adminReportTotalAnalyses: {
+    vi: "Tổng lượt phân tích",
+    en: "Total analyses",
+  },
+  adminReportSuccessCount: {
+    vi: "Thành công",
+    en: "Successful",
+  },
+  adminReportErrorCount: {
+    vi: "Thất bại",
+    en: "Failed",
+  },
+  adminReportDailyChartTitle: {
+    vi: "Lượt phân tích theo ngày",
+    en: "Analyses per day",
+  },
+  adminReportTopUsersTitle: {
+    vi: "Người dùng phân tích nhiều nhất",
+    en: "Most active users",
+  },
+  adminReportColRank: {
+    vi: "#",
+    en: "#",
+  },
+  adminReportColUser: {
+    vi: "Người dùng",
+    en: "User",
+  },
+  adminReportColCount: {
+    vi: "Số lượt",
+    en: "Analyses",
+  },
+  adminReportEmptyState: {
+    vi: "Chưa có dữ liệu phân tích trong khoảng thời gian này.",
+    en: "No analysis data in this time range yet.",
+  },
+  adminReportLoadError: {
+    vi: "Không tải được báo cáo: {message}",
+    en: "Could not load report: {message}",
+  },
   adminNewProfilesTitle: {
     vi: "Phát hiện {count} hồ sơ mới",
     en: "{count} new profile(s) detected",
@@ -115,6 +175,10 @@ export const admin = {
   adminPlanChangeError: {
     vi: "Không cập nhật được gói: {message}",
     en: "Could not update plan: {message}",
+  },
+  adminPlanRecruiterNoDowngrade: {
+    vi: "User đang dùng Recruiter (cao hơn Pro) — không thể hạ xuống Pro. Muốn đổi, hãy chuyển về Free trước.",
+    en: "User is on Recruiter (higher than Pro) — cannot downgrade to Pro. To change, switch to Free first.",
   },
   adminColAnalytics: {
     vi: "Phân tích / tháng",

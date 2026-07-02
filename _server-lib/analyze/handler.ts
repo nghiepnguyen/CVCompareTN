@@ -5,6 +5,21 @@ import { withTimeout } from '../withTimeout.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
+// Fire-and-forget log of a completed analysis attempt, for the Admin > Report tab.
+function logAnalysisAttempt(userId: string | null, status: 'success' | 'error', errorMessage?: string) {
+  void (async () => {
+    try {
+      await getSupabaseAdmin().from('analysis_log').insert({
+        user_id: userId,
+        status,
+        error_message: errorMessage,
+      });
+    } catch (err) {
+      console.error('logAnalysisAttempt failed:', err);
+    }
+  })();
+}
+
 // Timeouts for Supabase operations — keep them short to preserve budget for AI analysis.
 const AUTH_TIMEOUT_MS = 4_000;
 const QUOTA_CHECK_TIMEOUT_MS = 5_000;
@@ -124,6 +139,7 @@ export async function handleAnalyze(
         }
       })();
     }
+    logAnalysisAttempt(userId, 'success');
 
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (analysisError) {
@@ -131,6 +147,7 @@ export async function handleAnalyze(
     const message =
       analysisError instanceof Error ? analysisError.message : 'Analysis failed';
     const isTimeout = message.includes('(Timeout)');
+    logAnalysisAttempt(userId, 'error', message);
     return {
       status: isTimeout ? 504 : 500,
       body: {

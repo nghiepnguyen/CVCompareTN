@@ -14,6 +14,8 @@ export interface UserProfile {
   isNew: boolean;
   hasPermission: boolean;
   usageCount: number;
+  /** usage_count projected through the pending lazy monthly rollover, if any (see effective_usage_count RPC). */
+  effectiveUsageCount: number;
   /** Stored override when monthlyAnalyticsLimitCustom; NULL = unlimited */
   monthlyAnalyticsLimit: number | null;
   /** false = inherit app_settings default_monthly_analytics_limit */
@@ -52,6 +54,10 @@ export function mapProfile(data: Record<string, unknown>): UserProfile {
     isNew: Boolean(data['is_new']),
     hasPermission: Boolean(data['has_permission']),
     usageCount: (data['usage_count'] as number | undefined) || 0,
+    effectiveUsageCount:
+      (data['effective_usage_count'] as number | undefined) ??
+      (data['usage_count'] as number | undefined) ??
+      0,
     monthlyAnalyticsLimit:
       data['monthly_analytics_limit'] === null || data['monthly_analytics_limit'] === undefined
         ? null

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Mail, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, Send, AlertCircle, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown, Briefcase } from 'lucide-react';
+import { Users, Mail, BarChart3, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, Send, AlertCircle, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown, Briefcase } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -27,6 +27,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { useAdminUsers } from '../../hooks/useAdminUsers';
+import { AdminReportTab } from './AdminReportTab';
 
 export function AdminView() {
   const { user, userProfile } = useAuth();
@@ -36,7 +37,7 @@ export function AdminView() {
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
   const newUsersCount = allUsers.filter(u => u.isNew && u.role !== 'admin').length;
   
-  const [adminSubTab, setAdminSubTab] = useState<'users' | 'email'>('users');
+  const [adminSubTab, setAdminSubTab] = useState<'users' | 'report' | 'email'>('users');
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [planFilter, setPlanFilter] = useState<'all' | 'free' | 'pro' | 'recruiter'>('all');
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
@@ -106,7 +107,7 @@ export function AdminView() {
     const effective = resolveEffectiveMonthlyAnalyticsLimit(u, globalDefaultLimit);
     const limitLabel = effective === null ? '∞' : String(effective);
     return formatLabel(t.adminAnalyticsUsedOfLimit, {
-      used: String(u.usageCount),
+      used: String(u.effectiveUsageCount),
       limit: limitLabel,
     });
   };
@@ -264,7 +265,17 @@ export function AdminView() {
             <Users className="w-3.5 h-3.5" />
             {t.adminTabUsers}
           </button>
-          <button 
+          <button
+            onClick={() => setAdminSubTab('report')}
+            className={cn(
+              "px-5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 uppercase tracking-wider",
+              adminSubTab === 'report' ? "bg-surface text-accent shadow-sm border border-border" : "text-text-muted hover:text-text-main"
+            )}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            {t.adminTabReport}
+          </button>
+          <button
             onClick={() => setAdminSubTab('email')}
             className={cn(
               "px-5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 uppercase tracking-wider",
@@ -692,6 +703,8 @@ export function AdminView() {
               </div>
             )}
           </div>
+      ) : adminSubTab === 'report' ? (
+        <AdminReportTab />
       ) : (
         <div className="max-w-xl mx-auto py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="bg-surface rounded-3xl border border-border p-10 text-center space-y-6">
@@ -785,6 +798,9 @@ export function AdminView() {
               {/* Plan Section */}
               <div className="mb-5">
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-text-muted mb-2">Gói dịch vụ</p>
+                {getDisplayEffectivePlan(planModal.user) === 'recruiter' && (
+                  <p className="text-[10px] font-bold text-warning mb-2">{t.adminPlanRecruiterNoDowngrade}</p>
+                )}
                 <div className="space-y-1.5">
                   {([
                     { value: 'free', label: t.adminPlanGrantFree },
@@ -792,7 +808,13 @@ export function AdminView() {
                     { value: 'pro_90', label: t.adminPlanGrantPro90 },
                     { value: 'pro_365', label: t.adminPlanGrantPro365 },
                     { value: 'recruiter_30', label: t.adminPlanGrantRecruiter30 },
-                  ] as const).map((opt) => (
+                  ] as const)
+                    .filter(
+                      (opt) =>
+                        !opt.value.startsWith('pro_') ||
+                        getDisplayEffectivePlan(planModal.user) !== 'recruiter'
+                    )
+                    .map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
