@@ -135,19 +135,6 @@ export async function saveToHistory(results: AnalysisResult | AnalysisResult[], 
   }
 }
 
-export async function incrementUsageCount(uid: string): Promise<void> {
-  try {
-    // Note: We use rpc for atomic increment in Supabase
-    await supabase.rpc('increment_usage_count', { user_id: uid });
-  } catch (error) {
-    // Fallback if rpc is not set up
-    const { data } = await supabase.from('profiles').select('usage_count').eq('id', uid).single();
-    if (data) {
-      await supabase.from('profiles').update({ usage_count: (data.usage_count || 0) + 1 }).eq('id', uid);
-    }
-  }
-}
-
 export async function getUserHistory(uid: string, plan: UserPlan = 'free'): Promise<AnalysisResult[]> {
   try {
     const historyDays = HISTORY_DAYS_BY_PLAN[plan] ?? 7;
