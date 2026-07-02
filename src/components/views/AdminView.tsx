@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Mail, BarChart3, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, Send, AlertCircle, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown, Briefcase } from 'lucide-react';
+import { Users, BarChart3, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown, Briefcase } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -25,27 +25,21 @@ import {
   type UserProfile,
 } from '../../services/userService';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { useAdminUsers } from '../../hooks/useAdminUsers';
 import { AdminReportTab } from './AdminReportTab';
 
 export function AdminView() {
   const { user, userProfile } = useAuth();
   const { t, reportLanguage } = useUI();
-  const { executeRecaptcha } = useGoogleReCaptcha();
   const { users: allUsers, isLoading: isLoadingUsers, hasMore, loadMore } = useAdminUsers();
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
   const newUsersCount = allUsers.filter(u => u.isNew && u.role !== 'admin').length;
-  
-  const [adminSubTab, setAdminSubTab] = useState<'users' | 'report' | 'email'>('users');
+
+  const [adminSubTab, setAdminSubTab] = useState<'users' | 'report'>('users');
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [planFilter, setPlanFilter] = useState<'all' | 'free' | 'pro' | 'recruiter'>('all');
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [testEmailRecipient, setTestEmailRecipient] = useState('');
-  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
-  const [testEmailStatus, setTestEmailStatus] = useState<{success: boolean, message: string} | null>(null);
-  const [testName, setTestName] = useState('');
   const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
   const [savingLimitUserId, setSavingLimitUserId] = useState<string | null>(null);
   const [savingPlanUserId, setSavingPlanUserId] = useState<string | null>(null);
@@ -196,51 +190,6 @@ export function AdminView() {
     }
   };
 
-  const handleSendTestEmail = async () => {
-    if (!testEmailRecipient || !testEmailRecipient.includes('@')) {
-      setTestEmailStatus({ success: false, message: t.adminInvalidEmail });
-      return;
-    }
-    
-    setIsSendingTestEmail(true);
-    setTestEmailStatus(null);
-    try {
-      let recaptchaToken: string | undefined;
-      if (executeRecaptcha) {
-        try {
-          recaptchaToken = await executeRecaptcha('welcome_email');
-        } catch (e) {
-          console.error('reCAPTCHA admin test error:', e);
-        }
-      }
-      const res = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'welcome',
-          token: recaptchaToken,
-          userEmail: testEmailRecipient,
-          userName: testName || t.adminGuest,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Unknown error');
-      setTestEmailStatus({
-        success: true,
-        message: formatLabel(t.adminEmailSent, { id: data.success ? 'OK' : 'FAIL' }),
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown';
-      console.error('Test email send failed:', err);
-      setTestEmailStatus({
-        success: false,
-        message: formatLabel(t.adminEmailError, { message }),
-      });
-    } finally {
-      setIsSendingTestEmail(false);
-    }
-  };
-
   return (
     <div className="space-y-8 pb-20">
       {/* Header Section */}
@@ -274,16 +223,6 @@ export function AdminView() {
           >
             <BarChart3 className="w-3.5 h-3.5" />
             {t.adminTabReport}
-          </button>
-          <button
-            onClick={() => setAdminSubTab('email')}
-            className={cn(
-              "px-5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 uppercase tracking-wider",
-              adminSubTab === 'email' ? "bg-surface text-accent shadow-sm border border-border" : "text-text-muted hover:text-text-main"
-            )}
-          >
-            <Mail className="w-3.5 h-3.5" />
-            {t.adminTabEmail}
           </button>
         </div>
       </div>
@@ -703,73 +642,8 @@ export function AdminView() {
               </div>
             )}
           </div>
-      ) : adminSubTab === 'report' ? (
-        <AdminReportTab />
       ) : (
-        <div className="max-w-xl mx-auto py-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-surface rounded-3xl border border-border p-10 text-center space-y-6">
-            <div className="w-20 h-20 bg-accent-light rounded-2xl flex items-center justify-center mx-auto border-2 border-accent/10 border-dashed">
-              <Mail className="w-10 h-10 text-accent" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-black text-text-main tracking-tight">{t.adminMailTitle}</h2>
-              <p className="text-text-muted text-sm">{t.adminMailDesc}</p>
-            </div>
-
-            <div className="space-y-4 text-left">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-text-light uppercase tracking-widest ml-1">{t.adminRecipientLabel}</label>
-                <input 
-                  type="email"
-                  placeholder={t.emailPlaceholder}
-                  value={testEmailRecipient}
-                  onChange={(e) => setTestEmailRecipient(e.target.value)}
-                  className="w-full px-4 py-3 bg-surface-secondary border border-border rounded-xl focus:ring-2 focus:ring-accent focus:bg-surface transition-all outline-none font-medium text-text-main"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-text-light uppercase tracking-widest ml-1">{t.adminDisplayNameLabel}</label>
-                <input 
-                  type="text" 
-                  placeholder={t.adminDisplayNamePlaceholder}
-                  value={testName}
-                  onChange={(e) => setTestName(e.target.value)}
-                  className="w-full px-4 py-3 bg-surface-secondary border border-border rounded-xl focus:ring-2 focus:ring-accent focus:bg-surface transition-all outline-none font-medium text-text-main"
-                />
-              </div>
-
-              {testEmailStatus && (
-                <div className={cn(
-                  "p-4 rounded-xl border flex items-center gap-3",
-                  testEmailStatus.success ? "bg-success-light border-success/10 text-success" : "bg-error-light border-error/10 text-error"
-                )}>
-                  {testEmailStatus.success ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                  <span className="text-xs font-bold truncate">{testEmailStatus.message}</span>
-                </div>
-              )}
-
-              <button 
-                onClick={handleSendTestEmail}
-                disabled={isSendingTestEmail}
-                className="w-full py-4 bg-accent text-white font-black rounded-xl hover:bg-accent-hover transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-lg shadow-accent-light cursor-pointer group"
-              >
-                {isSendingTestEmail ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <Send className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                    {t.adminSendTestEmail}
-                  </>
-                )}
-              </button>
-            </div>
-            
-            <div className="pt-6 border-t border-border flex items-center gap-2 justify-center text-[10px] text-text-light font-bold uppercase tracking-widest">
-              <AlertCircle className="w-3 h-3" />
-              {t.adminTrialNote}
-            </div>
-          </div>
-        </div>
+        <AdminReportTab />
       )}
 
       {/* Plan Change Modal */}

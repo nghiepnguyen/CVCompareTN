@@ -32,12 +32,7 @@ export interface UiLabels {
   adminFilterPlanFree: string;
   adminFilterPlanPro: string;
   adminFilterPlanRecruiter: string;
-  adminDisplayNameLabel: string;
-  adminDisplayNamePlaceholder: string;
-  adminEmailError: string;
-  adminEmailSent: string;
   adminGuest: string;
-  adminInvalidEmail: string;
   adminInvalidAnalyticsLimit: string;
   adminGlobalAnalyticsTitle: string;
   adminGlobalAnalyticsDesc: string;
@@ -47,8 +42,6 @@ export interface UiLabels {
   adminAnalyticsLimitPlaceholderInherit: string;
   adminResetToGlobalLimit: string;
   adminLock: string;
-  adminMailDesc: string;
-  adminMailTitle: string;
   adminMarkReadError: string;
   adminPlanChangeError: string;
   adminPlanRecruiterNoDowngrade: string;
@@ -63,13 +56,10 @@ export interface UiLabels {
   adminNewProfilesTitle: string;
   adminPageDesc: string;
   adminPageTitle: string;
-  adminRecipientLabel: string;
   adminSearchPlaceholder: string;
-  adminSendTestEmail: string;
   adminStatusActive: string;
   adminStatusLocked: string;
   adminSystemControl: string;
-  adminTabEmail: string;
   adminTabUsers: string;
   adminTabReport: string;
   adminReportFilterToday: string;
@@ -87,7 +77,6 @@ export interface UiLabels {
   adminReportEmptyState: string;
   adminReportLoadError: string;
   adminToggleRole: string;
-  adminTrialNote: string;
   adminUnlock: string;
   adminUsageAnalytic: string;
 
