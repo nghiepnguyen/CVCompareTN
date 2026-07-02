@@ -25,7 +25,7 @@ Frontend của dự án **cvFit** được thiết kế để xử lý việc so
 -   **`UIContext.tsx`**: Tab, ngôn ngữ, modals, nhãn UI. Hỗ trợ tab `'recruiter'`.
 -   **`AnalysisContext.tsx`**: Shim re-export — import từ `./context/analysis` (tương thích code cũ).
 -   **`src/context/analysis/`** (hai provider + composer):
-    -   `AnalysisRunContext.tsx` — JD/CV, `handleAnalyze`, kết quả, GA4 `analyze_cv` / `analysis_success`, trích JD URL. Đã refactor (**2026-05**): logic `cleanText`/`processFile` trích xuất ra `src/hooks/useFileProcessor.ts`, `createProgressSimulator` trích xuất ra `src/hooks/useProgressSimulator.ts`.
+    -   `AnalysisRunContext.tsx` — JD/CV, `handleAnalyze`, kết quả, GA4 `analyze_cv` / `analysis_success`, trích JD URL. Đã refactor (**2026-05**): logic `cleanText`/`processFile` trích xuất ra `src/hooks/useFileProcessor.ts`, `createProgressSimulator` trích xuất ra `src/hooks/useProgressSimulator.ts`. Sau `handleAnalyze` (2026-07): trigger `generateFullCV()` và `generateParsedCVForResult()` trong nền (không chặn UI) để fill `fullRewrittenCV`/`parsedCV`; trạng thái loading expose qua `fullCVGeneratingIds` / `parsedCVGeneratingIds` (Set resultId).
     -   `SavedJdContext.tsx` — kho JD đã lưu, `confirmSaveJD(title, jdContent)`, GA4 `jd_create` (`manual`). Tái dụng trong `CreateCampaignModal` cho Recruiter.
     -   `SavedCvContext.tsx` — kho CV đã lưu (Free: 1 CV, Pro: 10 CV), `saveCV(file)`, `loadCVFromSaved()`, `handleDeleteSavedCV()`, GA4 `cv_save` / `cv_delete` / `cv_load_from_saved`.
     -   `AnalysisProvider.tsx` — bọc `AnalysisRunProvider` + `SavedJdProvider` + `SavedCvProvider`.
@@ -93,7 +93,7 @@ CI/CD: **GitHub Actions** (`.github/workflows/ci.yml`) — trigger `push`/`PR` t
 -   **`src/components/layout/CookieConsentBanner.tsx`**: Banner cookie trước khi load GA4.
 -   **`src/components/shared/UpgradePrompt.tsx`**: Component tái sử dụng cho các feature gate (Pro / Recruiter).
 -   **`src/services/`**:
-    -   **`ai/`**: Gemini (`analysisService`, `extractionService`, …), chuẩn hoá payload (`resultPayloadNormalize.ts`, `parsedCvNormalize.ts`), **`fullRewrittenCvMarkdown.ts`**.
+    -   **`ai/`**: Gemini (`analysisService`, `extractionService`, …), chuẩn hoá payload (`resultPayloadNormalize.ts`, `parsedCvNormalize.ts`), **`fullRewrittenCvMarkdown.ts`**. `analysisService.ts` export 3 hàm gọi backend: `analyzeCV()` (`/api/analyze`, chính), `rewriteFullCV()` (`/api/rewrite-cv`, nền → `fullRewrittenCV`), `parseCV()` (`/api/parse-cv`, nền → `parsedCV`) — xem [6_workflow.md](../docs/6_workflow.md#sinh-fullrewrittencv-và-parsedcv-trong-nền-2026-07).
      -   **CV tối ưu (UI):** `CvMarkdownBody.tsx` + `.cv-markdown-specimen` trong `index.css`. Hỗ trợ **Dual-Mode Tab** (Premium View / Free Preview) với layout Black+Gold Liquid Glass cho paid user — xem chi tiết bên dưới.
     -   **Supabase:** `userService`, `historyService`, `cvService` (bucket Storage `cv-files` — upload/download/delete CV cho kho CV).
     -   **Payment:** `paymentService.ts` — `createProCheckout(planType?)` gọi `POST /api/payment/create` với `planType` ('pro' | 'recruiter'), trả về `checkoutUrl` từ PayOS. `createRecruiterCheckout()` là shorthand.

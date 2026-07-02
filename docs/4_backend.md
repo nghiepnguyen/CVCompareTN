@@ -26,6 +26,9 @@ Vercel handler  → _server-lib/module/handler.ts → _server-lib/services
 | Email | `_server-lib/email/handlers.ts` | `handleSendFeedback()`, `handleSendWelcomeEmail()` |
 | Payment | `_server-lib/payment/handlers.ts` | `handlePaymentCreate/Webhook/Confirm()` |
 | reCAPTCHA | `_server-lib/recaptcha.ts` | `verifyRecaptcha(token, threshold?)` — shared utility |
+| CV rewrite (nền) | `_server-lib/rewriteCv/handler.ts` | `handleRewriteCv()` — auth, reCAPTCHA, wall-clock budget, gọi `_server-lib/ai/rewriteService.ts` |
+| CV parse (nền) | `_server-lib/parseCv/handler.ts` | `handleParseCv()` — auth, reCAPTCHA, wall-clock budget, gọi `_server-lib/ai/parseCvService.ts` |
+| Timeout | `_server-lib/withTimeout.ts` | `withTimeout(promise, ms, label)` — race một promise với `setTimeout`, dùng bởi analyze/rewriteCv/parseCv handler để bound từng bước (auth, reCAPTCHA, quota) |
 
 ## Các chức năng chính (Routes)
 
@@ -44,20 +47,26 @@ Vercel handler  → _server-lib/module/handler.ts → _server-lib/services
 
 ### 3. Phân tích CV với Gemini AI
 
--   **Express:** **`POST /api/analyze`** (`server/routes/analyze.ts`).
--   **Vercel:** **`POST /api/analyze`** (`api/analyze.ts`) — timeout 60s.
--   **Logic:** `_server-lib/ai/analysisService.ts` (dùng `_server-lib/ai/geminiClient.ts` với `process.env.GEMINI_API_KEY`).
+Gemini được gọi qua **3 endpoint** thay vì một call gộp hết (từ 2026-07) — Vercel Hobby plan khoá cứng `maxDuration: 60s` (không nới được), nên một prompt yêu cầu Gemini trả quá nhiều field trong một lần dễ vượt trần và bị Vercel hard-kill giữa chừng (504 không có JSON body, không phải lỗi app tự trả). Chi tiết đầy đủ từng endpoint: [5_api.md](5_api.md).
 
-**Flow server-side:**
-1. Verify Bearer token → lấy `userId` (optional — anonymous vẫn được phép)
-2. reCAPTCHA verify (bỏ qua nếu authenticated hoặc localhost)
-3. `check_analytics_quota` RPC (nếu authenticated)
-4. Gọi Gemini API → trả `AnalysisResult` JSON
+-   **`POST /api/analyze`** (chính, đồng bộ) — Express: `server/routes/analyze.ts`; Vercel: `api/analyze.ts` (60s timeout). Shared handler: `_server-lib/analyze/handler.ts` → `_server-lib/ai/analysisService.ts` (dùng `_server-lib/ai/geminiClient.ts` với `process.env.GEMINI_API_KEY`). Trả điểm số/so sánh/gợi ý viết lại — **không** trả `fullRewrittenCV`/`parsedCV` đầy đủ (luôn `''`/`undefined`).
+-   **`POST /api/rewrite-cv`** (nền, tạo `fullRewrittenCV`) — Express: `server/routes/rewriteCv.ts`; Vercel: `api/rewrite-cv.ts` (60s timeout). Shared handler: `_server-lib/rewriteCv/handler.ts` → `_server-lib/ai/rewriteService.ts`.
+-   **`POST /api/parse-cv`** (nền, tạo `parsedCV`) — Express: `server/routes/parseCv.ts`; Vercel: `api/parse-cv.ts` (60s timeout). Shared handler: `_server-lib/parseCv/handler.ts` → `_server-lib/ai/parseCvService.ts`.
+
+**Flow server-side (`/api/analyze`):**
+
+1. Verify Bearer token → lấy `userId` (optional — anonymous vẫn được phép), timeout 4s
+2. reCAPTCHA verify nếu anonymous, timeout 5s
+3. `check_analytics_quota` RPC (nếu authenticated), timeout 5s — lỗi/timeout thì fail-open (coi như allowed)
+4. Gọi Gemini API → trả `AnalysisResult` JSON (không có `fullRewrittenCV`/`parsedCV` đầy đủ)
 5. `increment_usage_count` RPC (fire-and-forget)
+6. **Frontend** ngay sau khi có kết quả, gọi song song `/api/rewrite-cv` và `/api/parse-cv` trong nền (`AnalysisRunContext.generateFullCV` / `generateParsedCVForResult`) để fill `fullRewrittenCV` và `parsedCV`; `FullCVTab`/`ParsedCVTab` hiện spinner cho tới khi xong.
 
-**Lý do chuyển Gemini lên server:** `VITE_GEMINI_API_KEY` trước đây bị bundle vào client JS — bất kỳ ai mở DevTools đều lấy được key. Sau SEC-4, chỉ `process.env.GEMINI_API_KEY` trên server được dùng; frontend chỉ gọi `/api/analyze`.
+**Timeout — mô hình wall-clock budget:** cả 3 endpoint tính một **deadline duy nhất 50s** kể từ đầu request (thay vì cộng timeout độc lập từng bước, vốn dễ vượt trần nếu mỗi bước chạy gần mức max) — ngân sách còn lại sau auth/reCAPTCHA/quota được truyền thẳng cho lệnh gọi Gemini. Nếu ngân sách còn lại quá thấp (<10s) trước khi gọi Gemini, server trả `504` JSON hợp lệ ngay (`retryable: true`) thay vì cố gọi và bị Vercel giết giữa chừng không JSON body. Utility dùng chung: `_server-lib/withTimeout.ts`.
 
-**PDF handling:** Frontend dùng `unpdf` (client-side) để extract text từ PDF trước khi gửi — tránh vượt giới hạn body 4.5MB của Vercel. Image (≤ 2MB) vẫn gửi dạng base64 để Gemini xử lý multimodal.
+**Lý do chuyển Gemini lên server:** `VITE_GEMINI_API_KEY` trước đây bị bundle vào client JS — bất kỳ ai mở DevTools đều lấy được key. Sau SEC-4, chỉ `process.env.GEMINI_API_KEY` trên server được dùng; frontend chỉ gọi `/api/analyze` (+ `/api/rewrite-cv`, `/api/parse-cv`).
+
+**PDF handling:** Server extract text bằng `unpdf` trước khi gửi cho Gemini (nếu extract được ≥100 ký tự) — chỉ fallback gửi base64 PDF (`inlineData`, multimodal OCR) khi extract thất bại hoặc PDF là ảnh scan. Image (≤ 2MB) vẫn gửi dạng base64 để Gemini xử lý multimodal.
 
 ### 4. Xác thực reCAPTCHA
 

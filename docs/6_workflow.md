@@ -41,6 +41,15 @@ graph TD
 3.  **Export:** In (`PrintView` / `window.print()`) xuất CV Markdown đã tối ưu; có sao chép Markdown / plain text từ tab Optimization.
 4.  **Hiển thị CV tối ưu:** `fullRewrittenCV` (Markdown GFM từ Gemini) được chuẩn hoá bởi `fullRewrittenCvMarkdown.ts` và render qua `CvMarkdownBody.tsx` (sanitize + typography `.cv-markdown-specimen`).
 
+### Sinh `fullRewrittenCV` và `parsedCV` trong nền (2026-07)
+
+`/api/analyze` không còn trả `fullRewrittenCV` (Markdown CV viết lại) hay `parsedCV` (CV đã trích xuất/chuẩn hoá) đầy đủ — cả hai được generate **sau, song song, trong nền**, ngay sau khi có `AnalysisResult` chính, để giữ `/api/analyze` đủ nhẹ chạy trong ngân sách 50s (xem [5_api.md](5_api.md)):
+
+- `AnalysisRunContext.generateFullCV()` → `POST /api/rewrite-cv` → fill `fullRewrittenCV`. `FullCVTab` hiện spinner ("Đang tạo CV tối ưu hoá...") cho tới khi xong.
+- `AnalysisRunContext.generateParsedCVForResult()` → `POST /api/parse-cv` → fill `parsedCV`. `ParsedCVTab` hiện spinner ("Đang trích xuất dữ liệu CV...") cho tới khi xong.
+
+Cả hai chạy `void` (không chặn UI, không chặn nhau), trạng thái loading track riêng qua `fullCVGeneratingIds` / `parsedCVGeneratingIds` (Set các `resultId` đang generate). Kết quả phân tích (điểm số, gợi ý, so sánh) hiển thị ngay; hai tab Optimization và Parsed CV fill dữ liệu sau ~10-30s.
+
 ## 4. Luồng thanh toán Pro (PayOS Flow)
 
 ```mermaid
