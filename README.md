@@ -22,7 +22,7 @@
 
 ### Database & Auth
 - **BaaS:** Supabase (PostgreSQL, Authentication)
-- **AI Integration:** Google Gemini 3.0 Flash (`@google/genai`) - Modular Service in `src/services/ai/`.
+- **AI Integration:** Google Gemini 3 Flash Preview (`@google/genai`) - Modular Service in `src/services/ai/`.
 
 ## 2. Folder Structure
 

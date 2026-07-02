@@ -5,7 +5,7 @@
 ## Mục tiêu chính
 
 1.  **ATS Optimization:** Chấm điểm CV theo từ khóa, cấu trúc, định dạng ATS.
-2.  **AI-Powered Analysis:** Gemini 3.5 Flash phân tích CV + JD như chuyên gia tuyển dụng.
+2.  **AI-Powered Analysis:** Gemini 3 Flash Preview phân tích CV + JD như chuyên gia tuyển dụng.
 3.  **Multilingual:** Tiếng Việt + tiếng Anh.
 4.  **Premium UX:** Industrial Utilitarian design, Motion animations, mobile-first.
 5.  **SEO:** Pre-hydration `<script>` trong `index.html` (title, OG, hreflang vi/en/x-default, Schema.org); `AppContent.tsx` đồng bộ sau SPA navigation; sitemap 14 URL; legacy paths redirect 301. Chi tiết: [3_frontend.md](3_frontend.md).

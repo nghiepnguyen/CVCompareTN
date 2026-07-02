@@ -1,5 +1,5 @@
 import { extractText } from 'unpdf';
-import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
+import { getGeminiClient, GEMINI_MODEL, GEMINI_THINKING_BUDGET } from './geminiClient.js';
 import { normalizeParsedCV } from '../../src/services/ai/parsedCvNormalize.js';
 import { buildParseCvPrompt } from '../../src/services/ai/prompts.js';
 import type { ParsedCV } from '../../src/services/ai/types.js';
@@ -173,6 +173,7 @@ export async function generateParsedCV(
         responseMimeType: 'application/json',
         responseSchema: PARSED_CV_SCHEMA,
         maxOutputTokens: 16384,
+        thinkingConfig: { thinkingBudget: GEMINI_THINKING_BUDGET },
       },
     });
 

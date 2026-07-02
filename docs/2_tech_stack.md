@@ -26,7 +26,7 @@
 
 ## AI
 
--   **Engine:** Google Gemini 3.5 Flash (`@google/genai`) — server-side only (`GEMINI_API_KEY`).
+-   **Engine:** Google Gemini 3 Flash Preview (`@google/genai`) — server-side only (`GEMINI_API_KEY`).
 -   **Service:** `src/services/ai/` — `analysisService`, `extractionService`, normalizers, `fullRewrittenCvMarkdown.ts`.
 
 ## Cloud Services

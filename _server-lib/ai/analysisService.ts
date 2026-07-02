@@ -1,5 +1,5 @@
 import { extractText } from 'unpdf';
-import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
+import { getGeminiClient, GEMINI_MODEL, GEMINI_THINKING_BUDGET } from './geminiClient.js';
 import { ANALYSIS_RESPONSE_SCHEMA } from './responseSchema.js';
 import {
   normalizeCategoryScores,
@@ -111,6 +111,7 @@ export async function analyzeCV(
         responseMimeType: 'application/json',
         responseSchema: ANALYSIS_RESPONSE_SCHEMA,
         maxOutputTokens: 16384,
+        thinkingConfig: { thinkingBudget: GEMINI_THINKING_BUDGET },
       },
     });
 

@@ -1,5 +1,5 @@
 import { extractText } from 'unpdf';
-import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
+import { getGeminiClient, GEMINI_MODEL, GEMINI_THINKING_BUDGET } from './geminiClient.js';
 
 const REWRITE_TIMEOUT_MS = 50_000;
 
@@ -114,6 +114,7 @@ export async function generateFullRewrite(
         responseMimeType: 'application/json',
         responseSchema: REWRITE_SCHEMA,
         maxOutputTokens: 16384,
+        thinkingConfig: { thinkingBudget: GEMINI_THINKING_BUDGET },
       },
     });
 
