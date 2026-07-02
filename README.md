@@ -67,7 +67,7 @@ API routing (Vercel vs Express vs Edge): [`docs/9_api_routes.md`](docs/9_api_rou
 
 ### Database (Supabase)
 - Create a Supabase project.
-- Apply SQL migrations from `supabase/migrations/` in order (recommended: `supabase link` then `supabase db push`, or SQL Editor). Includes: core schema (`profiles`, `history`, `saved_jds`), monthly analysis quota (`check_analytics_quota`, `increment_usage_count`), and runtime default limit table **`app_settings`** (default **20** analyses/user/month — change via Admin or SQL without redeploying Vercel). See [`docs/7_deployment.md`](docs/7_deployment.md) and [`docs/8_analytics.md`](docs/8_analytics.md).
+- Apply SQL migrations from `supabase/migrations/` in order (recommended: `supabase link` then `supabase db push`, or SQL Editor). Includes: core schema (`profiles`, `history`, `saved_jds`), monthly analysis quota (`check_analytics_quota`, `increment_usage_count`), and runtime default limit table **`app_settings`** (default **10** analyses/user/month — change via Admin or SQL without redeploying Vercel). See [`docs/7_deployment.md`](docs/7_deployment.md) and [`docs/8_analytics.md`](docs/8_analytics.md).
 - If you already have `history` without parsed CV storage, run `supabase/migrations/20260516120100_history_add_parsed_cv.sql`.
 - Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 

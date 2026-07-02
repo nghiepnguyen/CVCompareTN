@@ -124,6 +124,7 @@ Các bảng chính trong PostgreSQL (Supabase):
 | `payments` | Bản ghi thanh toán PayOS |
 | `app_settings` | Cấu hình runtime (default_monthly_analytics_limit...) |
 | `admin_audit_log` | **Audit trail bất biến** cho mọi admin action (thay đổi role, plan, permission, quota, xóa user). Ghi bởi `logAdminAction()` trong `userService.ts` (fire-and-forget). RLS: admin SELECT; authenticated INSERT chính mình. |
+| `analysis_log` | Log mỗi lượt gọi `/api/analyze` (thành công/thất bại), dùng cho tab **Report** trong Admin. Ghi bởi `logAnalysisAttempt()` trong `_server-lib/analyze/handler.ts` (fire-and-forget, service role). RLS: chỉ admin SELECT; không có INSERT policy cho `authenticated`. Xem [8_analytics.md](8_analytics.md#admin-report-tab-thống-kê-lượt-phân-tích-theo-ngày). |
 
 Storage bucket: `cv-files` — dùng cho upload CV (kho CV) và lưu file phân tích.
 

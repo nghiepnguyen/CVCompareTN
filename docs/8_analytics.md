@@ -154,6 +154,8 @@ Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_
 
 `usage_month` lưu key chu kỳ dạng `YYYY-MM-DD` (ngày bắt đầu chu kỳ hiện tại). Hàm `current_quota_cycle(reset_day)` trả về key này.
 
+**Reset hoàn toàn lazy — không có cron.** `sync_profile_usage_month` chỉ chạy khi `check_analytics_quota`/`increment_usage_count` được gọi (tức user tự phân tích hoặc mở Profile). Một user chưa phân tích gì kể từ khi qua chu kỳ mới vẫn giữ `usage_count` **cũ** trong DB cho tới lần gọi tiếp theo. **Hệ quả:** đọc thẳng cột `profiles.usage_count` (như Admin Users table từng làm) có thể ra số cũ trong khi Profile page (luôn gọi RPC) đã đúng. Từ `20260703050000`, Admin đọc qua computed column `effective_usage_count` (xem bảng Hàm SQL) để luôn khớp với Profile mà không cần ghi DB chỉ vì admin mở trang xem.
+
 ### Gói Free vs Pro vs Recruiter
 
 | | Free | Pro (PayOS) | Recruiter (PayOS) |
@@ -170,6 +172,7 @@ Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_
 - UI: `/upgrade`, `/payment/success`, `/payment/cancel`.
 - **Plan expiry:** Khi `plan_expires_at <= now()`, `sync_profile_usage_month` tự động downgrade về `free`, reset `usage_count = 0`. Không cần cron job.
 - **Perpetual plan (`plan_expires_at IS NULL`):** Admin có thể grant plan không hạn (NULL expiry). Khi user tự gia hạn qua PayOS, `plan_expires_at` vẫn giữ NULL (không bị convert thành finite). Nếu cần revoke, admin downgrade về free.
+- **Chặn downgrade recruiter → pro** (từ `20260703060000`, xem [5_api.md](5_api.md)): Recruiter (500/tháng) là tier cao hơn Pro (100/tháng); user/admin không thể "hạ" một recruiter đang active xuống pro. Chặn ở 3 lớp: (1) `handlePaymentCreate` trả 409 trước khi tạo link PayOS — không lấy tiền; (2) RPC `activate_pro_plan`/`admin_set_user_plan` raise `cannot_downgrade_recruiter_to_pro`; (3) modal "Chỉnh sửa" trong `AdminView` ẩn luôn option Pro khi user hiện tại là recruiter active. Muốn đổi, phải downgrade về `free` trước. Downgrade recruiter→free không bị ảnh hưởng.
 - **Frontend refresh:** `AuthContext` tự refresh `effectivePlan` mỗi 5 phút và khi tab trở lại foreground (`visibilitychange`) — plan hết hạn mid-session được phát hiện mà không cần reload trang.
 - **Pro/Recruiter renewal UI (`UpgradeView`):** User đang Pro thấy nút **"Gia hạn thêm 30 ngày"** (Pro) hoặc **"Gia hạn thêm 30 ngày"** (Recruiter) thay vì badge "Gói hiện tại". Banner thông báo ở đầu trang giải thích: gia hạn sẽ cộng 30 ngày vào hạn hiện tại và reset `usage_count` về 0. Key dịch: `proRenewalNotice`, `proRenewalCta`, `recruiterRenewalNotice`, `recruiterRenewalCta` (trong `billing.ts`).
 - **Quota exhausted CTA (`ProfileView`):** Khi `used >= limit`, hiển thị link inline: "Mua thêm" (Pro/Recruiter → `/upgrade`) hoặc "Nâng cấp Pro" (Free → `/upgrade`). Key dịch: `quotaExhaustedBuyMore`, `quotaExhaustedUpgradePro`.
@@ -232,14 +235,16 @@ flowchart TD
 |-----|---------|
 | `get_default_monthly_analytics_limit()` | Đọc `app_settings` (fallback **10**). |
 | `effective_monthly_analytics_limit(custom, stored_limit)` | `custom = false` → global default; `custom = true` → `stored_limit` (`NULL` = unlimited). |
-| `resolve_monthly_analytics_limit(plan, custom, stored_limit)` | Plan-aware: `recruiter` = 500, `pro` = 100, `free` = effective limit. |
+| `resolve_monthly_analytics_limit(plan, custom, stored_limit)` | **Custom limit luôn thắng plan** (từ `20260703040000`): `custom = true` → `stored_limit` (`NULL` = unlimited), bất kể plan. Chỉ khi `custom = false` mới xét plan: `recruiter` = 500, `pro` = 100, `free` = `app_settings` default. |
 | `check_analytics_quota(user_id, additional?)` | Trả JSON `allowed`, `used`, `limit`, `month` (chu kỳ `YYYY-MM-DD`), `plan`, `resetDay`, `reason`. Gọi **trước** khi chạy batch analyze. |
 | `increment_usage_count(user_id)` | Tăng `usage_count` sau mỗi CV thành công; chặn nếu đã đạt limit. |
 | `sync_profile_usage_month(user_id)` | Reset `usage_count` khi chu kỳ thay đổi (theo `quota_reset_day`) **HOẶC** khi plan pro/recruiter hết hạn → tự động downgrade về free + reset usage. |
 | `current_quota_cycle(reset_day)` | Trả về key chu kỳ `YYYY-MM-DD` cho `reset_day` (1–28). |
 | `effective_plan_from_row(plan, expires_at)` | Trả về plan hiệu lực (`free`/`pro`/`recruiter`) dựa trên `plan_expires_at`. |
 | `get_user_plan(user_id)` | RPC convenience — trả về plan hiệu lực của user. |
-| `activate_pro_plan(user_id, order_code, duration, data, plan)` | Service role only — kích hoạt pro/recruiter sau thanh toán PayOS. **Free→paid:** giữ `usage_count`. **Paid renewal (same plan, future expiry):** cộng thêm duration vào `plan_expires_at`, reset `usage_count = 0`. **Perpetual (NULL expiry):** giữ nguyên NULL khi renewal. **Plan thay đổi hoặc hết hạn:** reset `plan_expires_at = now() + duration`. |
+| `activate_pro_plan(user_id, order_code, duration, data, plan)` | Service role only — kích hoạt pro/recruiter sau thanh toán PayOS. **Free→paid:** giữ `usage_count`. **Paid renewal (same plan, future expiry):** cộng thêm duration vào `plan_expires_at`, reset `usage_count = 0`. **Perpetual (NULL expiry):** giữ nguyên NULL khi renewal. **Plan thay đổi hoặc hết hạn:** reset `plan_expires_at = now() + duration`. **Chặn recruiter→pro** (từ `20260703060000`): nếu user đang recruiter active và `p_plan='pro'` → `RAISE EXCEPTION`, payment giữ `pending` (không claim). |
+| `admin_set_user_plan(user_id, plan, duration_days)` | Admin only (qua `/api/admin/set-user-plan`, service role). Cùng semantics reset `usage_count` như `activate_pro_plan`. **Chặn recruiter→pro** (từ `20260703060000`): cùng guard, raise `cannot_downgrade_recruiter_to_pro`. Downgrade về `free` không bị ảnh hưởng. |
+| `effective_usage_count(profiles)` | **Computed column** (PostgREST, từ `20260703050000`) — read-only, không ghi DB. Chiếu `usage_count` qua rollover đang chờ (đổi chu kỳ hoặc plan hết hạn) mà không cần gọi RPC. Dùng bởi `useAdminUsers.ts` (`select('*, effective_usage_count')`) để tránh hiển thị số cũ khi user chưa phân tích gì trong chu kỳ mới — xem "Admin hiện số cũ" bên dưới. |
 
 ### Migration (thứ tự)
 
@@ -260,6 +265,9 @@ Chạy **theo thứ tự timestamp** trong `supabase/migrations/`:
 | `20260626140000_fix_perpetual_plan_stacking.sql` | Fix `activate_pro_plan` + `admin_set_user_plan`: plan perpetual (`plan_expires_at IS NULL`) giữ nguyên NULL khi user gia hạn, không bị convert thành finite. |
 | `20260626150000_preserve_usage_on_free_to_paid_upgrade.sql` | `activate_pro_plan` + `admin_set_user_plan`: free→paid giữ `usage_count`; paid renewal reset về 0. |
 | `20260627000000_fix_perpetual_plan_regression.sql` | Fix regression từ `20260626150000`: tách lại 2 CASE branch riêng cho perpetual (`IS NULL`) và stacking (future expiry), tránh `COALESCE(NULL, now())` làm mất NULL. |
+| `20260703040000_custom_limit_overrides_plan.sql` | Fix `resolve_monthly_analytics_limit`: custom limit (admin override) kiểm tra **trước** plan tier — trước đó pro/recruiter luôn thắng, khiến custom limit của admin bị enforcement bỏ qua dù Admin UI vẫn hiển thị đúng số đã set (display-vs-enforcement mismatch). |
+| `20260703050000_effective_usage_count_computed_column.sql` | Thêm PostgREST computed column `effective_usage_count(profiles)` — read-only, chiếu `usage_count` qua rollover đang chờ (đổi chu kỳ/plan hết hạn) không cần ghi DB. Fix Admin Users table hiện số cũ khi user chưa phân tích gì trong chu kỳ mới. |
+| `20260703060000_block_recruiter_to_pro_downgrade.sql` | Chặn downgrade recruiter→pro (còn active) ở `admin_set_user_plan` và `activate_pro_plan` — `RAISE EXCEPTION 'cannot_downgrade_recruiter_to_pro'`. Downgrade về free không bị ảnh hưởng. |
 
 Áp dụng: `supabase db push` hoặc chạy từng file trong SQL Editor.
 
@@ -283,7 +291,8 @@ User mới (`createUserProfile`): `monthly_analytics_limit_custom = false`, **kh
 | Thao tác | Hành vi |
 |----------|---------|
 | **Hạn mức phân tích mặc định / tháng** (đầu tab Users) | Ghi `app_settings` qua `updateDefaultMonthlyAnalyticsLimit` — áp dụng cho mọi user `custom = false`. |
-| Cột « Phân tích / tháng » | Hiển thị `usage_count / effectiveLimit` (`resolveEffectiveMonthlyAnalyticsLimit` + global default đã load). |
+| Cột « Phân tích / tháng » | Hiển thị `effectiveUsageCount / effectiveLimit` (`resolveEffectiveMonthlyAnalyticsLimit` + global default đã load). `effectiveUsageCount` đọc từ computed column `effective_usage_count`, không phải `usage_count` thô — tránh hiện số cũ (xem "Chu kỳ quota" trên). |
+| Modal "Chỉnh sửa" — chọn gói | Ẩn 3 option Pro (30/90/365 ngày) khi user hiện tại là recruiter active (xem "Chặn downgrade recruiter → pro" trên). |
 | Nhập số + blur | `updateUserMonthlyAnalyticsLimit` → `custom = true`, lưu limit. |
 | Ô trống + blur (khi đã custom) | `monthly_analytics_limit = NULL` → **không giới hạn**. |
 | **Dùng mặc định** | `resetUserToGlobalAnalyticsLimit` → `custom = false` (nhận lại giá trị từ `app_settings`). |
@@ -343,6 +352,45 @@ Chỉ user có `monthly_analytics_limit_custom = false` nhận giá trị mới.
 Định nghĩa trong `src/translations/system.ts`. Toast lỗi (`AppContent.tsx`) render `ReactNode` để chứa các nút CTA inline. `ProfileView` cũng hiển thị link tương tự ngay dưới dòng usage khi `used >= limit`.
 
 **Không** liên quan Google Analytics hay Vercel Analytics.
+
+---
+
+## Admin Report tab (thống kê lượt phân tích theo ngày)
+
+Tab thứ 3 trong `AdminView` (`adminSubTab = 'report'`), cạnh Users/Email. **Khác hoàn toàn** với `profiles.usage_count` (hạn mức/tháng) — tab này đếm từ bảng log riêng, không reset theo tháng, không liên quan quota.
+
+### Bảng `analysis_log`
+
+Migration: `supabase/migrations/20260703030000_admin_analysis_log.sql`.
+
+| Cột | Ý nghĩa |
+|-----|---------|
+| `user_id` | Nullable (log cả anonymous, xác thực bằng reCAPTCHA). |
+| `status` | `success` hoặc `error`. |
+| `error_message` | Message lỗi khi `status = 'error'`. |
+| `created_at` | Thời điểm ghi log. |
+
+Ghi bởi `logAnalysisAttempt()` trong `_server-lib/analyze/handler.ts` — fire-and-forget, gọi ở **cả 2 nhánh** của `/api/analyze`: sau `analyzeCV()` thành công, và trong `catch` khi thất bại. **Không** ghi cho `/api/rewrite-cv`/`/api/parse-cv` (không phải lượt phân tích riêng, chỉ là follow-up nền — xem [4_backend.md](4_backend.md) mục 3). RLS: chỉ `is_admin()` được SELECT; không có policy INSERT cho `authenticated` — chỉ service role (backend) ghi được.
+
+### Nguồn dữ liệu Report tab
+
+| Hiển thị | Nguồn |
+|----------|-------|
+| User mới đăng ký trong khoảng lọc | `profiles.created_at >= start` (đã có RLS admin-select sẵn, không cần RPC riêng) |
+| Lượt phân tích theo ngày (chart), thành công/thất bại | `analysis_log`, group theo `status` + ngày (giờ **Asia/Ho_Chi_Minh**, khớp `current_quota_cycle`) |
+| Top user phân tích nhiều nhất | `analysis_log.user_id` group + count, join `profiles` lấy email/display_name |
+
+Filter: **Hôm nay / 7 ngày / 30 ngày** — tính theo GMT+7 (không theo giờ máy admin).
+
+### File mã nguồn (Report tab)
+
+| File | Vai trò |
+|------|---------|
+| `src/services/adminReportService.ts` | `getAdminReportStats(range)` — query `analysis_log` + `profiles`, tính toán client-side |
+| `src/components/views/AdminReportTab.tsx` | UI: filter, summary cards, bar chart (Recharts), bảng top user |
+| `src/components/views/AdminView.tsx` | Tab switcher (`adminSubTab`) |
+
+**Lưu ý:** `analysis_log` chỉ bắt đầu ghi từ khi deploy migration `20260703030000` — không có dữ liệu lịch sử trước đó (không backfill được vì trước đây không lưu).
 
 ---
 
