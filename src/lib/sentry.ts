@@ -36,6 +36,10 @@ export function initSentry() {
       if (typeof err === 'string' && err.includes('non-static position')) return null;
       if (event.message?.includes('non-static position')) return null;
 
+      // Safari/WebKit's generic network-failure wording (DNS blips, carrier proxies,
+      // ITP, ad blockers) — not an app bug, not actionable
+      if (err instanceof Error && err.message === 'Load failed') return null;
+
       if (event.request?.data && typeof event.request.data === 'object') {
         event.request.data = scrubData(event.request.data as Record<string, unknown>);
       }

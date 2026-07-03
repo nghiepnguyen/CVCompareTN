@@ -119,6 +119,9 @@ export function HeroSection({
             className="relative z-10 w-full rounded-[1.5rem] md:rounded-[2.5rem] shadow-lg transition-transform duration-700 group-hover:scale-[1.005]"
             referrerPolicy="no-referrer"
             loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
           />
         </div>
 
