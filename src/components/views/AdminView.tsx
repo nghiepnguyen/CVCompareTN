@@ -43,8 +43,8 @@ export function AdminView() {
   const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
   const [savingLimitUserId, setSavingLimitUserId] = useState<string | null>(null);
   const [savingPlanUserId, setSavingPlanUserId] = useState<string | null>(null);
-  const [globalDefaultLimit, setGlobalDefaultLimit] = useState(20);
-  const [globalLimitDraft, setGlobalLimitDraft] = useState('20');
+  const [globalDefaultLimit, setGlobalDefaultLimit] = useState(10);
+  const [globalLimitDraft, setGlobalLimitDraft] = useState('10');
   const [isSavingGlobalLimit, setIsSavingGlobalLimit] = useState(false);
   const [globalLimitMessage, setGlobalLimitMessage] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { UiLabels } from '../../translations/types';
 import {
   AlertCircle,
@@ -18,6 +18,8 @@ import { createProCheckout, createRecruiterCheckout } from '../../services/payme
 import { cn } from '../../lib/utils';
 import { formatPlanExpiryDate, isProPlan, isRecruiterPlan } from '../../lib/planLimits';
 import { formatLabel } from '../../translations';
+import { getDefaultMonthlyAnalyticsLimit } from '../../services/appSettingsService';
+import { PRO_MONTHLY_ANALYTICS_LIMIT, RECRUITER_MONTHLY_ANALYTICS_LIMIT } from '../../services/userService';
 
 type Plan = 'free' | 'pro' | 'recruiter';
 
@@ -31,9 +33,15 @@ type ComparisonRow = {
   recruiter: { value: string; icon: 'check' | 'dash' | 'infinity' };
 };
 
-function buildRows(t: UiLabels): ComparisonRow[] {
+function buildRows(t: UiLabels, freeAnalyticsLimit: number): ComparisonRow[] {
   return [
-    { key: 'analyses', labelKey: 'upgradeCompareAnalyses', free: { value: '10', icon: 'dash' }, pro: { value: '100', icon: 'check' }, recruiter: { value: '500', icon: 'check' } },
+    {
+      key: 'analyses',
+      labelKey: 'upgradeCompareAnalyses',
+      free: { value: String(freeAnalyticsLimit), icon: 'dash' },
+      pro: { value: String(PRO_MONTHLY_ANALYTICS_LIMIT), icon: 'check' },
+      recruiter: { value: String(RECRUITER_MONTHLY_ANALYTICS_LIMIT), icon: 'check' },
+    },
     { key: 'batch', labelKey: 'upgradeCompareBatch', free: { value: '1', icon: 'dash' }, pro: { value: '5', icon: 'check' }, recruiter: { value: '50', icon: 'check' } },
     { key: 'campaignCvs', labelKey: 'upgradeCompareCampaignCvs', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '50 CV', icon: 'check' } },
     { key: 'campaigns', labelKey: 'upgradeCompareCampaigns', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: t.upgradeRecruiterCampaignsPerMonth, icon: 'check' } },
@@ -83,6 +91,13 @@ export function UpgradeView() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [freeAnalyticsLimit, setFreeAnalyticsLimit] = useState(10);
+
+  useEffect(() => {
+    getDefaultMonthlyAnalyticsLimit()
+      .then(setFreeAnalyticsLimit)
+      .catch(err => console.error('Failed to load default analytics limit:', err));
+  }, []);
 
   const alreadyPro = userProfile?.role === 'admin' || isProPlan(effectivePlan);
   const alreadyRecruiter = userProfile?.role === 'admin' || isRecruiterPlan(effectivePlan);
@@ -114,7 +129,7 @@ export function UpgradeView() {
   };
 
   const currentPlan: Plan = alreadyRecruiter ? 'recruiter' : alreadyPro ? 'pro' : 'free';
-  const ROWS = buildRows(t);
+  const ROWS = buildRows(t, freeAnalyticsLimit);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 sm:py-16 space-y-10">

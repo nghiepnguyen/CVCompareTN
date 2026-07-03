@@ -4,6 +4,10 @@ export const DEFAULT_AVATAR_URL = "https://www.gravatar.com/avatar/0000000000000
 
 export type UserPlan = 'free' | 'pro' | 'recruiter';
 
+/** Plan-based monthly analytics limits — must match DB's resolve_monthly_analytics_limit. */
+export const PRO_MONTHLY_ANALYTICS_LIMIT = 100;
+export const RECRUITER_MONTHLY_ANALYTICS_LIMIT = 500;
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -35,10 +39,9 @@ export function resolveEffectiveMonthlyAnalyticsLimit(
   if (profile.monthlyAnalyticsLimitCustom) {
     return profile.monthlyAnalyticsLimit;
   }
-  // Plan-based limits matching DB resolve_monthly_analytics_limit
   const effectivePlan = getDisplayEffectivePlan(profile);
-  if (effectivePlan === 'recruiter') return 500;
-  if (effectivePlan === 'pro') return 100;
+  if (effectivePlan === 'recruiter') return RECRUITER_MONTHLY_ANALYTICS_LIMIT;
+  if (effectivePlan === 'pro') return PRO_MONTHLY_ANALYTICS_LIMIT;
   return globalDefault;
 }
 
@@ -341,7 +344,7 @@ export async function deleteUser(id: string): Promise<void> {
 export async function getAllUsers(): Promise<UserProfile[]> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('*, effective_usage_count')
     .order('created_at', { ascending: false });
 
   if (error) throw error;

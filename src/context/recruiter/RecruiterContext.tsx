@@ -199,10 +199,19 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
                   limit: String(quota.limit),
                 })
               : '';
+          let resetDateText = '';
+          if (quota.month && quota.limit != null) {
+            const [y, m] = quota.month.split('-').map(Number);
+            if (y && m) {
+              const nextDate = new Date(y, m - 1 + 1, Math.min(quota.resetDay, new Date(y, m - 1 + 1, 0).getDate()));
+              const formatted = reportLanguage === 'vi'
+                ? nextDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                : nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              resetDateText = formatLabel(t.quotaExhaustedOrWait, { date: formatted });
+            }
+          }
           throw new Error(
-            limitText
-              ? `${t.monthlyUsageLimitExceeded} ${limitText}`
-              : t.monthlyUsageLimitExceeded,
+            [t.monthlyUsageLimitExceeded, limitText, resetDateText].filter(Boolean).join(' '),
           );
         }
       } catch (err) {
