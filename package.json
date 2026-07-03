@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "start": "tsx --import ./instrument.ts server.ts",
-    "build": "vite build",
+    "build": "vite build && tsx scripts/generate-static-pages.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
