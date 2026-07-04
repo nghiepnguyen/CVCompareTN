@@ -78,7 +78,7 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
   const { t, setActiveTab, reportLanguage } = useUI();
 
   return (
-    <div className="relative mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+    <div className="relative mx-auto max-w-5xl px-4 pt-28 pb-10 sm:px-6 sm:pt-32 sm:pb-16 lg:px-8 lg:pb-20">
       {/* ─── Breadcrumb ────────────────────────────────── */}
       <motion.nav
         initial={{ opacity: 0, y: -8 }}

@@ -112,7 +112,7 @@ export function RecruiterFeaturesSection({ t, theme = 'dark' }: { t: RecruiterT;
               document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
             }}
           >
-            <Zap className="w-4 h-4" />
+            <Zap className="w-4 h-4" strokeWidth={1.5} />
             {t.recruiterViewPlans || 'Xem gói Recruiter'}
           </a>
         </motion.div>

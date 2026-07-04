@@ -34,7 +34,7 @@ export function CtaSection({ t, login, theme = 'dark' }: { t: LandingLabels; log
           <div className="relative z-10">
             {/* Small badge */}
             <div className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-accent backdrop-blur-md mb-8">
-              <Zap className="h-3.5 w-3.5" />
+              <Zap className="h-3.5 w-3.5" strokeWidth={1.5} />
               <span>{t.badgeCta}</span>
             </div>
 

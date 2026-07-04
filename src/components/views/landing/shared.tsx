@@ -27,12 +27,13 @@ export function GlassCard({
       initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-80px' }}
-      transition={{ duration: 0.6, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
+      transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        'relative overflow-hidden rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-10',
+        'relative overflow-hidden rounded-[1.75rem] md:rounded-[2rem] p-6 md:p-8 lg:p-10',
+        'transition-[transform,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
         isLight
-          ? 'glass-card-light group glass-card-light-hover'
-          : 'bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08]',
+          ? 'glass-card-light group glass-card-light-hover shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9)]'
+          : 'bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]',
         !isLight && hover && 'glass-hover cursor-pointer',
         isLight && hover && 'cursor-pointer',
         className,
@@ -55,10 +56,15 @@ export function FeatureIcon({
   size?: 'sm' | 'md' | 'lg';
   theme?: SectionTheme;
 }) {
-  const sizeClasses = {
-    sm: 'h-10 w-10 rounded-xl',
-    md: 'h-12 w-12 md:h-14 md:w-14 rounded-2xl',
-    lg: 'h-16 w-16 rounded-2xl',
+  const shellClasses = {
+    sm: 'h-12 w-12 rounded-[1.1rem] p-1',
+    md: 'h-14 w-14 md:h-16 md:w-16 rounded-[1.35rem] p-1',
+    lg: 'h-[4.5rem] w-[4.5rem] rounded-[1.6rem] p-1',
+  };
+  const coreClasses = {
+    sm: 'rounded-[0.85rem]',
+    md: 'rounded-[1.1rem]',
+    lg: 'rounded-[1.35rem]',
   };
   const iconSize = { sm: 'h-5 w-5', md: 'h-6 w-6 md:h-7 md:w-7', lg: 'h-8 w-8' };
   const isLight = theme === 'light';
@@ -66,15 +72,22 @@ export function FeatureIcon({
   return (
     <div
       className={cn(
-        'mb-5 flex items-center justify-center shrink-0',
-        'group-hover:transition-colors duration-500',
-        isLight
-          ? 'feature-icon-light group-hover:bg-accent/15 group-hover:border-accent/30'
-          : 'bg-accent/10 border border-accent/20 text-accent group-hover:bg-accent/15 group-hover:border-accent/30',
-        sizeClasses[size],
+        'mb-5 shrink-0 transition-colors duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
+        isLight ? 'bg-slate-900/[0.04]' : 'bg-white/[0.06]',
+        shellClasses[size],
       )}
     >
-      <Icon className={iconSize[size]} />
+      <div
+        className={cn(
+          'flex h-full w-full items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
+          isLight
+            ? 'feature-icon-light group-hover:bg-accent/15 group-hover:border-accent/30'
+            : 'bg-accent/10 border border-accent/20 text-accent shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] group-hover:bg-accent/15 group-hover:border-accent/30',
+          coreClasses[size],
+        )}
+      >
+        <Icon className={iconSize[size]} strokeWidth={1.5} />
+      </div>
     </div>
   );
 }
@@ -97,15 +110,15 @@ export function SectionBadge({
       initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] backdrop-blur-md mb-6',
+        'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] backdrop-blur-md mb-6',
         isLight
           ? 'badge-light'
           : 'border border-accent/20 bg-accent/5 text-accent',
       )}
     >
-      {Icon && <Icon className="h-3.5 w-3.5" />}
+      {Icon && <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />}
       <span>{children}</span>
     </motion.div>
   );
@@ -134,7 +147,7 @@ export function SectionHeading({
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       >
         <Tag
           className={cn(
@@ -182,16 +195,32 @@ export function AccentButton({
   icon?: LucideIcon;
   iconPosition?: 'left' | 'right';
 }) {
+  const iconBubble = Icon && (
+    <span
+      className={cn(
+        'flex h-9 w-9 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full bg-white/15 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
+        'group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:scale-105 group-hover:bg-white/25',
+      )}
+    >
+      <Icon className="h-4 w-4 md:h-[18px] md:w-[18px]" strokeWidth={1.75} />
+    </span>
+  );
+
   const content = (
     <>
-      {Icon && iconPosition === 'left' && <Icon className="h-5 w-5" />}
+      {iconPosition === 'left' && iconBubble}
       <span>{children}</span>
-      {Icon && iconPosition === 'right' && <Icon className="h-5 w-5 transition-transform group-hover:translate-x-1" />}
+      {iconPosition === 'right' && iconBubble}
     </>
   );
 
   const baseClasses = cn(
-    'group relative inline-flex h-14 md:h-16 items-center justify-center gap-3 rounded-2xl px-8 md:px-10 font-sans text-base font-bold',
+    'group relative inline-flex h-14 md:h-16 items-center justify-center gap-3 rounded-full font-sans text-base font-bold',
+    Icon
+      ? iconPosition === 'right'
+        ? 'pl-8 pr-2 md:pl-10 md:pr-2.5'
+        : 'pr-8 pl-2 md:pr-10 md:pl-2.5'
+      : 'px-8 md:px-10',
     'btn-accent cursor-pointer',
     className,
   );
@@ -237,12 +266,23 @@ export function OutlineButton({
   const content = (
     <>
       <span>{children}</span>
-      {Icon && <Icon className="h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1" />}
+      {Icon && (
+        <span
+          className={cn(
+            'flex h-9 w-9 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
+            'group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:scale-105',
+            isLight ? 'bg-slate-900/5 group-hover:bg-accent/10' : 'bg-white/10 group-hover:bg-accent/15',
+          )}
+        >
+          <Icon className="h-4 w-4 md:h-[18px] md:w-[18px]" strokeWidth={1.75} />
+        </span>
+      )}
     </>
   );
 
   const baseClasses = cn(
-    'group relative inline-flex h-14 md:h-16 items-center justify-center gap-3 rounded-2xl px-8 md:px-10 font-sans text-base font-semibold',
+    'group relative inline-flex h-14 md:h-16 items-center justify-center gap-3 rounded-full font-sans text-base font-semibold',
+    Icon ? 'pl-8 pr-2 md:pl-10 md:pr-2.5' : 'px-8 md:px-10',
     isLight ? 'btn-outline-light' : 'btn-outline',
     'cursor-pointer',
     className,

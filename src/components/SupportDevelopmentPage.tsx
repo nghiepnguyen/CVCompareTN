@@ -77,7 +77,7 @@ export const SupportDevelopmentPage = ({ onBack, language = 'vi' }: { onBack: ()
   ];
 
   return (
-    <div className="max-w-4xl mx-auto py-6 md:py-12 px-4">
+    <div className="max-w-4xl mx-auto pt-24 md:pt-28 pb-6 md:pb-12 px-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <button 
           onClick={onBack}

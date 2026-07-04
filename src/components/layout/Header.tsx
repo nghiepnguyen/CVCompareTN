@@ -35,12 +35,17 @@ export function Header() {
 
   return (
     <header className={cn(
-      "sticky top-0 z-50 backdrop-blur-xl border-b transition-colors",
+      "z-50 transition-colors",
       user
-        ? "bg-primary/95 border-border"
-        : "dark bg-[#0A0A0A]/95 border-white/[0.08]"
+        ? "sticky top-0 backdrop-blur-xl border-b bg-primary/95 border-border"
+        : "fixed top-3 inset-x-3 sm:top-4 sm:inset-x-4"
     )}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className={cn(
+        "mx-auto flex items-center justify-between gap-4 h-16",
+        user
+          ? "max-w-7xl px-4 sm:px-6 lg:px-8"
+          : "max-w-5xl rounded-full border border-slate-900/[0.06] bg-white/50 px-3 sm:px-4 lg:px-6 backdrop-blur-md shadow-[0_8px_30px_rgba(15,23,42,0.08)] transition-shadow duration-500 hover:shadow-[0_8px_36px_rgba(5,150,105,0.14)]"
+      )}>
         {/* ---- Logo ---- */}
         <a
           href={`/${reportLanguage}/`}
@@ -48,18 +53,22 @@ export function Header() {
           onClick={(e) => { e.preventDefault(); setActiveTab('analyze'); setSelectedResult(null); }}
         >
           <div className={cn(
-            "relative w-10 h-10 rounded-xl flex items-center justify-center shadow-xl transition-transform group-hover:scale-110",
+            "relative w-10 h-10 rounded-xl flex items-center justify-center shadow-xl transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-110",
             user ? "dark:bg-primary bg-accent" : "bg-accent"
           )}>
             <div className="absolute inset-0 bg-accent opacity-20 blur-lg rounded-full" />
-            <FileSearch className="text-white w-5 h-5 relative z-10" />
+            <FileSearch className="text-white w-5 h-5 relative z-10" strokeWidth={1.75} />
           </div>
-          <span className="text-xl font-extrabold tracking-tighter text-text-main hidden sm:inline font-sans">
+          <span className={cn(
+            "text-xl font-extrabold tracking-tighter hidden sm:inline font-sans",
+            user ? "text-text-main" : "text-slate-900"
+          )}>
             cv<span className="text-accent">Fit</span>.pro
           </span>
         </a>
 
         {/* ---- Desktop Nav ---- */}
+        {(user || userProfile?.role === 'admin') && (
         <nav className="hidden lg:flex items-center gap-1 dark:bg-white/[0.03] bg-surface-muted p-1 rounded-xl backdrop-blur-md shrink-0">
           {user && (
             <>
@@ -119,25 +128,33 @@ export function Header() {
             </button>
           )}
         </nav>
+        )}
 
         {/* ---- Right Side Actions ---- */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Language Switcher */}
-          <div className="hidden sm:flex items-center gap-0.5 dark:bg-white/[0.03] bg-surface-muted p-1 rounded-xl">
-            <button 
+          <div className={cn(
+            "hidden sm:flex items-center gap-0.5 p-1 rounded-xl",
+            user ? "dark:bg-white/[0.03] bg-surface-muted" : "bg-slate-900/5"
+          )}>
+            <button
               onClick={() => setReportLanguage('vi')}
               className={cn(
                   "px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer",
-                  reportLanguage === 'vi' ? "dark:bg-white/[0.06] bg-surface text-accent" : "text-text-light hover:text-text-muted"
+                  reportLanguage === 'vi'
+                    ? user ? "dark:bg-white/[0.06] bg-surface text-accent" : "bg-white text-accent shadow-sm"
+                    : user ? "text-text-light hover:text-text-muted" : "text-slate-400 hover:text-slate-600"
               )}
             >
               VI
             </button>
-            <button 
+            <button
               onClick={() => setReportLanguage('en')}
               className={cn(
                   "px-2.5 py-1.5 rounded-lg text-[10px] font-black transition-all cursor-pointer",
-                  reportLanguage === 'en' ? "dark:bg-white/[0.06] bg-surface text-accent" : "text-text-light hover:text-text-muted"
+                  reportLanguage === 'en'
+                    ? user ? "dark:bg-white/[0.06] bg-surface text-accent" : "bg-white text-accent shadow-sm"
+                    : user ? "text-text-light hover:text-text-muted" : "text-slate-400 hover:text-slate-600"
               )}
             >
               EN
@@ -253,24 +270,24 @@ export function Header() {
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
-              <button 
+              <button
                 onClick={() => openAuthModal('signIn')}
-                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-xl text-sm font-bold hover:bg-accent-hover transition-all cursor-pointer hover:scale-105 active:scale-95"
+                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-full text-sm font-bold hover:bg-accent-hover transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer hover:scale-105 active:scale-95"
               >
-                <LogIn className="w-4 h-4" />
+                <LogIn className="w-4 h-4" strokeWidth={1.75} />
                 <span>{t.login}</span>
               </button>
               {/* Mobile login (icon only) */}
-              <button 
+              <button
                 onClick={() => openAuthModal('signIn')}
-                className="sm:hidden flex items-center justify-center w-9 h-9 bg-accent text-white rounded-xl hover:bg-accent-hover transition-all cursor-pointer hover:scale-105 active:scale-95"
+                className="sm:hidden flex items-center justify-center w-9 h-9 bg-accent text-white rounded-full hover:bg-accent-hover transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer hover:scale-105 active:scale-95"
               >
-                <LogIn className="w-4 h-4" />
+                <LogIn className="w-4 h-4" strokeWidth={1.75} />
               </button>
               {window.self !== window.top && (
-                <button 
+                <button
                   onClick={() => window.open(window.location.href, '_blank')}
-                  className="p-2 dark:bg-white/[0.03] bg-surface-muted text-text-light rounded-xl dark:hover:bg-white/[0.06] hover:bg-surface-secondary transition-all cursor-pointer"
+                  className="p-2 bg-slate-900/5 text-slate-400 rounded-xl hover:bg-slate-900/10 hover:text-slate-600 transition-all cursor-pointer"
                   title={t.openInNewTabTooltip}
                 >
                   <ExternalLink className="w-4 h-4" />

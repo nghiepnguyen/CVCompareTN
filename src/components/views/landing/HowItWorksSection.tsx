@@ -131,7 +131,7 @@ export function HowItWorksSection({ t, theme = 'dark' }: { t: LandingLabels; the
                 : 'border border-accent/10 bg-accent/5',
             )}
           >
-            <Sparkles className="h-4 w-4 text-accent" />
+            <Sparkles className="h-4 w-4 text-accent" strokeWidth={1.5} />
             <span className={cn('font-sans text-sm font-semibold text-accent')}>
               {t.howItWorksFooter}
             </span>

@@ -76,7 +76,7 @@ export function FaqSection({
                         : 'bg-white/[0.03] text-text-light border border-white/[0.05]',
                   )}
                 >
-                  <ChevronDown className="h-4 w-4 md:h-5 md:w-5" />
+                  <ChevronDown className="h-4 w-4 md:h-5 md:w-5" strokeWidth={1.5} />
                 </div>
               </button>
               <AnimatePresence initial={false}>

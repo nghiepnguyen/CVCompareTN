@@ -24,7 +24,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
   const useItems = [t.privacyS2Item1, t.privacyS2Item2, t.privacyS2Item3, t.privacyS2Item4];
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-4">
+    <div className="max-w-4xl mx-auto pt-28 pb-12 px-4">
       <div className="flex items-center justify-between mb-8">
         <button
           type="button"

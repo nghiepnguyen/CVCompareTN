@@ -31,8 +31,8 @@ function buildRows(t: LandingLabels): ComparisonRow[] {
 }
 
 function RowIcon({ type }: { type: 'check' | 'dash' | 'infinity' }) {
-  if (type === 'infinity') return <Infinity className="w-4 h-4 text-accent" />;
-  if (type === 'check') return <Check className="w-4 h-4 text-success" />;
+  if (type === 'infinity') return <Infinity className="w-4 h-4 text-accent" strokeWidth={1.5} />;
+  if (type === 'check') return <Check className="w-4 h-4 text-success" strokeWidth={1.75} />;
   return null;
 }
 
@@ -201,7 +201,7 @@ export function PricingSection({
                       onClick={login}
                       className={cn('inline-flex w-full items-center justify-center gap-2 h-12 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all', freeBtnClasses)}
                     >
-                      <Zap className="w-4 h-4" />
+                      <Zap className="w-4 h-4" strokeWidth={1.5} />
                       {t.pricingCtaFree || 'Bắt đầu miễn phí'}
                     </button>
                   </td>
@@ -211,7 +211,7 @@ export function PricingSection({
                       onClick={onUpgrade ?? login}
                       className="inline-flex w-full items-center justify-center gap-2 h-12 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all bg-accent text-white shadow-lg shadow-accent/20"
                     >
-                      <Sparkles className="w-4 h-4" />
+                      <Sparkles className="w-4 h-4" strokeWidth={1.5} />
                       {t.pricingCtaPro || 'Nâng cấp Pro'}
                     </button>
                   </td>
@@ -221,7 +221,7 @@ export function PricingSection({
                       onClick={onUpgrade ?? login}
                       className="inline-flex w-full items-center justify-center gap-2 h-12 rounded-xl text-xs font-black uppercase tracking-wider bg-purple-500 text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >
-                      <Briefcase className="w-4 h-4" />
+                      <Briefcase className="w-4 h-4" strokeWidth={1.5} />
                       {t.pricingCtaRecruiter || 'Nâng cấp Recruiter'}
                     </button>
                   </td>
@@ -296,7 +296,7 @@ export function PricingSection({
                       onClick={onUpgrade ?? login}
                       className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm bg-purple-500 text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >
-                      <Briefcase className="w-4 h-4" />
+                      <Briefcase className="w-4 h-4" strokeWidth={1.5} />
                       {t.pricingCtaRecruiter || 'Nâng cấp Recruiter'}
                     </button>
                   ) : plan === 'pro' ? (
@@ -305,7 +305,7 @@ export function PricingSection({
                       onClick={onUpgrade ?? login}
                       className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm bg-accent text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >
-                      <Sparkles className="w-4 h-4" />
+                      <Sparkles className="w-4 h-4" strokeWidth={1.5} />
                       {t.pricingCtaPro || 'Nâng cấp Pro'}
                     </button>
                   ) : (
@@ -314,7 +314,7 @@ export function PricingSection({
                       onClick={login}
                       className={cn('w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all', freeBtnClasses)}
                     >
-                      <Zap className="w-4 h-4" />
+                      <Zap className="w-4 h-4" strokeWidth={1.5} />
                       {t.pricingCtaFree || 'Bắt đầu miễn phí'}
                     </button>
                   )}

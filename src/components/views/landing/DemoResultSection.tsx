@@ -73,7 +73,7 @@ export function DemoResultSection({ t, theme = 'dark' }: { t: LandingLabels; the
                         : 'bg-white/[0.03] border-white/[0.05]',
                     )}
                   >
-                    <Brain className="h-3 w-3 shrink-0 text-accent" />
+                    <Brain className="h-3 w-3 shrink-0 text-accent" strokeWidth={1.5} />
                     <span
                       className={cn(
                         'text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap',
@@ -84,7 +84,7 @@ export function DemoResultSection({ t, theme = 'dark' }: { t: LandingLabels; the
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 border border-accent/20 text-accent">
-                    <Zap className="h-3 w-3 shrink-0" />
+                    <Zap className="h-3 w-3 shrink-0" strokeWidth={1.5} />
                     <span className="text-[10px] font-semibold uppercase tracking-widest whitespace-nowrap">
                       {t.badgeAiPowered}
                     </span>
@@ -215,7 +215,7 @@ export function DemoResultSection({ t, theme = 'dark' }: { t: LandingLabels; the
                         )}
                       >
                         <h4 className="mb-4 flex items-center gap-2 font-sans text-xs font-semibold uppercase tracking-wider text-error">
-                          <AlertCircle className="h-3 w-3" />
+                          <AlertCircle className="h-3 w-3" strokeWidth={1.5} />
                           {t.missingSkills}
                         </h4>
                         <div className="flex flex-wrap gap-2">
@@ -297,7 +297,7 @@ export function DemoResultSection({ t, theme = 'dark' }: { t: LandingLabels; the
                             className="flex items-start gap-4"
                           >
                             <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
-                              <Zap className="h-3 w-3" />
+                              <Zap className="h-3 w-3" strokeWidth={1.5} />
                             </div>
                             <p className={cn('text-sm font-medium leading-relaxed', isLight ? 'text-slate-600' : 'text-text-muted')}>{s}</p>
                           </motion.div>
