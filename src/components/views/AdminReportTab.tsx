@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle } from 'lucide-react';
+import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -41,6 +41,15 @@ export function AdminReportTab() {
     ...d,
     label: new Date(d.date).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit' }),
   }));
+
+  const formatTokens = (value: number) => Math.round(value).toLocaleString(dateLocale);
+  const formatCostUsd = (value: number, fractionDigits: number) =>
+    value.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    });
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -95,6 +104,45 @@ export function AdminReportTab() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Token & Cost */}
+      <div className="space-y-4">
+        <h3 className="font-bold text-text-main flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-accent" />
+          {t.adminReportTokenSectionTitle}
+        </h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: t.adminReportAvgInputTokens, value: formatTokens(stats?.avgInputTokens ?? 0), icon: ArrowDownToLine, color: 'text-accent', bg: 'bg-accent-light' },
+            { label: t.adminReportAvgOutputTokens, value: formatTokens(stats?.avgOutputTokens ?? 0), icon: ArrowUpFromLine, color: 'text-text-main', bg: 'bg-surface-secondary' },
+            { label: t.adminReportAvgTotalTokens, value: formatTokens(stats?.avgTotalTokens ?? 0), icon: Layers, color: 'text-text-main', bg: 'bg-surface-secondary' },
+          ].map((card) => (
+            <div key={card.label} className="bg-surface border border-border rounded-2xl p-5 shadow-sm space-y-3">
+              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', card.bg)}>
+                <card.icon className={cn('w-5 h-5', card.color)} />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-text-main leading-none">{card.value}</div>
+                <div className="text-[10px] font-bold text-text-light uppercase tracking-widest mt-1">{card.label}</div>
+              </div>
+            </div>
+          ))}
+          <div className="bg-surface border border-border rounded-2xl p-5 shadow-sm space-y-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-success-light">
+              <DollarSign className="w-5 h-5 text-success" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-text-main leading-none">
+                {formatCostUsd(stats?.avgCostUsd ?? 0, 4)}
+              </div>
+              <div className="text-[10px] font-bold text-text-light uppercase tracking-widest mt-1">{t.adminReportAvgCost}</div>
+              <div className="text-[11px] text-text-light mt-1">
+                {formatLabel(t.adminReportTotalCostSubtitle, { amount: formatCostUsd(stats?.totalCostUsd ?? 0, 2) })}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Daily Chart */}

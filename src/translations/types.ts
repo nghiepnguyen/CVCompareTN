@@ -76,6 +76,12 @@ export interface UiLabels {
   adminReportColCount: string;
   adminReportEmptyState: string;
   adminReportLoadError: string;
+  adminReportTokenSectionTitle: string;
+  adminReportAvgInputTokens: string;
+  adminReportAvgOutputTokens: string;
+  adminReportAvgTotalTokens: string;
+  adminReportAvgCost: string;
+  adminReportTotalCostSubtitle: string;
   adminToggleRole: string;
   adminUnlock: string;
   adminUsageAnalytic: string;

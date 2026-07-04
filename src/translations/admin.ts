@@ -76,6 +76,30 @@ export const admin = {
     vi: "Không tải được báo cáo: {message}",
     en: "Could not load report: {message}",
   },
+  adminReportTokenSectionTitle: {
+    vi: "Token & Chi phí AI",
+    en: "AI Token & Cost",
+  },
+  adminReportAvgInputTokens: {
+    vi: "TB Input Tokens",
+    en: "Avg Input Tokens",
+  },
+  adminReportAvgOutputTokens: {
+    vi: "TB Output Tokens",
+    en: "Avg Output Tokens",
+  },
+  adminReportAvgTotalTokens: {
+    vi: "TB Total Tokens",
+    en: "Avg Total Tokens",
+  },
+  adminReportAvgCost: {
+    vi: "Chi phí TB/lượt",
+    en: "Avg Cost / Analysis",
+  },
+  adminReportTotalCostSubtitle: {
+    vi: "Tổng chi phí kỳ này: {amount}",
+    en: "Total this period: {amount}",
+  },
   adminNewProfilesTitle: {
     vi: "Phát hiện {count} hồ sơ mới",
     en: "{count} new profile(s) detected",

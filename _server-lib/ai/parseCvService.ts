@@ -1,5 +1,5 @@
 import { extractText } from 'unpdf';
-import { getGeminiClient, GEMINI_MODEL, GEMINI_THINKING_BUDGET } from './geminiClient.js';
+import { getGeminiClient, GEMINI_MODEL, GEMINI_THINKING_BUDGET, extractTokenUsage, type TokenUsage } from './geminiClient.js';
 import { normalizeParsedCV } from '../../src/services/ai/parsedCvNormalize.js';
 import { buildParseCvPrompt } from '../../src/services/ai/prompts.js';
 import type { ParsedCV } from '../../src/services/ai/types.js';
@@ -118,7 +118,7 @@ export async function generateParsedCV(
   cvMimeType: string,
   language: 'vi' | 'en' = 'vi',
   timeoutMs: number = PARSE_CV_TIMEOUT_MS
-): Promise<ParsedCV | undefined> {
+): Promise<{ parsedCV: ParsedCV | undefined; usage: TokenUsage }> {
   const client = getGeminiClient();
 
   const jdSection =
@@ -178,13 +178,14 @@ export async function generateParsedCV(
     });
 
     const response = await Promise.race([geminiPromise, timeoutPromise]);
+    const usage = extractTokenUsage(response.usageMetadata);
     const resultText = response.text || '';
 
     try {
-      return normalizeParsedCV(JSON.parse(resultText));
+      return { parsedCV: normalizeParsedCV(JSON.parse(resultText)), usage };
     } catch {
       const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) return normalizeParsedCV(JSON.parse(jsonMatch[0]));
+      if (jsonMatch) return { parsedCV: normalizeParsedCV(JSON.parse(jsonMatch[0])), usage };
       throw new SyntaxError('No JSON object found in Gemini response');
     }
   } catch (error: unknown) {

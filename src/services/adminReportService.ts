@@ -21,7 +21,19 @@ export interface AdminReportStats {
   totalError: number;
   dailyCounts: DailyAnalysisCount[];
   topUsers: TopAnalysisUser[];
+  avgInputTokens: number;
+  avgOutputTokens: number;
+  avgTotalTokens: number;
+  avgCostUsd: number;
+  totalCostUsd: number;
 }
+
+// gemini-3-flash-preview official pricing (ai.google.dev/gemini-api/docs/pricing).
+// Update here if the model or its pricing changes — historical rows keep
+// whatever cost was computed with the rate in effect when they're viewed,
+// since raw tokens (not cost) are what's persisted in analysis_log.
+const GEMINI_INPUT_PRICE_PER_1M_USD = 0.5;
+const GEMINI_OUTPUT_PRICE_PER_1M_USD = 3.0;
 
 // Anchor "today" to Asia/Ho_Chi_Minh (GMT+7, no DST), matching the quota
 // system's day boundary (current_quota_cycle) rather than the admin's browser timezone.
@@ -54,7 +66,7 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
       .gte('created_at', startIso),
     supabase
       .from('analysis_log')
-      .select('user_id, status, created_at')
+      .select('user_id, status, created_at, kind, input_tokens, output_tokens')
       .gte('created_at', startIso)
       .order('created_at', { ascending: true }),
   ]);
@@ -63,13 +75,17 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
   if (logsRes.error) throw logsRes.error;
 
   const logs = logsRes.data ?? [];
+  // Only 'analyze' rows are "analyses" for the existing metrics below —
+  // 'parse_cv'/'rewrite' rows are the auto-triggered follow-up Gemini calls
+  // (see AnalysisRunContext.tsx), tracked only for token/cost totals.
+  const analyzeLogs = logs.filter((l) => l.kind === 'analyze');
 
   const dailyMap = new Map<string, { success: number; error: number }>();
   const userCounts = new Map<string, number>();
   let totalSuccess = 0;
   let totalError = 0;
 
-  for (const log of logs) {
+  for (const log of analyzeLogs) {
     const day = dayKey(log.created_at as string);
     const bucket = dailyMap.get(day) ?? { success: 0, error: 0 };
     if (log.status === 'success') {
@@ -118,11 +134,33 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
     });
   }
 
+  // Token/cost totals span all kinds (analyze + parse_cv + rewrite) — a single
+  // "analysis" fires all three Gemini calls, so cost-per-analysis needs their
+  // combined spend, averaged over the count of successful *analyze* rows.
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  for (const log of logs) {
+    if (log.status !== 'success') continue;
+    totalInputTokens += (log.input_tokens as number | null) ?? 0;
+    totalOutputTokens += (log.output_tokens as number | null) ?? 0;
+  }
+  const totalCostUsd =
+    (totalInputTokens / 1_000_000) * GEMINI_INPUT_PRICE_PER_1M_USD +
+    (totalOutputTokens / 1_000_000) * GEMINI_OUTPUT_PRICE_PER_1M_USD;
+  const avgInputTokens = totalSuccess > 0 ? totalInputTokens / totalSuccess : 0;
+  const avgOutputTokens = totalSuccess > 0 ? totalOutputTokens / totalSuccess : 0;
+  const avgCostUsd = totalSuccess > 0 ? totalCostUsd / totalSuccess : 0;
+
   return {
     newUsersCount: newUsersRes.count ?? 0,
     totalSuccess,
     totalError,
     dailyCounts,
     topUsers,
+    avgInputTokens,
+    avgOutputTokens,
+    avgTotalTokens: avgInputTokens + avgOutputTokens,
+    avgCostUsd,
+    totalCostUsd,
   };
 }

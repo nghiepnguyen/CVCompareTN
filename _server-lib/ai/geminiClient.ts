@@ -16,3 +16,18 @@ export function getGeminiClient(): GoogleGenAI {
     apiKey: key,
   });
 }
+
+export type TokenUsage = { inputTokens: number; outputTokens: number };
+
+// Output tokens include thoughtsTokenCount — this model runs with a thinking
+// budget (see GEMINI_THINKING_BUDGET) and Google bills thinking tokens as output.
+export function extractTokenUsage(usageMetadata?: {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  thoughtsTokenCount?: number;
+}): TokenUsage {
+  return {
+    inputTokens: usageMetadata?.promptTokenCount ?? 0,
+    outputTokens: (usageMetadata?.candidatesTokenCount ?? 0) + (usageMetadata?.thoughtsTokenCount ?? 0),
+  };
+}

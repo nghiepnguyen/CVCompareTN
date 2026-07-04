@@ -2,6 +2,7 @@ import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 import { generateFullRewrite } from '../ai/rewriteService.js';
 import { verifyRecaptcha } from '../recaptcha.js';
 import { withTimeout } from '../withTimeout.js';
+import { logAnalysisAttempt } from '../analysisLog.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
@@ -68,13 +69,14 @@ export async function handleRewriteCv(
   }
 
   try {
-    const fullRewrittenCV = await generateFullRewrite(
+    const { fullRewrittenCV, usage } = await generateFullRewrite(
       jd,
       cvData,
       cvMimeType,
       language,
       remainingBudgetMs
     );
+    logAnalysisAttempt(user?.id ?? null, 'success', 'rewrite', undefined, usage);
     return { status: 200, body: { fullRewrittenCV } };
   } catch (err) {
     console.error('CV rewrite failed:', err);

@@ -2,6 +2,7 @@ import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 import { generateParsedCV } from '../ai/parseCvService.js';
 import { verifyRecaptcha } from '../recaptcha.js';
 import { withTimeout } from '../withTimeout.js';
+import { logAnalysisAttempt } from '../analysisLog.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
@@ -68,7 +69,8 @@ export async function handleParseCv(
   }
 
   try {
-    const parsedCV = await generateParsedCV(jd, cvData, cvMimeType, language, remainingBudgetMs);
+    const { parsedCV, usage } = await generateParsedCV(jd, cvData, cvMimeType, language, remainingBudgetMs);
+    logAnalysisAttempt(user?.id ?? null, 'success', 'parse_cv', undefined, usage);
     return { status: 200, body: { parsedCV } };
   } catch (err) {
     console.error('CV parsing failed:', err);

@@ -1,5 +1,5 @@
 import { extractText } from 'unpdf';
-import { getGeminiClient, GEMINI_MODEL, GEMINI_THINKING_BUDGET } from './geminiClient.js';
+import { getGeminiClient, GEMINI_MODEL, GEMINI_THINKING_BUDGET, extractTokenUsage, type TokenUsage } from './geminiClient.js';
 
 const REWRITE_TIMEOUT_MS = 50_000;
 
@@ -53,7 +53,7 @@ export async function generateFullRewrite(
   cvMimeType: string,
   language: 'vi' | 'en' = 'vi',
   timeoutMs: number = REWRITE_TIMEOUT_MS
-): Promise<string> {
+): Promise<{ fullRewrittenCV: string; usage: TokenUsage }> {
   const client = getGeminiClient();
 
   const jdSection =
@@ -119,18 +119,19 @@ export async function generateFullRewrite(
     });
 
     const response = await Promise.race([geminiPromise, timeoutPromise]);
+    const usage = extractTokenUsage(response.usageMetadata);
     const resultText = response.text || '';
 
     try {
       const parsed = JSON.parse(resultText) as { fullRewrittenCV?: string };
-      return parsed.fullRewrittenCV || '';
+      return { fullRewrittenCV: parsed.fullRewrittenCV || '', usage };
     } catch {
       const jsonMatch = resultText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]) as { fullRewrittenCV?: string };
-        return parsed.fullRewrittenCV || '';
+        return { fullRewrittenCV: parsed.fullRewrittenCV || '', usage };
       }
-      return resultText;
+      return { fullRewrittenCV: resultText, usage };
     }
   } catch (error: unknown) {
     if (error instanceof Error && error.message.includes('(Timeout)')) {
