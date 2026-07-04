@@ -39,7 +39,7 @@ export function HeroSection({
 
       <motion.div
         style={{ opacity, scale }}
-        className="container-premium relative z-10 text-center pt-20 pb-16"
+        className="container-premium relative z-10 text-center pt-24 pb-16"
       >
         {/* Badge */}
         <SectionBadge icon={Sparkles}>
