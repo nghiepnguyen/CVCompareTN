@@ -60,7 +60,7 @@ export function Header() {
             <FileSearch className="text-white w-5 h-5 relative z-10" strokeWidth={1.75} />
           </div>
           <span className={cn(
-            "text-xl font-extrabold tracking-tighter hidden sm:inline font-sans",
+            "hidden min-[360px]:inline text-xl font-extrabold tracking-tighter font-sans",
             user ? "text-text-main" : "text-slate-900"
           )}>
             cv<span className="text-accent">Fit</span>.pro
