@@ -129,7 +129,7 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
 ### 3. Hiển thị kết quả so sánh
 -   **Matching Score:** Điểm số tổng quát thể hiện mức độ khớp.
 -   **Detailed Comparison:** Bảng đối chiếu từng yêu cầu trong JD với minh chứng từ CV (cvEvidence) và gợi ý cải thiện (improvement).
--   **Biểu đồ (Recharts):** Tab chi tiết dùng **Bar chart** (điểm theo nhóm) và **Pie chart** (phân bố matching points theo category); **History** có Area/Bar khi có đủ dữ liệu lịch sử. Container chart dùng chiều cao cố định + `ResponsiveContainer` để tránh cảnh báo kích thước.
+-   **Biểu đồ (Recharts):** Tab chi tiết (`AnalysisDetailsTab`) dùng **Bar chart** "Phân bổ điểm thành phần" (`categoryScores` — 8 nhóm: Skills/Soft Skills/Hard Skills/Technical Skills/Experience/Tools/Language Skills/Education) và **Radar chart** "Phân bổ kỹ năng" (% khớp = `matchingPoints / (matchingPoints + missingGaps)` theo category, domain cố định 0-100, union category từ cả 2 mảng); **History** có Area/Bar khi có đủ dữ liệu lịch sử. Container chart dùng chiều cao cố định + `ResponsiveContainer` để tránh cảnh báo kích thước.
 -   **Optimized Readability:** Kết quả phân tích được giới hạn chiều rộng tối đa 900px, tạo trải nghiệm đọc "như văn bản in" (editorial-grade), giảm mỏi mắt cho nhà tuyển dụng.
 
 ### 4. Luồng Recruiter (Nhà tuyển dụng)
