@@ -22,7 +22,7 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
     Nhiệm vụ: Phân tích và So sánh với JD:
     1. Xác định chức danh công việc (Job Title) từ JD.
     2. Tính toán điểm phù hợp tổng thể (0-100).
-    3. Cung cấp điểm thành phần (0-100) cho: Kỹ năng (Skills), Kinh nghiệm (Experience), Công cụ/Công nghệ (Tools), và Học văn/Chứng chỉ (Education).
+    3. Cung cấp điểm thành phần (0-100) cho: Kỹ năng (Skills), Kỹ năng mềm (Soft Skills), Kỹ năng cứng (Hard Skills), Kỹ năng kỹ thuật (Technical Skills), Kinh nghiệm (Experience), Công cụ/Công nghệ (Tools), Ngôn ngữ (Language Skills), và Học văn/Chứng chỉ (Education).
     4. Liệt kê các điểm tương đồng cụ thể theo danh mục.
     5. Liệt kê các điểm còn thiếu (gaps).
     6. Xác định các từ khóa ATS quan trọng nên có trong CV.
@@ -68,7 +68,7 @@ function buildParseCvPromptVi({ jdSection }: PromptParams): string {
     - Trích xuất thông tin cá nhân: Họ tên, Email, Số điện thoại, LinkedIn, Portfolio.
     - Học vấn: Trích xuất đầy đủ bằng cấp, trường, chuyên ngành, năm tốt nghiệp, GPA.
     - Kinh nghiệm làm việc: Trích xuất TẤT CẢ các công việc trong CV (không giới hạn số lượng). Với mỗi công việc, lấy đầy đủ thông tin: công ty, chức danh, mốc thời gian (Chuẩn hóa về định dạng MM/YYYY), chi tiết các nhiệm vụ và thành tựu (không tóm tắt quá ngắn).
-    - Kỹ năng: Phân loại rõ ràng thành: technical_skills (kỹ năng kỹ thuật), soft_skills (kỹ năng mềm), tools_software (công cụ/phần mềm).
+    - Kỹ năng: Phân loại rõ ràng thành: technical_skills (kỹ năng kỹ thuật), soft_skills (kỹ năng mềm), hard_skills (kỹ năng cứng), tools_software (công cụ/phần mềm).
     - Dự án & Chứng chỉ: Trích xuất tên, mô tả, công nghệ sử dụng.
     - ATS Evaluation: Tính tổng số năm kinh nghiệm thực tế (dựa trên mốc thời gian kinh nghiệm, không chỉ lấy năm hiện tại trừ năm bắt đầu); relevant_score (0-100) là mức độ phù hợp tổng thể của CV với JD; key_match_highlights là các điểm nổi bật khớp với JD; missing_keywords là từ khóa quan trọng trong JD còn thiếu trong CV.
 
@@ -88,7 +88,7 @@ function buildParseCvPromptEn({ jdSection }: PromptParams): string {
     - Personal Info: Full name, Email, Phone, LinkedIn, Portfolio.
     - Education: ALL degrees, institutions, majors, graduation years, GPA.
     - Work Experience: Extract ALL work experiences listed in the CV (no limit). For each role, provide complete details: company, title, duration (standardize to MM/YYYY), detailed responsibilities and achievements (do not truncate or over-summarize).
-    - Skills: Categorize clearly into technical_skills, soft_skills, tools_software.
+    - Skills: Categorize clearly into technical_skills, soft_skills, hard_skills, tools_software.
     - Projects & Certifications: Names, descriptions, tech stack used.
     - ATS Evaluation: Calculate total years of actual experience (based on experience milestones, not just subtracting start year from current year); relevant_score (0-100) is the CV's overall fit against the JD; key_match_highlights are standout points matching the JD; missing_keywords are important JD keywords absent from the CV.
 
@@ -111,7 +111,7 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
     Task: Analysis & Comparison with JD:
     1. Identify the Job Title from the JD.
     2. Calculate an overall match score (0-100).
-    3. Provide component scores (0-100) for Skills, Experience, Tools, and Education.
+    3. Provide component scores (0-100) for Skills, Soft Skills, Hard Skills, Technical Skills, Experience, Tools, Language Skills, and Education.
     4. List specific matching points by category.
     5. List missing gaps (gaps).
     6. Identify important ATS keywords.

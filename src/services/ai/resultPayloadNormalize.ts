@@ -35,8 +35,12 @@ export function normalizeCategoryScores(raw: unknown): CategorizedScore {
   };
   return {
     skills: n(o.skills),
+    softSkills: n(o.softSkills),
+    hardSkills: n(o.hardSkills),
+    technicalSkills: n(o.technicalSkills),
     experience: n(o.experience),
     tools: n(o.tools),
+    languageSkills: n(o.languageSkills),
     education: n(o.education),
   };
 }

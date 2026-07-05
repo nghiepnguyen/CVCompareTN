@@ -33,6 +33,7 @@ export interface ParsedWorkExperience {
 export interface ParsedSkills {
   technical_skills: string[];
   soft_skills: string[];
+  hard_skills: string[];
   tools_software: string[];
   languages: {
     language: string;
@@ -66,8 +67,12 @@ export interface ParsedCV {
 
 export interface CategorizedScore {
   skills: number;
+  softSkills: number;
+  hardSkills: number;
+  technicalSkills: number;
   experience: number;
   tools: number;
+  languageSkills: number;
   education: number;
 }
 

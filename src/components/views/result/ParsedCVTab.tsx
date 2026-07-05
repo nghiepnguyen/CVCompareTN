@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  User, Mail, Phone, MapPin, Linkedin, Globe, 
-  Briefcase, GraduationCap, Code, Languages, 
-  Terminal, Award, Layers, Clock, TrendingUp, 
-  Search, ShieldCheck, ExternalLink, Calendar
+import {
+  User, Mail, Phone, MapPin, Linkedin, Globe,
+  Briefcase, GraduationCap, Code, Languages,
+  Terminal, Award, Layers, Clock, TrendingUp,
+  Search, ShieldCheck, ExternalLink, Calendar, Wrench
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
@@ -177,6 +177,21 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
                 <div className="flex flex-wrap gap-1.5">
                   {(skills.technical_skills || []).map((s, i) => (
                     <span key={i} className="px-2.5 py-1 rounded-lg bg-accent-light text-accent text-xs font-bold border border-accent/20">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Hard Skills */}
+              <div>
+                <div className="text-[10px] font-black text-warning uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <Wrench className="w-3 h-3" />
+                  {t.categoryHardSkills}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(skills.hard_skills || []).map((s, i) => (
+                    <span key={i} className="px-2.5 py-1 rounded-lg bg-warning-light text-warning text-xs font-bold border border-warning/20">
                       {s}
                     </span>
                   ))}

@@ -69,6 +69,7 @@ const PARSED_CV_SCHEMA = {
       properties: {
         technical_skills: { type: 'ARRAY', items: { type: 'STRING' } },
         soft_skills: { type: 'ARRAY', items: { type: 'STRING' } },
+        hard_skills: { type: 'ARRAY', items: { type: 'STRING' } },
         tools_software: { type: 'ARRAY', items: { type: 'STRING' } },
         languages: {
           type: 'ARRAY',
@@ -82,7 +83,7 @@ const PARSED_CV_SCHEMA = {
           },
         },
       },
-      required: ['technical_skills', 'soft_skills', 'tools_software', 'languages'],
+      required: ['technical_skills', 'soft_skills', 'hard_skills', 'tools_software', 'languages'],
     },
     projects: {
       type: 'ARRAY',

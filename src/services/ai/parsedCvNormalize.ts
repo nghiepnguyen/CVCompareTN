@@ -88,6 +88,9 @@ export function normalizeParsedCV(raw: unknown): ParsedCV | undefined {
     soft_skills: Array.isArray(sk.soft_skills)
       ? sk.soft_skills.filter((x): x is string => typeof x === "string")
       : [],
+    hard_skills: Array.isArray(sk.hard_skills)
+      ? sk.hard_skills.filter((x): x is string => typeof x === "string")
+      : [],
     tools_software: Array.isArray(sk.tools_software)
       ? sk.tools_software.filter((x): x is string => typeof x === "string")
       : [],

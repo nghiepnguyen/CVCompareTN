@@ -40,23 +40,37 @@ describe("resultPayloadNormalize", () => {
     it("returns zeroed scores for null", () => {
       expect(normalizeCategoryScores(null)).toEqual({
         skills: 0,
+        softSkills: 0,
+        hardSkills: 0,
+        technicalSkills: 0,
         experience: 0,
         tools: 0,
+        languageSkills: 0,
         education: 0,
       });
     });
 
     it("parses valid object", () => {
       expect(
-        normalizeCategoryScores({ skills: 90, experience: 80, tools: 85, education: 70 }),
-      ).toEqual({ skills: 90, experience: 80, tools: 85, education: 70 });
+        normalizeCategoryScores({
+          skills: 90, softSkills: 75, hardSkills: 82, technicalSkills: 88,
+          experience: 80, tools: 85, languageSkills: 60, education: 70,
+        }),
+      ).toEqual({
+        skills: 90, softSkills: 75, hardSkills: 82, technicalSkills: 88,
+        experience: 80, tools: 85, languageSkills: 60, education: 70,
+      });
     });
 
     it("coerces string scores to numbers", () => {
       expect(normalizeCategoryScores({ skills: "90", experience: "80" })).toEqual({
         skills: 90,
+        softSkills: 0,
+        hardSkills: 0,
+        technicalSkills: 0,
         experience: 80,
         tools: 0,
+        languageSkills: 0,
         education: 0,
       });
     });

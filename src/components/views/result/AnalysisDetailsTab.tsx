@@ -111,12 +111,16 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
             <ResponsiveContainer width="100%" height={256} debounce={32} minWidth={0}>
               <BarChart data={[
                 { label: t.skills, score: selectedResult.categoryScores?.skills || 0 },
+                { label: t.categorySoftSkills, score: selectedResult.categoryScores?.softSkills || 0 },
+                { label: t.categoryHardSkills, score: selectedResult.categoryScores?.hardSkills || 0 },
+                { label: t.categoryTechnicalSkills, score: selectedResult.categoryScores?.technicalSkills || 0 },
                 { label: t.experience, score: selectedResult.categoryScores?.experience || 0 },
                 { label: t.tools, score: selectedResult.categoryScores?.tools || 0 },
+                { label: t.categoryLanguageSkills, score: selectedResult.categoryScores?.languageSkills || 0 },
                 { label: t.education, score: selectedResult.categoryScores?.education || 0 },
-              ]}>
+              ]} margin={{ bottom: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
-                <XAxis dataKey="label" fontSize={10} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#374151' }} />
+                <XAxis dataKey="label" fontSize={10} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#374151' }} angle={-35} textAnchor="end" interval={0} height={50} />
                 <YAxis fontSize={10} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#374151' }} />
                 <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#F9FAFB' }} />
                 <Bar dataKey="score" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />

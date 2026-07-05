@@ -151,12 +151,16 @@ export const PrintView: React.FC<PrintViewProps> = ({ selectedResult }) => {
               {parsedCV?.skills && (
                 (parsedCV.skills.technical_skills?.length > 0) ||
                 (parsedCV.skills.soft_skills?.length > 0) ||
+                (parsedCV.skills.hard_skills?.length > 0) ||
                 (parsedCV.skills.tools_software?.length > 0)
               ) && (
                 <div style={{ marginBottom: '14pt' }}>
                   <PrintSidebarLabel>{reportLanguage === 'vi' ? 'Kỹ năng' : 'Skills'}</PrintSidebarLabel>
                   {parsedCV.skills.technical_skills?.length > 0 && (
                     <PrintSkillGroup label={reportLanguage === 'vi' ? 'Chuyên môn' : 'Technical'} skills={parsedCV.skills.technical_skills} />
+                  )}
+                  {parsedCV.skills.hard_skills?.length > 0 && (
+                    <PrintSkillGroup label={reportLanguage === 'vi' ? 'Kỹ năng cứng' : 'Hard Skills'} skills={parsedCV.skills.hard_skills} />
                   )}
                   {parsedCV.skills.soft_skills?.length > 0 && (
                     <PrintSkillGroup label={reportLanguage === 'vi' ? 'Kỹ năng mềm' : 'Soft Skills'} skills={parsedCV.skills.soft_skills} />

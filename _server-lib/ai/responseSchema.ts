@@ -23,11 +23,18 @@ export const ANALYSIS_RESPONSE_SCHEMA = {
       type: 'OBJECT',
       properties: {
         skills: { type: 'NUMBER' },
+        softSkills: { type: 'NUMBER' },
+        hardSkills: { type: 'NUMBER' },
+        technicalSkills: { type: 'NUMBER' },
         experience: { type: 'NUMBER' },
         tools: { type: 'NUMBER' },
+        languageSkills: { type: 'NUMBER' },
         education: { type: 'NUMBER' },
       },
-      required: ['skills', 'experience', 'tools', 'education'],
+      required: [
+        'skills', 'softSkills', 'hardSkills', 'technicalSkills',
+        'experience', 'tools', 'languageSkills', 'education',
+      ],
     },
     matchingPoints: {
       type: 'ARRAY',

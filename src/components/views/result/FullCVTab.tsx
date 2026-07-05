@@ -266,11 +266,15 @@ export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullC
                     {selectedResult.parsedCV?.skills && (
                       selectedResult.parsedCV.skills.technical_skills?.length > 0 ||
                       selectedResult.parsedCV.skills.soft_skills?.length > 0 ||
+                      selectedResult.parsedCV.skills.hard_skills?.length > 0 ||
                       selectedResult.parsedCV.skills.tools_software?.length > 0
                     ) && (
                       <SidebarSection label={reportLanguage === 'vi' ? 'Kỹ năng' : 'Skills'}>
                         {selectedResult.parsedCV.skills.technical_skills?.length > 0 && (
                           <SkillGroup label={reportLanguage === 'vi' ? 'Chuyên môn' : 'Technical'} skills={selectedResult.parsedCV.skills.technical_skills} />
+                        )}
+                        {selectedResult.parsedCV.skills.hard_skills?.length > 0 && (
+                          <SkillGroup label={reportLanguage === 'vi' ? 'Cứng' : 'Hard'} skills={selectedResult.parsedCV.skills.hard_skills} />
                         )}
                         {selectedResult.parsedCV.skills.soft_skills?.length > 0 && (
                           <SkillGroup label={reportLanguage === 'vi' ? 'Mềm' : 'Soft'} skills={selectedResult.parsedCV.skills.soft_skills} />
