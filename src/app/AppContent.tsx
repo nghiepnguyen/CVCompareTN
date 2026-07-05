@@ -18,9 +18,10 @@ import { SaveJdNameModal } from './SaveJdNameModal';
 import { SavedCvsListModal } from './SavedCvsListModal';
 import type { SavedCV } from '../services/cvService';
 
-const LandingView = React.lazy(() =>
-  import('../components/views/LandingView').then((m) => ({ default: m.LandingView }))
-);
+// LandingView is the LCP route (default anonymous landing) — imported eagerly so the
+// hero paints from the entry bundle without a second Suspense chunk round-trip.
+import { LandingView } from '../components/views/LandingView';
+
 const DashboardView = React.lazy(() =>
   import('../components/views/DashboardView').then((m) => ({ default: m.DashboardView }))
 );
