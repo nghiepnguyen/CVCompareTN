@@ -134,7 +134,7 @@ export function Header() {
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Language Switcher */}
           <div className={cn(
-            "hidden sm:flex items-center gap-0.5 p-1 rounded-xl",
+            "flex items-center gap-0.5 p-1 rounded-xl",
             user ? "dark:bg-white/[0.03] bg-surface-muted" : "bg-slate-900/5"
           )}>
             <button
