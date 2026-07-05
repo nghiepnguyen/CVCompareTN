@@ -66,7 +66,7 @@ Gemini được gọi qua **3 endpoint** thay vì một call gộp hết (từ 2
 
 **Lý do chuyển Gemini lên server:** `VITE_GEMINI_API_KEY` trước đây bị bundle vào client JS — bất kỳ ai mở DevTools đều lấy được key. Sau SEC-4, chỉ `process.env.GEMINI_API_KEY` trên server được dùng; frontend chỉ gọi `/api/analyze` (+ `/api/rewrite-cv`, `/api/parse-cv`).
 
-**PDF handling:** Server extract text bằng `unpdf` trước khi gửi cho Gemini (nếu extract được ≥100 ký tự) — chỉ fallback gửi base64 PDF (`inlineData`, multimodal OCR) khi extract thất bại hoặc PDF là ảnh scan. Image (≤ 2MB) vẫn gửi dạng base64 để Gemini xử lý multimodal.
+**PDF handling (cập nhật 2026-07):** Client (`useFileProcessor.ts`) extract text bằng `unpdf` TRƯỚC khi gửi, và nếu file gốc ≤ `MAX_INLINE_BINARY_SIZE` (2MB) thì gửi kèm cả `cvPdfInlineData` (base64) — không chỉ text. Server (`analyzeCV()`/`generateParsedCV()`) nhận cả hai: text được push làm phần `{text: ...}` chính, `cvPdfInlineData` (nếu có, re-check size ≤2MB) được push thêm làm `inlineData` để Gemini VỪA đọc nội dung chính xác từ text VỪA quan sát layout thật (bảng, nhiều cột, header/footer...) để chấm `formatAssessment`. PDF dạng scan/ảnh (không extract được text) không còn hard-fail ở `useFileProcessor.ts` nếu ≤2MB — fallback gửi thẳng `inlineData` (`mimeType: 'application/pdf'`) để Gemini OCR multimodal, tái sử dụng nhánh `cvMimeType === 'application/pdf'` sẵn có trong `analysisService.ts`/`parseCvService.ts`. Image (≤ 2MB) vẫn gửi dạng base64 để Gemini xử lý multimodal.
 
 ### 4. Xác thực reCAPTCHA
 

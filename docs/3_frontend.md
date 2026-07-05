@@ -35,19 +35,19 @@ Frontend của dự án **cvFit** được thiết kế để xử lý việc so
 
 Được trích xuất từ `AnalysisRunContext` để giữ provider lean và dễ test độc lập:
 
--   **`useFileProcessor.ts`**: `cleanText()` (chuẩn hóa whitespace/line endings) + `processFile()` (đọc File → base64 data-URL hoặc plain text cho Gemini pipeline).
+-   **`useFileProcessor.ts`**: `cleanText()` (chuẩn hóa whitespace/line endings) + `processFile()` (đọc File → base64 data-URL hoặc plain text cho Gemini pipeline). **Từ 2026-07:** PDF trích xuất được text vẫn ĐỒNG THỜI trả kèm `pdfInlineData` (base64 file gốc, giới hạn `MAX_INLINE_BINARY_SIZE` = 2MB) để Gemini có thể nhìn trực tiếp layout; PDF dạng scan/ảnh (không extract được text) không còn hard-fail nếu nằm dưới ngưỡng 2MB — fallback gửi thẳng base64 làm `mimeType: 'application/pdf'`.
 -   **`useProgressSimulator.ts`**: `createProgressSimulator()` — ease-out quadratic progress, interval-based, trả về `stop()`.
 
 ### Test suite (`src/__tests__/`)
 
-Sử dụng **Vitest** (98 tests, 7 test files — cập nhật **2026-06**):
+Sử dụng **Vitest** (113 tests, 7 test files — cập nhật **2026-07**):
 
 | Test file | Target | Tests |
 |-----------|--------|-------|
 | `planLimits.test.ts` | `src/lib/planLimits.ts` | 24 (thêm recruiter tests) |
 | `resultPayloadNormalize.test.ts` | `src/services/ai/resultPayloadNormalize.ts` | 23 |
-| `services/parsedCvNormalize.test.ts` | `src/services/ai/parsedCvNormalize.ts` | 21 |
-| `services/prompts.test.ts` | `src/services/ai/prompts.ts` | 9 |
+| `services/parsedCvNormalize.test.ts` | `src/services/ai/parsedCvNormalize.ts` | 30 (thêm `computeYearsOfExperience` — tính năm kinh nghiệm bằng code, merge khoảng thời gian chồng lấn, thay cho toán ngày của LLM) |
+| `services/prompts.test.ts` | `src/services/ai/prompts.ts` | 15 (thêm rubric required/nice-to-have + `formatAssessment`) |
 | `hooks/useFileProcessor.test.ts` | `src/hooks/useFileProcessor.ts` | 7 |
 | `hooks/useProgressSimulator.test.ts` | `src/hooks/useProgressSimulator.ts` | 5 |
 
@@ -125,11 +125,14 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
 ### 2. Xử lý đa định dạng (Multi-format Support)
 -   Hỗ trợ trích xuất văn bản từ: `.pdf`, `.docx`, `.txt`.
 -   Hỗ trợ OCR từ hình ảnh: `.jpg`, `.png`, `.webp` thông qua tính năng Vision của Gemini.
+-   **PDF layout-aware (2026-07):** ngoài text đã extract, `useFileProcessor.ts` còn gửi kèm `pdfInlineData` (base64 file gốc, ≤2MB) để Gemini "nhìn" được layout thật (nhiều cột, bảng/hình ảnh, header/footer chứa contact info...) khi chấm `formatAssessment` — không chỉ dựa vào text đã bị làm phẳng.
 
 ### 3. Hiển thị kết quả so sánh
 -   **Matching Score:** Điểm số tổng quát thể hiện mức độ khớp.
--   **Detailed Comparison:** Bảng đối chiếu từng yêu cầu trong JD với minh chứng từ CV (cvEvidence) và gợi ý cải thiện (improvement).
--   **Biểu đồ (Recharts):** Tab chi tiết (`AnalysisDetailsTab`) dùng **Bar chart** "Phân bổ điểm thành phần" (`categoryScores` — 8 nhóm: Skills/Soft Skills/Hard Skills/Technical Skills/Experience/Tools/Language Skills/Education) và **Radar chart** "Phân bổ kỹ năng" (% khớp = `matchingPoints / (matchingPoints + missingGaps)` theo category, domain cố định 0-100, union category từ cả 2 mảng); **History** có Area/Bar khi có đủ dữ liệu lịch sử. Container chart dùng chiều cao cố định + `ResponsiveContainer` để tránh cảnh báo kích thước.
+-   **Detailed Comparison:** Bảng đối chiếu từng yêu cầu trong JD với minh chứng từ CV (cvEvidence), gợi ý cải thiện (improvement), và **priority** (`required` | `nice-to-have`, 2026-07) — model phân loại yêu cầu BẮT BUỘC vs ƯU TIÊN trong JD trước khi chấm điểm.
+-   **Biểu đồ (Recharts):** Tab chi tiết (`AnalysisDetailsTab`) dùng **Bar chart** "Phân bổ điểm thành phần" (`categoryScores` — 8 nhóm: Skills/Soft Skills/Hard Skills/Technical Skills/Experience/Tools/Language Skills/Education, chấm theo thang điểm chuẩn hóa 6 mức trong prompt) và **Radar chart** "Phân bổ kỹ năng" (% khớp = `matchingPoints / (matchingPoints + missingGaps)` theo category, domain cố định 0-100, union category từ cả 2 mảng); **History** có Area/Bar khi có đủ dữ liệu lịch sử. Container chart dùng chiều cao cố định + `ResponsiveContainer` để tránh cảnh báo kích thước.
+-   **ATS Readability (`FormatAssessmentCard.tsx`, 2026-07):** Card riêng trong `AnalysisDetailsTab`, cạnh ATS Score Card, hiển thị `formatAssessment` — `overallAtsParseabilityScore` + checklist (bố cục nhiều cột, bảng/hình ảnh, section heading chuẩn, contact info trong header/footer, font/định dạng ngày nhất quán, file scan/ảnh) + `formatIssues[]`. Nếu `analysisAvailable = false` (không có file gốc kèm theo, ví dụ CV quá 2MB) → hiện gợi ý tải lại PDF nhỏ hơn thay vì đoán mò.
+-   **Score discrepancy badge (`ParsedCVTab.tsx`, 2026-07):** `/api/analyze` (`matchScore`) và `/api/parse-cv` (`ats_evaluation.relevant_score`) là hai lệnh gọi Gemini độc lập, có thể lệch nhau — `computeScoreDiscrepancy()` phát hiện lệch >15 điểm và hiện badge nhỏ giải thích đây là hai đánh giá độc lập. `ats_evaluation.years_of_experience` không còn do LLM tự tính — `computeYearsOfExperience()` (`parsedCvNormalize.ts`) cộng deterministic từ các mốc `work_experience[].duration`, merge khoảng thời gian chồng lấn.
 -   **Optimized Readability:** Kết quả phân tích được giới hạn chiều rộng tối đa 900px, tạo trải nghiệm đọc "như văn bản in" (editorial-grade), giảm mỏi mắt cho nhà tuyển dụng.
 
 ### 4. Luồng Recruiter (Nhà tuyển dụng)

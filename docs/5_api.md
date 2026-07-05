@@ -36,15 +36,17 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
     "cvMimeType": "text/plain | application/pdf | image/jpeg | image/png | ...",
     "cvName": "string (optional)",
     "language": "vi | en (optional, default: vi)",
-    "recaptchaToken": "string (optional, bắt buộc nếu anonymous)"
+    "recaptchaToken": "string (optional, bắt buộc nếu anonymous)",
+    "cvPdfInlineData": "string (optional, base64 PDF gốc ≤2MB — 2026-07, xem 'Lưu ý PDF' dưới)"
   }
   ```
-- **Response:** `AnalysisResult` JSON — matchScore, categoryScores, matchingPoints, missingGaps, atsKeywords, rewriteSuggestions, detailedComparison, successProbability/passProbability/passExplanation/mainFactor. `fullRewrittenCV` luôn là `''` và `parsedCV` luôn `undefined` trong response này — frontend fill hai field đó sau qua `/api/rewrite-cv` và `/api/parse-cv` (xem `generateFullCV`/`generateParsedCVForResult` trong `AnalysisRunContext.tsx`).
+- **Response:** `AnalysisResult` JSON — matchScore, categoryScores, matchingPoints, missingGaps, atsKeywords, rewriteSuggestions, detailedComparison (mỗi item có thêm `priority: 'required' | 'nice-to-have'`, 2026-07), `formatAssessment` (2026-07 — parseability score + checklist layout/format, xem dưới), successProbability/passProbability/passExplanation/mainFactor. `fullRewrittenCV` luôn là `''` và `parsedCV` luôn `undefined` trong response này — frontend fill hai field đó sau qua `/api/rewrite-cv` và `/api/parse-cv` (xem `generateFullCV`/`generateParsedCVForResult` trong `AnalysisRunContext.tsx`).
 - **Server-side flow (`_server-lib/analyze/handler.ts`):** xác thực Bearer (timeout 4s) → nếu anonymous, verify reCAPTCHA (timeout 5s) → `check_analytics_quota` RPC (timeout 5s, fail-open nếu lỗi/timeout) → gọi Gemini (`_server-lib/ai/analysisService.ts`) → `increment_usage_count` (fire-and-forget).
 - **Timeout — mô hình wall-clock budget (từ 2026-07):** thay vì cộng dồn timeout độc lập của từng bước (dễ vượt trần nếu mỗi bước chạy gần mức max của nó), handler tính một **deadline duy nhất 50s** kể từ dòng đầu tiên của request. Ngân sách còn lại sau auth/reCAPTCHA/quota được truyền thẳng cho lệnh gọi Gemini (`timeoutMs` param của `analyzeCV()`), đảm bảo tổng thời gian xử lý không bao giờ vượt 50s — chừa 10s buffer trước khi Vercel hard-kill ở 60s. Nếu ngân sách còn lại < 10s trước khi gọi Gemini, server trả `504` với JSON hợp lệ (`retryable: true`) ngay lập tức thay vì cố gọi và bị Vercel giết giữa chừng.
 - **maxOutputTokens:** 16384.
 - **Rate limit:** 10 req/15 min (strictLimiter).
-- **Lưu ý PDF:** Server extract text bằng `unpdf` trước khi gửi cho Gemini (nếu extract được ≥100 ký tự) — chỉ fallback về gửi base64 PDF (`inlineData`, multimodal OCR) khi extract thất bại/PDF scan ảnh. Xem [memory: Analyze timeout — PDF multimodal].
+- **Prompt (2026-07):** trước khi chấm điểm, model phân loại từng yêu cầu JD thành `required`/`nice-to-have`, áp thang điểm chuẩn hóa 6 mức cho `categoryScores`, và match `atsKeywords` theo kiểu literal string (không suy diễn ngữ nghĩa lỏng) để mô phỏng đúng cách một ATS thật đọc CV. Chi tiết: `src/services/ai/prompts.ts`.
+- **Lưu ý PDF (cập nhật 2026-07):** Client (`useFileProcessor.ts`) extract text bằng `unpdf` TRƯỚC khi gửi — nếu file gốc ≤2MB, gửi kèm luôn `cvPdfInlineData` (base64) để Gemini vừa đọc text vừa "nhìn" layout thật (chấm `formatAssessment`). Server chỉ fallback base64-only (`inlineData`, multimodal OCR) khi extract thất bại hoặc PDF là ảnh scan — nhánh này không còn hard-fail phía client nếu file ≤2MB (trước đây throw lỗi). Xem [memory: Analyze timeout — PDF multimodal].
 
 #### `POST /api/rewrite-cv` — nền, tạo `fullRewrittenCV`
 
@@ -69,9 +71,9 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
 
 - **Shared handler:** `_server-lib/parseCv/handler.ts` — `handleParseCv()`.
 - **Auth/reCAPTCHA/Timeout:** giống hệt `/api/rewrite-cv`.
-- **Body:** `{ jd, cvData, cvMimeType, language?, recaptchaToken? }` — vẫn cần `jd` để Gemini tính `ats_evaluation.relevant_score`/`missing_keywords` so với JD (không chỉ trích xuất CV đơn thuần).
-- **Response:** `{ parsedCV: ParsedCV | undefined }` — thông tin cá nhân, học vấn, kinh nghiệm làm việc (không giới hạn số lượng, không tóm tắt), kỹ năng, dự án, chứng chỉ, ATS evaluation.
-- **Logic:** `_server-lib/ai/parseCvService.ts`, `generateParsedCV(jd, cvData, cvMimeType, language, timeoutMs)`.
+- **Body:** `{ jd, cvData, cvMimeType, language?, recaptchaToken?, cvPdfInlineData? }` — vẫn cần `jd` để Gemini tính `ats_evaluation.relevant_score`/`missing_keywords` so với JD (không chỉ trích xuất CV đơn thuần). `cvPdfInlineData` (2026-07, optional, base64 PDF gốc ≤2MB) giống `/api/analyze` — cho Gemini nhìn layout thật khi trích xuất.
+- **Response:** `{ parsedCV: ParsedCV | undefined }` — thông tin cá nhân, học vấn, kinh nghiệm làm việc (không giới hạn số lượng, không tóm tắt), kỹ năng, dự án, chứng chỉ, ATS evaluation. **Lưu ý (2026-07):** `ats_evaluation.years_of_experience` không còn là số Gemini tự tính — client override bằng `computeYearsOfExperience()` (`parsedCvNormalize.ts`), cộng deterministic từ `work_experience[].duration`, merge khoảng thời gian chồng lấn; chỉ fallback về số LLM khi không có mốc thời gian nào parse được.
+- **Logic:** `_server-lib/ai/parseCvService.ts`, `generateParsedCV(jd, cvData, cvMimeType, language, timeoutMs, cvPdfInlineData?)`.
 - **Trigger:** gọi song song với `/api/rewrite-cv`, ngay sau `/api/analyze` (`AnalysisRunContext.generateParsedCVForResult`). `ParsedCVTab` hiện spinner cho tới khi có kết quả.
 
 ### Trích xuất PDF (path thống nhất)
@@ -84,7 +86,7 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
 - **Auth (2026-06):** Bearer token (Supabase JWT) hoặc `recaptchaToken` trong body — bắt buộc. Anonymous request không có token sẽ nhận `401`.
 - **Body:** `{ base64Data: string, recaptchaToken?: string }`
 - **Response:** `{ text: string }`
-- **Dùng cho:** Trích xuất text từ PDF JD (Job Description) upload trong `AnalysisInputView`. CV PDF dùng `unpdf` client-side, không qua endpoint này.
+- **Dùng cho:** Trích xuất text từ PDF JD (Job Description) upload trong `AnalysisInputView`. CV PDF dùng `unpdf` client-side (`useFileProcessor.ts`), không qua endpoint này — file gốc (nếu ≤2MB) được gửi kèm trực tiếp trong body `/api/analyze`/`/api/parse-cv` (`cvPdfInlineData`) thay vì qua một endpoint trích xuất riêng.
 
 ### Xác thực reCAPTCHA (standalone — chỉ cho auth flow)
 

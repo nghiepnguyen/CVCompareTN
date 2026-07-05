@@ -13,11 +13,11 @@ graph TD
     Q -->|allowed| R[Lấy reCAPTCHA token]
     R --> D[Vòng lặp: Phân tích từng CV]
     D --> E{Định dạng file?}
-    E -->|PDF| P[unpdf client-side → plain text]
+    E -->|PDF| P[unpdf client-side → plain text\n + pdfInlineData base64 nếu ≤2MB]
     E -->|Docx| F[mammoth client-side → plain text]
     E -->|Image ≤2MB| IMG[base64 data-URL]
     E -->|Pasted text| F
-    P --> API[POST /api/analyze\n Bearer token + recaptchaToken]
+    P --> API[POST /api/analyze\n Bearer token + recaptchaToken\n + cvPdfInlineData?]
     F --> API
     IMG --> API
     API --> SRV[Server: verify reCAPTCHA\n check quota\n Gemini API call\n increment_usage_count]
@@ -30,9 +30,9 @@ graph TD
 ### Các bước trọng tâm:
 1.  **Thu thập JD:** JD có thể được lấy từ nhiều nguồn: nhập tay trực tiếp, trích xuất tự động từ đường link tuyển dụng hoặc chọn nhanh từ **Kho lưu trữ JD cá nhân (JD Store)** (`SavedJdContext` / modal trong `AppContent`). Lưu JD mới: `confirmSaveJD(title, jdContent)`.
 2.  **Kiểm tra hạn mức tháng:** `AnalysisRunContext` gọi RPC `check_analytics_quota` client-side (cho UX — hiển thị thông báo nhanh). Quota cũng được enforce server-side trong `/api/analyze`. Hạn mức lấy từ `app_settings.default_monthly_analytics_limit` (mặc định **20**, đổi qua Admin/SQL không cần deploy). Xem [8_analytics.md](8_analytics.md).
-3.  **Xử lý file trước khi gửi:** PDF → `unpdf` extract text client-side (không gửi base64 để tránh vượt 4.5MB limit Vercel); Image ≤ 2MB → base64; DOCX → mammoth → text.
-4.  **Gemini chạy server-side:** `POST /api/analyze` nhận text/base64, gọi Gemini, trả `AnalysisResult`. `GEMINI_API_KEY` chỉ tồn tại trên server — không expose ra browser (SEC-4).
-5.  **So sánh chi tiết (Detailed Comparison):** AI không chỉ chấm điểm mà còn chỉ ra minh chứng trực tiếp (`cvEvidence`) từ hồ sơ để giải thích tại sao một yêu cầu được coi là "Đạt" (Matched) hoặc "Thiếu" (Missing).
+3.  **Xử lý file trước khi gửi (cập nhật 2026-07):** PDF → `unpdf` extract text client-side; NẾU file gốc ≤2MB (`MAX_INLINE_BINARY_SIZE`), gửi kèm cả `pdfInlineData` (base64) để Gemini vừa đọc text vừa nhìn layout thật (giữ text làm nguồn chính, tránh vượt 4.5MB limit Vercel nếu chỉ gửi base64 đơn thuần); PDF scan/ảnh không extract được text nhưng vẫn ≤2MB → không còn hard-fail, fallback gửi thẳng base64 (`mimeType: 'application/pdf'`); Image ≤ 2MB → base64; DOCX → mammoth → text.
+4.  **Gemini chạy server-side:** `POST /api/analyze` nhận text/base64 (+ `cvPdfInlineData` optional), gọi Gemini, trả `AnalysisResult` (gồm `formatAssessment` — đánh giá layout/khả năng đọc ATS dựa trên file gốc nếu có kèm theo). `GEMINI_API_KEY` chỉ tồn tại trên server — không expose ra browser (SEC-4).
+5.  **So sánh chi tiết (Detailed Comparison):** AI không chỉ chấm điểm mà còn chỉ ra minh chứng trực tiếp (`cvEvidence`) từ hồ sơ để giải thích tại sao một yêu cầu được coi là "Đạt" (Matched) hoặc "Thiếu" (Missing) — mỗi yêu cầu còn được gắn `priority` (`required`/`nice-to-have`) do model phân loại từ JD trước khi chấm điểm.
 
 ## 2. Luồng tối ưu hóa & Xuất bản
 
@@ -46,9 +46,11 @@ graph TD
 `/api/analyze` không còn trả `fullRewrittenCV` (Markdown CV viết lại) hay `parsedCV` (CV đã trích xuất/chuẩn hoá) đầy đủ — cả hai được generate **sau, song song, trong nền**, ngay sau khi có `AnalysisResult` chính, để giữ `/api/analyze` đủ nhẹ chạy trong ngân sách 50s (xem [5_api.md](5_api.md)):
 
 - `AnalysisRunContext.generateFullCV()` → `POST /api/rewrite-cv` → fill `fullRewrittenCV`. `FullCVTab` hiện spinner ("Đang tạo CV tối ưu hoá...") cho tới khi xong.
-- `AnalysisRunContext.generateParsedCVForResult()` → `POST /api/parse-cv` → fill `parsedCV`. `ParsedCVTab` hiện spinner ("Đang trích xuất dữ liệu CV...") cho tới khi xong.
+- `AnalysisRunContext.generateParsedCVForResult()` → `POST /api/parse-cv` (kèm `cvPdfInlineData` nếu có, cùng payload đã dùng cho `/api/analyze`) → fill `parsedCV`. `ParsedCVTab` hiện spinner ("Đang trích xuất dữ liệu CV...") cho tới khi xong.
 
 Cả hai chạy `void` (không chặn UI, không chặn nhau), trạng thái loading track riêng qua `fullCVGeneratingIds` / `parsedCVGeneratingIds` (Set các `resultId` đang generate). Kết quả phân tích (điểm số, gợi ý, so sánh) hiển thị ngay; hai tab Optimization và Parsed CV fill dữ liệu sau ~10-30s.
+
+`/api/analyze` và `/api/parse-cv` là hai lệnh gọi Gemini **độc lập**, nên `matchScore` và `ats_evaluation.relevant_score` có thể lệch nhau — `ParsedCVTab` hiện badge nhỏ khi lệch >15 điểm (`computeScoreDiscrepancy()`, `resultPayloadNormalize.ts`) để tránh gây hiểu lầm là một số đè lên số khác. `ats_evaluation.years_of_experience` không dùng số Gemini tự tính — bị override bởi `computeYearsOfExperience()` (`parsedCvNormalize.ts`), cộng deterministic từ `work_experience[].duration`.
 
 ## 4. Luồng thanh toán Pro (PayOS Flow)
 

@@ -61,7 +61,7 @@ flowchart TB
 ### Supabase Edge Functions (`supabase/functions/`)
 
 - **`verify-recaptcha`:** Legacy — **không còn dùng cho analyze flow**. reCAPTCHA verify cho analyze giờ chạy inline trong `POST /api/analyze`. Vẫn còn dùng cho auth flow (`AuthContext.tsx`).
-- **`extract-pdf`:** Legacy — không còn được gọi từ frontend. PDF extraction dùng `unpdf` client-side (trong `useFileProcessor.ts`) trước khi gửi text lên `/api/analyze`.
+- **`extract-pdf`:** Legacy — không còn được gọi từ frontend. PDF extraction dùng `unpdf` client-side (trong `useFileProcessor.ts`) trước khi gửi text lên `/api/analyze`; từ 2026-07, file gốc (≤2MB) cũng được gửi kèm luôn trong body (`cvPdfInlineData`) thay vì qua một bước trích xuất riêng.
 
 Do **not** assume one Edge function replaces Express and Vercel handlers without checking call sites.
 
