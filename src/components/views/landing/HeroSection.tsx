@@ -25,16 +25,58 @@ export function HeroSection({
       ref={heroRef}
       className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden"
     >
-      {/* ---- Background Effects ---- */}
-      <div className="pointer-events-none absolute inset-0">
-        {/* Grid pattern */}
-        <div className="absolute inset-0 bg-grid" />
+      {/* ---- Background Effects (static — color + grid, no animation) ---- */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {/* Static conic beam behind headline */}
+        <div
+          className="absolute left-1/2 top-1/3 h-[1300px] w-[1300px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.18] rotate-[25deg]"
+          style={{
+            background:
+              'conic-gradient(from 0deg, transparent 0deg, rgba(16,185,129,0.9) 40deg, transparent 110deg, transparent 210deg, rgba(52,211,153,0.8) 280deg, transparent 350deg)',
+            maskImage: 'radial-gradient(circle at center, #000 0%, #000 42%, transparent 70%)',
+            WebkitMaskImage: 'radial-gradient(circle at center, #000 0%, #000 42%, transparent 70%)',
+          }}
+        />
+
+        {/* Aurora mesh — colored radial glows (soft via gradient falloff) */}
+        <div
+          className="absolute -top-1/4 left-1/2 h-[1000px] w-[1000px] -translate-x-1/2 rounded-full"
+          style={{ background: 'radial-gradient(circle at center, rgba(16,185,129,0.28), transparent 70%)' }}
+        />
+        <div
+          className="absolute top-1/5 -left-40 h-[820px] w-[820px] rounded-full"
+          style={{ background: 'radial-gradient(circle at center, rgba(5,150,105,0.24), transparent 70%)' }}
+        />
+        <div
+          className="absolute bottom-0 -right-40 h-[820px] w-[820px] rounded-full"
+          style={{ background: 'radial-gradient(circle at center, rgba(52,211,153,0.2), transparent 70%)' }}
+        />
+
+        {/* Grid — accent lines, masked radial fade */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(16,185,129,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.12) 1px, transparent 1px)',
+            backgroundSize: '54px 54px',
+            maskImage: 'radial-gradient(ellipse 75% 65% at 50% 40%, #000 25%, transparent 80%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 75% 65% at 50% 40%, #000 25%, transparent 80%)',
+          }}
+        />
+
+        {/* Glow orbs */}
+        <div
+          className="absolute top-1/4 -left-32 h-[520px] w-[520px] rounded-full"
+          style={{ background: 'radial-gradient(circle at center, rgba(5,150,105,0.18), transparent 70%)' }}
+        />
+        <div
+          className="absolute bottom-1/4 -right-32 h-[460px] w-[460px] rounded-full"
+          style={{ background: 'radial-gradient(circle at center, rgba(5,150,105,0.18), transparent 70%)' }}
+        />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[540px] w-[540px] rounded-full bg-accent/10 blur-[120px]" />
+
         {/* Noise texture */}
         <div className="absolute inset-0 bg-noise" />
-        {/* Glow orbs */}
-        <div className="absolute top-1/4 -left-32 h-96 w-96 rounded-full bg-accent/5 blur-[120px] animate-glow" />
-        <div className="absolute bottom-1/4 -right-32 h-80 w-80 rounded-full bg-accent/5 blur-[100px] animate-glow" style={{ animationDelay: '1.5s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-accent/3 blur-[180px]" />
       </div>
 
       <motion.div
