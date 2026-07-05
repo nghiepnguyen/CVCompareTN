@@ -16,16 +16,34 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
   const [openSections, setOpenSections] = React.useState<string[]>(['matching']);
 
   const radarData = React.useMemo(() => {
-    const counts: Record<string, number> = {};
+    const matched: Record<string, number> = {};
+    const missing: Record<string, number> = {};
     (selectedResult.matchingPoints || []).forEach((p) => {
       if (!p?.category) return;
-      counts[p.category] = (counts[p.category] || 0) + 1;
+      matched[p.category] = (matched[p.category] || 0) + 1;
     });
-    return Object.entries(counts).map(([category, value]) => ({
-      name: getMatchingCategoryLabel(category, t),
-      value,
-    }));
-  }, [selectedResult.matchingPoints, t]);
+    (selectedResult.missingGaps || []).forEach((g) => {
+      if (!g?.category) return;
+      missing[g.category] = (missing[g.category] || 0) + 1;
+    });
+
+    const categoryOrder = [
+      'Skills', 'Soft Skills', 'Hard Skills', 'Technical Skills', 'Language Skills',
+      'Experience', 'Tools', 'Education',
+    ];
+    const categories = new Set([...Object.keys(matched), ...Object.keys(missing)]);
+
+    return Array.from(categories)
+      .sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b))
+      .map((category) => {
+        const matchedCount = matched[category] || 0;
+        const totalCount = matchedCount + (missing[category] || 0);
+        return {
+          name: getMatchingCategoryLabel(category, t),
+          value: totalCount > 0 ? Math.round((matchedCount / totalCount) * 100) : 0,
+        };
+      });
+  }, [selectedResult.matchingPoints, selectedResult.missingGaps, t]);
 
   return (
     <div id="analysis-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
@@ -115,14 +133,17 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
               <RadarChart data={radarData} outerRadius="70%">
                 <PolarGrid stroke="#374151" />
                 <PolarAngleAxis dataKey="name" fontSize={10} tick={{ fill: '#9CA3AF' }} />
-                <PolarRadiusAxis fontSize={10} tick={{ fill: '#9CA3AF' }} allowDecimals={false} />
+                <PolarRadiusAxis domain={[0, 100]} tickCount={5} fontSize={10} tick={{ fill: '#9CA3AF' }} allowDecimals={false} />
                 <Radar
                   dataKey="value"
                   stroke="var(--color-accent)"
                   fill="var(--color-accent)"
                   fillOpacity={0.4}
                 />
-                <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#F9FAFB' }} />
+                <Tooltip
+                  formatter={(value: number) => [`${value}%`, t.skillDistribution]}
+                  contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#F9FAFB' }}
+                />
               </RadarChart>
             </ResponsiveContainer>
             ) : (
