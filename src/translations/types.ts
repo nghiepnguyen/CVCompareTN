@@ -112,6 +112,18 @@ export interface UiLabels {
   // result
   atsCompatibilityScore: string;
   atsDesc: string;
+  atsFormatDesc: string;
+  atsFormatFlagContactHeaderFooter: string;
+  atsFormatFlagDateConsistency: string;
+  atsFormatFlagFontConsistency: string;
+  atsFormatFlagMultiColumn: string;
+  atsFormatFlagScannedImage: string;
+  atsFormatFlagStandardHeadings: string;
+  atsFormatFlagTablesGraphics: string;
+  atsFormatIssuesTitle: string;
+  atsFormatScoreLabel: string;
+  atsFormatTitle: string;
+  atsFormatUnavailable: string;
   atsKeywords: string;
   atsKeywordsDesc: string;
   atsOptimization: string;
@@ -336,6 +348,7 @@ export interface UiLabels {
   parsedPresent: string;
   parsedProjects: string;
   parsedRelevance: string;
+  parsedScoreDiscrepancy: string;
   parsedSkillsLang: string;
   parsedSoftSkills: string;
   parsedTechSkills: string;

@@ -33,7 +33,8 @@ export async function parseCV(
   cvMimeType: string,
   language: 'vi' | 'en' = 'vi',
   recaptchaToken?: string,
-  authToken?: string
+  authToken?: string,
+  cvPdfInlineData?: string
 ): Promise<ParsedCV | undefined> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
@@ -41,7 +42,7 @@ export async function parseCV(
   const res = await fetch('/api/parse-cv', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ jd, cvData, cvMimeType, language, recaptchaToken }),
+    body: JSON.stringify({ jd, cvData, cvMimeType, language, recaptchaToken, cvPdfInlineData }),
     // Server enforces a 50s wall-clock budget (see api/parse-cv.ts); 55s here
     // leaves room for the response to arrive before we give up client-side.
     signal: AbortSignal.timeout(55_000),
@@ -63,7 +64,8 @@ export async function analyzeCV(
   cvName?: string,
   language: 'vi' | 'en' = 'vi',
   recaptchaToken?: string,
-  authToken?: string
+  authToken?: string,
+  cvPdfInlineData?: string
 ): Promise<AnalysisResult> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -75,7 +77,7 @@ export async function analyzeCV(
   const res = await fetch('/api/analyze', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ jd, cvData, cvMimeType, cvName, language, recaptchaToken }),
+    body: JSON.stringify({ jd, cvData, cvMimeType, cvName, language, recaptchaToken, cvPdfInlineData }),
     // Server enforces a 50s wall-clock budget (see _server-lib/analyze/handler.ts);
     // 55s here leaves room for the response to arrive before we give up client-side.
     signal: AbortSignal.timeout(55_000),

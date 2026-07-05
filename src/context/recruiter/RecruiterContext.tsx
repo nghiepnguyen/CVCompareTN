@@ -248,7 +248,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             const blob = await response.blob();
             const file = new File([blob], candidate.fileName, { type: blob.type });
 
-            const { data: textData, mimeType } = await processFileUtil(file);
+            const { data: textData, mimeType, pdfInlineData } = await processFileUtil(file);
 
             // Get session token for authenticated API call
             const { data: { session } } = await supabase.auth.getSession();
@@ -262,6 +262,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
               reportLanguage,
               undefined,
               authToken,
+              pdfInlineData,
             );
 
             // Save result via backend API (service_role RPC)

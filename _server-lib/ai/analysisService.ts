@@ -4,6 +4,7 @@ import { ANALYSIS_RESPONSE_SCHEMA } from './responseSchema.js';
 import {
   normalizeCategoryScores,
   normalizeDetailedComparison,
+  normalizeFormatAssessment,
   normalizeMatchingPoints,
   normalizeMissingGaps,
   normalizeRewriteSuggestions,
@@ -30,13 +31,19 @@ const parseGeminiJson = (text: string) => {
   }
 };
 
+// Server-side re-check of the client's inline-PDF size budget (defense-in-depth
+// for callers other than the SPA — e.g. the Express deployment target or a
+// future direct API integration — which don't go through useFileProcessor.ts).
+const MAX_INLINE_PDF_BYTES = 2 * 1024 * 1024;
+
 export async function analyzeCV(
   jd: string,
   cvData: string,
   cvMimeType: string,
   cvName?: string,
   language: 'vi' | 'en' = 'vi',
-  timeoutMs = 45_000
+  timeoutMs = 45_000,
+  cvPdfInlineData?: string
 ): Promise<{ result: AnalysisResult; usage: TokenUsage }> {
   const client = getGeminiClient();
 
@@ -102,6 +109,15 @@ export async function analyzeCV(
       });
     } else {
       parts.push({ text: `CV Content:\n${cvData}` });
+      // Text extraction already succeeded — also attach the original PDF
+      // (when provided and within budget) so Gemini can additionally assess
+      // real layout/format for the formatAssessment section.
+      if (cvPdfInlineData) {
+        const base64Data = cvPdfInlineData.split(',')[1] || cvPdfInlineData;
+        if (Buffer.byteLength(base64Data, 'base64') <= MAX_INLINE_PDF_BYTES) {
+          parts.push({ inlineData: { data: base64Data, mimeType: 'application/pdf' } });
+        }
+      }
     }
 
     const geminiPromise = client.models.generateContent({
@@ -143,6 +159,7 @@ export async function analyzeCV(
       rewriteSuggestions: normalizeRewriteSuggestions(parsedResult.rewriteSuggestions),
       fullRewrittenCV: '',
       detailedComparison: normalizeDetailedComparison(parsedResult.detailedComparison),
+      formatAssessment: normalizeFormatAssessment(parsedResult.formatAssessment),
       // parsedCV is generated separately via /api/parse-cv in the background — see
       // _server-lib/ai/parseCvService.ts — to keep this call's output small.
       id: crypto.randomUUID(),

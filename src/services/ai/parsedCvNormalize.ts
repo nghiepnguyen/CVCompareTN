@@ -12,6 +12,72 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v != null && typeof v === "object" && !Array.isArray(v);
 }
 
+type MonthYear = { year: number; month: number };
+
+function parseMonthYear(s: string | undefined): MonthYear | null {
+  if (typeof s !== "string") return null;
+  const trimmed = s.trim();
+  let m = trimmed.match(/^(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    const month = parseInt(m[1], 10);
+    const year = parseInt(m[2], 10);
+    if (month >= 1 && month <= 12) return { year, month };
+  }
+  m = trimmed.match(/^(\d{4})-(\d{1,2})$/);
+  if (m) {
+    const year = parseInt(m[1], 10);
+    const month = parseInt(m[2], 10);
+    if (month >= 1 && month <= 12) return { year, month };
+  }
+  m = trimmed.match(/^(\d{4})$/);
+  if (m) return { year: parseInt(m[1], 10), month: 1 };
+  return null;
+}
+
+const toMonthIndex = (d: MonthYear): number => d.year * 12 + (d.month - 1);
+
+/**
+ * Deterministically sums total work experience from date ranges instead of
+ * trusting the LLM's own arithmetic. Merges overlapping/concurrent roles so
+ * two simultaneous jobs aren't double-counted. Returns null when no range in
+ * `work_experience` has parseable MM/YYYY (or YYYY) start/end dates.
+ */
+export function computeYearsOfExperience(
+  work_experience: ParsedWorkExperience[],
+  now: Date = new Date()
+): number | null {
+  const ranges: [number, number][] = [];
+  for (const w of work_experience) {
+    const start = parseMonthYear(w.duration?.start);
+    if (!start) continue;
+    const end = w.duration?.is_current
+      ? { year: now.getFullYear(), month: now.getMonth() + 1 }
+      : parseMonthYear(w.duration?.end);
+    if (!end) continue;
+    const startIdx = toMonthIndex(start);
+    const endIdx = toMonthIndex(end);
+    if (endIdx < startIdx) continue;
+    ranges.push([startIdx, endIdx]);
+  }
+  if (ranges.length === 0) return null;
+
+  ranges.sort((a, b) => a[0] - b[0]);
+  let totalMonths = 0;
+  let [curStart, curEnd] = ranges[0];
+  for (let i = 1; i < ranges.length; i++) {
+    const [s, e] = ranges[i];
+    if (s <= curEnd + 1) {
+      curEnd = Math.max(curEnd, e);
+    } else {
+      totalMonths += curEnd - curStart + 1;
+      [curStart, curEnd] = [s, e];
+    }
+  }
+  totalMonths += curEnd - curStart + 1;
+
+  return Math.round((totalMonths / 12) * 10) / 10;
+}
+
 /**
  * Coerces Gemini / DB JSON into a full ParsedCV shape so UI never reads undefined nested fields.
  * Returns undefined only when there is no usable object (null, non-object, or empty {}).
@@ -128,6 +194,13 @@ export function normalizeParsedCV(raw: unknown): ParsedCV | undefined {
   } else if (typeof ats.years_of_experience === "string") {
     const y = parseFloat(ats.years_of_experience);
     years_of_experience = Number.isFinite(y) ? y : 0;
+  }
+  // Prefer a deterministic sum over the work-history date ranges — LLM date
+  // arithmetic is unreliable; only fall back to the model's own number when
+  // no entry has a parseable start/end date.
+  const computedYears = computeYearsOfExperience(work_experience);
+  if (computedYears !== null) {
+    years_of_experience = computedYears;
   }
   let relevant_score = 0;
   if (typeof ats.relevant_score === "number" && Number.isFinite(ats.relevant_score)) {

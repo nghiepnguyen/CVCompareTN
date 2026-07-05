@@ -10,6 +10,7 @@ const comparisonItemSchema = {
     status: { type: 'STRING', enum: ['matched', 'partial', 'missing'] },
     cvEvidence: { type: 'STRING' },
     improvement: { type: 'STRING' },
+    priority: { type: 'STRING', enum: ['required', 'nice-to-have'] },
   },
   required: ['requirement', 'status'],
 };
@@ -86,12 +87,32 @@ export const ANALYSIS_RESPONSE_SCHEMA = {
         education: { type: 'ARRAY', items: comparisonItemSchema },
         keywords: { type: 'ARRAY', items: comparisonItemSchema },
       },
-      required: ['skills', 'experience', 'tools', 'education'],
+      required: ['skills', 'experience', 'tools', 'education', 'keywords'],
+    },
+    formatAssessment: {
+      type: 'OBJECT',
+      properties: {
+        analysisAvailable: { type: 'BOOLEAN' },
+        overallAtsParseabilityScore: { type: 'NUMBER' },
+        hasMultiColumnLayout: { type: 'BOOLEAN' },
+        hasTablesOrGraphics: { type: 'BOOLEAN' },
+        hasStandardSectionHeadings: { type: 'BOOLEAN' },
+        contactInfoInHeaderFooter: { type: 'BOOLEAN' },
+        fontConsistencyIssue: { type: 'BOOLEAN' },
+        dateFormatConsistent: { type: 'BOOLEAN' },
+        isLikelyScannedImage: { type: 'BOOLEAN' },
+        formatIssues: { type: 'ARRAY', items: { type: 'STRING' } },
+      },
+      required: [
+        'analysisAvailable', 'overallAtsParseabilityScore', 'hasMultiColumnLayout',
+        'hasTablesOrGraphics', 'hasStandardSectionHeadings', 'contactInfoInHeaderFooter',
+        'fontConsistencyIssue', 'dateFormatConsistent', 'isLikelyScannedImage', 'formatIssues',
+      ],
     },
   },
   required: [
     'jobTitle', 'matchScore', 'categoryScores', 'matchingPoints', 'missingGaps',
     'successProbability', 'passProbability', 'passExplanation', 'mainFactor',
-    'atsKeywords', 'rewriteSuggestions', 'detailedComparison',
+    'atsKeywords', 'rewriteSuggestions', 'detailedComparison', 'formatAssessment',
   ],
 };

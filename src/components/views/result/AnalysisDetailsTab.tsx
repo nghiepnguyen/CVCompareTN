@@ -5,6 +5,7 @@ import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
 import { AnalysisResult } from '../../../services/ai';
 import { getMatchingCategoryLabel } from './matchingCategoryLabels';
+import { FormatAssessmentCard } from './FormatAssessmentCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 
 interface AnalysisDetailsTabProps {
@@ -102,6 +103,8 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
           </div>
         </div>
       </div>
+
+      <FormatAssessmentCard formatAssessment={selectedResult.formatAssessment} />
 
       {/* Score Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

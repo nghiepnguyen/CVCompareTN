@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import type { ProcessedFile } from "../hooks/useFileProcessor";
 
 export interface SavedCV {
   id: string;
@@ -19,7 +20,7 @@ export interface StoredCVRef {
   readonly filePath: string;
   readonly fileType: string;
   /** Eager download+processing promise started as soon as CV is selected from store. */
-  eagerProcessing?: Promise<{ data: string; mimeType: string }>;
+  eagerProcessing?: Promise<ProcessedFile>;
 }
 
 export function makeStoredCVRef(cv: SavedCV): StoredCVRef {

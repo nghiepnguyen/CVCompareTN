@@ -99,6 +99,20 @@ export interface ComparisonItem {
   status: 'matched' | 'partial' | 'missing';
   cvEvidence?: string;
   improvement?: string;
+  priority?: 'required' | 'nice-to-have';
+}
+
+export interface FormatAssessment {
+  analysisAvailable: boolean;
+  overallAtsParseabilityScore: number;
+  hasMultiColumnLayout: boolean;
+  hasTablesOrGraphics: boolean;
+  hasStandardSectionHeadings: boolean;
+  contactInfoInHeaderFooter: boolean;
+  fontConsistencyIssue: boolean;
+  dateFormatConsistent: boolean;
+  isLikelyScannedImage: boolean;
+  formatIssues: string[];
 }
 
 export interface DetailedComparison {
@@ -106,7 +120,7 @@ export interface DetailedComparison {
   experience: ComparisonItem[];
   tools: ComparisonItem[];
   education: ComparisonItem[];
-  keywords?: ComparisonItem[];
+  keywords: ComparisonItem[];
 }
 
 export interface AnalysisResult {
@@ -128,6 +142,7 @@ export interface AnalysisResult {
   fullRewrittenCV?: string;
   cvUrl?: string;
   detailedComparison: DetailedComparison;
+  formatAssessment?: FormatAssessment;
   userId?: string;
   rating?: number;
   feedback?: string;

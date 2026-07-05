@@ -33,6 +33,7 @@ export async function handleAnalyze(
     cvName?: string;
     language?: string;
     recaptchaToken?: string;
+    cvPdfInlineData?: string;
   };
 
   const jd = b.jd?.trim();
@@ -41,6 +42,7 @@ export async function handleAnalyze(
   const cvName = b.cvName?.trim() || 'Unnamed CV';
   const language: 'vi' | 'en' = b.language === 'en' ? 'en' : 'vi';
   const recaptchaToken = b.recaptchaToken;
+  const cvPdfInlineData = b.cvPdfInlineData?.trim() || undefined;
 
   if (!jd) return { status: 400, body: { error: 'Missing jd (job description)' } };
   if (!cvData) return { status: 400, body: { error: 'Missing cvData' } };
@@ -114,7 +116,9 @@ export async function handleAnalyze(
   }
 
   try {
-    const { result, usage } = await analyzeCV(jd, cvData, cvMimeType, cvName, language, remainingBudgetMs);
+    const { result, usage } = await analyzeCV(
+      jd, cvData, cvMimeType, cvName, language, remainingBudgetMs, cvPdfInlineData
+    );
 
     if (userId) {
       void (async () => {

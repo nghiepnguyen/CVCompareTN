@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeParsedCV } from "../../services/ai/parsedCvNormalize";
+import { normalizeParsedCV, computeYearsOfExperience } from "../../services/ai/parsedCvNormalize";
 
 describe("parsedCvNormalize — normalizeParsedCV", () => {
   it("returns undefined for null input", () => {
@@ -197,5 +197,123 @@ describe("parsedCvNormalize — normalizeParsedCV", () => {
     });
     expect(result!.ats_evaluation.years_of_experience).toBe(0);
     expect(result!.ats_evaluation.relevant_score).toBe(0);
+  });
+
+  it("overrides the LLM's years_of_experience with a deterministic sum from work_experience dates", () => {
+    const result = normalizeParsedCV({
+      work_experience: [
+        { duration: { start: "01/2020", end: "12/2022", is_current: false } },
+      ],
+      ats_evaluation: { years_of_experience: 99 },
+    });
+    expect(result!.ats_evaluation.years_of_experience).toBe(3);
+  });
+
+  it("falls back to the LLM's years_of_experience when no work_experience dates are parseable", () => {
+    const result = normalizeParsedCV({
+      work_experience: [{ duration: { start: "", end: "", is_current: false } }],
+      ats_evaluation: { years_of_experience: 5 },
+    });
+    expect(result!.ats_evaluation.years_of_experience).toBe(5);
+  });
+});
+
+describe("parsedCvNormalize — computeYearsOfExperience", () => {
+  it("returns null when work_experience is empty", () => {
+    expect(computeYearsOfExperience([])).toBeNull();
+  });
+
+  it("returns null when no entry has a parseable date", () => {
+    expect(
+      computeYearsOfExperience([
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { duration: { start: "not-a-date", end: "", is_current: false } } as any,
+      ])
+    ).toBeNull();
+  });
+
+  it("sums a single non-overlapping range in MM/YYYY format", () => {
+    const years = computeYearsOfExperience([
+      {
+        company: "Acme",
+        job_title: "Engineer",
+        duration: { start: "01/2020", end: "12/2022", is_current: false },
+        responsibilities: [],
+        achievements: [],
+      },
+    ]);
+    expect(years).toBe(3);
+  });
+
+  it("merges overlapping/concurrent roles instead of double-counting", () => {
+    const years = computeYearsOfExperience([
+      {
+        company: "A",
+        job_title: "Dev",
+        duration: { start: "01/2018", end: "01/2020", is_current: false },
+        responsibilities: [],
+        achievements: [],
+      },
+      {
+        company: "B",
+        job_title: "Freelance",
+        duration: { start: "06/2019", end: "06/2021", is_current: false },
+        responsibilities: [],
+        achievements: [],
+      },
+    ]);
+    // Merged range 01/2018-06/2021 = 42 months = 3.5 years, not 2y + 2y = 4y.
+    expect(years).toBe(3.5);
+  });
+
+  it("sums two fully separate ranges", () => {
+    const years = computeYearsOfExperience([
+      {
+        company: "A",
+        job_title: "Dev",
+        duration: { start: "01/2015", end: "12/2016", is_current: false },
+        responsibilities: [],
+        achievements: [],
+      },
+      {
+        company: "B",
+        job_title: "Dev",
+        duration: { start: "01/2020", end: "12/2021", is_current: false },
+        responsibilities: [],
+        achievements: [],
+      },
+    ]);
+    expect(years).toBe(4);
+  });
+
+  it("treats is_current roles as running through the injected `now` date", () => {
+    const years = computeYearsOfExperience(
+      [
+        {
+          company: "Acme",
+          job_title: "Engineer",
+          duration: { start: "01/2022", end: "", is_current: true },
+          responsibilities: [],
+          achievements: [],
+        },
+      ],
+      new Date(2024, 0, 1) // Jan 2024
+    );
+    // Inclusive month counting (01/2022..01/2024 = 25 months) → 2.1 years.
+    expect(years).toBe(2.1);
+  });
+
+  it("skips entries where end predates start", () => {
+    expect(
+      computeYearsOfExperience([
+        {
+          company: "A",
+          job_title: "Dev",
+          duration: { start: "12/2022", end: "01/2020", is_current: false },
+          responsibilities: [],
+          achievements: [],
+        },
+      ])
+    ).toBeNull();
   });
 });

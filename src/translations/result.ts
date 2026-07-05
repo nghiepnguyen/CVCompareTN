@@ -8,6 +8,54 @@ export const result = {
     vi: "Dựa trên phân tích từ khóa, cấu trúc và yêu cầu kỹ thuật của JD, CV của bạn đạt mức tương thích này với hệ thống lọc tự động (ATS).",
     en: "Based on keyword analysis, structure, and technical requirements of the JD, your CV achieves this compatibility level with automated filtering systems (ATS).",
   },
+  atsFormatTitle: {
+    vi: "Khả năng đọc được của ATS (định dạng file)",
+    en: "ATS Readability (File Format)",
+  },
+  atsFormatDesc: {
+    vi: "Đánh giá riêng về bố cục/định dạng file CV — độc lập với nội dung — dựa trên việc quan sát trực tiếp file gốc.",
+    en: "A separate assessment of your CV file's layout/format — independent of content — based on directly inspecting the original file.",
+  },
+  atsFormatScoreLabel: {
+    vi: "Điểm khả năng đọc",
+    en: "Parseability Score",
+  },
+  atsFormatUnavailable: {
+    vi: "Chưa thể phân tích định dạng cho lần này — hãy tải lên file PDF dưới ~2MB để nhận đánh giá bố cục/layout chi tiết.",
+    en: "Format analysis wasn't available for this upload — try uploading a PDF under ~2MB for a detailed layout assessment.",
+  },
+  atsFormatIssuesTitle: {
+    vi: "Phát hiện cụ thể",
+    en: "Specific Findings",
+  },
+  atsFormatFlagMultiColumn: {
+    vi: "Bố cục nhiều cột",
+    en: "Multi-column layout",
+  },
+  atsFormatFlagTablesGraphics: {
+    vi: "Dùng bảng/hình ảnh cho nội dung chính",
+    en: "Tables/graphics for core content",
+  },
+  atsFormatFlagStandardHeadings: {
+    vi: "Tên section chuẩn ATS",
+    en: "Standard section headings",
+  },
+  atsFormatFlagContactHeaderFooter: {
+    vi: "Contact info trong header/footer",
+    en: "Contact info in header/footer",
+  },
+  atsFormatFlagFontConsistency: {
+    vi: "Font chữ nhất quán",
+    en: "Consistent font",
+  },
+  atsFormatFlagDateConsistency: {
+    vi: "Định dạng ngày nhất quán",
+    en: "Consistent date format",
+  },
+  atsFormatFlagScannedImage: {
+    vi: "File dạng scan/ảnh",
+    en: "Scanned/image file",
+  },
   skills: {
     vi: "Kỹ năng",
     en: "Skills",
@@ -399,6 +447,10 @@ export const result = {
   parsedRelevance: {
     vi: "Độ liên quan chuyên môn",
     en: "Professional Relevance",
+  },
+  parsedScoreDiscrepancy: {
+    vi: "Đây là đánh giá độc lập, có thể khác Match Score chính khoảng {delta} điểm",
+    en: "Independent estimate — may differ from the main Match Score by about {delta} points",
   },
   parsedHighlights: {
     vi: "Điểm mạnh nổi bật",

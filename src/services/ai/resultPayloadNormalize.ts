@@ -4,6 +4,7 @@ import type {
   CategorizedScore,
   ComparisonItem,
   DetailedComparison,
+  FormatAssessment,
   MissingGap,
   RewriteSuggestion,
 } from "./types.js";
@@ -79,17 +80,22 @@ export function normalizeComparisonItems(raw: unknown): ComparisonItem[] {
   const arr = coerceJsonField<unknown>(raw, []);
   if (!Array.isArray(arr)) return [];
   const statuses = new Set(["matched", "partial", "missing"]);
+  const priorities = new Set(["required", "nice-to-have"]);
   return arr
     .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
     .map((item) => {
       const st = item.status;
       const status = typeof st === "string" && statuses.has(st) ? (st as ComparisonItem["status"]) : "missing";
+      const pr = item.priority;
+      const priority =
+        typeof pr === "string" && priorities.has(pr) ? (pr as ComparisonItem["priority"]) : undefined;
       return {
         requirement:
           typeof item.requirement === "string" ? item.requirement : String(item.requirement ?? ""),
         status,
         cvEvidence: typeof item.cvEvidence === "string" ? item.cvEvidence : undefined,
         improvement: typeof item.improvement === "string" ? item.improvement : undefined,
+        priority,
       };
     });
 }
@@ -122,6 +128,46 @@ export function normalizeStringArray(raw: unknown): string[] {
   const arr = coerceJsonField<unknown>(raw, []);
   if (!Array.isArray(arr)) return [];
   return arr.filter((x): x is string => typeof x === "string");
+}
+
+export function normalizeFormatAssessment(raw: unknown): FormatAssessment {
+  const o = coerceJsonField<Record<string, unknown>>(raw, {});
+  const b = (v: unknown) => v === true;
+  const n = (v: unknown) => {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string") {
+      const x = parseFloat(v);
+      return Number.isFinite(x) ? x : 0;
+    }
+    return 0;
+  };
+  return {
+    analysisAvailable: b(o.analysisAvailable),
+    overallAtsParseabilityScore: n(o.overallAtsParseabilityScore),
+    hasMultiColumnLayout: b(o.hasMultiColumnLayout),
+    hasTablesOrGraphics: b(o.hasTablesOrGraphics),
+    hasStandardSectionHeadings: b(o.hasStandardSectionHeadings),
+    contactInfoInHeaderFooter: b(o.contactInfoInHeaderFooter),
+    fontConsistencyIssue: b(o.fontConsistencyIssue),
+    dateFormatConsistent: b(o.dateFormatConsistent),
+    isLikelyScannedImage: b(o.isLikelyScannedImage),
+    formatIssues: normalizeStringArray(o.formatIssues),
+  };
+}
+
+/**
+ * `matchScore` (from /analyze) and `ats_evaluation.relevant_score` (from the
+ * independent /parse-cv call) are two separate Gemini judgments of the same
+ * CV-vs-JD fit and can legitimately disagree. Surface the disagreement
+ * instead of silently picking one.
+ */
+export function computeScoreDiscrepancy(
+  matchScore: number,
+  relevantScore: number,
+  thresholdPoints = 15
+): { hasDiscrepancy: boolean; deltaAbs: number } {
+  const deltaAbs = Math.abs(matchScore - relevantScore);
+  return { hasDiscrepancy: deltaAbs > thresholdPoints, deltaAbs };
 }
 
 /** True if detailed comparison has at least one row to render */

@@ -131,11 +131,12 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       cvMimeType: string,
       language: 'vi' | 'en',
       authToken?: string,
-      recaptchaToken?: string
+      recaptchaToken?: string,
+      cvPdfInlineData?: string
     ) => {
       setParsedCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
-        const parsedCV = await parseCV(jd, cvData, cvMimeType, language, recaptchaToken, authToken);
+        const parsedCV = await parseCV(jd, cvData, cvMimeType, language, recaptchaToken, authToken, cvPdfInlineData);
         const patcher = (r: AnalysisResult) =>
           r.id === resultId ? { ...r, parsedCV } : r;
         setResults((prev) => prev.map(patcher));
@@ -273,7 +274,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
     try {
       const newResults: AnalysisResult[] = [];
-      const cvDataMap = new Map<string, { data: string; mimeType: string }>();
+      const cvDataMap = new Map<string, { data: string; mimeType: string; pdfInlineData?: string }>();
       setAnalysisStatus(reportLanguage === 'vi' ? 'Đang đọc CV...' : 'Reading CV...');
       setAnalysisProgress(15);
 
@@ -293,14 +294,15 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
           let data: string;
           let mimeType: string;
+          let pdfInlineData: string | undefined;
           if (isStoredCVRef(fileOrRef) && fileOrRef.eagerProcessing) {
             setAnalysisStatus(
               reportLanguage === 'vi' ? `Đang tải CV: ${fileOrRef.name}...` : `Loading CV: ${fileOrRef.name}...`
             );
-            ({ data, mimeType } = await fileOrRef.eagerProcessing);
+            ({ data, mimeType, pdfInlineData } = await fileOrRef.eagerProcessing);
           } else {
             const file = isStoredCVRef(fileOrRef) ? await resolveToFile(fileOrRef) : fileOrRef;
-            ({ data, mimeType } = await processFile(file));
+            ({ data, mimeType, pdfInlineData } = await processFile(file));
           }
 
           setAnalysisStatus(
@@ -318,12 +320,13 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             fileOrRef.name,
             reportLanguage,
             recaptchaToken,
-            authToken
+            authToken,
+            pdfInlineData
           );
           stopFake();
           setAnalysisProgress(fakeEnd);
           newResults.push({ ...analysis, userId: user?.id });
-          cvDataMap.set(analysis.id, { data, mimeType });
+          cvDataMap.set(analysis.id, { data, mimeType, pdfInlineData });
 
           trackEvent('analysis_success', {
             match_score: analysis.matchScore,
@@ -373,9 +376,11 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
       // Background: generate fullRewrittenCV and parsedCV for each result via separate
       // calls so the main analyze stays fast (neither is in the main Gemini prompt).
-      for (const [resultId, { data, mimeType }] of cvDataMap) {
+      for (const [resultId, { data, mimeType, pdfInlineData }] of cvDataMap) {
         void generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, recaptchaToken);
-        void generateParsedCVForResult(resultId, jd, data, mimeType, reportLanguage, authToken, recaptchaToken);
+        void generateParsedCVForResult(
+          resultId, jd, data, mimeType, reportLanguage, authToken, recaptchaToken, pdfInlineData
+        );
       }
 
       if (user?.id) saveToHistory(newResults, effectivePlan).catch(console.error);

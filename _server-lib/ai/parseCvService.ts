@@ -5,6 +5,8 @@ import { buildParseCvPrompt } from '../../src/services/ai/prompts.js';
 import type { ParsedCV } from '../../src/services/ai/types.js';
 
 const PARSE_CV_TIMEOUT_MS = 45_000;
+// See analysisService.ts's identical constant for rationale.
+const MAX_INLINE_PDF_BYTES = 2 * 1024 * 1024;
 
 const PARSED_CV_SCHEMA = {
   type: 'OBJECT',
@@ -118,7 +120,8 @@ export async function generateParsedCV(
   cvData: string,
   cvMimeType: string,
   language: 'vi' | 'en' = 'vi',
-  timeoutMs: number = PARSE_CV_TIMEOUT_MS
+  timeoutMs: number = PARSE_CV_TIMEOUT_MS,
+  cvPdfInlineData?: string
 ): Promise<{ parsedCV: ParsedCV | undefined; usage: TokenUsage }> {
   const client = getGeminiClient();
 
@@ -165,6 +168,12 @@ export async function generateParsedCV(
       });
     } else {
       parts.push({ text: `CV Content:\n${cvData}` });
+      if (cvPdfInlineData) {
+        const base64Data = cvPdfInlineData.split(',')[1] || cvPdfInlineData;
+        if (Buffer.byteLength(base64Data, 'base64') <= MAX_INLINE_PDF_BYTES) {
+          parts.push({ inlineData: { data: base64Data, mimeType: 'application/pdf' } });
+        }
+      }
     }
 
     const geminiPromise = client.models.generateContent({

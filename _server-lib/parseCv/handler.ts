@@ -24,6 +24,7 @@ export async function handleParseCv(
     cvMimeType?: string;
     language?: string;
     recaptchaToken?: string;
+    cvPdfInlineData?: string;
   };
 
   const jd = b.jd?.trim();
@@ -31,6 +32,7 @@ export async function handleParseCv(
   const cvMimeType = b.cvMimeType?.trim() || 'text/plain';
   const language: 'vi' | 'en' = b.language === 'en' ? 'en' : 'vi';
   const recaptchaToken = b.recaptchaToken;
+  const cvPdfInlineData = b.cvPdfInlineData?.trim() || undefined;
 
   if (!jd) return { status: 400, body: { error: 'Missing jd' } };
   if (!cvData) return { status: 400, body: { error: 'Missing cvData' } };
@@ -69,7 +71,9 @@ export async function handleParseCv(
   }
 
   try {
-    const { parsedCV, usage } = await generateParsedCV(jd, cvData, cvMimeType, language, remainingBudgetMs);
+    const { parsedCV, usage } = await generateParsedCV(
+      jd, cvData, cvMimeType, language, remainingBudgetMs, cvPdfInlineData
+    );
     logAnalysisAttempt(user?.id ?? null, 'success', 'parse_cv', undefined, usage);
     return { status: 200, body: { parsedCV } };
   } catch (err) {
