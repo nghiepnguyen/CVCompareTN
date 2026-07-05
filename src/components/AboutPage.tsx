@@ -219,7 +219,7 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
             {t.aboutHeroSub}
           </h2>
           <p className="mx-auto mb-8 max-w-md text-sm text-text-muted">
-            Phân tích CV miễn phí, không cần đăng ký. Bắt đầu ngay hôm nay.
+            {t.aboutCtaSub}
           </p>
 
           <a

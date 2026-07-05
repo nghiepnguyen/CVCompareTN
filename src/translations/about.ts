@@ -52,6 +52,10 @@ export const about = {
     vi: 'Bạn có câu hỏi, góp ý hoặc muốn hợp tác? Hãy gửi tin nhắn cho chúng tôi qua phần Ủng hộ phát triển hoặc email trực tiếp.',
     en: 'Have questions, feedback, or want to collaborate? Send us a message via the Support page or email us directly.',
   },
+  aboutCtaSub: {
+    vi: 'Phân tích CV miễn phí. Bắt đầu ngay hôm nay.',
+    en: 'Free CV analysis. Get started today.',
+  },
   aboutCta: {
     vi: 'Dùng thử miễn phí ngay',
     en: 'Try it free now',

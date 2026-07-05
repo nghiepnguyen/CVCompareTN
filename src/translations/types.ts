@@ -549,6 +549,7 @@ export interface UiLabels {
   aboutTeamBody: string;
   aboutContactTitle: string;
   aboutContactBody: string;
+  aboutCtaSub: string;
   aboutCta: string;
   aboutBackHome: string;
   menuQuotaLine: string;
