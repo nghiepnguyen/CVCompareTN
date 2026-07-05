@@ -27,7 +27,7 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
 | **Vercel** | `POST /api/analyze` | `api/analyze.ts` (maxDuration 60s) |
 | **Express** | `POST /api/analyze` | `server/routes/analyze.ts` |
 
-- **Auth:** Bearer token (Supabase JWT) — optional. Nếu không có token, yêu cầu `recaptchaToken`.
+- **Auth:** Bearer token (Supabase JWT) — **bắt buộc** (2026-07: đã bỏ nhánh anonymous/reCAPTCHA vì UI luôn chặn phân tích khi chưa đăng nhập — nhánh anonymous chỉ có thể chạm tới qua gọi API trực tiếp, không quota, không rate-limit trên Vercel). Không có token hợp lệ → `401`.
 - **Body:**
   ```json
   {
@@ -36,13 +36,12 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
     "cvMimeType": "text/plain | application/pdf | image/jpeg | image/png | ...",
     "cvName": "string (optional)",
     "language": "vi | en (optional, default: vi)",
-    "recaptchaToken": "string (optional, bắt buộc nếu anonymous)",
     "cvPdfInlineData": "string (optional, base64 PDF gốc ≤2MB — 2026-07, xem 'Lưu ý PDF' dưới)"
   }
   ```
 - **Response:** `AnalysisResult` JSON — matchScore, categoryScores, matchingPoints, missingGaps, atsKeywords, rewriteSuggestions, detailedComparison (mỗi item có thêm `priority: 'required' | 'nice-to-have'`, 2026-07), `formatAssessment` (2026-07 — parseability score + checklist layout/format, xem dưới), successProbability/passProbability/passExplanation/mainFactor. `fullRewrittenCV` luôn là `''` và `parsedCV` luôn `undefined` trong response này — frontend fill hai field đó sau qua `/api/rewrite-cv` và `/api/parse-cv` (xem `generateFullCV`/`generateParsedCVForResult` trong `AnalysisRunContext.tsx`).
-- **Server-side flow (`_server-lib/analyze/handler.ts`):** xác thực Bearer (timeout 4s) → nếu anonymous, verify reCAPTCHA (timeout 5s) → `check_analytics_quota` RPC (timeout 5s, fail-open nếu lỗi/timeout) → gọi Gemini (`_server-lib/ai/analysisService.ts`) → `increment_usage_count` (fire-and-forget).
-- **Timeout — mô hình wall-clock budget (từ 2026-07):** thay vì cộng dồn timeout độc lập của từng bước (dễ vượt trần nếu mỗi bước chạy gần mức max của nó), handler tính một **deadline duy nhất 50s** kể từ dòng đầu tiên của request. Ngân sách còn lại sau auth/reCAPTCHA/quota được truyền thẳng cho lệnh gọi Gemini (`timeoutMs` param của `analyzeCV()`), đảm bảo tổng thời gian xử lý không bao giờ vượt 50s — chừa 10s buffer trước khi Vercel hard-kill ở 60s. Nếu ngân sách còn lại < 10s trước khi gọi Gemini, server trả `504` với JSON hợp lệ (`retryable: true`) ngay lập tức thay vì cố gọi và bị Vercel giết giữa chừng.
+- **Server-side flow (`_server-lib/analyze/handler.ts`):** xác thực Bearer (timeout 4s, thất bại → `401` ngay) → `check_analytics_quota` RPC (timeout 5s, fail-open nếu lỗi/timeout) → gọi Gemini (`_server-lib/ai/analysisService.ts`) → `increment_usage_count` (fire-and-forget).
+- **Timeout — mô hình wall-clock budget (từ 2026-07):** thay vì cộng dồn timeout độc lập của từng bước (dễ vượt trần nếu mỗi bước chạy gần mức max của nó), handler tính một **deadline duy nhất 50s** kể từ dòng đầu tiên của request. Ngân sách còn lại sau auth/quota được truyền thẳng cho lệnh gọi Gemini (`timeoutMs` param của `analyzeCV()`), đảm bảo tổng thời gian xử lý không bao giờ vượt 50s — chừa 10s buffer trước khi Vercel hard-kill ở 60s. Nếu ngân sách còn lại < 10s trước khi gọi Gemini, server trả `504` với JSON hợp lệ (`retryable: true`) ngay lập tức thay vì cố gọi và bị Vercel giết giữa chừng.
 - **maxOutputTokens:** 16384.
 - **Rate limit:** 10 req/15 min (strictLimiter).
 - **Prompt (2026-07):** trước khi chấm điểm, model phân loại từng yêu cầu JD thành `required`/`nice-to-have`, áp thang điểm chuẩn hóa 6 mức cho `categoryScores`, và match `atsKeywords` theo kiểu literal string (không suy diễn ngữ nghĩa lỏng) để mô phỏng đúng cách một ATS thật đọc CV. Chi tiết: `src/services/ai/prompts.ts`.
@@ -56,8 +55,8 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
 | **Express** | `POST /api/rewrite-cv` | `server/routes/rewriteCv.ts` |
 
 - **Shared handler:** `_server-lib/rewriteCv/handler.ts` — `handleRewriteCv()` (giống pattern `handleAnalyze()`, dùng chung giữa Vercel và Express).
-- **Auth/reCAPTCHA:** giống `/api/analyze` (Bearer optional, `recaptchaToken` bắt buộc nếu anonymous), mỗi bước có timeout riêng (auth 4s, reCAPTCHA 5s).
-- **Body:** `{ jd, cvData, cvMimeType, language?, recaptchaToken? }` (không có `cvName`).
+- **Auth:** giống `/api/analyze` — Bearer bắt buộc (timeout 4s), không còn nhánh anonymous/reCAPTCHA.
+- **Body:** `{ jd, cvData, cvMimeType, language? }` (không có `cvName`).
 - **Response:** `{ fullRewrittenCV: string }` — Markdown GFM CV đã viết lại tối ưu ATS.
 - **Timeout:** cùng mô hình wall-clock 50s như `/api/analyze` (`_server-lib/ai/rewriteService.ts`, `generateFullRewrite(jd, cvData, cvMimeType, language, timeoutMs)`).
 - **Trigger:** gọi tự động, không chặn UI, ngay sau khi `/api/analyze` trả kết quả (`AnalysisRunContext.generateFullCV`). `FullCVTab` hiện spinner cho tới khi có kết quả.
@@ -70,8 +69,8 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
 | **Express** | `POST /api/parse-cv` | `server/routes/parseCv.ts` |
 
 - **Shared handler:** `_server-lib/parseCv/handler.ts` — `handleParseCv()`.
-- **Auth/reCAPTCHA/Timeout:** giống hệt `/api/rewrite-cv`.
-- **Body:** `{ jd, cvData, cvMimeType, language?, recaptchaToken?, cvPdfInlineData? }` — vẫn cần `jd` để Gemini tính `ats_evaluation.relevant_score`/`missing_keywords` so với JD (không chỉ trích xuất CV đơn thuần). `cvPdfInlineData` (2026-07, optional, base64 PDF gốc ≤2MB) giống `/api/analyze` — cho Gemini nhìn layout thật khi trích xuất.
+- **Auth/Timeout:** giống hệt `/api/rewrite-cv` (Bearer bắt buộc, không còn nhánh anonymous/reCAPTCHA).
+- **Body:** `{ jd, cvData, cvMimeType, language?, cvPdfInlineData? }` — vẫn cần `jd` để Gemini tính `ats_evaluation.relevant_score`/`missing_keywords` so với JD (không chỉ trích xuất CV đơn thuần). `cvPdfInlineData` (2026-07, optional, base64 PDF gốc ≤2MB) giống `/api/analyze` — cho Gemini nhìn layout thật khi trích xuất.
 - **Response:** `{ parsedCV: ParsedCV | undefined }` — thông tin cá nhân, học vấn, kinh nghiệm làm việc (không giới hạn số lượng, không tóm tắt), kỹ năng, dự án, chứng chỉ, ATS evaluation. **Lưu ý (2026-07):** `ats_evaluation.years_of_experience` không còn là số Gemini tự tính — client override bằng `computeYearsOfExperience()` (`parsedCvNormalize.ts`), cộng deterministic từ `work_experience[].duration`, merge khoảng thời gian chồng lấn; chỉ fallback về số LLM khi không có mốc thời gian nào parse được.
 - **Logic:** `_server-lib/ai/parseCvService.ts`, `generateParsedCV(jd, cvData, cvMimeType, language, timeoutMs, cvPdfInlineData?)`.
 - **Trigger:** gọi song song với `/api/rewrite-cv`, ngay sau `/api/analyze` (`AnalysisRunContext.generateParsedCVForResult`). `ParsedCVTab` hiện spinner cho tới khi có kết quả.

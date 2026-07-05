@@ -1,15 +1,13 @@
 import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 import { generateParsedCV } from '../ai/parseCvService.js';
-import { verifyRecaptcha } from '../recaptcha.js';
 import { withTimeout } from '../withTimeout.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
 const AUTH_TIMEOUT_MS = 4_000;
-const RECAPTCHA_TIMEOUT_MS = 5_000;
 // Wall-clock budget from the first line of the handler — mirrors _server-lib/analyze/handler.ts
-// so auth + recaptcha + parsing can never together exceed Vercel's 60s maxDuration.
+// so auth + parsing can never together exceed Vercel's 60s maxDuration.
 const TOTAL_BUDGET_MS = 50_000;
 const MIN_PARSE_BUDGET_MS = 10_000;
 
@@ -23,7 +21,6 @@ export async function handleParseCv(
     cvData?: string;
     cvMimeType?: string;
     language?: string;
-    recaptchaToken?: string;
     cvPdfInlineData?: string;
   };
 
@@ -31,7 +28,6 @@ export async function handleParseCv(
   const cvData = b.cvData?.trim();
   const cvMimeType = b.cvMimeType?.trim() || 'text/plain';
   const language: 'vi' | 'en' = b.language === 'en' ? 'en' : 'vi';
-  const recaptchaToken = b.recaptchaToken;
   const cvPdfInlineData = b.cvPdfInlineData?.trim() || undefined;
 
   if (!jd) return { status: 400, body: { error: 'Missing jd' } };
@@ -47,16 +43,7 @@ export async function handleParseCv(
   });
 
   if (!user) {
-    if (!recaptchaToken) return { status: 401, body: { error: 'Auth or reCAPTCHA required' } };
-    const captcha = await withTimeout(
-      verifyRecaptcha(recaptchaToken),
-      RECAPTCHA_TIMEOUT_MS,
-      'reCAPTCHA verification'
-    ).catch((err) => {
-      console.warn('reCAPTCHA verification failed:', err.message);
-      return { ok: false, status: 503 as const, error: 'reCAPTCHA verification unavailable' };
-    });
-    if (!captcha.ok) return { status: captcha.status ?? 403, body: { error: captcha.error } };
+    return { status: 401, body: { error: 'Authentication required' } };
   }
 
   const remainingBudgetMs = TOTAL_BUDGET_MS - (Date.now() - requestStart);

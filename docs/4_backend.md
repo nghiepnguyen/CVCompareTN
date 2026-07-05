@@ -55,14 +55,13 @@ Gemini được gọi qua **3 endpoint** thay vì một call gộp hết (từ 2
 
 **Flow server-side (`/api/analyze`):**
 
-1. Verify Bearer token → lấy `userId` (optional — anonymous vẫn được phép), timeout 4s
-2. reCAPTCHA verify nếu anonymous, timeout 5s
-3. `check_analytics_quota` RPC (nếu authenticated), timeout 5s — lỗi/timeout thì fail-open (coi như allowed)
-4. Gọi Gemini API → trả `AnalysisResult` JSON (không có `fullRewrittenCV`/`parsedCV` đầy đủ)
-5. `increment_usage_count` RPC (fire-and-forget)
-6. **Frontend** ngay sau khi có kết quả, gọi song song `/api/rewrite-cv` và `/api/parse-cv` trong nền (`AnalysisRunContext.generateFullCV` / `generateParsedCVForResult`) để fill `fullRewrittenCV` và `parsedCV`; `FullCVTab`/`ParsedCVTab` hiện spinner cho tới khi xong.
+1. Verify Bearer token → lấy `userId`, timeout 4s. **Bắt buộc** (2026-07: đã bỏ nhánh anonymous/reCAPTCHA — không có token hợp lệ trả `401` ngay lập tức). UI cũng chặn hoàn toàn phân tích khi chưa đăng nhập (`DashboardView.tsx`), nên nhánh anonymous trước đây chỉ chạm được qua gọi API trực tiếp, không có quota/rate-limit trên Vercel — coi là lỗ hổng, đã đóng.
+2. `check_analytics_quota` RPC, timeout 5s — lỗi/timeout thì fail-open (coi như allowed)
+3. Gọi Gemini API → trả `AnalysisResult` JSON (không có `fullRewrittenCV`/`parsedCV` đầy đủ)
+4. `increment_usage_count` RPC (fire-and-forget)
+5. **Frontend** ngay sau khi có kết quả, gọi song song `/api/rewrite-cv` và `/api/parse-cv` trong nền (`AnalysisRunContext.generateFullCV` / `generateParsedCVForResult`) để fill `fullRewrittenCV` và `parsedCV`; `FullCVTab`/`ParsedCVTab` hiện spinner cho tới khi xong.
 
-**Timeout — mô hình wall-clock budget:** cả 3 endpoint tính một **deadline duy nhất 50s** kể từ đầu request (thay vì cộng timeout độc lập từng bước, vốn dễ vượt trần nếu mỗi bước chạy gần mức max) — ngân sách còn lại sau auth/reCAPTCHA/quota được truyền thẳng cho lệnh gọi Gemini. Nếu ngân sách còn lại quá thấp (<10s) trước khi gọi Gemini, server trả `504` JSON hợp lệ ngay (`retryable: true`) thay vì cố gọi và bị Vercel giết giữa chừng không JSON body. Utility dùng chung: `_server-lib/withTimeout.ts`.
+**Timeout — mô hình wall-clock budget:** cả 3 endpoint tính một **deadline duy nhất 50s** kể từ đầu request (thay vì cộng timeout độc lập từng bước, vốn dễ vượt trần nếu mỗi bước chạy gần mức max) — ngân sách còn lại sau auth/quota được truyền thẳng cho lệnh gọi Gemini. Nếu ngân sách còn lại quá thấp (<10s) trước khi gọi Gemini, server trả `504` JSON hợp lệ ngay (`retryable: true`) thay vì cố gọi và bị Vercel giết giữa chừng không JSON body. Utility dùng chung: `_server-lib/withTimeout.ts`.
 
 **Lý do chuyển Gemini lên server:** `VITE_GEMINI_API_KEY` trước đây bị bundle vào client JS — bất kỳ ai mở DevTools đều lấy được key. Sau SEC-4, chỉ `process.env.GEMINI_API_KEY` trên server được dùng; frontend chỉ gọi `/api/analyze` (+ `/api/rewrite-cv`, `/api/parse-cv`).
 
@@ -78,7 +77,7 @@ Shared utility: **`_server-lib/recaptcha.ts`** — `verifyRecaptcha(token, thres
 
 **Standalone endpoint (`POST /api/verify-recaptcha`):** Dùng bởi `AuthContext.tsx` trước `signInWithEmail()` / `signUpWithEmail()`.
 
-**Inline verification:** `/api/analyze` và `/api/extract-pdf` verify reCAPTCHA inline (cho anonymous users) qua `_server-lib/recaptcha.ts` — không gọi endpoint riêng.
+**Inline verification:** `/api/extract-pdf` verify reCAPTCHA inline (cho anonymous users) qua `_server-lib/recaptcha.ts` — không gọi endpoint riêng. (`/api/analyze`, `/api/rewrite-cv`, `/api/parse-cv` không còn nhánh anonymous/reCAPTCHA từ 2026-07 — Bearer token bắt buộc.)
 
 ### 5. Thanh toán PayOS (`/api/payment/*`)
 

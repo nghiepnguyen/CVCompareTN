@@ -12,7 +12,6 @@ import {
   clearUserHistory,
   getUserHistory,
 } from '../../services/historyService';
-import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { MAX_BATCH_BY_PLAN } from '../../lib/planLimits';
 import type { UserPlan } from '../../services/userService';
@@ -29,7 +28,6 @@ const AnalysisRunContext = createContext<AnalysisRunContextType | undefined>(und
 export function AnalysisRunProvider({ children }: { children: React.ReactNode }) {
   const { user, userProfile, effectivePlan, setError, refreshUserProfile } = useAuth();
   const { reportLanguage, t, navigateToUpgrade } = useUI();
-  const { executeRecaptcha } = useGoogleReCaptcha();
 
   const [jd, setJd] = useState('');
   const [cvText, setCvText] = useState('');
@@ -92,8 +90,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       cvData: string,
       cvMimeType: string,
       language: 'vi' | 'en',
-      authToken?: string,
-      recaptchaToken?: string
+      authToken?: string
     ) => {
       setFullCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
@@ -102,7 +99,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           cvData,
           cvMimeType,
           language,
-          recaptchaToken,
           authToken
         );
         const patcher = (r: AnalysisResult) =>
@@ -131,12 +127,11 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       cvMimeType: string,
       language: 'vi' | 'en',
       authToken?: string,
-      recaptchaToken?: string,
       cvPdfInlineData?: string
     ) => {
       setParsedCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
-        const parsedCV = await parseCV(jd, cvData, cvMimeType, language, recaptchaToken, authToken, cvPdfInlineData);
+        const parsedCV = await parseCV(jd, cvData, cvMimeType, language, authToken, cvPdfInlineData);
         const patcher = (r: AnalysisResult) =>
           r.id === resultId ? { ...r, parsedCV } : r;
         setResults((prev) => prev.map(patcher));
@@ -253,17 +248,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     setError(null);
     setResults([]);
 
-    // Get reCAPTCHA token (verification handled server-side in /api/analyze)
-    let recaptchaToken: string | undefined;
-    try {
-      const isLocal =
-        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      if (!isLocal && executeRecaptcha) {
-        recaptchaToken = await executeRecaptcha('analyze_cv');
-      }
-    } catch (err) {
-      console.error('reCAPTCHA token error:', err);
-    }
     setAnalysisProgress(10);
 
     trackEvent('analyze_cv', {
@@ -281,57 +265,72 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       const { data: { session } } = await supabase.auth.getSession();
       const authToken = session?.access_token;
 
+      const failures: { name: string; message: string }[] = [];
+
       if (cvInputMode === 'file') {
         const totalFiles = files.length;
         for (let i = 0; i < totalFiles; i++) {
           const fileOrRef = files[i];
           const fileBaseProgress = 15 + (i / totalFiles) * 75;
+          let stopFake: (() => void) | undefined;
 
-          setAnalysisStatus(
-            reportLanguage === 'vi' ? `Đang đọc file: ${fileOrRef.name}` : `Reading file: ${fileOrRef.name}`
-          );
-          setAnalysisProgress(fileBaseProgress + 5);
-
-          let data: string;
-          let mimeType: string;
-          let pdfInlineData: string | undefined;
-          if (isStoredCVRef(fileOrRef) && fileOrRef.eagerProcessing) {
+          try {
             setAnalysisStatus(
-              reportLanguage === 'vi' ? `Đang tải CV: ${fileOrRef.name}...` : `Loading CV: ${fileOrRef.name}...`
+              reportLanguage === 'vi' ? `Đang đọc file: ${fileOrRef.name}` : `Reading file: ${fileOrRef.name}`
             );
-            ({ data, mimeType, pdfInlineData } = await fileOrRef.eagerProcessing);
-          } else {
-            const file = isStoredCVRef(fileOrRef) ? await resolveToFile(fileOrRef) : fileOrRef;
-            ({ data, mimeType, pdfInlineData } = await processFile(file));
+            setAnalysisProgress(fileBaseProgress + 5);
+
+            let data: string;
+            let mimeType: string;
+            let pdfInlineData: string | undefined;
+            if (isStoredCVRef(fileOrRef) && fileOrRef.eagerProcessing) {
+              setAnalysisStatus(
+                reportLanguage === 'vi' ? `Đang tải CV: ${fileOrRef.name}...` : `Loading CV: ${fileOrRef.name}...`
+              );
+              ({ data, mimeType, pdfInlineData } = await fileOrRef.eagerProcessing);
+            } else {
+              const file = isStoredCVRef(fileOrRef) ? await resolveToFile(fileOrRef) : fileOrRef;
+              ({ data, mimeType, pdfInlineData } = await processFile(file));
+            }
+
+            setAnalysisStatus(
+              reportLanguage === 'vi' ? `Đang phân tích: ${fileOrRef.name}` : `Analyzing: ${fileOrRef.name}`
+            );
+            setAnalysisProgress(fileBaseProgress + 15);
+
+            const fakeStart = fileBaseProgress + 15;
+            const fakeEnd = fileBaseProgress + 65;
+            stopFake = startFakeProgress(fakeStart, fakeEnd, 15000);
+            const analysis = await analyzeCV(
+              jd,
+              data,
+              mimeType,
+              fileOrRef.name,
+              reportLanguage,
+              authToken,
+              pdfInlineData
+            );
+            stopFake();
+            setAnalysisProgress(fakeEnd);
+            newResults.push({ ...analysis, userId: user?.id });
+            cvDataMap.set(analysis.id, { data, mimeType, pdfInlineData });
+
+            trackEvent('analysis_success', {
+              match_score: analysis.matchScore,
+              input_mode: 'file',
+            });
+          } catch (fileErr) {
+            stopFake?.();
+            console.error(`Analysis failed for ${fileOrRef.name}:`, fileErr);
+            Sentry.captureException(fileErr, {
+              tags: { feature: 'analyze_cv_batch_item' },
+              contexts: { file: { name: fileOrRef.name } },
+            });
+            failures.push({
+              name: fileOrRef.name,
+              message: fileErr instanceof Error ? fileErr.message : String(fileErr),
+            });
           }
-
-          setAnalysisStatus(
-            reportLanguage === 'vi' ? `Đang phân tích: ${fileOrRef.name}` : `Analyzing: ${fileOrRef.name}`
-          );
-          setAnalysisProgress(fileBaseProgress + 15);
-
-          const fakeStart = fileBaseProgress + 15;
-          const fakeEnd = fileBaseProgress + 65;
-          const stopFake = startFakeProgress(fakeStart, fakeEnd, 15000);
-          const analysis = await analyzeCV(
-            jd,
-            data,
-            mimeType,
-            fileOrRef.name,
-            reportLanguage,
-            recaptchaToken,
-            authToken,
-            pdfInlineData
-          );
-          stopFake();
-          setAnalysisProgress(fakeEnd);
-          newResults.push({ ...analysis, userId: user?.id });
-          cvDataMap.set(analysis.id, { data, mimeType, pdfInlineData });
-
-          trackEvent('analysis_success', {
-            match_score: analysis.matchScore,
-            input_mode: 'file',
-          });
           setAnalysisProgress(fileBaseProgress + (1 / totalFiles) * 75);
         }
       } else {
@@ -351,7 +350,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           'text/plain',
           'CV_Pasted.txt',
           reportLanguage,
-          recaptchaToken,
           authToken
         );
         stopFake();
@@ -366,6 +364,16 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         setAnalysisProgress(90);
       }
 
+      if (newResults.length === 0 && failures.length > 0) {
+        throw new Error(
+          failures.length === 1
+            ? failures[0].message
+            : reportLanguage === 'vi'
+              ? `Tất cả ${failures.length} CV đều phân tích thất bại.`
+              : `All ${failures.length} CVs failed to analyze.`
+        );
+      }
+
       setAnalysisStatus(
         reportLanguage === 'vi' ? 'Đang tổng hợp kết quả...' : 'Synthesizing results...'
       );
@@ -377,14 +385,23 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       // Background: generate fullRewrittenCV and parsedCV for each result via separate
       // calls so the main analyze stays fast (neither is in the main Gemini prompt).
       for (const [resultId, { data, mimeType, pdfInlineData }] of cvDataMap) {
-        void generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, recaptchaToken);
+        void generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken);
         void generateParsedCVForResult(
-          resultId, jd, data, mimeType, reportLanguage, authToken, recaptchaToken, pdfInlineData
+          resultId, jd, data, mimeType, reportLanguage, authToken, pdfInlineData
         );
       }
 
       if (user?.id) saveToHistory(newResults, effectivePlan).catch(console.error);
       if (newResults.length === 1) setSelectedResult(newResults[0]);
+
+      if (failures.length > 0) {
+        const names = failures.map((f) => f.name).join(', ');
+        setError(
+          reportLanguage === 'vi'
+            ? `${failures.length}/${newResults.length + failures.length} CV phân tích thất bại: ${names}. Các CV còn lại đã được lưu.`
+            : `${failures.length}/${newResults.length + failures.length} CVs failed to analyze: ${names}. The rest were saved.`
+        );
+      }
 
       setAnalysisProgress(100);
     } catch (err: unknown) {

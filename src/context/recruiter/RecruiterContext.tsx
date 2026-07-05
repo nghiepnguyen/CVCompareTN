@@ -260,7 +260,6 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
               mimeType,
               candidate.fileName,
               reportLanguage,
-              undefined,
               authToken,
               pdfInlineData,
             );

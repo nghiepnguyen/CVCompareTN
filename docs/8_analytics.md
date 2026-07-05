@@ -365,7 +365,7 @@ Migration: `supabase/migrations/20260703030000_admin_analysis_log.sql`.
 
 | Cột | Ý nghĩa |
 |-----|---------|
-| `user_id` | Nullable (log cả anonymous, xác thực bằng reCAPTCHA). |
+| `user_id` | Nullable ở schema, nhưng từ 2026-07 luôn có giá trị — `/api/analyze` không còn nhánh anonymous/reCAPTCHA, Bearer token bắt buộc. |
 | `status` | `success` hoặc `error`. |
 | `error_message` | Message lỗi khi `status = 'error'`. |
 | `created_at` | Thời điểm ghi log. |

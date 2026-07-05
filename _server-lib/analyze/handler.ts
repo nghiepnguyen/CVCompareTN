@@ -1,6 +1,5 @@
 import { getUserFromBearerToken, getSupabaseAdmin } from '../payment/supabaseAdmin.js';
 import { analyzeCV } from '../ai/analysisService.js';
-import { verifyRecaptcha } from '../recaptcha.js';
 import { withTimeout } from '../withTimeout.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
 
@@ -9,7 +8,6 @@ export type HandlerResult = { status: number; body: Record<string, unknown> };
 // Timeouts for Supabase operations — keep them short to preserve budget for AI analysis.
 const AUTH_TIMEOUT_MS = 4_000;
 const QUOTA_CHECK_TIMEOUT_MS = 5_000;
-const RECAPTCHA_TIMEOUT_MS = 5_000;
 
 // Wall-clock budget for the whole handler, measured from the first line of
 // handleAnalyze. Vercel hard-kills the function at maxDuration=60s with no
@@ -32,7 +30,6 @@ export async function handleAnalyze(
     cvMimeType?: string;
     cvName?: string;
     language?: string;
-    recaptchaToken?: string;
     cvPdfInlineData?: string;
   };
 
@@ -41,7 +38,6 @@ export async function handleAnalyze(
   const cvMimeType = b.cvMimeType?.trim() || 'text/plain';
   const cvName = b.cvName?.trim() || 'Unnamed CV';
   const language: 'vi' | 'en' = b.language === 'en' ? 'en' : 'vi';
-  const recaptchaToken = b.recaptchaToken;
   const cvPdfInlineData = b.cvPdfInlineData?.trim() || undefined;
 
   if (!jd) return { status: 400, body: { error: 'Missing jd (job description)' } };
@@ -58,49 +54,34 @@ export async function handleAnalyze(
   const userId = user?.id ?? null;
 
   if (!userId) {
-    if (!recaptchaToken) {
-      return { status: 401, body: { error: 'Authentication or reCAPTCHA token required' } };
-    }
-    const captcha = await withTimeout(
-      verifyRecaptcha(recaptchaToken),
-      RECAPTCHA_TIMEOUT_MS,
-      'reCAPTCHA verification'
-    ).catch((err) => {
-      console.warn('reCAPTCHA verification failed:', err.message);
-      return { ok: false, status: 503 as const, error: 'reCAPTCHA verification unavailable' };
-    });
-    if (!captcha.ok) {
-      return { status: captcha.status ?? 403, body: { error: captcha.error } };
-    }
+    return { status: 401, body: { error: 'Authentication required' } };
   }
 
-  if (userId) {
-    try {
-      const adminClient = getSupabaseAdmin();
-      const { data: quota, error: quotaError } = await withTimeout(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        adminClient.rpc('check_analytics_quota', {
-          p_user_id: userId,
-          p_additional: 1,
-        }) as unknown as Promise<{ data: unknown; error: unknown }>,
-        QUOTA_CHECK_TIMEOUT_MS,
-        'Quota check'
-      );
-      if (quotaError) {
-        console.error('Quota check error:', quotaError);
-      } else if (quota && typeof quota === 'object') {
-        const q = quota as { allowed?: boolean; used?: number; limit?: number };
-        if (!q.allowed) {
-          return {
-            status: 429,
-            body: { error: 'Monthly analysis limit exceeded', used: q.used, limit: q.limit },
-          };
-        }
+  try {
+    const adminClient = getSupabaseAdmin();
+    const { data: quota, error: quotaError } = await withTimeout(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      adminClient.rpc('check_analytics_quota', {
+        p_user_id: userId,
+        p_additional: 1,
+      }) as unknown as Promise<{ data: unknown; error: unknown }>,
+      QUOTA_CHECK_TIMEOUT_MS,
+      'Quota check'
+    );
+    if (quotaError) {
+      console.error('Quota check error:', quotaError);
+    } else if (quota && typeof quota === 'object') {
+      const q = quota as { allowed?: boolean; used?: number; limit?: number };
+      if (!q.allowed) {
+        return {
+          status: 429,
+          body: { error: 'Monthly analysis limit exceeded', used: q.used, limit: q.limit },
+        };
       }
-    } catch (quotaErr) {
-      // Quota check timed out — log and proceed (fail-open for paying users)
-      console.warn('Quota check skipped (timeout):', quotaErr);
     }
+  } catch (quotaErr) {
+    // Quota check timed out — log and proceed (fail-open for paying users)
+    console.warn('Quota check skipped (timeout):', quotaErr);
   }
 
   const remainingBudgetMs = TOTAL_BUDGET_MS - (Date.now() - requestStart);
@@ -120,15 +101,13 @@ export async function handleAnalyze(
       jd, cvData, cvMimeType, cvName, language, remainingBudgetMs, cvPdfInlineData
     );
 
-    if (userId) {
-      void (async () => {
-        try {
-          await getSupabaseAdmin().rpc('increment_usage_count', { user_id: userId });
-        } catch (err) {
-          console.error('increment_usage_count failed:', err);
-        }
-      })();
-    }
+    void (async () => {
+      try {
+        await getSupabaseAdmin().rpc('increment_usage_count', { user_id: userId });
+      } catch (err) {
+        console.error('increment_usage_count failed:', err);
+      }
+    })();
     logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage);
 
     return { status: 200, body: result as unknown as Record<string, unknown> };
