@@ -1,3 +1,8 @@
+const MATCHING_CATEGORY_ENUM = [
+  'Skills', 'Soft Skills', 'Hard Skills', 'Technical Skills', 'Language Skills',
+  'Experience', 'Tools', 'Education',
+];
+
 const comparisonItemSchema = {
   type: 'OBJECT',
   properties: {
@@ -29,7 +34,7 @@ export const ANALYSIS_RESPONSE_SCHEMA = {
       items: {
         type: 'OBJECT',
         properties: {
-          category: { type: 'STRING' },
+          category: { type: 'STRING', enum: MATCHING_CATEGORY_ENUM },
           content: { type: 'STRING' },
         },
         required: ['category', 'content'],
@@ -40,7 +45,7 @@ export const ANALYSIS_RESPONSE_SCHEMA = {
       items: {
         type: 'OBJECT',
         properties: {
-          category: { type: 'STRING' },
+          category: { type: 'STRING', enum: MATCHING_CATEGORY_ENUM },
           content: { type: 'STRING' },
           impact: { type: 'STRING', enum: ['High', 'Medium', 'Low'] },
         },

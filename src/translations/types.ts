@@ -124,6 +124,7 @@ export interface UiLabels {
   categoryGeneralSkills: string;
   categoryHardSkills: string;
   categoryKeywords: string;
+  categoryLanguageSkills: string;
   categorySoftSkills: string;
   categoryTechnicalSkills: string;
   comparisonColAction: string;

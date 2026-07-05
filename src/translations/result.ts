@@ -324,6 +324,10 @@ export const result = {
     vi: "Kỹ năng kỹ thuật",
     en: "Technical Skills",
   },
+  categoryLanguageSkills: {
+    vi: "Ngoại ngữ",
+    en: "Language Skills",
+  },
   matchVerdictHigh: {
     vi: "CV của bạn rất phù hợp với vị trí này. Hãy tự tin ứng tuyển!",
     en: "Your CV is a great match for this position. Apply with confidence!",

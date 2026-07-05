@@ -5,7 +5,7 @@ import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
 import { AnalysisResult } from '../../../services/ai';
 import { getMatchingCategoryLabel } from './matchingCategoryLabels';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 
 interface AnalysisDetailsTabProps {
   selectedResult: AnalysisResult;
@@ -15,14 +15,17 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
   const { t } = useUI();
   const [openSections, setOpenSections] = React.useState<string[]>(['matching']);
 
-  const pieData = React.useMemo(() => {
+  const radarData = React.useMemo(() => {
     const counts: Record<string, number> = {};
     (selectedResult.matchingPoints || []).forEach((p) => {
       if (!p?.category) return;
       counts[p.category] = (counts[p.category] || 0) + 1;
     });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [selectedResult.matchingPoints]);
+    return Object.entries(counts).map(([category, value]) => ({
+      name: getMatchingCategoryLabel(category, t),
+      value,
+    }));
+  }, [selectedResult.matchingPoints, t]);
 
   return (
     <div id="analysis-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
@@ -107,24 +110,20 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
         <div className="min-w-0 bg-surface p-6 rounded-3xl shadow-sm border border-border">
           <h4 className="text-sm font-bold text-text-main mb-6">{t.skillDistribution}</h4>
           <div className="h-64 min-h-[256px] w-full min-w-0 shrink-0">
-            {pieData.length > 0 ? (
+            {radarData.length > 0 ? (
             <ResponsiveContainer width="100%" height={256} debounce={32} minWidth={0}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
+              <RadarChart data={radarData} outerRadius="70%">
+                <PolarGrid stroke="#374151" />
+                <PolarAngleAxis dataKey="name" fontSize={10} tick={{ fill: '#9CA3AF' }} />
+                <PolarRadiusAxis fontSize={10} tick={{ fill: '#9CA3AF' }} allowDecimals={false} />
+                <Radar
                   dataKey="value"
-                >
-                  {pieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={['var(--color-accent)', 'var(--color-success)', 'var(--color-warning)', '#8b5cf6', '#ec4899'][index % 5]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
+                  stroke="var(--color-accent)"
+                  fill="var(--color-accent)"
+                  fillOpacity={0.4}
+                />
+                <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#F9FAFB' }} />
+              </RadarChart>
             </ResponsiveContainer>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center px-4 text-text-muted text-sm">

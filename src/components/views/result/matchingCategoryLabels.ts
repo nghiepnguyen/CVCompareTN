@@ -7,6 +7,7 @@ export function getMatchingCategoryLabel(cat: string, t: UiLabels): string {
     'Soft Skills': t.categorySoftSkills,
     'Hard Skills': t.categoryHardSkills,
     'Technical Skills': t.categoryTechnicalSkills,
+    'Language Skills': t.categoryLanguageSkills,
     Experience: t.experience,
     Tools: t.tools,
     Education: t.education,

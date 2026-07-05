@@ -39,7 +39,11 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
     - Toàn bộ nội dung phân tích (điểm số, nhận xét, giải thích) phải bằng TIẾNG VIỆT.
     - RIÊNG các gợi ý 'optimized' phải dùng ĐÚNG NGÔN NGỮ GỐC của CV.
     - Mốc thời gian phải chuẩn hóa về MM/YYYY.
-    - Phân loại (category) trong matchingPoints và missingGaps phải thuộc danh sách: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Experience", "Tools", "Education".
+    - Phân loại (category) trong matchingPoints và missingGaps phải thuộc danh sách: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Language Skills", "Experience", "Tools", "Education".
+      + "Hard Skills": kỹ năng chuyên môn đo lường được nói chung (VD: phân tích tài chính, quản lý dự án).
+      + "Technical Skills": công nghệ/công cụ/ngôn ngữ lập trình cụ thể (VD: React, Python, SQL, AWS).
+      + "Language Skills": CHỈ dành cho ngoại ngữ (VD: tiếng Anh, tiếng Nhật) — không dùng cho ngôn ngữ lập trình.
+      + "Soft Skills": kỹ năng mềm (giao tiếp, làm việc nhóm, lãnh đạo...).
   `;
 }
 
@@ -124,6 +128,10 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
     - All analysis content (scores, comments, explanations) must be in ENGLISH.
     - The 'optimized' suggestions must use the EXACT ORIGINAL LANGUAGE of the CV.
     - Standardize dates to MM/YYYY format.
-    - Categories in matchingPoints and missingGaps must be one of: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Experience", "Tools", "Education".
+    - Categories in matchingPoints and missingGaps must be one of: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Language Skills", "Experience", "Tools", "Education".
+      + "Hard Skills": general measurable professional skills (e.g. financial analysis, project management).
+      + "Technical Skills": specific technologies/tools/programming languages (e.g. React, Python, SQL, AWS).
+      + "Language Skills": ONLY for spoken/foreign languages (e.g. English, Japanese) — never programming languages.
+      + "Soft Skills": interpersonal skills (communication, teamwork, leadership...).
   `;
 }
