@@ -37,8 +37,13 @@ export function initSentry() {
       if (event.message?.includes('non-static position')) return null;
 
       // Safari/WebKit's generic network-failure wording (DNS blips, carrier proxies,
-      // ITP, ad blockers) — not an app bug, not actionable
-      if (err instanceof Error && err.message === 'Load failed') return null;
+      // ITP, ad blockers, blocked Google avatar fetches) — not an app bug, not
+      // actionable. WebKit may append the URL, e.g. "Load failed (lh3.google...)",
+      // and unhandled rejections may carry a non-Error reason, so match loosely.
+      if (err instanceof Error && err.message?.includes('Load failed')) return null;
+      if (typeof err === 'string' && err.includes('Load failed')) return null;
+      const exceptionValues = event.exception?.values;
+      if (exceptionValues?.some((v) => v.value?.includes('Load failed'))) return null;
 
       if (event.request?.data && typeof event.request.data === 'object') {
         event.request.data = scrubData(event.request.data as Record<string, unknown>);
