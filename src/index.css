@@ -9,9 +9,9 @@
    THEME TOKENS — Light mode is DEFAULT, Dark overrides via html.dark
    ============================================================ */
 @theme {
-  --font-serif: "Source Serif 4", "Be Vietnam Pro", ui-serif, Georgia, serif;
-  --font-sans: "Plus Jakarta Sans", "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Plus Jakarta Sans", "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-cv: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
   --font-cv-header: "Fira Code", monospace;
 
@@ -316,16 +316,21 @@ html.dark,
 }
 
 @keyframes text-reveal {
-  0% { 
+  0% {
     opacity: 0;
     transform: translateY(40px);
     filter: blur(10px);
   }
-  100% { 
+  100% {
     opacity: 1;
     transform: translateY(0);
     filter: blur(0);
   }
+}
+
+@keyframes waveDrift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50% { transform: translate3d(-2%, -2%, 0) scale(1.12) rotate(-1deg); }
 }
 
 @utility animate-float {

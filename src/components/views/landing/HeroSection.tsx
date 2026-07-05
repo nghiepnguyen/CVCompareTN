@@ -23,60 +23,45 @@ export function HeroSection({
   return (
     <section
       ref={heroRef}
-      className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden"
+      className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-[#050705]"
     >
-      {/* ---- Background Effects (static — color + grid, no animation) ---- */}
+      {/* ---- Background Effects — flowing green silk wave mesh ---- */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* Static conic beam behind headline */}
+        {/* Deep base glow, right-weighted like the reference */}
         <div
-          className="absolute left-1/2 top-1/3 h-[1300px] w-[1300px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.18] rotate-[25deg]"
+          className="absolute inset-0"
           style={{
             background:
-              'conic-gradient(from 0deg, transparent 0deg, rgba(16,185,129,0.9) 40deg, transparent 110deg, transparent 210deg, rgba(52,211,153,0.8) 280deg, transparent 350deg)',
-            maskImage: 'radial-gradient(circle at center, #000 0%, #000 42%, transparent 70%)',
-            WebkitMaskImage: 'radial-gradient(circle at center, #000 0%, #000 42%, transparent 70%)',
+              'radial-gradient(120% 90% at 82% 45%, rgba(16,185,129,0.12), transparent 62%), radial-gradient(90% 80% at 25% 75%, rgba(5,150,105,0.07), transparent 65%)',
           }}
         />
 
-        {/* Aurora mesh — colored radial glows (soft via gradient falloff) */}
-        <div
-          className="absolute -top-1/4 left-1/2 h-[1000px] w-[1000px] -translate-x-1/2 rounded-full"
-          style={{ background: 'radial-gradient(circle at center, rgba(16,185,129,0.28), transparent 70%)' }}
-        />
-        <div
-          className="absolute top-1/5 -left-40 h-[820px] w-[820px] rounded-full"
-          style={{ background: 'radial-gradient(circle at center, rgba(5,150,105,0.24), transparent 70%)' }}
-        />
-        <div
-          className="absolute bottom-0 -right-40 h-[820px] w-[820px] rounded-full"
-          style={{ background: 'radial-gradient(circle at center, rgba(52,211,153,0.2), transparent 70%)' }}
-        />
+        {/* Flowing silk wave mesh (SVG, animated) — concentrated on the right */}
+        <WaveMesh />
 
-        {/* Grid — accent lines, masked radial fade */}
+        {/* Subtle grid, masked radial fade */}
         <div
           className="absolute inset-0"
           style={{
             backgroundImage:
-              'linear-gradient(rgba(16,185,129,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.12) 1px, transparent 1px)',
+              'linear-gradient(rgba(16,185,129,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.08) 1px, transparent 1px)',
             backgroundSize: '54px 54px',
-            maskImage: 'radial-gradient(ellipse 75% 65% at 50% 40%, #000 25%, transparent 80%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 75% 65% at 50% 40%, #000 25%, transparent 80%)',
+            maskImage: 'radial-gradient(ellipse 70% 60% at 45% 45%, #000 20%, transparent 80%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 45% 45%, #000 20%, transparent 80%)',
           }}
         />
 
-        {/* Glow orbs */}
-        <div
-          className="absolute top-1/4 -left-32 h-[520px] w-[520px] rounded-full"
-          style={{ background: 'radial-gradient(circle at center, rgba(5,150,105,0.18), transparent 70%)' }}
-        />
-        <div
-          className="absolute bottom-1/4 -right-32 h-[460px] w-[460px] rounded-full"
-          style={{ background: 'radial-gradient(circle at center, rgba(5,150,105,0.18), transparent 70%)' }}
-        />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[540px] w-[540px] rounded-full bg-accent/10 blur-[120px]" />
-
         {/* Noise texture */}
-        <div className="absolute inset-0 bg-noise" />
+        <div className="absolute inset-0 bg-noise opacity-30" />
+
+        {/* Vignette so text stays readable on the left */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(90deg, rgba(5,7,5,0.9) 0%, rgba(5,7,5,0.35) 32%, transparent 55%)',
+          }}
+        />
       </div>
 
       <motion.div
@@ -93,10 +78,10 @@ export function HeroSection({
           initial={{ opacity: 0, y: 60, filter: 'blur(10px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="font-serif text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-bold tracking-tight text-text-main leading-[1.05] text-balance"
+          className="font-sans text-5xl sm:text-7xl md:text-8xl lg:text-[7rem] font-bold tracking-[-0.03em] text-text-main leading-[1.1] pb-2 text-balance"
         >
           {t.heroTitle}{' '}
-          <span className="text-green-accent">
+          <span className="block text-green-accent leading-[1.25] pb-[0.12em]">
             {t.badgeHeroHighlight}
           </span>
         </motion.h1>
@@ -173,7 +158,107 @@ export function HeroSection({
       </motion.div>
 
       {/* Bottom gradient fade */}
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-primary via-transparent to-transparent" />
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-[#050705] via-transparent to-transparent" />
     </section>
+  );
+}
+
+/**
+ * Flowing green "silk" wave mesh. A fine woven grid (warp + weft lines) is
+ * warped in 3D by a turbulence displacement filter, reading as draped cloth
+ * like the reference hero. Pure SVG + CSS, right-weighted, no image asset.
+ */
+function WaveMesh() {
+  const W = 1440;
+  const H = 900;
+  const GAP = 22; // mesh spacing — fine woven look
+  const PAD = 320; // draw past the edges so displacement never bares a corner
+
+  const vLines: number[] = [];
+  for (let x = -PAD; x <= W + PAD; x += GAP) vLines.push(x);
+  const hLines: number[] = [];
+  for (let y = -PAD; y <= H + PAD; y += GAP) hLines.push(y);
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-end">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="xMidYMid slice"
+        className="h-full w-full animate-[waveDrift_22s_ease-in-out_infinite]"
+        style={{
+          maskImage:
+            'radial-gradient(130% 120% at 82% 40%, #000 20%, rgba(0,0,0,0.55) 60%, transparent 92%)',
+          WebkitMaskImage:
+            'radial-gradient(130% 120% at 82% 40%, #000 20%, rgba(0,0,0,0.55) 60%, transparent 92%)',
+        }}
+      >
+        <defs>
+          <linearGradient id="silkStroke" x1="0" y1="0" x2="1" y2="0.6">
+            <stop offset="0%" stopColor="rgba(6,95,70,0.25)" />
+            <stop offset="40%" stopColor="rgba(16,185,129,0.85)" />
+            <stop offset="70%" stopColor="rgba(110,231,183,1)" />
+            <stop offset="90%" stopColor="rgba(236,253,245,1)" />
+            <stop offset="100%" stopColor="rgba(52,211,153,0.5)" />
+          </linearGradient>
+
+          {/* Radial crest glow — the bright "peak" of the cloth */}
+          <radialGradient id="crest" cx="83%" cy="30%" r="45%">
+            <stop offset="0%" stopColor="rgba(209,250,229,0.6)" />
+            <stop offset="45%" stopColor="rgba(52,211,153,0.2)" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
+
+          {/* Silk warp — large smooth turbulence displaces the flat grid into cloth */}
+          <filter id="silk" x="-30%" y="-30%" width="160%" height="160%">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.0022 0.0055"
+              numOctaves={3}
+              seed={11}
+              result="noise"
+            >
+              <animate
+                attributeName="baseFrequency"
+                dur="26s"
+                values="0.0022 0.0055; 0.0028 0.0044; 0.0022 0.0055"
+                repeatCount="indefinite"
+              />
+            </feTurbulence>
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              scale={150}
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+        </defs>
+
+        <g
+          filter="url(#silk)"
+          fill="none"
+          stroke="url(#silkStroke)"
+          strokeWidth="1.1"
+          strokeOpacity="1"
+        >
+          {vLines.map((x, i) => (
+            <line key={`v${i}`} x1={x} y1={-PAD} x2={x} y2={H + PAD} />
+          ))}
+          {hLines.map((y, i) => (
+            <line key={`h${i}`} x1={-PAD} y1={y} x2={W + PAD} y2={y} />
+          ))}
+        </g>
+
+        {/* Bright crest over the ridge */}
+        <rect
+          x="0"
+          y="0"
+          width={W}
+          height={H}
+          fill="url(#crest)"
+          style={{ mixBlendMode: 'screen' }}
+        />
+      </svg>
+    </div>
   );
 }
