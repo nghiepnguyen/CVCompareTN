@@ -15,7 +15,7 @@ import {
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { MAX_BATCH_BY_PLAN } from '../../lib/planLimits';
 import type { UserPlan } from '../../services/userService';
-import type { AnalysisRunContextType } from './types';
+import type { AnalysisRunContextType, BatchFileProgress } from './types';
 import { cleanText, processFile } from '../../hooks/useFileProcessor';
 import {
   isStoredCVRef, resolveToFile, makeStoredCVRef, downloadCVFromStorage,
@@ -54,6 +54,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [batchFiles, setBatchFiles] = useState<BatchFileProgress[]>([]);
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [history, setHistory] = useState<AnalysisResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<AnalysisResult | null>(null);
@@ -151,6 +152,12 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   );
 
   const progressStopRef = useRef<(() => void) | null>(null);
+  const currentProgressRef = useRef(0);
+
+  const setProgress = useCallback((value: number) => {
+    currentProgressRef.current = value;
+    setAnalysisProgress(value);
+  }, []);
 
   const startFakeProgress = useCallback(
     (from: number, to: number, durationMs: number) => {
@@ -159,12 +166,21 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         from,
         to,
         durationMs,
-        onProgress: setAnalysisProgress,
+        onProgress: setProgress,
       });
       progressStopRef.current = stop;
       return stop;
     },
-    [],
+    [setProgress],
+  );
+
+  // Eases toward `to`, creeping past known milestones so the bar keeps
+  // moving during long waits instead of freezing until the next real event.
+  const creepProgress = useCallback(
+    (to: number, durationMs: number) => {
+      startFakeProgress(currentProgressRef.current, to, durationMs);
+    },
+    [startFakeProgress],
   );
 
   const handleAnalyze = async () => {
@@ -243,12 +259,13 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     }
 
     setIsAnalyzing(true);
-    setAnalysisProgress(0);
+    setProgress(0);
     setAnalysisStatus(reportLanguage === 'vi' ? 'Đang chuẩn bị...' : 'Preparing...');
     setError(null);
     setResults([]);
+    setBatchFiles([]);
 
-    setAnalysisProgress(10);
+    setProgress(10);
 
     trackEvent('analyze_cv', {
       input_mode: cvInputMode,
@@ -260,7 +277,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       const newResults: AnalysisResult[] = [];
       const cvDataMap = new Map<string, { data: string; mimeType: string; pdfInlineData?: string }>();
       setAnalysisStatus(reportLanguage === 'vi' ? 'Đang đọc CV...' : 'Reading CV...');
-      setAnalysisProgress(15);
+      setProgress(15);
 
       const { data: { session } } = await supabase.auth.getSession();
       const authToken = session?.access_token;
@@ -270,6 +287,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       if (cvInputMode === 'file') {
         const totalFiles = files.length;
         const CONCURRENCY = 5;
+        const perFileShare = 75 / totalFiles;
         const newResultsSlots: (AnalysisResult | undefined)[] = new Array(totalFiles);
         let nextIndex = 0;
         let completedCount = 0;
@@ -279,13 +297,22 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             ? `Đang phân tích 0/${totalFiles} CV...`
             : `Analyzing 0/${totalFiles} CVs...`
         );
-        setAnalysisProgress(20);
+        setBatchFiles(files.map((f) => ({ name: f.name, status: 'pending' })));
+        setProgress(20);
+        // Creep toward the first milestone right away instead of sitting idle
+        // while the first CVs are still in flight.
+        creepProgress(Math.min(94, 15 + perFileShare * 0.6), 9000);
 
         const worker = async () => {
           while (true) {
             const i = nextIndex++;
             if (i >= totalFiles) return;
             const fileOrRef = files[i];
+            let succeeded = false;
+
+            setBatchFiles((prev) =>
+              prev.map((f, idx) => (idx === i ? { ...f, status: 'processing' } : f))
+            );
 
             try {
               let data: string;
@@ -310,6 +337,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
               );
               newResultsSlots[i] = { ...analysis, userId: user?.id };
               cvDataMap.set(analysis.id, { data, mimeType, pdfInlineData });
+              succeeded = true;
 
               trackEvent('analysis_success', {
                 match_score: analysis.matchScore,
@@ -327,11 +355,21 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
               });
             } finally {
               completedCount++;
-              setAnalysisProgress(15 + (completedCount / totalFiles) * 75);
+              const isLast = completedCount >= totalFiles;
+              const floor = 15 + (completedCount / totalFiles) * 75;
+              setBatchFiles((prev) =>
+                prev.map((f, idx) => (idx === i ? { ...f, status: succeeded ? 'done' : 'error' } : f))
+              );
               setAnalysisStatus(
                 reportLanguage === 'vi'
                   ? `Đang phân tích ${completedCount}/${totalFiles} CV...`
                   : `Analyzing ${completedCount}/${totalFiles} CVs...`
+              );
+              // Snap to the confirmed milestone, then keep creeping toward the
+              // next one so the bar never freezes between completions.
+              creepProgress(
+                isLast ? floor : Math.min(94, floor + perFileShare * 0.6),
+                isLast ? 400 : 9000
               );
             }
           }
@@ -348,11 +386,11 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         setAnalysisStatus(
           reportLanguage === 'vi' ? 'Đang đọc nội dung CV...' : 'Reading CV content...'
         );
-        setAnalysisProgress(25);
+        setProgress(25);
         setAnalysisStatus(
           reportLanguage === 'vi' ? 'Đang phân tích nội dung CV...' : 'Analyzing CV content...'
         );
-        setAnalysisProgress(45);
+        setProgress(45);
 
         const stopFake = startFakeProgress(45, 75, 15000);
         const analysis = await analyzeCV(
@@ -364,7 +402,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           authToken
         );
         stopFake();
-        setAnalysisProgress(75);
+        setProgress(75);
         newResults.push({ ...analysis, userId: user?.id });
         cvDataMap.set(analysis.id, { data: cvText, mimeType: 'text/plain' });
 
@@ -372,7 +410,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           match_score: analysis.matchScore,
           input_mode: 'text',
         });
-        setAnalysisProgress(90);
+        setProgress(90);
       }
 
       if (newResults.length === 0 && failures.length > 0) {
@@ -388,7 +426,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       setAnalysisStatus(
         reportLanguage === 'vi' ? 'Đang tổng hợp kết quả...' : 'Synthesizing results...'
       );
-      setAnalysisProgress(95);
+      creepProgress(95, 300);
       setResults(newResults);
       const historyLimit = effectivePlan === 'free' ? 50 : 500;
       setHistory((prev) => [...newResults, ...prev].slice(0, historyLimit));
@@ -414,7 +452,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         );
       }
 
-      setAnalysisProgress(100);
+      creepProgress(100, 300);
     } catch (err: unknown) {
       console.error(err);
       Sentry.captureException(err, {
@@ -479,6 +517,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         isAnalyzing,
         analysisStatus,
         analysisProgress,
+        batchFiles,
         results,
         setResults,
         history,

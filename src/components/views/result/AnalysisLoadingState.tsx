@@ -1,13 +1,15 @@
 import React from 'react';
-import { motion } from 'motion/react';
-import { Sparkles, Check, FileSearch, FileText, Scale, BarChart4 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Sparkles, Check, FileSearch, FileText, Scale, BarChart4, X, Loader2 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
 import { formatLabel } from '../../../translations';
+import type { BatchFileProgress } from '../../../context/analysis/types';
 
 interface AnalysisLoadingStateProps {
   analysisStatus: string | null;
   analysisProgress: number;
+  batchFiles?: BatchFileProgress[];
 }
 
 const STEPS = [
@@ -17,9 +19,11 @@ const STEPS = [
   { step: 4, labelKey: 'loadingStepReport', min: 95, icon: BarChart4 },
 ] as const;
 
-export function AnalysisLoadingState({ analysisStatus, analysisProgress }: AnalysisLoadingStateProps) {
+export function AnalysisLoadingState({ analysisStatus, analysisProgress, batchFiles = [] }: AnalysisLoadingStateProps) {
   const { t } = useUI();
   const progressRounded = Math.round(analysisProgress);
+  const isBatch = batchFiles.length > 1;
+  const batchDoneCount = batchFiles.filter((f) => f.status === 'done' || f.status === 'error').length;
 
   const estLabel =
     analysisProgress < 15
@@ -146,7 +150,60 @@ export function AnalysisLoadingState({ analysisStatus, analysisProgress }: Analy
         </div>
       </div>
 
-      {/* ── Step Indicators ────────────────────────── */}
+      {/* ── Batch File Checklist ───────────────────── */}
+      {isBatch ? (
+        <div className="relative z-10 mt-10 w-full max-w-md">
+          <div className="mb-3 flex items-center justify-end text-[10px] font-black tracking-[0.15em] text-text-light">
+            <span className="tabular-nums">{batchDoneCount}/{batchFiles.length}</span>
+          </div>
+          <div className="max-h-56 space-y-1.5 overflow-y-auto pr-1 scrollbar-hide no-scrollbar">
+            <AnimatePresence initial={false}>
+              {batchFiles.map((f, i) => (
+                <motion.div
+                  key={f.name + i}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl border px-3 py-2 transition-colors duration-300',
+                    f.status === 'done'
+                      ? 'border-accent/20 bg-accent/5'
+                      : f.status === 'error'
+                        ? 'border-red-500/20 bg-red-500/5'
+                        : f.status === 'processing'
+                          ? 'border-accent/15 bg-accent/[0.03]'
+                          : 'border-white/[0.06] bg-white/[0.02]'
+                  )}
+                >
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center">
+                    {f.status === 'done' && <Check className="h-4 w-4 text-accent" />}
+                    {f.status === 'error' && <X className="h-4 w-4 text-red-400" />}
+                    {f.status === 'processing' && (
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      >
+                        <Loader2 className="h-4 w-4 text-accent" />
+                      </motion.div>
+                    )}
+                    {f.status === 'pending' && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-text-light/40" />
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      'truncate text-xs font-bold',
+                      f.status === 'pending' ? 'text-text-light' : 'text-text-main'
+                    )}
+                  >
+                    {f.name}
+                  </span>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </div>
+      ) : (
       <div className="relative z-10 mt-10 grid w-full max-w-lg grid-cols-4 gap-3 sm:gap-4">
         {STEPS.map((s) => {
           const isComplete = analysisProgress >= s.min;
@@ -211,6 +268,7 @@ export function AnalysisLoadingState({ analysisStatus, analysisProgress }: Analy
           );
         })}
       </div>
+      )}
     </motion.div>
   );
 }

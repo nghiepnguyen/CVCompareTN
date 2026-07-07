@@ -9,6 +9,7 @@ import { cn } from '../../lib/utils';
 // Sub-components
 import { AnalysisLoadingState } from './result/AnalysisLoadingState';
 import { ComparisonOverview } from './result/ComparisonOverview';
+import { ResultSwitcherStrip } from './result/ResultSwitcherStrip';
 import { AnalysisDetailsTab } from './result/AnalysisDetailsTab';
 import { DetailedComparisonTab } from './result/DetailedComparisonTab';
 import { OptimizationTab } from './result/OptimizationTab';
@@ -22,7 +23,7 @@ export function ResultView() {
   const [resultTab, setResultTab] = React.useState<'analysis' | 'comparison' | 'optimization' | 'parsed' | 'fullcv'>('analysis');
   
   const {
-    isAnalyzing, analysisStatus, analysisProgress,
+    isAnalyzing, analysisStatus, analysisProgress, batchFiles,
     results, selectedResult, setSelectedResult
   } = useAnalysis();
 
@@ -45,9 +46,10 @@ export function ResultView() {
   return (
     <AnimatePresence mode="wait">
       {isAnalyzing ? (
-        <AnalysisLoadingState 
-          analysisStatus={analysisStatus} 
-          analysisProgress={analysisProgress} 
+        <AnalysisLoadingState
+          analysisStatus={analysisStatus}
+          analysisProgress={analysisProgress}
+          batchFiles={batchFiles}
         />
       ) : results.length > 0 ? (
         <motion.div 
@@ -67,6 +69,14 @@ export function ResultView() {
           {/* Detailed Result View */}
           {selectedResult && (
             <div className="space-y-6" id="analysis-result">
+              {results.length > 1 && (
+                <ResultSwitcherStrip
+                  results={results}
+                  selectedResult={selectedResult}
+                  setSelectedResult={setSelectedResult}
+                />
+              )}
+
               <div className="flex items-center justify-between mb-8">
                 <button 
                   onClick={() => {

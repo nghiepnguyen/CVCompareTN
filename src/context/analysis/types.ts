@@ -5,6 +5,13 @@ import type { SavedCV, StoredCVRef } from '../../services/cvService';
 
 export type EagerProcessResult = { data: string; mimeType: string };
 
+export type BatchFileStatus = 'pending' | 'processing' | 'done' | 'error';
+
+export interface BatchFileProgress {
+  name: string;
+  status: BatchFileStatus;
+}
+
 export interface AnalysisRunContextType {
   jd: string;
   setJd: React.Dispatch<React.SetStateAction<string>>;
@@ -18,6 +25,7 @@ export interface AnalysisRunContextType {
   isAnalyzing: boolean;
   analysisStatus: string | null;
   analysisProgress: number;
+  batchFiles: BatchFileProgress[];
   results: AnalysisResult[];
   setResults: React.Dispatch<React.SetStateAction<AnalysisResult[]>>;
   history: AnalysisResult[];
