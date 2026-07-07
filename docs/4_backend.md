@@ -56,10 +56,11 @@ Gemini được gọi qua **3 endpoint** thay vì một call gộp hết (từ 2
 **Flow server-side (`/api/analyze`):**
 
 1. Verify Bearer token → lấy `userId`, timeout 4s. **Bắt buộc** (2026-07: đã bỏ nhánh anonymous/reCAPTCHA — không có token hợp lệ trả `401` ngay lập tức). UI cũng chặn hoàn toàn phân tích khi chưa đăng nhập (`DashboardView.tsx`), nên nhánh anonymous trước đây chỉ chạm được qua gọi API trực tiếp, không có quota/rate-limit trên Vercel — coi là lỗ hổng, đã đóng.
-2. `check_analytics_quota` RPC, timeout 5s — lỗi/timeout thì fail-open (coi như allowed)
-3. Gọi Gemini API → trả `AnalysisResult` JSON (không có `fullRewrittenCV`/`parsedCV` đầy đủ)
-4. `increment_usage_count` RPC (fire-and-forget)
-5. **Frontend** ngay sau khi có kết quả, gọi song song `/api/rewrite-cv` và `/api/parse-cv` trong nền (`AnalysisRunContext.generateFullCV` / `generateParsedCVForResult`) để fill `fullRewrittenCV` và `parsedCV`; `FullCVTab`/`ParsedCVTab` hiện spinner cho tới khi xong.
+2. Tra plan hiệu lực từ `profiles` (`plan`/`plan_expires_at`/`role`, timeout 4s) và validate `batchTotal` (số CV trong batch, client gửi lên từ `analyzeCV(..., batchTotal)`) so với `MAX_BATCH_BY_PLAN` (`src/lib/planLimits.ts`) — vượt hạn mức → `400`. Đây là defense-in-depth: UI (`AnalysisRunContext.handleAnalyze`) đã chặn theo `MAX_BATCH_BY_PLAN` trước khi gọi, bước này chặn caller gọi trực tiếp API. Fail-open nếu lookup plan lỗi/timeout.
+3. `check_analytics_quota` RPC, timeout 5s — lỗi/timeout thì fail-open (coi như allowed)
+4. Gọi Gemini API → trả `AnalysisResult` JSON (không có `fullRewrittenCV`/`parsedCV` đầy đủ)
+5. `increment_usage_count` RPC (fire-and-forget)
+6. **Frontend** — khi phân tích nhiều CV, các request `/api/analyze` chạy **song song qua worker pool cố định 5** (`AnalysisRunContext.handleAnalyze`, `CONCURRENCY = 5`), không còn lặp tuần tự từng file; ngay sau khi có kết quả mỗi CV, gọi song song `/api/rewrite-cv` và `/api/parse-cv` trong nền (`generateFullCV` / `generateParsedCVForResult`) để fill `fullRewrittenCV` và `parsedCV`; `FullCVTab`/`ParsedCVTab` hiện spinner cho tới khi xong.
 
 **Timeout — mô hình wall-clock budget:** cả 3 endpoint tính một **deadline duy nhất 50s** kể từ đầu request (thay vì cộng timeout độc lập từng bước, vốn dễ vượt trần nếu mỗi bước chạy gần mức max) — ngân sách còn lại sau auth/quota được truyền thẳng cho lệnh gọi Gemini. Nếu ngân sách còn lại quá thấp (<10s) trước khi gọi Gemini, server trả `504` JSON hợp lệ ngay (`retryable: true`) thay vì cố gọi và bị Vercel giết giữa chừng không JSON body. Utility dùng chung: `_server-lib/withTimeout.ts`.
 

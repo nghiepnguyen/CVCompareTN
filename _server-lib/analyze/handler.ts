@@ -3,7 +3,24 @@ import { analyzeCV } from '../ai/analysisService.js';
 import { withTimeout } from '../withTimeout.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
 import { MAX_BATCH_BY_PLAN } from '../../src/lib/planLimits.js';
-import { getDisplayEffectivePlan } from '../../src/services/userService.js';
+
+// Inlined instead of importing src/services/userService.ts — that module
+// transitively imports src/lib/supabase.ts via an extensionless specifier,
+// which Node's ESM loader can't resolve in the Vercel serverless runtime
+// (unlike Vite's bundler, which tolerates it client-side). Keep in sync with
+// getDisplayEffectivePlan() in src/services/userService.ts.
+function getEffectivePlan(profile: {
+  plan: string;
+  planExpiresAt: string | null;
+  role: string;
+}): 'free' | 'pro' | 'recruiter' {
+  if (profile.role === 'admin') return 'pro';
+  if (profile.plan !== 'pro' && profile.plan !== 'recruiter') return 'free';
+  if (!profile.planExpiresAt) return profile.plan as 'pro' | 'recruiter';
+  return new Date(profile.planExpiresAt) > new Date()
+    ? (profile.plan as 'pro' | 'recruiter')
+    : 'free';
+}
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
@@ -79,7 +96,7 @@ export async function handleAnalyze(
       'Plan check'
     );
     if (profile) {
-      const effectivePlan = getDisplayEffectivePlan({
+      const effectivePlan = getEffectivePlan({
         plan: profile.plan as 'free' | 'pro' | 'recruiter',
         planExpiresAt: profile.plan_expires_at,
         role: profile.role === 'admin' ? 'admin' : 'user',

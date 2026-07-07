@@ -36,11 +36,12 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
     "cvMimeType": "text/plain | application/pdf | image/jpeg | image/png | ...",
     "cvName": "string (optional)",
     "language": "vi | en (optional, default: vi)",
-    "cvPdfInlineData": "string (optional, base64 PDF gốc ≤2MB — 2026-07, xem 'Lưu ý PDF' dưới)"
+    "cvPdfInlineData": "string (optional, base64 PDF gốc ≤2MB — 2026-07, xem 'Lưu ý PDF' dưới)",
+    "batchTotal": "number (optional, mặc định 1 — tổng số CV trong lần phân tích batch; server đối chiếu với MAX_BATCH_BY_PLAN theo plan hiệu lực của user, vượt hạn mức → 400)"
   }
   ```
 - **Response:** `AnalysisResult` JSON — matchScore, categoryScores, matchingPoints, missingGaps, atsKeywords, rewriteSuggestions, detailedComparison (mỗi item có thêm `priority: 'required' | 'nice-to-have'`, 2026-07), `formatAssessment` (2026-07 — parseability score + checklist layout/format, xem dưới), successProbability/passProbability/passExplanation/mainFactor. `fullRewrittenCV` luôn là `''` và `parsedCV` luôn `undefined` trong response này — frontend fill hai field đó sau qua `/api/rewrite-cv` và `/api/parse-cv` (xem `generateFullCV`/`generateParsedCVForResult` trong `AnalysisRunContext.tsx`).
-- **Server-side flow (`_server-lib/analyze/handler.ts`):** xác thực Bearer (timeout 4s, thất bại → `401` ngay) → `check_analytics_quota` RPC (timeout 5s, fail-open nếu lỗi/timeout) → gọi Gemini (`_server-lib/ai/analysisService.ts`) → `increment_usage_count` (fire-and-forget).
+- **Server-side flow (`_server-lib/analyze/handler.ts`):** xác thực Bearer (timeout 4s, thất bại → `401` ngay) → tra plan hiệu lực từ `profiles` (`plan`/`plan_expires_at`/`role`, timeout 4s) và validate `batchTotal` so với `MAX_BATCH_BY_PLAN[effectivePlan]` (vượt hạn mức batch theo plan → `400`; fail-open nếu lookup lỗi/timeout — đây là defense-in-depth, UI đã chặn theo `MAX_BATCH_BY_PLAN` trước khi gọi, bước này chặn caller gọi trực tiếp API) → `check_analytics_quota` RPC (timeout 5s, fail-open nếu lỗi/timeout) → gọi Gemini (`_server-lib/ai/analysisService.ts`) → `increment_usage_count` (fire-and-forget).
 - **Timeout — mô hình wall-clock budget (từ 2026-07):** thay vì cộng dồn timeout độc lập của từng bước (dễ vượt trần nếu mỗi bước chạy gần mức max của nó), handler tính một **deadline duy nhất 50s** kể từ dòng đầu tiên của request. Ngân sách còn lại sau auth/quota được truyền thẳng cho lệnh gọi Gemini (`timeoutMs` param của `analyzeCV()`), đảm bảo tổng thời gian xử lý không bao giờ vượt 50s — chừa 10s buffer trước khi Vercel hard-kill ở 60s. Nếu ngân sách còn lại < 10s trước khi gọi Gemini, server trả `504` với JSON hợp lệ (`retryable: true`) ngay lập tức thay vì cố gọi và bị Vercel giết giữa chừng.
 - **maxOutputTokens:** 16384.
 - **Rate limit:** 10 req/15 min (strictLimiter).

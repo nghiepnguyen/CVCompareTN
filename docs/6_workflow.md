@@ -11,20 +11,20 @@ graph TD
     C --> Q{Client: RPC check_analytics_quota \n for UX feedback}
     Q -->|không đủ quota| X[Dừng - thông báo vượt hạn mức tháng]
     Q -->|allowed| R[Lấy reCAPTCHA token]
-    R --> D[Vòng lặp: Phân tích từng CV]
+    R --> D[Worker pool 5 luồng song song]
     D --> E{Định dạng file?}
     E -->|PDF| P[unpdf client-side → plain text\n + pdfInlineData base64 nếu ≤2MB]
     E -->|Docx| F[mammoth client-side → plain text]
     E -->|Image ≤2MB| IMG[base64 data-URL]
     E -->|Pasted text| F
-    P --> API[POST /api/analyze\n Bearer token + recaptchaToken\n + cvPdfInlineData?]
+    P --> API[POST /api/analyze\n Bearer token + batchTotal\n + cvPdfInlineData?]
     F --> API
     IMG --> API
-    API --> SRV[Server: verify reCAPTCHA\n check quota\n Gemini API call\n increment_usage_count]
+    API --> SRV[Server: validate batchTotal vs plan\n check quota\n Gemini API call\n increment_usage_count]
     SRV --> J[AnalysisResult JSON]
     J --> K[Hiển thị bảng so khớp & Phân tích chi tiết]
     K --> L[Lưu vào lịch sử Supabase]
-    D -.->|Lặp đến hết danh sách| D
+    D -.->|Worker rảnh lấy CV kế tiếp cho tới khi hết hàng đợi| D
 ```
 
 ### Các bước trọng tâm:
@@ -33,6 +33,7 @@ graph TD
 3.  **Xử lý file trước khi gửi (cập nhật 2026-07):** PDF → `unpdf` extract text client-side; NẾU file gốc ≤2MB (`MAX_INLINE_BINARY_SIZE`), gửi kèm cả `pdfInlineData` (base64) để Gemini vừa đọc text vừa nhìn layout thật (giữ text làm nguồn chính, tránh vượt 4.5MB limit Vercel nếu chỉ gửi base64 đơn thuần); PDF scan/ảnh không extract được text nhưng vẫn ≤2MB → không còn hard-fail, fallback gửi thẳng base64 (`mimeType: 'application/pdf'`); Image ≤ 2MB → base64; DOCX → mammoth → text.
 4.  **Gemini chạy server-side:** `POST /api/analyze` nhận text/base64 (+ `cvPdfInlineData` optional), gọi Gemini, trả `AnalysisResult` (gồm `formatAssessment` — đánh giá layout/khả năng đọc ATS dựa trên file gốc nếu có kèm theo). `GEMINI_API_KEY` chỉ tồn tại trên server — không expose ra browser (SEC-4).
 5.  **So sánh chi tiết (Detailed Comparison):** AI không chỉ chấm điểm mà còn chỉ ra minh chứng trực tiếp (`cvEvidence`) từ hồ sơ để giải thích tại sao một yêu cầu được coi là "Đạt" (Matched) hoặc "Thiếu" (Missing) — mỗi yêu cầu còn được gắn `priority` (`required`/`nice-to-have`) do model phân loại từ JD trước khi chấm điểm.
+6.  **Xử lý song song khi batch nhiều CV (2026-07):** `AnalysisRunContext.handleAnalyze` không còn lặp tuần tự từng file — dùng worker pool cố định `CONCURRENCY = 5`, tối đa 5 request `/api/analyze` chạy đồng thời, worker rảnh tự lấy CV kế tiếp trong hàng đợi tới khi hết danh sách. Mỗi request gửi kèm `batchTotal` (tổng số CV trong lần phân tích) để server đối chiếu với `MAX_BATCH_BY_PLAN` (`_server-lib/analyze/handler.ts`), chặn caller gọi trực tiếp API vượt hạn mức batch theo plan.
 
 ## 2. Luồng tối ưu hóa & Xuất bản
 
