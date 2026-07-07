@@ -62,7 +62,8 @@ export async function analyzeCV(
   cvName?: string,
   language: 'vi' | 'en' = 'vi',
   authToken?: string,
-  cvPdfInlineData?: string
+  cvPdfInlineData?: string,
+  batchTotal?: number
 ): Promise<AnalysisResult> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -74,7 +75,7 @@ export async function analyzeCV(
   const res = await fetch('/api/analyze', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ jd, cvData, cvMimeType, cvName, language, cvPdfInlineData }),
+    body: JSON.stringify({ jd, cvData, cvMimeType, cvName, language, cvPdfInlineData, batchTotal }),
     // Server enforces a 50s wall-clock budget (see _server-lib/analyze/handler.ts);
     // 55s here leaves room for the response to arrive before we give up client-side.
     signal: AbortSignal.timeout(55_000),

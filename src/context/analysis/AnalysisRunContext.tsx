@@ -269,69 +269,80 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
       if (cvInputMode === 'file') {
         const totalFiles = files.length;
-        for (let i = 0; i < totalFiles; i++) {
-          const fileOrRef = files[i];
-          const fileBaseProgress = 15 + (i / totalFiles) * 75;
-          let stopFake: (() => void) | undefined;
+        const CONCURRENCY = 5;
+        const newResultsSlots: (AnalysisResult | undefined)[] = new Array(totalFiles);
+        let nextIndex = 0;
+        let completedCount = 0;
 
-          try {
-            setAnalysisStatus(
-              reportLanguage === 'vi' ? `Đang đọc file: ${fileOrRef.name}` : `Reading file: ${fileOrRef.name}`
-            );
-            setAnalysisProgress(fileBaseProgress + 5);
+        setAnalysisStatus(
+          reportLanguage === 'vi'
+            ? `Đang phân tích 0/${totalFiles} CV...`
+            : `Analyzing 0/${totalFiles} CVs...`
+        );
+        setAnalysisProgress(20);
 
-            let data: string;
-            let mimeType: string;
-            let pdfInlineData: string | undefined;
-            if (isStoredCVRef(fileOrRef) && fileOrRef.eagerProcessing) {
-              setAnalysisStatus(
-                reportLanguage === 'vi' ? `Đang tải CV: ${fileOrRef.name}...` : `Loading CV: ${fileOrRef.name}...`
+        const worker = async () => {
+          while (true) {
+            const i = nextIndex++;
+            if (i >= totalFiles) return;
+            const fileOrRef = files[i];
+
+            try {
+              let data: string;
+              let mimeType: string;
+              let pdfInlineData: string | undefined;
+              if (isStoredCVRef(fileOrRef) && fileOrRef.eagerProcessing) {
+                ({ data, mimeType, pdfInlineData } = await fileOrRef.eagerProcessing);
+              } else {
+                const file = isStoredCVRef(fileOrRef) ? await resolveToFile(fileOrRef) : fileOrRef;
+                ({ data, mimeType, pdfInlineData } = await processFile(file));
+              }
+
+              const analysis = await analyzeCV(
+                jd,
+                data,
+                mimeType,
+                fileOrRef.name,
+                reportLanguage,
+                authToken,
+                pdfInlineData,
+                totalFiles
               );
-              ({ data, mimeType, pdfInlineData } = await fileOrRef.eagerProcessing);
-            } else {
-              const file = isStoredCVRef(fileOrRef) ? await resolveToFile(fileOrRef) : fileOrRef;
-              ({ data, mimeType, pdfInlineData } = await processFile(file));
+              newResultsSlots[i] = { ...analysis, userId: user?.id };
+              cvDataMap.set(analysis.id, { data, mimeType, pdfInlineData });
+
+              trackEvent('analysis_success', {
+                match_score: analysis.matchScore,
+                input_mode: 'file',
+              });
+            } catch (fileErr) {
+              console.error(`Analysis failed for ${fileOrRef.name}:`, fileErr);
+              Sentry.captureException(fileErr, {
+                tags: { feature: 'analyze_cv_batch_item' },
+                contexts: { file: { name: fileOrRef.name } },
+              });
+              failures.push({
+                name: fileOrRef.name,
+                message: fileErr instanceof Error ? fileErr.message : String(fileErr),
+              });
+            } finally {
+              completedCount++;
+              setAnalysisProgress(15 + (completedCount / totalFiles) * 75);
+              setAnalysisStatus(
+                reportLanguage === 'vi'
+                  ? `Đang phân tích ${completedCount}/${totalFiles} CV...`
+                  : `Analyzing ${completedCount}/${totalFiles} CVs...`
+              );
             }
-
-            setAnalysisStatus(
-              reportLanguage === 'vi' ? `Đang phân tích: ${fileOrRef.name}` : `Analyzing: ${fileOrRef.name}`
-            );
-            setAnalysisProgress(fileBaseProgress + 15);
-
-            const fakeStart = fileBaseProgress + 15;
-            const fakeEnd = fileBaseProgress + 65;
-            stopFake = startFakeProgress(fakeStart, fakeEnd, 15000);
-            const analysis = await analyzeCV(
-              jd,
-              data,
-              mimeType,
-              fileOrRef.name,
-              reportLanguage,
-              authToken,
-              pdfInlineData
-            );
-            stopFake();
-            setAnalysisProgress(fakeEnd);
-            newResults.push({ ...analysis, userId: user?.id });
-            cvDataMap.set(analysis.id, { data, mimeType, pdfInlineData });
-
-            trackEvent('analysis_success', {
-              match_score: analysis.matchScore,
-              input_mode: 'file',
-            });
-          } catch (fileErr) {
-            stopFake?.();
-            console.error(`Analysis failed for ${fileOrRef.name}:`, fileErr);
-            Sentry.captureException(fileErr, {
-              tags: { feature: 'analyze_cv_batch_item' },
-              contexts: { file: { name: fileOrRef.name } },
-            });
-            failures.push({
-              name: fileOrRef.name,
-              message: fileErr instanceof Error ? fileErr.message : String(fileErr),
-            });
           }
-          setAnalysisProgress(fileBaseProgress + (1 / totalFiles) * 75);
+        };
+
+        await Promise.all(
+          Array.from({ length: Math.min(CONCURRENCY, totalFiles) }, () => worker())
+        );
+
+        for (const slot of newResultsSlots) {
+          if (slot) newResults.push(slot);
         }
       } else {
         setAnalysisStatus(
