@@ -2,12 +2,15 @@ import { getUserFromBearerToken, getSupabaseAdmin } from '../payment/supabaseAdm
 import { analyzeCV } from '../ai/analysisService.js';
 import { withTimeout } from '../withTimeout.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
+import { MAX_BATCH_BY_PLAN } from '../../src/lib/planLimits.js';
+import { getDisplayEffectivePlan } from '../../src/services/userService.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
 // Timeouts for Supabase operations — keep them short to preserve budget for AI analysis.
 const AUTH_TIMEOUT_MS = 4_000;
 const QUOTA_CHECK_TIMEOUT_MS = 5_000;
+const PLAN_CHECK_TIMEOUT_MS = 4_000;
 
 // Wall-clock budget for the whole handler, measured from the first line of
 // handleAnalyze. Vercel hard-kills the function at maxDuration=60s with no
@@ -31,6 +34,7 @@ export async function handleAnalyze(
     cvName?: string;
     language?: string;
     cvPdfInlineData?: string;
+    batchTotal?: number;
   };
 
   const jd = b.jd?.trim();
@@ -39,6 +43,7 @@ export async function handleAnalyze(
   const cvName = b.cvName?.trim() || 'Unnamed CV';
   const language: 'vi' | 'en' = b.language === 'en' ? 'en' : 'vi';
   const cvPdfInlineData = b.cvPdfInlineData?.trim() || undefined;
+  const batchTotal = typeof b.batchTotal === 'number' && b.batchTotal > 0 ? b.batchTotal : 1;
 
   if (!jd) return { status: 400, body: { error: 'Missing jd (job description)' } };
   if (!cvData) return { status: 400, body: { error: 'Missing cvData' } };
@@ -55,6 +60,40 @@ export async function handleAnalyze(
 
   if (!userId) {
     return { status: 401, body: { error: 'Authentication required' } };
+  }
+
+  // Re-check batch size server-side — the UI already enforces MAX_BATCH_BY_PLAN,
+  // this is defense-in-depth against a caller hitting /api/analyze directly.
+  // Fails open on lookup errors: worst case is a caller exceeding their batch
+  // limit, which the monthly quota check below still bounds.
+  try {
+    const { data: profile } = await withTimeout(
+      getSupabaseAdmin()
+        .from('profiles')
+        .select('plan, plan_expires_at, role')
+        .eq('id', userId)
+        .maybeSingle() as unknown as Promise<{
+          data: { plan: string; plan_expires_at: string | null; role: string } | null;
+        }>,
+      PLAN_CHECK_TIMEOUT_MS,
+      'Plan check'
+    );
+    if (profile) {
+      const effectivePlan = getDisplayEffectivePlan({
+        plan: profile.plan as 'free' | 'pro' | 'recruiter',
+        planExpiresAt: profile.plan_expires_at,
+        role: profile.role === 'admin' ? 'admin' : 'user',
+      });
+      const maxBatch = MAX_BATCH_BY_PLAN[effectivePlan] ?? 1;
+      if (batchTotal > maxBatch) {
+        return {
+          status: 400,
+          body: { error: `Batch size ${batchTotal} exceeds plan limit (${maxBatch})` },
+        };
+      }
+    }
+  } catch (planErr) {
+    console.warn('Plan check skipped (timeout):', planErr);
   }
 
   try {
