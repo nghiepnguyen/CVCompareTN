@@ -8,10 +8,6 @@ export const system = {
     vi: "Vui lòng nhấn vào dấu ba chấm (...) hoặc biểu tượng trình duyệt trên màn hình và chọn 'Mở bằng trình duyệt' (Chrome hoặc Safari) để tiếp tục.",
     en: "Please tap the three dots (...) or the browser icon on your screen and select 'Open in browser' (Chrome or Safari) to continue.",
   },
-  openInExternalBrowser: {
-    vi: "Mở bằng trình duyệt bên ngoài",
-    en: "Open in External Browser",
-  },
   loginErrorInApp: {
     vi: "Lỗi đăng nhập: Trình duyệt này không được Google hỗ trợ. Vui lòng mở trang web bằng Chrome hoặc Safari.",
     en: "Login Error: This browser is not supported by Google. Please open the website in Chrome or Safari.",

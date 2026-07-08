@@ -332,7 +332,6 @@ export interface UiLabels {
   noComparisonDataTitle: string;
   noMatchingGapsData: string;
   mobileJdStore: string;
-  openInExternalBrowser: string;
   optimized: string;
   orDrag: string;
   original: string;

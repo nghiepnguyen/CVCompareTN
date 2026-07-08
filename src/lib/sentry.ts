@@ -45,6 +45,21 @@ export function initSentry() {
       const exceptionValues = event.exception?.values;
       if (exceptionValues?.some((v) => v.value?.includes('Load failed'))) return null;
 
+      // In-app browsers (Facebook/Instagram) inject their own iOS WKWebView
+      // bridge scripts that reference message handlers not present in that
+      // context — external script, not our code, not actionable.
+      if (
+        exceptionValues?.some(
+          (v) =>
+            v.value?.includes('webkit.messageHandlers') ||
+            v.stacktrace?.frames?.some(
+              (f) => f.function === 'setupIosCallbackHandler'
+            )
+        )
+      ) {
+        return null;
+      }
+
       if (event.request?.data && typeof event.request.data === 'object') {
         event.request.data = scrubData(event.request.data as Record<string, unknown>);
       }

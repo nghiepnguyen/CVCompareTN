@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { AlertCircle, ExternalLink, X } from 'lucide-react';
+import { AlertCircle, X } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
 
 export function InAppBrowserWarning() {
@@ -30,15 +30,7 @@ export function InAppBrowserWarning() {
               </p>
             </div>
           </div>
-          <button 
-            onClick={() => window.open(window.location.href, '_blank')}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-amber-700 transition-all shadow-sm shrink-0 w-full sm:w-auto cursor-pointer"
-          >
-            <ExternalLink className="w-4 h-4" />
-            {t.openInExternalBrowser}
-          </button>
-          
-          <button 
+          <button
             onClick={() => setShowInAppWarning(false)}
             className="absolute top-0 right-0 sm:static sm:top-auto sm:right-auto w-8 h-8 rounded-full hover:bg-amber-100/50 flex items-center justify-center transition-colors text-amber-500 hover:text-amber-700 cursor-pointer"
           >
