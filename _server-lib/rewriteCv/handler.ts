@@ -2,6 +2,7 @@ import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 import { generateFullRewrite } from '../ai/rewriteService.js';
 import { withTimeout } from '../withTimeout.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
+import { resolveStorageRef } from '../storage/tempFile.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
@@ -21,15 +22,17 @@ export async function handleRewriteCv(
     cvData?: string;
     cvMimeType?: string;
     language?: string;
+    cvDataStoragePath?: string;
   };
 
   const jd = b.jd?.trim();
-  const cvData = b.cvData?.trim();
+  let cvData = b.cvData?.trim();
   const cvMimeType = b.cvMimeType?.trim() || 'text/plain';
   const language: 'vi' | 'en' = b.language === 'en' ? 'en' : 'vi';
+  const cvDataStoragePath = b.cvDataStoragePath?.trim() || undefined;
 
   if (!jd) return { status: 400, body: { error: 'Missing jd' } };
-  if (!cvData) return { status: 400, body: { error: 'Missing cvData' } };
+  if (!cvData && !cvDataStoragePath) return { status: 400, body: { error: 'Missing cvData' } };
 
   const user = await withTimeout(
     getUserFromBearerToken(authHeader),
@@ -42,6 +45,19 @@ export async function handleRewriteCv(
 
   if (!user) {
     return { status: 401, body: { error: 'Authentication required' } };
+  }
+
+  // Same path is reused by the client's other calls (analyze/parse-cv) for
+  // this CV, so cleanup is the client's job after all of them settle.
+  try {
+    if (cvDataStoragePath) {
+      cvData = await resolveStorageRef(cvDataStoragePath, user.id);
+    }
+  } catch (err) {
+    return {
+      status: 400,
+      body: { error: err instanceof Error ? err.message : 'Failed to load uploaded file' },
+    };
   }
 
   const remainingBudgetMs = TOTAL_BUDGET_MS - (Date.now() - requestStart);
@@ -58,7 +74,7 @@ export async function handleRewriteCv(
   try {
     const { fullRewrittenCV, usage } = await generateFullRewrite(
       jd,
-      cvData,
+      cvData as string,
       cvMimeType,
       language,
       remainingBudgetMs

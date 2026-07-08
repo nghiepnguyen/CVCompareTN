@@ -21,8 +21,8 @@ export const result = {
     en: "Parseability Score",
   },
   atsFormatUnavailable: {
-    vi: "Chưa thể phân tích định dạng cho lần này — hãy tải lên file PDF dưới ~2MB để nhận đánh giá bố cục/layout chi tiết.",
-    en: "Format analysis wasn't available for this upload — try uploading a PDF under ~2MB for a detailed layout assessment.",
+    vi: "Chưa thể phân tích định dạng cho lần này — hãy tải lên file PDF dưới ~15MB để nhận đánh giá bố cục/layout chi tiết.",
+    en: "Format analysis wasn't available for this upload — try uploading a PDF under ~15MB for a detailed layout assessment.",
   },
   atsFormatIssuesTitle: {
     vi: "Phát hiện cụ thể",

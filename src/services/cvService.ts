@@ -157,3 +157,30 @@ export function getCVPublicUrl(filePath: string): string {
   const { data } = supabase.storage.from("cv-files").getPublicUrl(filePath);
   return data?.publicUrl ?? "";
 }
+
+/**
+ * Upload a raw CV file to the temp analyze bucket, bypassing the JSON-body
+ * inline-base64 path (and Vercel's 4.5MB body limit). Caller is responsible
+ * for telling the server to clean this up after processing.
+ */
+export async function uploadTempAnalysisFile(uid: string, file: File): Promise<string> {
+  const storagePath = `${uid}/${crypto.randomUUID()}-${file.name}`;
+
+  const { error } = await supabase.storage
+    .from("cv-analyze-tmp")
+    .upload(storagePath, file, { cacheControl: "3600", upsert: false });
+
+  if (error) throw error;
+  return storagePath;
+}
+
+/**
+ * Remove temp analyze files once every consumer (analyze/rewrite/parse-cv)
+ * that needed them has finished — best-effort, a failure just leaves an
+ * orphaned object for manual/future cleanup, not a user-facing error.
+ */
+export async function cleanupTempAnalysisFiles(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  const { error } = await supabase.storage.from("cv-analyze-tmp").remove(paths);
+  if (error) console.error("Error cleaning up temp analyze files:", error);
+}

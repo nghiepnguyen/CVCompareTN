@@ -34,7 +34,8 @@ const parseGeminiJson = (text: string) => {
 // Server-side re-check of the client's inline-PDF size budget (defense-in-depth
 // for callers other than the SPA — e.g. the Express deployment target or a
 // future direct API integration — which don't go through useFileProcessor.ts).
-const MAX_INLINE_PDF_BYTES = 2 * 1024 * 1024;
+// Matches MAX_STORAGE_UPLOAD_SIZE in src/hooks/useFileProcessor.ts.
+const MAX_INLINE_PDF_BYTES = 15 * 1024 * 1024;
 
 export async function analyzeCV(
   jd: string,

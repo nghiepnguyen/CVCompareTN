@@ -61,7 +61,7 @@ flowchart TB
 ### Supabase Edge Functions (`supabase/functions/`)
 
 - **`verify-recaptcha`:** Legacy — **không còn dùng cho analyze flow**. reCAPTCHA verify cho analyze giờ chạy inline trong `POST /api/analyze`. Vẫn còn dùng cho auth flow (`AuthContext.tsx`).
-- **`extract-pdf`:** Legacy — không còn được gọi từ frontend. PDF extraction dùng `unpdf` client-side (trong `useFileProcessor.ts`) trước khi gửi text lên `/api/analyze`; từ 2026-07, file gốc (≤2MB) cũng được gửi kèm luôn trong body (`cvPdfInlineData`) thay vì qua một bước trích xuất riêng.
+- **`extract-pdf`:** Legacy — không còn được gọi từ frontend. PDF extraction dùng `unpdf` client-side (trong `useFileProcessor.ts`) trước khi gửi text lên `/api/analyze`; từ 2026-07, file gốc (≤2MB base64 inline `cvPdfInlineData`, 2–15MB storage path `cvPdfStoragePath` qua bucket `cv-analyze-tmp`) cũng được gửi kèm luôn thay vì qua một bước trích xuất riêng.
 
 Do **not** assume one Edge function replaces Express and Vercel handlers without checking call sites.
 
@@ -71,7 +71,8 @@ Do **not** assume one Edge function replaces Express and Vercel handlers without
 |---------|---------------|--------|
 | Auth | `src/lib/supabase.ts` + `src/context/AuthContext.tsx` | Google OAuth + Email/Password (Supabase Auth), reCAPTCHA v3 verify qua `/api/verify-recaptcha` trước sign in/sign up |
 | History / saved JDs | `src/services/historyService.ts` | Postgres via Supabase client |
-| Storage bucket `cv-files` | Supabase Storage API | Bucket created in project; no dedicated `storageService.ts` in app code |
+| Storage bucket `cv-files` | Supabase Storage API | Kho CV vĩnh viễn — upload/download/delete qua `src/services/cvService.ts` |
+| Storage bucket `cv-analyze-tmp` (2026-07) | `src/services/cvService.ts` (`uploadTempAnalysisFile`/`cleanupTempAnalysisFiles`), server `_server-lib/storage/tempFile.ts` (`resolveStorageRef`) | File tạm 2–15MB trong luồng phân tích, client tự xoá sau khi analyze/rewrite/parse-cv xong |
 
 ## Adding a new endpoint
 

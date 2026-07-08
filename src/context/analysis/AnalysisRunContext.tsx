@@ -18,7 +18,7 @@ import type { UserPlan } from '../../services/userService';
 import type { AnalysisRunContextType, BatchFileProgress } from './types';
 import { cleanText, processFile } from '../../hooks/useFileProcessor';
 import {
-  isStoredCVRef, resolveToFile, makeStoredCVRef, downloadCVFromStorage,
+  isStoredCVRef, resolveToFile, makeStoredCVRef, downloadCVFromStorage, cleanupTempAnalysisFiles,
   type StoredCVRef, type SavedCV,
 } from '../../services/cvService';
 import { createProgressSimulator } from '../../hooks/useProgressSimulator';
@@ -38,9 +38,10 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
   const loadCVFromStore = useCallback((cv: SavedCV) => {
     const ref = makeStoredCVRef(cv);
+    const uid = user?.id ?? '';
     setLoadingCvIds(prev => new Set([...prev, cv.cvId]));
     ref.eagerProcessing = downloadCVFromStorage(cv.filePath, cv.fileName, cv.fileType)
-      .then(file => processFile(file))
+      .then(file => processFile(file, uid))
       .finally(() => {
         setLoadingCvIds(prev => {
           const next = new Set(prev);
@@ -49,7 +50,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         });
       });
     setFiles(prev => [...prev, ref]);
-  }, [setFiles]);
+  }, [setFiles, user?.id]);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState<string | null>(null);
@@ -91,7 +92,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       cvData: string,
       cvMimeType: string,
       language: 'vi' | 'en',
-      authToken?: string
+      authToken?: string,
+      cvDataStoragePath?: string
     ) => {
       setFullCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
@@ -100,7 +102,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           cvData,
           cvMimeType,
           language,
-          authToken
+          authToken,
+          cvDataStoragePath
         );
         const patcher = (r: AnalysisResult) =>
           r.id === resultId ? { ...r, fullRewrittenCV } : r;
@@ -128,11 +131,15 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       cvMimeType: string,
       language: 'vi' | 'en',
       authToken?: string,
-      cvPdfInlineData?: string
+      cvPdfInlineData?: string,
+      cvPdfStoragePath?: string,
+      cvDataStoragePath?: string
     ) => {
       setParsedCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
-        const parsedCV = await parseCV(jd, cvData, cvMimeType, language, authToken, cvPdfInlineData);
+        const parsedCV = await parseCV(
+          jd, cvData, cvMimeType, language, authToken, cvPdfInlineData, cvPdfStoragePath, cvDataStoragePath
+        );
         const patcher = (r: AnalysisResult) =>
           r.id === resultId ? { ...r, parsedCV } : r;
         setResults((prev) => prev.map(patcher));
@@ -275,7 +282,13 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
     try {
       const newResults: AnalysisResult[] = [];
-      const cvDataMap = new Map<string, { data: string; mimeType: string; pdfInlineData?: string }>();
+      const cvDataMap = new Map<string, {
+        data: string;
+        mimeType: string;
+        pdfInlineData?: string;
+        pdfStoragePath?: string;
+        dataStoragePath?: string;
+      }>();
       setAnalysisStatus(reportLanguage === 'vi' ? 'Đang đọc CV...' : 'Reading CV...');
       setProgress(15);
 
@@ -318,11 +331,13 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
               let data: string;
               let mimeType: string;
               let pdfInlineData: string | undefined;
+              let pdfStoragePath: string | undefined;
+              let dataStoragePath: string | undefined;
               if (isStoredCVRef(fileOrRef) && fileOrRef.eagerProcessing) {
-                ({ data, mimeType, pdfInlineData } = await fileOrRef.eagerProcessing);
+                ({ data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath } = await fileOrRef.eagerProcessing);
               } else {
                 const file = isStoredCVRef(fileOrRef) ? await resolveToFile(fileOrRef) : fileOrRef;
-                ({ data, mimeType, pdfInlineData } = await processFile(file));
+                ({ data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath } = await processFile(file, user?.id ?? ''));
               }
 
               const analysis = await analyzeCV(
@@ -333,10 +348,12 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
                 reportLanguage,
                 authToken,
                 pdfInlineData,
-                totalFiles
+                totalFiles,
+                pdfStoragePath,
+                dataStoragePath
               );
               newResultsSlots[i] = { ...analysis, userId: user?.id };
-              cvDataMap.set(analysis.id, { data, mimeType, pdfInlineData });
+              cvDataMap.set(analysis.id, { data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath });
               succeeded = true;
 
               trackEvent('analysis_success', {
@@ -433,11 +450,19 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
       // Background: generate fullRewrittenCV and parsedCV for each result via separate
       // calls so the main analyze stays fast (neither is in the main Gemini prompt).
-      for (const [resultId, { data, mimeType, pdfInlineData }] of cvDataMap) {
-        void generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken);
-        void generateParsedCVForResult(
-          resultId, jd, data, mimeType, reportLanguage, authToken, pdfInlineData
-        );
+      for (const [resultId, { data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath }] of cvDataMap) {
+        const bgWork = Promise.allSettled([
+          generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, dataStoragePath),
+          generateParsedCVForResult(
+            resultId, jd, data, mimeType, reportLanguage, authToken, pdfInlineData, pdfStoragePath, dataStoragePath
+          ),
+        ]);
+        // The uploaded temp file is only needed by analyze (already done above)
+        // and these two background calls — safe to delete once both settle.
+        const tempPaths = [pdfStoragePath, dataStoragePath].filter((p): p is string => Boolean(p));
+        if (tempPaths.length > 0) {
+          void bgWork.then(() => cleanupTempAnalysisFiles(tempPaths));
+        }
       }
 
       if (user?.id) saveToHistory(newResults, effectivePlan).catch(console.error);

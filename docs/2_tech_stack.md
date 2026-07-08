@@ -31,7 +31,7 @@
 
 ## Cloud Services
 
--   **Supabase:** Auth (Google OAuth + Email/Password), PostgreSQL (`profiles`, `history`, `saved_jds`, `saved_cvs`, `payments`, `app_settings`), Storage bucket `cv-files`. RPC: `check_analytics_quota`, `increment_usage_count`, `activate_pro_plan`.
+-   **Supabase:** Auth (Google OAuth + Email/Password), PostgreSQL (`profiles`, `history`, `saved_jds`, `saved_cvs`, `payments`, `app_settings`), Storage bucket `cv-files` (kho CV vĩnh viễn) + `cv-analyze-tmp` (**2026-07**: file tạm 2–15MB trong luồng phân tích, tự dọn sau khi xử lý xong — xem [3_frontend.md](3_frontend.md) và [4_backend.md](4_backend.md)). RPC: `check_analytics_quota`, `increment_usage_count`, `activate_pro_plan`.
 -   **Email:** [Resend](https://resend.com/) — feedback, welcome, VIP upgrade.
 -   **Payment:** [PayOS](https://payos.vn/) — webhook HMAC-SHA256 + timestamp freshness. Handler dùng chung Express/Vercel.
 -   **Error Monitoring:** Sentry Node.js (`@sentry/node`) — `_server-lib/sentry.ts` (idempotent init).

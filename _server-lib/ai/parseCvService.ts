@@ -6,7 +6,7 @@ import type { ParsedCV } from '../../src/services/ai/types.js';
 
 const PARSE_CV_TIMEOUT_MS = 45_000;
 // See analysisService.ts's identical constant for rationale.
-const MAX_INLINE_PDF_BYTES = 2 * 1024 * 1024;
+const MAX_INLINE_PDF_BYTES = 15 * 1024 * 1024;
 
 const PARSED_CV_SCHEMA = {
   type: 'OBJECT',

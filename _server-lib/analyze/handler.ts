@@ -3,6 +3,7 @@ import { analyzeCV } from '../ai/analysisService.js';
 import { withTimeout } from '../withTimeout.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
 import { MAX_BATCH_BY_PLAN } from '../../src/lib/planLimits.js';
+import { resolveStorageRef } from '../storage/tempFile.js';
 
 // Inlined instead of importing src/services/userService.ts — that module
 // transitively imports src/lib/supabase.ts via an extensionless specifier,
@@ -51,19 +52,23 @@ export async function handleAnalyze(
     cvName?: string;
     language?: string;
     cvPdfInlineData?: string;
+    cvPdfStoragePath?: string;
+    cvDataStoragePath?: string;
     batchTotal?: number;
   };
 
   const jd = b.jd?.trim();
-  const cvData = b.cvData?.trim();
+  let cvData = b.cvData?.trim();
   const cvMimeType = b.cvMimeType?.trim() || 'text/plain';
   const cvName = b.cvName?.trim() || 'Unnamed CV';
   const language: 'vi' | 'en' = b.language === 'en' ? 'en' : 'vi';
-  const cvPdfInlineData = b.cvPdfInlineData?.trim() || undefined;
+  let cvPdfInlineData = b.cvPdfInlineData?.trim() || undefined;
+  const cvPdfStoragePath = b.cvPdfStoragePath?.trim() || undefined;
+  const cvDataStoragePath = b.cvDataStoragePath?.trim() || undefined;
   const batchTotal = typeof b.batchTotal === 'number' && b.batchTotal > 0 ? b.batchTotal : 1;
 
   if (!jd) return { status: 400, body: { error: 'Missing jd (job description)' } };
-  if (!cvData) return { status: 400, body: { error: 'Missing cvData' } };
+  if (!cvData && !cvDataStoragePath) return { status: 400, body: { error: 'Missing cvData' } };
 
   const user = await withTimeout(
     getUserFromBearerToken(authHeader),
@@ -77,6 +82,24 @@ export async function handleAnalyze(
 
   if (!userId) {
     return { status: 401, body: { error: 'Authentication required' } };
+  }
+
+  // Client uploaded the raw file to Storage instead of inlining base64 (large
+  // files) — resolve it into the same base64 shape analyzeCV already expects.
+  // Same path is reused by the client's follow-up rewrite/parse-cv calls, so
+  // cleanup is the client's job (after all three settle), not this handler's.
+  try {
+    if (cvDataStoragePath) {
+      cvData = await resolveStorageRef(cvDataStoragePath, userId);
+    }
+    if (cvPdfStoragePath) {
+      cvPdfInlineData = await resolveStorageRef(cvPdfStoragePath, userId);
+    }
+  } catch (err) {
+    return {
+      status: 400,
+      body: { error: err instanceof Error ? err.message : 'Failed to load uploaded file' },
+    };
   }
 
   // Re-check batch size server-side — the UI already enforces MAX_BATCH_BY_PLAN,
@@ -154,7 +177,7 @@ export async function handleAnalyze(
 
   try {
     const { result, usage } = await analyzeCV(
-      jd, cvData, cvMimeType, cvName, language, remainingBudgetMs, cvPdfInlineData
+      jd, cvData as string, cvMimeType, cvName, language, remainingBudgetMs, cvPdfInlineData
     );
 
     void (async () => {

@@ -72,11 +72,12 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
     | `20260601210000_activate_pro_plan_idempotent.sql` | `activate_pro_plan` idempotent (claim payment trước); **cần** migration security tiếp theo để giữ revoke EXECUTE |
     | `20260602100000_security_reapply_function_grants.sql` | Re-apply revoke `anon`/`authenticated` sau recreate `activate_pro_plan`; revoke `anon` trên `admin_set_user_plan`, `get_default_monthly_analytics_limit` |
     | `20260602110000_security_revoke_resolve_limit_public.sql` | Revoke `PUBLIC` execute trên `resolve_monthly_analytics_limit` (anon kế thừa qua `=X/postgres`) |
+    | `20260708000000_cv_analyze_tmp_bucket.sql` | Bucket **`cv-analyze-tmp`** (private, 15MB) — file tạm cho luồng phân tích khi CV 2–15MB, INSERT/DELETE RLS scope theo folder `{user_id}/...` |
 
     **Auth (Dashboard, không qua SQL):** Bật **Leaked password protection** tại Authentication → Password security ([hướng dẫn](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)).
 
     Chi tiết hạn mức phân tích (Admin, SQL, không cần redeploy Vercel): [8_analytics.md § Hạn mức phân tích CV/tháng](8_analytics.md#hạn-mức-phân-tích-cvtháng-supabase--không-phải-ga4).
-4.  **Storage:** Bucket **`cv-files`** — sau migration security, user **authenticated** chỉ SELECT object trong path `{user_id}/...`. Cân nhắc tắt Public bucket trên Dashboard nếu không cần URL công khai.
+4.  **Storage:** Bucket **`cv-files`** — sau migration security, user **authenticated** chỉ SELECT object trong path `{user_id}/...`. Cân nhắc tắt Public bucket trên Dashboard nếu không cần URL công khai. Bucket **`cv-analyze-tmp`** (2026-07) — private, không có SELECT policy (server đọc qua service-role); INSERT/DELETE chỉ trong folder của chính user; client tự xoá file sau khi phân tích xong, không có cron/lifecycle sweep cho orphan (crash giữa chừng để lại rác — chấp nhận được, chưa cần xử lý).
 5.  **Biến môi trường:** Trên Vercel và trong `.env` local, thiết lập ít nhất `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY`. Với tác vụ server-side hoặc migration, dùng `SUPABASE_SERVICE_ROLE_KEY` (không đưa vào frontend).
 
 ### Edge Functions (tùy chọn)

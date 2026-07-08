@@ -6,6 +6,7 @@ import { analyzeCV, type AnalysisResult } from '../../services/ai';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { processFile as processFileUtil } from '../../hooks/useFileProcessor';
 import { cleanText } from '../../hooks/useFileProcessor';
+import { cleanupTempAnalysisFiles } from '../../services/cvService';
 import { formatLabel } from '../../translations';
 import { trackEvent } from '../../lib/ga4';
 import {
@@ -248,7 +249,8 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             const blob = await response.blob();
             const file = new File([blob], candidate.fileName, { type: blob.type });
 
-            const { data: textData, mimeType, pdfInlineData } = await processFileUtil(file);
+            const { data: textData, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath } =
+              await processFileUtil(file, user?.id ?? '');
 
             // Get session token for authenticated API call
             const { data: { session } } = await supabase.auth.getSession();
@@ -262,7 +264,15 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
               reportLanguage,
               authToken,
               pdfInlineData,
+              undefined,
+              pdfStoragePath,
+              dataStoragePath,
             );
+            // Single consumer of the temp upload (unlike the main analyze flow,
+            // recruiter candidates don't get a follow-up rewrite/parse-cv call)
+            // — safe to clean up right after this analyzeCV call finishes.
+            const tempPaths = [pdfStoragePath, dataStoragePath].filter((p): p is string => Boolean(p));
+            if (tempPaths.length > 0) void cleanupTempAnalysisFiles(tempPaths);
 
             // Save result via backend API (service_role RPC)
             await saveCandidateAnalysis(
