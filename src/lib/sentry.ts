@@ -45,13 +45,15 @@ export function initSentry() {
       const exceptionValues = event.exception?.values;
       if (exceptionValues?.some((v) => v.value?.includes('Load failed'))) return null;
 
-      // In-app browsers (Facebook/Instagram) inject their own iOS WKWebView
-      // bridge scripts that reference message handlers not present in that
-      // context — external script, not our code, not actionable.
+      // In-app browsers (Facebook/Messenger/Instagram, Zalo, Telegram, ...)
+      // inject their own bridge scripts referencing globals/handlers that
+      // don't exist in every context — external script, not our code.
+      const IN_APP_BRIDGE_PATTERN =
+        /webkit\.messageHandlers|zaloJSV2|ZaloJSBridge|TelegramWebviewProxy|TelegramGameProxy|MessengerExtensions/;
       if (
         exceptionValues?.some(
           (v) =>
-            v.value?.includes('webkit.messageHandlers') ||
+            IN_APP_BRIDGE_PATTERN.test(v.value ?? '') ||
             v.stacktrace?.frames?.some(
               (f) => f.function === 'setupIosCallbackHandler'
             )
