@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { FileText, Copy, Check, AlignLeft, Printer, Zap, Shield, Crown, Lock, Eye, Mail, Phone, MapPin, Globe } from 'lucide-react';
+import { FileText, Copy, Check, AlignLeft, Printer, Zap, Shield, Crown, Lock, Eye } from 'lucide-react';
 import { useUI } from '../../../context/UIContext';
 import type { UiLabels } from '../../../translations';
 import { useAuth } from '../../../context/AuthContext';
@@ -178,78 +178,53 @@ export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullC
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="group/cv relative mx-auto max-w-[210mm] overflow-hidden rounded-lg shadow-[0_12px_48px_-8px_rgba(0,0,0,0.28),0_0_0_1px_rgba(0,0,0,0.07)]"
-              style={{ background: '#FCFCFC' }}
+              className="group/cv relative mx-auto max-w-[210mm] overflow-hidden rounded-[2px] shadow-[0_2px_32px_rgba(0,0,0,0.14),0_1px_4px_rgba(0,0,0,0.08)]"
+              style={{ background: '#FFFFFF' }}
             >
-              {/* ── Premium header: dark band + amber accent ── */}
-              <div className="overflow-hidden">
-                {/* Top amber gradient strip */}
-                <div className="h-[3.5px] bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300" />
+              {/* ── Premium header — light editorial band, matches cv-ats-premium.html ── */}
+              <div className="relative overflow-hidden border-b border-[#E0E0E0]" style={{ background: '#F3F5F9' }}>
+                {/* Top accent bar */}
+                <div className="absolute inset-x-0 top-0 h-1" style={{ background: '#152D4F' }} />
 
-                {/* Dark name band */}
-                <div className="relative bg-[#1C1917] px-8 pt-8 pb-7 sm:px-14 sm:pt-10 sm:pb-8 overflow-hidden">
-                  {/* Subtle texture overlay */}
-                  <div
-                    className="pointer-events-none absolute inset-0 opacity-[0.04]"
-                    style={{
-                      backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 5px)`,
-                    }}
-                  />
-                  {/* Warm amber glow in corner */}
-                  <div className="pointer-events-none absolute -top-12 -right-12 w-48 h-48 rounded-full bg-amber-500/10 blur-3xl" />
+                <div className="px-8 pt-11 pb-9 sm:px-14 sm:pt-12 sm:pb-10">
+                  {candidateName && (
+                    <h1
+                      className="mb-2.5 text-[34px] leading-none tracking-[-0.01em] text-[#141414] sm:text-[46px]"
+                      style={{ fontFamily: "'Cormorant Garamond', Georgia, 'Times New Roman', serif", fontWeight: 300 }}
+                    >
+                      {candidateName}
+                    </h1>
+                  )}
+                  {selectedResult.jobTitle && (
+                    <p className="mb-6 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: '#152D4F' }}>
+                      {selectedResult.jobTitle}
+                    </p>
+                  )}
 
-                  <div className="relative">
-                    {candidateName && (
-                      <h1 className="font-cv-header text-[1.85rem] sm:text-[2.6rem] font-black uppercase tracking-[-0.02em] text-white leading-[0.92] mb-3">
-                        {candidateName}
-                      </h1>
-                    )}
-                    {selectedResult.jobTitle && (
-                      <div className="flex items-center gap-2">
-                        <div className="h-px w-6 bg-amber-500/60" />
-                        <p className="text-[0.72rem] font-bold tracking-[0.18em] uppercase text-amber-400">
-                          {selectedResult.jobTitle}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  {/* Contact row — plain text, bullet separators (no icons: matches reference) */}
+                  {selectedResult.parsedCV?.personal_information?.contact && (
+                    <div className="flex flex-wrap items-center gap-y-1.5 text-[12px] text-[#5E5E5E]">
+                      {[
+                        selectedResult.parsedCV.personal_information.contact.email,
+                        selectedResult.parsedCV.personal_information.contact.phone,
+                        selectedResult.parsedCV.personal_information.contact.location,
+                        selectedResult.parsedCV.personal_information.contact.linkedin,
+                        selectedResult.parsedCV.personal_information.contact.website_portfolio,
+                      ].filter(Boolean).map((val, i, arr) => (
+                        <span key={val} className="flex items-center">
+                          {val}
+                          {i < arr.length - 1 && <span className="mx-2.5 opacity-50" style={{ color: '#152D4F' }}>•</span>}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-
-                {/* Contact strip — light, below dark band */}
-                {selectedResult.parsedCV?.personal_information?.contact && (
-                  <div className="border-b-2 border-slate-200 bg-slate-50 px-8 py-3 sm:px-14 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[0.68rem] font-medium text-slate-500">
-                    {selectedResult.parsedCV.personal_information.contact.email && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <Mail className="size-3 text-amber-500" />
-                        {selectedResult.parsedCV.personal_information.contact.email}
-                      </span>
-                    )}
-                    {selectedResult.parsedCV.personal_information.contact.phone && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <Phone className="size-3 text-amber-500" />
-                        {selectedResult.parsedCV.personal_information.contact.phone}
-                      </span>
-                    )}
-                    {selectedResult.parsedCV.personal_information.contact.location && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <MapPin className="size-3 text-amber-500" />
-                        {selectedResult.parsedCV.personal_information.contact.location}
-                      </span>
-                    )}
-                    {selectedResult.parsedCV.personal_information.contact.linkedin && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <Globe className="size-3 text-amber-500" />
-                        {selectedResult.parsedCV.personal_information.contact.linkedin}
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
 
-              {/* ── Body: 2-column layout ── */}
-              <div className="flex flex-col md:flex-row">
-                {/* Main column */}
-                <div className="flex-1 min-w-0 p-7 sm:p-10 border-r border-slate-200/70">
+              {/* ── Body: 1-column, ATS-safe reading order ── */}
+              <div className={`flex flex-col ${!canExportOptimized ? 'pointer-events-none select-none' : ''}`}>
+                {/* Main content: Summary + Experience */}
+                <div className="p-7 sm:p-10">
                   <CvMarkdownBody
                     markdown={markdownCleaned}
                     locale={reportLanguage}
@@ -258,94 +233,105 @@ export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullC
                   />
                 </div>
 
-                {/* Sidebar */}
-                <div className="w-[220px] shrink-0 bg-gradient-to-b from-[#1C1917]/[0.025] to-transparent border-l border-slate-200/60">
-                  <div className="p-5 sm:p-6 space-y-6">
+                {/* Skills / Education / Languages — stacked full-width below, not a parallel sidebar */}
+                <div className="border-t border-[#E0E0E0] px-7 py-8 sm:px-10 sm:py-10 space-y-9">
 
-                    {/* Skills */}
-                    {selectedResult.parsedCV?.skills && (
-                      selectedResult.parsedCV.skills.technical_skills?.length > 0 ||
-                      selectedResult.parsedCV.skills.soft_skills?.length > 0 ||
-                      selectedResult.parsedCV.skills.hard_skills?.length > 0 ||
-                      selectedResult.parsedCV.skills.tools_software?.length > 0
-                    ) && (
-                      <SidebarSection label={reportLanguage === 'vi' ? 'Kỹ năng' : 'Skills'}>
+                  {/* Skills */}
+                  {selectedResult.parsedCV?.skills && (
+                    selectedResult.parsedCV.skills.technical_skills?.length > 0 ||
+                    selectedResult.parsedCV.skills.soft_skills?.length > 0 ||
+                    selectedResult.parsedCV.skills.hard_skills?.length > 0 ||
+                    selectedResult.parsedCV.skills.tools_software?.length > 0
+                  ) && (
+                    <div>
+                      <PremiumSectionHeading>{reportLanguage === 'vi' ? 'Kỹ năng' : 'Skills'}</PremiumSectionHeading>
+                      <div className="space-y-3">
                         {selectedResult.parsedCV.skills.technical_skills?.length > 0 && (
-                          <SkillGroup label={reportLanguage === 'vi' ? 'Chuyên môn' : 'Technical'} skills={selectedResult.parsedCV.skills.technical_skills} />
+                          <SkillRow label={reportLanguage === 'vi' ? 'Chuyên môn' : 'Technical'} skills={selectedResult.parsedCV.skills.technical_skills} />
                         )}
                         {selectedResult.parsedCV.skills.hard_skills?.length > 0 && (
-                          <SkillGroup label={reportLanguage === 'vi' ? 'Cứng' : 'Hard'} skills={selectedResult.parsedCV.skills.hard_skills} />
+                          <SkillRow label={reportLanguage === 'vi' ? 'Kỹ năng cứng' : 'Hard Skills'} skills={selectedResult.parsedCV.skills.hard_skills} />
                         )}
                         {selectedResult.parsedCV.skills.soft_skills?.length > 0 && (
-                          <SkillGroup label={reportLanguage === 'vi' ? 'Mềm' : 'Soft'} skills={selectedResult.parsedCV.skills.soft_skills} />
+                          <SkillRow label={reportLanguage === 'vi' ? 'Kỹ năng mềm' : 'Soft Skills'} skills={selectedResult.parsedCV.skills.soft_skills} />
                         )}
                         {selectedResult.parsedCV.skills.tools_software?.length > 0 && (
-                          <SkillGroup label={reportLanguage === 'vi' ? 'Công cụ' : 'Tools'} skills={selectedResult.parsedCV.skills.tools_software} />
+                          <SkillRow label={reportLanguage === 'vi' ? 'Công cụ' : 'Tools'} skills={selectedResult.parsedCV.skills.tools_software} />
                         )}
-                      </SidebarSection>
-                    )}
+                      </div>
+                    </div>
+                  )}
 
-                    {/* Education */}
-                    {selectedResult.parsedCV?.education && selectedResult.parsedCV.education.length > 0 && (
-                      <SidebarSection label={reportLanguage === 'vi' ? 'Học vấn' : 'Education'}>
-                        <div className="space-y-2">
-                          {selectedResult.parsedCV.education.map((edu, i) => (
-                            <div key={i} className="p-2.5 rounded-lg border border-amber-200/40 bg-white/70 shadow-sm">
-                              <p className="text-[10px] font-bold leading-tight mb-0.5 text-slate-800">{edu.degree || edu.major}</p>
-                              <p className="text-[9px] font-semibold leading-tight mb-0.5 text-amber-700">{edu.institution}</p>
-                              {edu.graduation_year && (
-                                <p className="text-[8.5px] text-slate-400">{edu.graduation_year}</p>
-                              )}
+                  {/* Education */}
+                  {selectedResult.parsedCV?.education && selectedResult.parsedCV.education.length > 0 && (
+                    <div>
+                      <PremiumSectionHeading>{reportLanguage === 'vi' ? 'Học vấn' : 'Education'}</PremiumSectionHeading>
+                      <div className="space-y-4">
+                        {selectedResult.parsedCV.education.map((edu, i) => (
+                          <div key={i} className="grid grid-cols-[120px_1fr] gap-x-6 sm:grid-cols-[148px_1fr]">
+                            <span className="pt-0.5 text-[11px] text-[#909090]">{edu.graduation_year}</span>
+                            <div>
+                              <p className="mb-0.5 text-[13px] font-semibold leading-tight text-[#141414]">{edu.degree || edu.major}</p>
+                              <p className="text-[12px] font-light leading-tight text-[#5E5E5E]">{edu.institution}</p>
                             </div>
-                          ))}
-                        </div>
-                      </SidebarSection>
-                    )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                    {/* Languages */}
-                    {selectedResult.parsedCV?.skills?.languages && selectedResult.parsedCV.skills.languages.length > 0 && (
-                      <SidebarSection label={reportLanguage === 'vi' ? 'Ngôn ngữ' : 'Languages'}>
-                        <div className="space-y-1.5">
-                          {selectedResult.parsedCV.skills.languages.map((lang, i) => {
-                            const profLevel = lang.proficiency?.toLowerCase() || '';
-                            const level = profLevel.includes('native') || profLevel.includes('bản') || profLevel.includes('fluent') || profLevel.includes('advanced') || profLevel.includes('cao')
-                              ? 5 : profLevel.includes('intermediate') || profLevel.includes('trung')
-                              ? 3 : profLevel.includes('basic') || profLevel.includes('cơ')
-                              ? 2 : 3;
-                            return (
-                              <div key={i} className="flex items-center justify-between py-1">
-                                <span className="text-[10px] font-semibold text-slate-700">{lang.language}</span>
-                                <div className="flex gap-[3px]">
-                                  {Array.from({ length: 5 }).map((_, j) => (
-                                    <div
-                                      key={j}
-                                      className="w-2.5 h-[4px] rounded-sm"
-                                      style={{
-                                        background: j < level ? 'linear-gradient(135deg, #d97706, #f59e0b)' : '#e2e8f0',
-                                        boxShadow: j < level ? '0 0 4px rgba(217,119,6,0.25)' : 'none',
-                                      }}
-                                    />
-                                  ))}
-                                </div>
+                  {/* Languages */}
+                  {selectedResult.parsedCV?.skills?.languages && selectedResult.parsedCV.skills.languages.length > 0 && (
+                    <div>
+                      <PremiumSectionHeading>{reportLanguage === 'vi' ? 'Ngôn ngữ' : 'Languages'}</PremiumSectionHeading>
+                      <div className="space-y-2.5">
+                        {selectedResult.parsedCV.skills.languages.map((lang, i) => {
+                          const profLevel = lang.proficiency?.toLowerCase() || '';
+                          const level = profLevel.includes('native') || profLevel.includes('bản') || profLevel.includes('fluent') || profLevel.includes('advanced') || profLevel.includes('cao')
+                            ? 5 : profLevel.includes('intermediate') || profLevel.includes('trung')
+                            ? 3 : profLevel.includes('basic') || profLevel.includes('cơ')
+                            ? 2 : 3;
+                          return (
+                            <div key={i} className="grid grid-cols-[120px_1fr] items-center gap-x-6 sm:grid-cols-[148px_1fr]">
+                              <span className="text-[13px] font-semibold text-[#141414]">{lang.language}</span>
+                              <div className="flex gap-[3px]">
+                                {Array.from({ length: 5 }).map((_, j) => (
+                                  <div
+                                    key={j}
+                                    className="w-3 h-[5px] rounded-sm"
+                                    style={{ background: j < level ? '#152D4F' : '#E0E0E0' }}
+                                  />
+                                ))}
                               </div>
-                            );
-                          })}
-                        </div>
-                      </SidebarSection>
-                    )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
-                  </div>
                 </div>
               </div>
 
-              {/* Watermark for free users */}
+              {/* Watermark for free users — same density/layers as the free-preview layout below */}
               {!canExportOptimized && (
                 <>
                   <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-b from-slate-900/5 via-transparent to-slate-900/5" aria-hidden />
+                  <div className="pointer-events-none absolute inset-0 z-20 select-none" aria-hidden style={{ backgroundImage: `repeating-linear-gradient(-35deg,transparent,transparent 70px,rgba(21,45,79,0.05) 70px,rgba(21,45,79,0.05) 71px)` }} />
                   <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center select-none" aria-hidden>
-                    <span className="rotate-[-22deg] text-[2.5rem] sm:text-[4.5rem] font-black tracking-[0.25em] uppercase whitespace-nowrap text-slate-400/[0.10]">
+                    <span className="rotate-[-22deg] text-[2.5rem] sm:text-[4.5rem] font-black tracking-[0.25em] uppercase whitespace-nowrap text-slate-400/[0.14]">
                       {t.freePreviewWatermarkPrimary}
                     </span>
+                  </div>
+                  <div className="pointer-events-none absolute inset-0 z-20 select-none" aria-hidden style={{ backgroundImage: `repeating-linear-gradient(0deg,transparent,transparent 130px,rgba(21,45,79,0.04) 130px,rgba(21,45,79,0.04) 131px),repeating-linear-gradient(90deg,transparent,transparent 170px,rgba(21,45,79,0.035) 170px,rgba(21,45,79,0.035) 171px)` }} />
+                  <div className="pointer-events-none absolute inset-0 z-20 select-none overflow-hidden" aria-hidden>
+                    <div className="absolute inset-0 flex flex-wrap content-center justify-center gap-16 opacity-[0.07] rotate-[-20deg] scale-150">
+                      {Array.from({ length: 20 }).map((_, idx) => (
+                        <span key={idx} className="text-[0.65rem] font-black uppercase tracking-[0.3em] text-slate-600 whitespace-nowrap">
+                          {t.freePreviewWatermarkSecondary}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   <div className="pointer-events-none absolute top-4 right-4 z-20 select-none">
                     <span className="rounded-lg border border-amber-500/35 bg-amber-400/20 backdrop-blur-sm px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] text-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.15)]">
@@ -356,11 +342,11 @@ export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullC
               )}
 
               {/* Footer */}
-              <div className="border-t-2 border-slate-200/80 px-8 py-3 flex justify-between items-center flex-wrap gap-2 bg-gradient-to-r from-[#1C1917]/[0.03] to-white/60">
-                <span className="font-cv-header text-[8px] font-bold uppercase tracking-[0.14em] text-amber-700/70">
+              <div className="border-t border-[#E0E0E0] px-8 py-3 flex justify-between items-center flex-wrap gap-2">
+                <span className="text-[9px] font-bold uppercase tracking-[0.14em]" style={{ color: '#152D4F' }}>
                   cvFit.pro · {isRecruiterPlan(effectivePlan) ? 'Recruiter' : 'Pro'}
                 </span>
-                <span className="text-[8px] text-slate-400">{t.fullCvDraftFooter}</span>
+                <span className="text-[9px] text-[#909090]">{t.fullCvDraftFooter}</span>
               </div>
             </motion.div>
 
@@ -422,31 +408,29 @@ export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullC
   );
 });
 
-/* ── Sidebar sub-components ── */
+/* ── Stacked-section sub-components (ATS-safe: full width, no parallel sidebar) ── */
 
-function SidebarSection({ label, children }: { label: string; children: React.ReactNode }) {
+function PremiumSectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-[3px] h-3.5 rounded-full shrink-0 bg-gradient-to-b from-amber-500 to-amber-300 shadow-[0_0_6px_rgba(217,119,6,0.3)]" />
-        <span className="font-cv-header text-[8px] font-extrabold uppercase tracking-[0.28em] text-[#1C1917]/70">
-          {label}
-        </span>
-      </div>
-      {children}
+    <div className="mb-5 flex items-center gap-3.5">
+      <span className="whitespace-nowrap text-[9.5px] font-bold uppercase tracking-[0.22em]" style={{ color: '#152D4F' }}>
+        {children}
+      </span>
+      <div className="h-px flex-1 bg-[#E0E0E0]" />
     </div>
   );
 }
 
-function SkillGroup({ label, skills }: { label: string; skills: string[] }) {
+function SkillRow({ label, skills }: { label: string; skills: string[] }) {
   return (
-    <div className="mb-3 last:mb-0">
-      <p className="text-[7.5px] font-bold uppercase tracking-[0.14em] mb-1.5 text-slate-400">{label}</p>
-      <div className="flex flex-wrap gap-1">
+    <div className="grid grid-cols-[120px_1fr] items-start gap-x-6 sm:grid-cols-[148px_1fr]">
+      <span className="pt-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[#909090]">{label}</span>
+      <div className="flex flex-wrap gap-1.5">
         {skills.map((s, i) => (
           <span
             key={i}
-            className="px-2 py-[3px] rounded-full text-[8.5px] font-semibold bg-amber-50 border border-amber-200/70 text-amber-900 hover:bg-amber-100 hover:border-amber-300 transition-colors duration-150 cursor-default"
+            className="px-2.5 py-1 rounded text-[12px] font-normal text-[#5E5E5E]"
+            style={{ background: '#ECF0F7' }}
           >
             {s}
           </span>
