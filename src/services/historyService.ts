@@ -135,6 +135,20 @@ export async function saveToHistory(results: AnalysisResult | AnalysisResult[], 
   }
 }
 
+export async function updateHistoryField(
+  userId: string,
+  resultId: string,
+  fields: Partial<{ full_rewritten_cv: string; parsed_cv: unknown }>
+): Promise<void> {
+  const { error } = await supabase
+    .from('history')
+    .update(fields)
+    .eq('user_id', userId)
+    .eq('analysis_id', resultId);
+
+  if (error) throw error;
+}
+
 export async function getUserHistory(uid: string, plan: UserPlan = 'free'): Promise<AnalysisResult[]> {
   try {
     const historyDays = HISTORY_DAYS_BY_PLAN[plan] ?? 7;

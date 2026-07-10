@@ -11,6 +11,7 @@ import {
   deleteFromHistory,
   clearUserHistory,
   getUserHistory,
+  updateHistoryField,
 } from '../../services/historyService';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { MAX_BATCH_BY_PLAN } from '../../lib/planLimits';
@@ -93,7 +94,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       cvMimeType: string,
       language: 'vi' | 'en',
       authToken?: string,
-      cvDataStoragePath?: string
+      cvDataStoragePath?: string,
+      userId?: string
     ) => {
       setFullCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
@@ -110,6 +112,11 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         setResults((prev) => prev.map(patcher));
         setSelectedResult((prev) => (prev?.id === resultId ? { ...prev, fullRewrittenCV } : prev));
         setHistory((prev) => prev.map(patcher));
+        if (userId) {
+          updateHistoryField(userId, resultId, { full_rewritten_cv: fullRewrittenCV }).catch((err) =>
+            console.error('Failed to persist fullRewrittenCV to history', err)
+          );
+        }
       } catch (err) {
         console.error('generateFullCV failed for', resultId, err);
       } finally {
@@ -133,7 +140,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       authToken?: string,
       cvPdfInlineData?: string,
       cvPdfStoragePath?: string,
-      cvDataStoragePath?: string
+      cvDataStoragePath?: string,
+      userId?: string
     ) => {
       setParsedCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
@@ -145,6 +153,11 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         setResults((prev) => prev.map(patcher));
         setSelectedResult((prev) => (prev?.id === resultId ? { ...prev, parsedCV } : prev));
         setHistory((prev) => prev.map(patcher));
+        if (userId) {
+          updateHistoryField(userId, resultId, { parsed_cv: parsedCV }).catch((err) =>
+            console.error('Failed to persist parsedCV to history', err)
+          );
+        }
       } catch (err) {
         console.error('generateParsedCVForResult failed for', resultId, err);
       } finally {
@@ -452,9 +465,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       // calls so the main analyze stays fast (neither is in the main Gemini prompt).
       for (const [resultId, { data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath }] of cvDataMap) {
         const bgWork = Promise.allSettled([
-          generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, dataStoragePath),
+          generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, dataStoragePath, user?.id),
           generateParsedCVForResult(
-            resultId, jd, data, mimeType, reportLanguage, authToken, pdfInlineData, pdfStoragePath, dataStoragePath
+            resultId, jd, data, mimeType, reportLanguage, authToken, pdfInlineData, pdfStoragePath, dataStoragePath, user?.id
           ),
         ]);
         // The uploaded temp file is only needed by analyze (already done above)
