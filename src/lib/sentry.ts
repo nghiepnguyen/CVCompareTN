@@ -62,6 +62,15 @@ export function initSentry() {
         return null;
       }
 
+      // "Object Not Found Matching Id:X, MethodName:update, ParamCount:4" —
+      // browser extension (Grammarly, Edge translate, password managers)
+      // postMessage bridge losing its port reference. Not our code.
+      if (
+        exceptionValues?.some((v) => v.value?.includes('Object Not Found Matching Id'))
+      ) {
+        return null;
+      }
+
       if (event.request?.data && typeof event.request.data === 'object') {
         event.request.data = scrubData(event.request.data as Record<string, unknown>);
       }
