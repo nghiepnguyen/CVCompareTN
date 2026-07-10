@@ -21,7 +21,7 @@ Frontend của dự án **cvFit** được thiết kế để xử lý việc so
 
 ### Global state (`src/context/`)
 
--   **`AuthContext.tsx`**: Xác thực Supabase và profile người dùng. Hỗ trợ `UserPlan = 'free' | 'pro' | 'recruiter'`. Ngoài Google OAuth (`login()`), còn có email auth: `signInWithEmail()`, `signUpWithEmail()`, `resetPasswordForEmail()` — mỗi hàm đều verify reCAPTCHA qua `POST /api/verify-recaptcha` trước khi gọi Supabase Auth. Quản lý `authModalMode` ('signIn' | 'signUp' | 'resetPassword' | null) để điều khiển `AuthModal`.
+-   **`AuthContext.tsx`**: Xác thực Supabase và profile người dùng. Hỗ trợ `UserPlan = 'free' | 'pro' | 'recruiter'`. Ngoài Google OAuth (`login()`), còn có email auth: `signInWithEmail()`, `signUpWithEmail()`, `resetPasswordForEmail()`, `resendConfirmationEmail()` (gọi trực tiếp Supabase Auth, không qua reCAPTCHA). Quản lý `authModalMode` ('signIn' | 'signUp' | 'resetPassword' | 'resendConfirmation' | null) để điều khiển `AuthModal`. Khi mount, parse cả `location.hash` và `location.search` để bắt lỗi redirect từ Supabase (OAuth lỗi ở query, còn lỗi link email như `otp_expired` nằm ở hash) — gặp `otp_expired` thì tự mở `AuthModal` mode `resendConfirmation`.
 -   **`UIContext.tsx`**: Tab, ngôn ngữ, modals, nhãn UI. Hỗ trợ tab `'recruiter'`.
 -   **`AnalysisContext.tsx`**: Shim re-export — import từ `./context/analysis` (tương thích code cũ).
 -   **`src/context/analysis/`** (hai provider + composer):

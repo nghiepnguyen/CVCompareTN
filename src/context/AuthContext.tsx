@@ -11,7 +11,7 @@ import {
 import { trackEvent } from '../lib/ga4';
 import { setSentryUser } from '../lib/sentryUser';
 
-export type AuthModalMode = 'signIn' | 'signUp' | 'resetPassword' | null;
+export type AuthModalMode = 'signIn' | 'signUp' | 'resetPassword' | 'resendConfirmation' | null;
 
 export interface EmailAuthResult {
   success: boolean;
@@ -45,6 +45,7 @@ interface AuthContextType {
   signInWithEmail: (email: string, password: string) => Promise<EmailAuthResult>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<EmailAuthResult>;
   resetPasswordForEmail: (email: string) => Promise<EmailAuthResult>;
+  resendConfirmationEmail: (email: string) => Promise<EmailAuthResult>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -118,18 +119,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setIsSupabaseConfigured(true);
 
-      // Detect OAuth error redirects from Supabase (e.g. bad_oauth_state, access_denied)
+      // Detect auth error redirects from Supabase. These arrive either as query
+      // params (OAuth code flow) or as a URL hash fragment (email link flow, e.g.
+      // expired signup/reset links: #error=access_denied&error_code=otp_expired).
       const urlParams = new URLSearchParams(window.location.search);
-      const oauthErrorCode = urlParams.get('error_code');
-      const oauthError = urlParams.get('error');
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const oauthErrorCode = urlParams.get('error_code') || hashParams.get('error_code');
+      const oauthError = urlParams.get('error') || hashParams.get('error');
       if (oauthError || oauthErrorCode) {
         const cleanUrl = new URL(window.location.href);
         cleanUrl.searchParams.delete('error');
         cleanUrl.searchParams.delete('error_code');
         cleanUrl.searchParams.delete('error_description');
-        window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+        window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search);
 
-        if (oauthErrorCode === 'bad_oauth_state' || oauthErrorCode === 'pkce_not_found') {
+        if (oauthErrorCode === 'otp_expired') {
+          setError('Link xác nhận đã hết hạn. Vui lòng gửi lại email xác nhận.');
+          setAuthModalMode('resendConfirmation');
+        } else if (oauthErrorCode === 'bad_oauth_state' || oauthErrorCode === 'pkce_not_found') {
           setError('Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng thử đăng nhập lại.');
         } else if (oauthError !== 'access_denied') {
           setError('Đăng nhập thất bại. Vui lòng thử lại.');
@@ -328,6 +335,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resendConfirmationEmail = async (email: string): Promise<EmailAuthResult> => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim().toLowerCase(),
+        options: {
+          emailRedirectTo: `${window.location.origin}`,
+        },
+      });
+
+      if (error) {
+        trackEvent('resend_confirmation_error', { method: 'email', error: error.message?.slice(0, 100) || 'unknown' });
+        return { success: false, error: error.message };
+      }
+
+      trackEvent('resend_confirmation', { method: 'email' });
+      return { success: true };
+    } catch (err: unknown) {
+      console.error('Resend confirmation error:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      trackEvent('resend_confirmation_error', { method: 'email', error: message.slice(0, 100) || 'unknown' });
+      return { success: false, error: message || 'authGenericError' };
+    }
+  };
+
   const refreshUserProfile = async () => {
     if (!user) return;
     await loadUserProfileData(user);
@@ -368,6 +400,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithEmail,
       signUpWithEmail,
       resetPasswordForEmail,
+      resendConfirmationEmail,
     }}>
       {children}
     </AuthContext.Provider>

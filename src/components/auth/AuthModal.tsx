@@ -5,7 +5,9 @@ import { useAuth, AuthModalMode } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { cn } from '../../lib/utils';
 
-type TabMode = Extract<AuthModalMode, 'signIn' | 'signUp' | 'resetPassword'>;
+type TabMode = Extract<AuthModalMode, 'signIn' | 'signUp' | 'resetPassword' | 'resendConfirmation'>;
+
+const RESEND_COOLDOWN_SECONDS = 60;
 
 interface FormErrors {
   email?: string;
@@ -75,6 +77,7 @@ export function AuthModal() {
     signInWithEmail,
     signUpWithEmail,
     resetPasswordForEmail,
+    resendConfirmationEmail,
     login,
   } = useAuth();
   const { t } = useUI();
@@ -88,14 +91,29 @@ export function AuthModal() {
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
   const emailInputRef = useRef<HTMLInputElement>(null);
 
-  // Always open on signIn tab; resetPassword is a special deep-link case
+  // Always open on signIn tab; resetPassword/resendConfirmation are deep-link cases
   useEffect(() => {
     if (authModalMode) {
-      setMode(authModalMode === 'resetPassword' ? 'resetPassword' : 'signIn');
+      setMode(
+        authModalMode === 'resetPassword' || authModalMode === 'resendConfirmation'
+          ? authModalMode
+          : 'signIn',
+      );
     }
   }, [authModalMode]);
+
+  // Countdown for the resend-confirmation cooldown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // Reset state on open
   useEffect(() => {
@@ -108,6 +126,8 @@ export function AuthModal() {
       setName('');
       setShowPassword(false);
       setIsSubmitting(false);
+      setResendCooldown(0);
+      setIsResending(false);
       // Focus email input after open animation
       setTimeout(() => emailInputRef.current?.focus(), 200);
     }
@@ -160,6 +180,7 @@ export function AuthModal() {
         if (result.success) {
           if (result.checkEmail) {
             setSuccessMessage(`${tk.authSignUpSuccess} ${tk.authSignUpSuccessDesc}`);
+            setResendCooldown(RESEND_COOLDOWN_SECONDS);
           } else {
             handleClose();
           }
@@ -174,6 +195,15 @@ export function AuthModal() {
         } else {
           setFormError(resolveError(result.error, tk.authGenericError, tk));
         }
+      } else if (mode === 'resendConfirmation') {
+        const result = await resendConfirmationEmail(email);
+        const tk = t as unknown as Record<string, string>;
+        if (result.success) {
+          setSuccessMessage(tk.authResendSuccess);
+          setResendCooldown(RESEND_COOLDOWN_SECONDS);
+        } else {
+          setFormError(resolveError(result.error, tk.authGenericError, tk));
+        }
       }
     } catch {
       setFormError((t as unknown as Record<string, string>).authGenericError);
@@ -184,6 +214,20 @@ export function AuthModal() {
 
   const handleGoogleLogin = async () => {
     await login();
+  };
+
+  const handleResendClick = async () => {
+    if (resendCooldown > 0 || isResending || !email) return;
+    setIsResending(true);
+    const tk = t as unknown as Record<string, string>;
+    const result = await resendConfirmationEmail(email);
+    if (result.success) {
+      setSuccessMessage(`${tk.authSignUpSuccess} ${tk.authResendSuccess}`);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    } else {
+      setFormError(resolveError(result.error, tk.authGenericError, tk));
+    }
+    setIsResending(false);
   };
 
   const switchMode = (newMode: TabMode) => {
@@ -252,7 +296,29 @@ export function AuthModal() {
                     <Mail className="w-7 h-7 text-accent" />
                   </div>
                   <p className="text-sm font-bold text-text-main leading-relaxed">{successMessage}</p>
-                  {mode === 'resetPassword' && (
+                  {mode === 'signUp' && (
+                    <>
+                      {formError && (
+                        <p className="mt-3 text-xs font-bold text-error">{formError}</p>
+                      )}
+                      <p className="mt-4 text-xs font-bold text-text-light">
+                        {(t as unknown as Record<string, string>).authResendPrompt}{' '}
+                        <button
+                          type="button"
+                          onClick={handleResendClick}
+                          disabled={resendCooldown > 0 || isResending}
+                          className="text-accent hover:text-accent-hover transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {resendCooldown > 0
+                            ? `${(t as unknown as Record<string, string>).authResendCooldownBtn} ${resendCooldown}s`
+                            : isResending
+                              ? (t as unknown as Record<string, string>).authResendBtnLoading
+                              : (t as unknown as Record<string, string>).authResendPromptLink}
+                        </button>
+                      </p>
+                    </>
+                  )}
+                  {(mode === 'resetPassword' || mode === 'resendConfirmation') && (
                     <button
                       type="button"
                       onClick={() => switchMode('signIn')}
@@ -278,6 +344,12 @@ export function AuthModal() {
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  {mode === 'resendConfirmation' && (
+                    <p className="mb-4 text-xs font-bold text-text-light leading-relaxed">
+                      {(t as unknown as Record<string, string>).authResendDesc}
+                    </p>
+                  )}
 
                   <form onSubmit={handleSubmit} noValidate>
                     {/* Name field (sign up only) */}
@@ -344,8 +416,8 @@ export function AuthModal() {
                       )}
                     </div>
 
-                    {/* Password (not for resetPassword) */}
-                    {mode !== 'resetPassword' && (
+                    {/* Password (not for resetPassword / resendConfirmation) */}
+                    {mode !== 'resetPassword' && mode !== 'resendConfirmation' && (
                       <div className="mb-4">
                         <label
                           htmlFor="auth-password"
@@ -406,17 +478,19 @@ export function AuthModal() {
                       )}
                     >
                       {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                      {isSubmitting
-                        ? mode === 'signIn'
-                          ? (t as unknown as Record<string, string>).authSignInBtnLoading
-                          : mode === 'signUp'
-                            ? (t as unknown as Record<string, string>).authSignUpBtnLoading
-                            : (t as unknown as Record<string, string>).authResetPasswordBtnLoading
-                        : mode === 'signIn'
-                          ? (t as unknown as Record<string, string>).authSignInBtn
-                          : mode === 'signUp'
-                            ? (t as unknown as Record<string, string>).authSignUpBtn
-                            : (t as unknown as Record<string, string>).authResetPasswordBtn}
+                      {(() => {
+                        const tk = t as unknown as Record<string, string>;
+                        if (isSubmitting) {
+                          if (mode === 'signIn') return tk.authSignInBtnLoading;
+                          if (mode === 'signUp') return tk.authSignUpBtnLoading;
+                          if (mode === 'resendConfirmation') return tk.authResendBtnLoading;
+                          return tk.authResetPasswordBtnLoading;
+                        }
+                        if (mode === 'signIn') return tk.authSignInBtn;
+                        if (mode === 'signUp') return tk.authSignUpBtn;
+                        if (mode === 'resendConfirmation') return tk.authResendBtn;
+                        return tk.authResetPasswordBtn;
+                      })()}
                     </button>
                   </form>
 

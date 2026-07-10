@@ -759,4 +759,12 @@ export interface UiLabels {
   authResetPasswordBtnLoading: string;
   authResetPasswordSuccess: string;
   authBackToSignIn: string;
+  authResendTitle: string;
+  authResendDesc: string;
+  authResendBtn: string;
+  authResendBtnLoading: string;
+  authResendCooldownBtn: string;
+  authResendSuccess: string;
+  authResendPrompt: string;
+  authResendPromptLink: string;
 }

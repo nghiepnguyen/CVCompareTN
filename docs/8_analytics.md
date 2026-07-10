@@ -109,6 +109,8 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 | `sign_up_email_error` | Đăng ký email thất bại | `method`: `'email'`, `error`: message lỗi (cắt 100 ký tự) | Supabase `signUp` thất bại | `AuthContext.tsx` |
 | `reset_password` | Gửi yêu cầu đặt lại mật khẩu thành công | `method`: `'email'` | Supabase `resetPasswordForEmail` thành công | `AuthContext.tsx` |
 | `reset_password_error` | Gửi yêu cầu đặt lại mật khẩu thất bại | `method`: `'email'`, `error`: message lỗi (cắt 100 ký tự) | Supabase `resetPasswordForEmail` thất bại | `AuthContext.tsx` |
+| `resend_confirmation` | Gửi lại email xác nhận signup thành công | `method`: `'email'` | Supabase `auth.resend({type:'signup'})` thành công — trigger từ nút "Gửi lại" (màn hình check-email) hoặc auto-mở modal khi phát hiện `otp_expired` | `AuthContext.tsx` |
+| `resend_confirmation_error` | Gửi lại email xác nhận thất bại | `method`: `'email'`, `error`: message lỗi (cắt 100 ký tự) | Supabase `auth.resend` thất bại | `AuthContext.tsx` |
 
 ### Ghi chú quan trọng
 

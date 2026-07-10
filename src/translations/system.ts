@@ -322,4 +322,36 @@ export const system = {
     vi: "Quay lại đăng nhập",
     en: "Back to Sign In",
   },
+  authResendTitle: {
+    vi: "Gửi lại email xác nhận",
+    en: "Resend Confirmation Email",
+  },
+  authResendDesc: {
+    vi: "Nhập email bạn đã đăng ký, chúng tôi sẽ gửi lại link xác nhận mới.",
+    en: "Enter the email you signed up with and we'll send a new confirmation link.",
+  },
+  authResendBtn: {
+    vi: "Gửi lại email xác nhận",
+    en: "Resend Confirmation Email",
+  },
+  authResendBtnLoading: {
+    vi: "Đang gửi...",
+    en: "Sending...",
+  },
+  authResendCooldownBtn: {
+    vi: "Gửi lại sau",
+    en: "Resend in",
+  },
+  authResendSuccess: {
+    vi: "Đã gửi lại email xác nhận. Vui lòng kiểm tra hộp thư của bạn.",
+    en: "Confirmation email resent. Please check your inbox.",
+  },
+  authResendPrompt: {
+    vi: "Chưa nhận được email?",
+    en: "Didn't receive the email?",
+  },
+  authResendPromptLink: {
+    vi: "Gửi lại",
+    en: "Resend",
+  },
 } as const;

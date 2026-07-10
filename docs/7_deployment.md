@@ -57,6 +57,8 @@ Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/
 
 1.  **Tạo project Supabase:** Truy cập [Supabase Dashboard](https://supabase.com/dashboard).
 2.  **Authentication:** Bật nhà cung cấp **Google**. Trong URL Redirect / Site URL, thêm domain production (ví dụ `https://cvfit.pro`) và URL preview của Vercel (`https://*.vercel.app`) cùng `http://localhost:5173` (hoặc cổng dev bạn dùng).
+    -   **Email confirm signup — Custom SMTP:** Project Settings > Auth > SMTP Settings, dùng **Resend** làm SMTP relay (sender email set riêng ở đây, độc lập với `RESEND_FROM_EMAIL` của app). Domain gởi (`cvfit.pro`) cần verify SPF + DKIM trên Resend Dashboard, và thêm DMARC thủ công ở DNS provider (Resend không tự cấu hình DMARC): `_dmarc.cvfit.pro` TXT `v=DMARC1; p=none; rua=mailto:<email nhận report>`.
+    -   **Giới hạn free plan:** link xác nhận signup luôn dùng domain `*.supabase.co` (không match domain gởi `cvfit.pro`) trừ khi bật **Custom Auth Domain** (Supabase Pro). Mismatch này có thể khiến mail server nhận delay/greylist → link hết hạn trước khi user click. Safety net: nút "Gửi lại email xác nhận" trong `AuthModal.tsx` (mode `resendConfirmation`), tự mở khi phát hiện lỗi `otp_expired` trên URL redirect.
 3.  **Database:** Áp dụng migration trong `supabase/migrations/` (khuyến nghị: `supabase db push`, hoặc chạy lần lượt trong SQL Editor):
 
     | Migration | Nội dung chính |
