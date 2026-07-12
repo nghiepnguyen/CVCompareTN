@@ -358,9 +358,9 @@ html.dark,
   }
 }
 
-@keyframes waveDrift {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
-  50% { transform: translate3d(-2%, -2%, 0) scale(1.12) rotate(-1deg); }
+@keyframes mintDrift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(4%, -3%, 0) scale(1.08); }
 }
 
 @utility animate-float {

@@ -23,43 +23,28 @@ export function HeroSection({
   return (
     <section
       ref={heroRef}
-      className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-[#050705]"
+      className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #F2FDF9 12%, #A8F0DC 38%, #52CBB0 64%, #147A5F 92%)',
+      }}
     >
-      {/* ---- Background Effects — flowing green silk wave mesh ---- */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* Deep base glow, right-weighted like the reference */}
+      {/* ---- Background Effects — "Mint ice" flow gradient ---- */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden bg-noise-light">
+        {/* Drifting mint color blobs — flow motion */}
         <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(120% 90% at 82% 45%, rgba(16,185,129,0.12), transparent 62%), radial-gradient(90% 80% at 25% 75%, rgba(5,150,105,0.07), transparent 65%)',
-          }}
+          className="absolute -top-24 -left-24 h-[32rem] w-[32rem] rounded-full opacity-50 blur-[110px] animate-[mintDrift_18s_ease-in-out_infinite]"
+          style={{ background: '#A8F0DC' }}
+        />
+        <div
+          className="absolute -bottom-32 -right-16 h-[36rem] w-[36rem] rounded-full opacity-60 blur-[120px] animate-[mintDrift_22s_ease-in-out_infinite_reverse]"
+          style={{ background: '#147A5F' }}
         />
 
-        {/* Flowing silk wave mesh (SVG, animated) — concentrated on the right */}
-        <WaveMesh />
-
-        {/* Subtle grid, masked radial fade */}
+        {/* Soft radial glow behind the copy for guaranteed contrast */}
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage:
-              'linear-gradient(rgba(16,185,129,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.08) 1px, transparent 1px)',
-            backgroundSize: '54px 54px',
-            maskImage: 'radial-gradient(ellipse 70% 60% at 45% 45%, #000 20%, transparent 80%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 45% 45%, #000 20%, transparent 80%)',
-          }}
-        />
-
-        {/* Noise texture */}
-        <div className="absolute inset-0 bg-noise opacity-30" />
-
-        {/* Vignette so text stays readable on the left */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(90deg, rgba(5,7,5,0.9) 0%, rgba(5,7,5,0.35) 32%, transparent 55%)',
+            background: 'radial-gradient(90% 65% at 50% 35%, rgba(242,253,249,0.85), transparent 75%)',
           }}
         />
       </div>
@@ -69,7 +54,7 @@ export function HeroSection({
         className="container-premium relative z-10 text-center pt-24 pb-16"
       >
         {/* Badge */}
-        <SectionBadge icon={Sparkles}>
+        <SectionBadge icon={Sparkles} theme="light">
           {t.badgeHero}
         </SectionBadge>
 
@@ -78,10 +63,18 @@ export function HeroSection({
           initial={{ opacity: 0, y: 60, filter: 'blur(10px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="font-sans text-5xl sm:text-7xl md:text-8xl lg:text-[7rem] font-bold tracking-[-0.03em] text-text-main leading-[1.1] pb-2 text-balance"
+          className="font-sans text-5xl sm:text-7xl md:text-8xl lg:text-[7rem] font-bold tracking-[-0.03em] text-[#122A22] leading-[1.1] pb-2 text-balance"
         >
           {t.heroTitle}{' '}
-          <span className="block text-green-accent leading-[1.25] pb-[0.12em]">
+          <span
+            className="block leading-[1.1] pb-[0.12em]"
+            style={{
+              background: 'linear-gradient(135deg, #0B4A3A 0%, #147A5F 55%, #1F9C79 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
             {t.badgeHeroHighlight}
           </span>
         </motion.h1>
@@ -91,7 +84,7 @@ export function HeroSection({
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-text-muted sm:text-xl lg:text-2xl font-light text-balance"
+          className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-[#33544A] sm:text-xl lg:text-2xl font-light text-balance"
         >
           {t.heroDesc}
         </motion.p>
@@ -111,6 +104,7 @@ export function HeroSection({
             target="_blank"
             rel="noopener noreferrer"
             icon={ArrowRight}
+            theme="light"
           >
             {t.forEmployers}
           </OutlineButton>
@@ -121,7 +115,7 @@ export function HeroSection({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1, duration: 0.6 }}
-          className="mt-6 text-sm font-medium text-text-light uppercase tracking-wider"
+          className="mt-6 text-sm font-medium text-[#4A6A61] uppercase tracking-wider"
         >
           {t.heroSub}
         </motion.p>
@@ -135,9 +129,9 @@ export function HeroSection({
         style={{ y: parallaxY }}
         className="relative z-10 w-full max-w-6xl px-4 pb-16"
       >
-        <div className="group relative overflow-hidden rounded-[2rem] md:rounded-[3rem] border border-white/[0.08] bg-white/[0.02] p-2 md:p-3 shadow-2xl backdrop-blur-3xl transition-all duration-700 hover:border-accent/20 hover:shadow-accent/5">
+        <div className="group relative overflow-hidden rounded-[2rem] md:rounded-[3rem] border border-[rgba(203,213,225,0.6)] bg-white/85 p-2 md:p-3 shadow-2xl backdrop-blur-2xl transition-all duration-700 hover:border-accent/25 hover:shadow-accent/10">
           {/* Reflection highlight */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
           {/* Scan line */}
           <div className="absolute left-0 right-0 z-20 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent animate-scan pointer-events-none" />
           <img
@@ -157,108 +151,8 @@ export function HeroSection({
         <div className="absolute -bottom-8 -left-8 h-40 w-40 rounded-full bg-accent/5 blur-3xl animate-glow pointer-events-none" style={{ animationDelay: '2s' }} />
       </motion.div>
 
-      {/* Bottom gradient fade */}
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-[#050705] via-transparent to-transparent" />
+      {/* Bottom gradient fade — blend into the next (white) section */}
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-white via-white/50 to-transparent" />
     </section>
-  );
-}
-
-/**
- * Flowing green "silk" wave mesh. A fine woven grid (warp + weft lines) is
- * warped in 3D by a turbulence displacement filter, reading as draped cloth
- * like the reference hero. Pure SVG + CSS, right-weighted, no image asset.
- */
-function WaveMesh() {
-  const W = 1440;
-  const H = 900;
-  const GAP = 22; // mesh spacing — fine woven look
-  const PAD = 320; // draw past the edges so displacement never bares a corner
-
-  const vLines: number[] = [];
-  for (let x = -PAD; x <= W + PAD; x += GAP) vLines.push(x);
-  const hLines: number[] = [];
-  for (let y = -PAD; y <= H + PAD; y += GAP) hLines.push(y);
-
-  return (
-    <div className="absolute inset-0 flex items-center justify-end">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="xMidYMid slice"
-        className="h-full w-full animate-[waveDrift_22s_ease-in-out_infinite]"
-        style={{
-          maskImage:
-            'radial-gradient(130% 120% at 82% 40%, #000 20%, rgba(0,0,0,0.55) 60%, transparent 92%)',
-          WebkitMaskImage:
-            'radial-gradient(130% 120% at 82% 40%, #000 20%, rgba(0,0,0,0.55) 60%, transparent 92%)',
-        }}
-      >
-        <defs>
-          <linearGradient id="silkStroke" x1="0" y1="0" x2="1" y2="0.6">
-            <stop offset="0%" stopColor="rgba(6,95,70,0.25)" />
-            <stop offset="40%" stopColor="rgba(16,185,129,0.85)" />
-            <stop offset="70%" stopColor="rgba(110,231,183,1)" />
-            <stop offset="90%" stopColor="rgba(236,253,245,1)" />
-            <stop offset="100%" stopColor="rgba(52,211,153,0.5)" />
-          </linearGradient>
-
-          {/* Radial crest glow — the bright "peak" of the cloth */}
-          <radialGradient id="crest" cx="83%" cy="30%" r="45%">
-            <stop offset="0%" stopColor="rgba(209,250,229,0.6)" />
-            <stop offset="45%" stopColor="rgba(52,211,153,0.2)" />
-            <stop offset="100%" stopColor="transparent" />
-          </radialGradient>
-
-          {/* Silk warp — large smooth turbulence displaces the flat grid into cloth */}
-          <filter id="silk" x="-30%" y="-30%" width="160%" height="160%">
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency="0.0022 0.0055"
-              numOctaves={3}
-              seed={11}
-              result="noise"
-            >
-              <animate
-                attributeName="baseFrequency"
-                dur="26s"
-                values="0.0022 0.0055; 0.0028 0.0044; 0.0022 0.0055"
-                repeatCount="indefinite"
-              />
-            </feTurbulence>
-            <feDisplacementMap
-              in="SourceGraphic"
-              in2="noise"
-              scale={150}
-              xChannelSelector="R"
-              yChannelSelector="G"
-            />
-          </filter>
-        </defs>
-
-        <g
-          filter="url(#silk)"
-          fill="none"
-          stroke="url(#silkStroke)"
-          strokeWidth="1.1"
-          strokeOpacity="1"
-        >
-          {vLines.map((x, i) => (
-            <line key={`v${i}`} x1={x} y1={-PAD} x2={x} y2={H + PAD} />
-          ))}
-          {hLines.map((y, i) => (
-            <line key={`h${i}`} x1={-PAD} y1={y} x2={W + PAD} y2={y} />
-          ))}
-        </g>
-
-        {/* Bright crest over the ridge */}
-        <rect
-          x="0"
-          y="0"
-          width={W}
-          height={H}
-          fill="url(#crest)"
-          style={{ mixBlendMode: 'screen' }}
-        />
-      </svg>
-    </div>
   );
 }
