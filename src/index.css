@@ -5,15 +5,45 @@
    ============================================================ */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Metric-matched fallback for "Plus Jakarta Sans" — sized/aligned to the
+   real font's metrics (via @capsizecss/metrics vs Arial) so the swap from
+   fallback to webfont doesn't reflow text and trigger layout shift (CLS). */
+@font-face {
+  font-family: "Plus Jakarta Sans Fallback";
+  src: local("Arial");
+  size-adjust: 104.9796%;
+  ascent-override: 98.8763%;
+  descent-override: 21.147%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Fira Sans Fallback";
+  src: local("Arial");
+  size-adjust: 102.7365%;
+  ascent-override: 91.0095%;
+  descent-override: 25.7942%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Fira Code Fallback";
+  src: local("Courier New");
+  size-adjust: 99.9837%;
+  ascent-override: 99.0161%;
+  descent-override: 32.2052%;
+  line-gap-override: 0%;
+}
+
 /* ============================================================
    THEME TOKENS — Light mode is DEFAULT, Dark overrides via html.dark
    ============================================================ */
 @theme {
-  --font-serif: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-cv: "Fira Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-cv-header: "Fira Code", monospace;
+  --font-serif: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-cv: "Fira Sans", "Fira Sans Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-cv-header: "Fira Code", "Fira Code Fallback", monospace;
 
   /* ---- Light Theme (DEFAULT) — Optimized for readability ---- */
   --color-primary: #F8FAFC;
