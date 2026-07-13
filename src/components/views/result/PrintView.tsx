@@ -36,7 +36,7 @@ export const PrintView: React.FC<PrintViewProps> = ({ selectedResult }) => {
   const { variant: printVariant, version: printVersion } = readPrintState();
   const printKey = `print-${selectedResult.id}-${printVersion}`;
 
-  if (!canExportOptimized) {
+  if (printVariant === 'premium' && !canExportOptimized) {
     return (
       <div id="cv-print-root" className="min-h-screen bg-white flex items-center justify-center p-8">
         <div className="text-center space-y-4 max-w-sm">

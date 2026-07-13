@@ -147,23 +147,15 @@ export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullC
                 <div className="flex flex-col gap-3">
                   <p className="max-w-2xl text-sm font-medium leading-relaxed text-text-muted">{t.fullRewrittenCVDesc}</p>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {canExportOptimized ? (
-                      <>
-                        <span className="flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent-light/60 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-accent backdrop-blur-sm">
-                          <Zap className="size-3 text-accent" />ATS Optimized
-                        </span>
-                        <span className="flex items-center gap-1.5 rounded-full border border-success/25 bg-success-light/50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-success backdrop-blur-sm">
-                          <Shield className="size-3 text-success" />Recruiter Ready
-                        </span>
-                      </>
-                    ) : (
-                      <span className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-400/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-amber-400 backdrop-blur-sm">
-                        <Lock className="size-3 text-amber-400" />{t.freePreviewBadge}
-                      </span>
-                    )}
+                    <span className="flex items-center gap-1.5 rounded-full border border-accent/25 bg-accent-light/60 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-accent backdrop-blur-sm">
+                      <Zap className="size-3 text-accent" />ATS Optimized
+                    </span>
+                    <span className="flex items-center gap-1.5 rounded-full border border-success/25 bg-success-light/50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-success backdrop-blur-sm">
+                      <Shield className="size-3 text-success" />Recruiter Ready
+                    </span>
                   </div>
                 </div>
-                <ActionButtons canExport={canExportOptimized} copiedId={copiedId} setCopiedId={setCopiedId} fullRewrittenCV={selectedResult.fullRewrittenCV} navigateToUpgrade={navigateToUpgrade} t={t} />
+                <ActionButtons canExport={true} copiedId={copiedId} setCopiedId={setCopiedId} fullRewrittenCV={selectedResult.fullRewrittenCV} navigateToUpgrade={navigateToUpgrade} t={t} />
               </>
             )}
           </div>
@@ -364,36 +356,9 @@ export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullC
               <span className="pointer-events-none absolute bottom-4 left-4 size-5 border-b-2 border-l-2 border-slate-400/40 sm:bottom-6 sm:left-6 sm:size-6" aria-hidden />
               <span className="pointer-events-none absolute bottom-4 right-4 size-5 border-b-2 border-r-2 border-slate-400/40 sm:bottom-6 sm:right-6 sm:size-6" aria-hidden />
 
-              <div className={`relative z-10 p-8 sm:p-14 ${!canExportOptimized ? 'pointer-events-none select-none' : ''}`}>
+              <div className="relative z-10 p-8 sm:p-14">
                 <CvMarkdownBody markdown={selectedResult.fullRewrittenCV} locale={reportLanguage} density="screen" />
               </div>
-
-              {!canExportOptimized && (
-                <>
-                  <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-b from-slate-900/10 via-transparent to-slate-900/10" aria-hidden />
-                  <div className="pointer-events-none absolute inset-0 z-20 select-none" aria-hidden style={{ backgroundImage: `repeating-linear-gradient(-35deg,transparent,transparent 70px,rgba(100,116,139,0.07) 70px,rgba(100,116,139,0.07) 71px)` }} />
-                  <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center select-none" aria-hidden>
-                    <span className="rotate-[-22deg] text-[2.8rem] sm:text-[5rem] font-black text-slate-500/[0.16] tracking-[0.25em] uppercase whitespace-nowrap">
-                      {t.freePreviewWatermarkPrimary}
-                    </span>
-                  </div>
-                  <div className="pointer-events-none absolute inset-0 z-20 select-none" aria-hidden style={{ backgroundImage: `repeating-linear-gradient(0deg,transparent,transparent 130px,rgba(245,158,11,0.05) 130px,rgba(245,158,11,0.05) 131px),repeating-linear-gradient(90deg,transparent,transparent 170px,rgba(245,158,11,0.04) 170px,rgba(245,158,11,0.04) 171px)` }} />
-                  <div className="pointer-events-none absolute inset-0 z-20 select-none overflow-hidden" aria-hidden>
-                    <div className="absolute inset-0 flex flex-wrap content-center justify-center gap-16 opacity-[0.06] rotate-[-20deg] scale-150">
-                      {Array.from({ length: 20 }).map((_, idx) => (
-                        <span key={idx} className="text-[0.65rem] font-black uppercase tracking-[0.3em] text-slate-700 whitespace-nowrap">
-                          {t.freePreviewWatermarkSecondary}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="pointer-events-none absolute top-6 right-6 z-20 select-none">
-                    <span className="rounded-lg border border-amber-500/35 bg-amber-400/20 backdrop-blur-sm px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] text-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.15)]">
-                      <Lock className="inline size-3 mr-1 -mt-0.5" />{t.freePreviewTab}
-                    </span>
-                  </div>
-                </>
-              )}
 
               <div className="relative z-10 mt-12 border-t border-slate-300/60 pt-5 text-center font-cv-header text-[9px] font-bold uppercase tracking-[0.25em] text-slate-400">
                 {t.fullCvDraftFooter}
