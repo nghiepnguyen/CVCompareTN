@@ -84,6 +84,7 @@ export interface UiLabels {
   adminReportAvgOutputTokens: string;
   adminReportAvgTotalTokens: string;
   adminReportAvgCost: string;
+  adminReportAvgTokenTooltip: string;
   adminReportTotalCostSubtitle: string;
   adminToggleRole: string;
   adminUnlock: string;

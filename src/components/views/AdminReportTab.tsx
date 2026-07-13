@@ -122,9 +122,9 @@ export function AdminReportTab() {
         </h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: t.adminReportAvgInputTokens, value: formatTokens(stats?.avgInputTokens ?? 0), icon: ArrowDownToLine, color: 'text-accent', bg: 'bg-accent-light' },
-            { label: t.adminReportAvgOutputTokens, value: formatTokens(stats?.avgOutputTokens ?? 0), icon: ArrowUpFromLine, color: 'text-text-main', bg: 'bg-surface-secondary' },
-            { label: t.adminReportAvgTotalTokens, value: formatTokens(stats?.avgTotalTokens ?? 0), icon: Layers, color: 'text-text-main', bg: 'bg-surface-secondary' },
+            { label: t.adminReportAvgInputTokens, value: formatTokens(stats?.avgInputTokens ?? 0), icon: ArrowDownToLine, color: 'text-accent', bg: 'bg-accent-light', tooltip: t.adminReportAvgTokenTooltip },
+            { label: t.adminReportAvgOutputTokens, value: formatTokens(stats?.avgOutputTokens ?? 0), icon: ArrowUpFromLine, color: 'text-text-main', bg: 'bg-surface-secondary', tooltip: t.adminReportAvgTokenTooltip },
+            { label: t.adminReportAvgTotalTokens, value: formatTokens(stats?.avgTotalTokens ?? 0), icon: Layers, color: 'text-text-main', bg: 'bg-surface-secondary', tooltip: t.adminReportAvgTokenTooltip },
           ].map((card) => (
             <div key={card.label} className="bg-surface border border-border rounded-2xl p-5 shadow-sm space-y-3">
               <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', card.bg)}>
@@ -132,7 +132,12 @@ export function AdminReportTab() {
               </div>
               <div>
                 <div className="text-2xl font-black text-text-main leading-none">{card.value}</div>
-                <div className="text-[10px] font-bold text-text-light uppercase tracking-widest mt-1">{card.label}</div>
+                <div className="text-[10px] font-bold text-text-light uppercase tracking-widest mt-1 flex items-center gap-1">
+                  {card.label}
+                  <span title={card.tooltip} className="cursor-help">
+                    <HelpCircle className="w-3 h-3 text-text-light shrink-0" />
+                  </span>
+                </div>
               </div>
             </div>
           ))}
@@ -144,7 +149,12 @@ export function AdminReportTab() {
               <div className="text-2xl font-black text-text-main leading-none">
                 {formatCostUsd(stats?.avgCostUsd ?? 0, 4)}
               </div>
-              <div className="text-[10px] font-bold text-text-light uppercase tracking-widest mt-1">{t.adminReportAvgCost}</div>
+              <div className="text-[10px] font-bold text-text-light uppercase tracking-widest mt-1 flex items-center gap-1">
+                {t.adminReportAvgCost}
+                <span title={t.adminReportAvgTokenTooltip} className="cursor-help">
+                  <HelpCircle className="w-3 h-3 text-text-light shrink-0" />
+                </span>
+              </div>
               <div className="text-[11px] text-text-light mt-1">
                 {formatLabel(t.adminReportTotalCostSubtitle, { amount: formatCostUsd(stats?.totalCostUsd ?? 0, 2) })}
               </div>

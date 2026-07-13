@@ -112,6 +112,10 @@ export const admin = {
     vi: "Tổng chi phí kỳ này: {amount}",
     en: "Total this period: {amount}",
   },
+  adminReportAvgTokenTooltip: {
+    vi: "Tổng token của cả 3 loại gọi Gemini (analyze + parse_cv + rewrite) trong một lượt phân tích, chia cho số lượt phân tích thành công — không phải trung bình mỗi lệnh gọi Gemini riêng lẻ.",
+    en: "Sums tokens across all 3 Gemini calls in one analysis (analyze + parse_cv + rewrite), divided by successful analyses — not the average per individual Gemini call.",
+  },
   adminNewProfilesTitle: {
     vi: "Phát hiện {count} hồ sơ mới",
     en: "{count} new profile(s) detected",

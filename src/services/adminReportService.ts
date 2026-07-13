@@ -58,34 +58,70 @@ function dayKey(iso: string): string {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+// PostgREST caps rows per request (commonly 1000). Any query that can grow with
+// user/analysis volume must paginate via .range() or it silently truncates and
+// under-counts — page through until a short page signals the end.
+const SUPABASE_PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  buildPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
+): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await buildPage(from, from + SUPABASE_PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < SUPABASE_PAGE_SIZE) break;
+    from += SUPABASE_PAGE_SIZE;
+  }
+  return rows;
+}
+
+interface AnalysisLogRow {
+  user_id: string | null;
+  status: string;
+  created_at: string;
+  kind: string;
+  input_tokens: number | null;
+  output_tokens: number | null;
+}
+
 export async function getAdminReportStats(range: ReportRange): Promise<AdminReportStats> {
   const startIso = getRangeStart(range).toISOString();
 
-  const [newUsersRes, logsRes, usageRes] = await Promise.all([
+  const [newUsersRes, logs, usageRows] = await Promise.all([
     supabase
       .from('profiles')
       .select('id', { count: 'exact', head: true })
       .gte('created_at', startIso),
-    supabase
-      .from('analysis_log')
-      .select('user_id, status, created_at, kind, input_tokens, output_tokens')
-      .gte('created_at', startIso)
-      .order('created_at', { ascending: true }),
+    fetchAllRows<AnalysisLogRow>((from, to) =>
+      supabase
+        .from('analysis_log')
+        .select('user_id, status, created_at, kind, input_tokens, output_tokens')
+        .gte('created_at', startIso)
+        .order('created_at', { ascending: true })
+        .range(from, to)
+    ),
     // Quota-based total (each user's own current cycle), not scoped to `range` —
     // mirrors the "Analyses / month" column in Admin > User directory.
-    supabase.from('profiles').select('effective_usage_count'),
+    fetchAllRows<{ effective_usage_count: number | null }>((from, to) =>
+      supabase
+        .from('profiles')
+        .select('effective_usage_count')
+        .order('id', { ascending: true })
+        .range(from, to)
+    ),
   ]);
 
   if (newUsersRes.error) throw newUsersRes.error;
-  if (logsRes.error) throw logsRes.error;
-  if (usageRes.error) throw usageRes.error;
 
-  const totalAnalysesThisMonth = (usageRes.data ?? []).reduce(
-    (sum, p) => sum + ((p['effective_usage_count'] as number | null) ?? 0),
+  const totalAnalysesThisMonth = usageRows.reduce(
+    (sum, p) => sum + (p.effective_usage_count ?? 0),
     0
   );
 
-  const logs = logsRes.data ?? [];
   // Only 'analyze' rows are "analyses" for the existing metrics below —
   // 'parse_cv'/'rewrite' rows are the auto-triggered follow-up Gemini calls
   // (see AnalysisRunContext.tsx), tracked only for token/cost totals.
@@ -97,7 +133,7 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
   let totalError = 0;
 
   for (const log of analyzeLogs) {
-    const day = dayKey(log.created_at as string);
+    const day = dayKey(log.created_at);
     const bucket = dailyMap.get(day) ?? { success: 0, error: 0 };
     if (log.status === 'success') {
       bucket.success += 1;
@@ -109,7 +145,7 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
     dailyMap.set(day, bucket);
 
     if (log.user_id) {
-      userCounts.set(log.user_id as string, (userCounts.get(log.user_id as string) ?? 0) + 1);
+      userCounts.set(log.user_id, (userCounts.get(log.user_id) ?? 0) + 1);
     }
   }
 
@@ -152,8 +188,8 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
   let totalOutputTokens = 0;
   for (const log of logs) {
     if (log.status !== 'success') continue;
-    totalInputTokens += (log.input_tokens as number | null) ?? 0;
-    totalOutputTokens += (log.output_tokens as number | null) ?? 0;
+    totalInputTokens += log.input_tokens ?? 0;
+    totalOutputTokens += log.output_tokens ?? 0;
   }
   const totalCostUsd =
     (totalInputTokens / 1_000_000) * GEMINI_INPUT_PRICE_PER_1M_USD +
