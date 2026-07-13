@@ -16,35 +16,36 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
   const { t } = useUI();
   const [openSections, setOpenSections] = React.useState<string[]>(['matching']);
 
-  const radarData = React.useMemo(() => {
-    const matched: Record<string, number> = {};
-    const missing: Record<string, number> = {};
-    (selectedResult.matchingPoints || []).forEach((p) => {
-      if (!p?.category) return;
-      matched[p.category] = (matched[p.category] || 0) + 1;
-    });
-    (selectedResult.missingGaps || []).forEach((g) => {
-      if (!g?.category) return;
-      missing[g.category] = (missing[g.category] || 0) + 1;
-    });
-
-    const categoryOrder = [
-      'Skills', 'Soft Skills', 'Hard Skills', 'Technical Skills', 'Language Skills',
-      'Experience', 'Tools', 'Education',
+  // Single source of truth for both charts: AI's own categoryScores, so the bar
+  // and radar always agree and share the same category set/order.
+  const categoryChartData = React.useMemo(() => {
+    const CATEGORY_KEYS: { key: keyof NonNullable<AnalysisResult['categoryScores']>; category: string }[] = [
+      { key: 'skills', category: 'Skills' },
+      { key: 'softSkills', category: 'Soft Skills' },
+      { key: 'hardSkills', category: 'Hard Skills' },
+      { key: 'technicalSkills', category: 'Technical Skills' },
+      { key: 'experience', category: 'Experience' },
+      { key: 'tools', category: 'Tools' },
+      { key: 'languageSkills', category: 'Language Skills' },
+      { key: 'education', category: 'Education' },
     ];
-    const categories = new Set([...Object.keys(matched), ...Object.keys(missing)]);
 
-    return Array.from(categories)
-      .sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b))
-      .map((category) => {
-        const matchedCount = matched[category] || 0;
-        const totalCount = matchedCount + (missing[category] || 0);
-        return {
-          name: getMatchingCategoryLabel(category, t),
-          value: totalCount > 0 ? Math.round((matchedCount / totalCount) * 100) : 0,
-        };
-      });
-  }, [selectedResult.matchingPoints, selectedResult.missingGaps, t]);
+    const hasEvidence = new Set<string>();
+    (selectedResult.matchingPoints || []).forEach((p) => p?.category && hasEvidence.add(p.category));
+    (selectedResult.missingGaps || []).forEach((g) => g?.category && hasEvidence.add(g.category));
+
+    return CATEGORY_KEYS.map(({ key, category }) => {
+      const score = selectedResult.categoryScores?.[key];
+      // A 0 with no matching/missing evidence means the AI never assessed this
+      // category (e.g. JD has no language requirement) — not an actual score of 0.
+      const evaluated = (typeof score === 'number' && score > 0) || hasEvidence.has(category);
+      return {
+        name: getMatchingCategoryLabel(category, t),
+        value: typeof score === 'number' ? score : 0,
+        evaluated,
+      };
+    }).filter((d) => d.evaluated);
+  }, [selectedResult.categoryScores, selectedResult.matchingPoints, selectedResult.missingGaps, t]);
 
   return (
     <div id="analysis-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
@@ -111,36 +112,33 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
         <div className="min-w-0 bg-surface p-6 rounded-3xl shadow-sm border border-border">
           <h4 className="text-sm font-bold text-text-main mb-6">{t.scoreDistribution}</h4>
           <div className="h-64 min-h-[256px] w-full min-w-0 shrink-0">
+            {categoryChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={256} debounce={32} minWidth={0}>
-              <BarChart data={[
-                { label: t.skills, score: selectedResult.categoryScores?.skills || 0 },
-                { label: t.categorySoftSkills, score: selectedResult.categoryScores?.softSkills || 0 },
-                { label: t.categoryHardSkills, score: selectedResult.categoryScores?.hardSkills || 0 },
-                { label: t.categoryTechnicalSkills, score: selectedResult.categoryScores?.technicalSkills || 0 },
-                { label: t.experience, score: selectedResult.categoryScores?.experience || 0 },
-                { label: t.tools, score: selectedResult.categoryScores?.tools || 0 },
-                { label: t.categoryLanguageSkills, score: selectedResult.categoryScores?.languageSkills || 0 },
-                { label: t.education, score: selectedResult.categoryScores?.education || 0 },
-              ]} margin={{ bottom: 24 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
-                <XAxis dataKey="label" fontSize={10} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#374151' }} angle={-35} textAnchor="end" interval={0} height={50} />
-                <YAxis fontSize={10} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#374151' }} />
-                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#F9FAFB' }} />
+              <BarChart data={categoryChartData.map((d) => ({ label: d.name, score: d.value }))} margin={{ bottom: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                <XAxis dataKey="label" fontSize={10} tick={{ fill: 'var(--color-text-light)' }} axisLine={{ stroke: 'var(--color-border)' }} angle={-35} textAnchor="end" interval={0} height={50} />
+                <YAxis fontSize={10} tick={{ fill: 'var(--color-text-light)' }} axisLine={{ stroke: 'var(--color-border)' }} />
+                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ backgroundColor: 'var(--color-surface-secondary)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text-main)' }} />
                 <Bar dataKey="score" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center px-4 text-text-muted text-sm">
+                <p>{t.noChartMatchingPoints}</p>
+              </div>
+            )}
           </div>
         </div>
-        
+
         <div className="min-w-0 bg-surface p-6 rounded-3xl shadow-sm border border-border">
           <h4 className="text-sm font-bold text-text-main mb-6">{t.skillDistribution}</h4>
           <div className="h-64 min-h-[256px] w-full min-w-0 shrink-0">
-            {radarData.length > 0 ? (
+            {categoryChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={256} debounce={32} minWidth={0}>
-              <RadarChart data={radarData} outerRadius="70%">
-                <PolarGrid stroke="#374151" />
-                <PolarAngleAxis dataKey="name" fontSize={10} tick={{ fill: '#9CA3AF' }} />
-                <PolarRadiusAxis domain={[0, 100]} tickCount={5} fontSize={10} tick={{ fill: '#9CA3AF' }} allowDecimals={false} />
+              <RadarChart data={categoryChartData} outerRadius="70%">
+                <PolarGrid stroke="var(--color-border)" />
+                <PolarAngleAxis dataKey="name" fontSize={10} tick={{ fill: 'var(--color-text-light)' }} />
+                <PolarRadiusAxis domain={[0, 100]} tickCount={5} fontSize={10} tick={{ fill: 'var(--color-text-light)' }} allowDecimals={false} />
                 <Radar
                   dataKey="value"
                   stroke="var(--color-accent)"
@@ -149,7 +147,7 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
                 />
                 <Tooltip
                   formatter={(value: number) => [`${value}%`, t.skillDistribution]}
-                  contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', color: '#F9FAFB' }}
+                  contentStyle={{ backgroundColor: 'var(--color-surface-secondary)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text-main)' }}
                 />
               </RadarChart>
             </ResponsiveContainer>
