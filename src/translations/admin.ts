@@ -44,6 +44,10 @@ export const admin = {
     vi: "Lượt phân tích / tháng",
     en: "Analyses / month",
   },
+  adminReportAnalysesThisMonthTooltip: {
+    vi: "Không theo tháng dương lịch, không phải 30 ngày gần nhất. Đây là tổng usage_count của TẤT CẢ user tính tại chu kỳ quota hiện tại của riêng từng người (theo quota_reset_day), không đổi theo bộ lọc Hôm nay/7 ngày/30 ngày ở trên.",
+    en: "Not calendar month, not a rolling 30 days. This sums every user's usage_count in THEIR OWN current quota cycle (based on each user's quota_reset_day) — it does not change with the Today/7d/30d filter above.",
+  },
   adminReportSuccessCount: {
     vi: "Thành công",
     en: "Successful",
@@ -71,6 +75,10 @@ export const admin = {
   adminReportColCount: {
     vi: "Số lượt",
     en: "Analyses",
+  },
+  adminReportColCountTooltip: {
+    vi: "Bao gồm cả lượt lỗi (status='error'), không chỉ lượt thành công.",
+    en: "Includes failed attempts (status='error'), not just successful ones.",
   },
   adminReportEmptyState: {
     vi: "Chưa có dữ liệu phân tích trong khoảng thời gian này.",

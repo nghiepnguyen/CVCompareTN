@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign, Gauge } from 'lucide-react';
+import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign, Gauge, HelpCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -93,7 +93,7 @@ export function AdminReportTab() {
           { label: t.adminReportTotalAnalyses, value: (stats?.totalSuccess ?? 0) + (stats?.totalError ?? 0), icon: Activity, color: 'text-text-main', bg: 'bg-surface-secondary' },
           { label: t.adminReportSuccessCount, value: stats?.totalSuccess ?? 0, icon: CheckCircle2, color: 'text-success', bg: 'bg-success-light' },
           { label: t.adminReportErrorCount, value: stats?.totalError ?? 0, icon: XCircle, color: 'text-error', bg: 'bg-error-light' },
-          { label: t.adminReportAnalysesThisMonth, value: stats?.totalAnalysesThisMonth ?? 0, icon: Gauge, color: 'text-accent', bg: 'bg-accent-light' },
+          { label: t.adminReportAnalysesThisMonth, value: stats?.totalAnalysesThisMonth ?? 0, icon: Gauge, color: 'text-accent', bg: 'bg-accent-light', tooltip: t.adminReportAnalysesThisMonthTooltip },
         ].map((card) => (
           <div key={card.label} className="bg-surface border border-border rounded-2xl p-5 shadow-sm space-y-3">
             <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', card.bg)}>
@@ -101,7 +101,14 @@ export function AdminReportTab() {
             </div>
             <div>
               <div className="text-2xl font-black text-text-main leading-none">{card.value}</div>
-              <div className="text-[10px] font-bold text-text-light uppercase tracking-widest mt-1">{card.label}</div>
+              <div className="text-[10px] font-bold text-text-light uppercase tracking-widest mt-1 flex items-center gap-1">
+                {card.label}
+                {card.tooltip && (
+                  <span title={card.tooltip} className="cursor-help">
+                    <HelpCircle className="w-3 h-3 text-text-light shrink-0" />
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -192,7 +199,14 @@ export function AdminReportTab() {
                 <tr className="bg-surface-secondary/50 border-b border-border">
                   <th className="px-6 py-3 text-[10px] font-black text-text-light uppercase tracking-[0.15em] w-12">{t.adminReportColRank}</th>
                   <th className="px-6 py-3 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminReportColUser}</th>
-                  <th className="px-6 py-3 text-[10px] font-black text-text-light uppercase tracking-[0.15em] text-right">{t.adminReportColCount}</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-text-light uppercase tracking-[0.15em] text-right">
+                    <span className="inline-flex items-center gap-1 justify-end">
+                      {t.adminReportColCount}
+                      <span title={t.adminReportColCountTooltip} className="cursor-help">
+                        <HelpCircle className="w-3 h-3 text-text-light shrink-0" />
+                      </span>
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">

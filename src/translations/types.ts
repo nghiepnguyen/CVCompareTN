@@ -68,6 +68,7 @@ export interface UiLabels {
   adminReportNewUsers: string;
   adminReportTotalAnalyses: string;
   adminReportAnalysesThisMonth: string;
+  adminReportAnalysesThisMonthTooltip: string;
   adminReportSuccessCount: string;
   adminReportErrorCount: string;
   adminReportDailyChartTitle: string;
@@ -75,6 +76,7 @@ export interface UiLabels {
   adminReportColRank: string;
   adminReportColUser: string;
   adminReportColCount: string;
+  adminReportColCountTooltip: string;
   adminReportEmptyState: string;
   adminReportLoadError: string;
   adminReportTokenSectionTitle: string;
