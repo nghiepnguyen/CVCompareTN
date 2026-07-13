@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign } from 'lucide-react';
+import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign, Gauge } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -93,6 +93,7 @@ export function AdminReportTab() {
           { label: t.adminReportTotalAnalyses, value: (stats?.totalSuccess ?? 0) + (stats?.totalError ?? 0), icon: Activity, color: 'text-text-main', bg: 'bg-surface-secondary' },
           { label: t.adminReportSuccessCount, value: stats?.totalSuccess ?? 0, icon: CheckCircle2, color: 'text-success', bg: 'bg-success-light' },
           { label: t.adminReportErrorCount, value: stats?.totalError ?? 0, icon: XCircle, color: 'text-error', bg: 'bg-error-light' },
+          { label: t.adminReportAnalysesThisMonth, value: stats?.totalAnalysesThisMonth ?? 0, icon: Gauge, color: 'text-accent', bg: 'bg-accent-light' },
         ].map((card) => (
           <div key={card.label} className="bg-surface border border-border rounded-2xl p-5 shadow-sm space-y-3">
             <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', card.bg)}>

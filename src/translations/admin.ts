@@ -40,6 +40,10 @@ export const admin = {
     vi: "Tổng lượt phân tích",
     en: "Total analyses",
   },
+  adminReportAnalysesThisMonth: {
+    vi: "Lượt phân tích / tháng",
+    en: "Analyses / month",
+  },
   adminReportSuccessCount: {
     vi: "Thành công",
     en: "Successful",

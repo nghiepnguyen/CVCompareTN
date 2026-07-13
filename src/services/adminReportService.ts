@@ -19,6 +19,8 @@ export interface AdminReportStats {
   newUsersCount: number;
   totalSuccess: number;
   totalError: number;
+  /** Sum of every user's effective_usage_count (quota consumed in their own current cycle) — independent of `range`. */
+  totalAnalysesThisMonth: number;
   dailyCounts: DailyAnalysisCount[];
   topUsers: TopAnalysisUser[];
   avgInputTokens: number;
@@ -59,7 +61,7 @@ function dayKey(iso: string): string {
 export async function getAdminReportStats(range: ReportRange): Promise<AdminReportStats> {
   const startIso = getRangeStart(range).toISOString();
 
-  const [newUsersRes, logsRes] = await Promise.all([
+  const [newUsersRes, logsRes, usageRes] = await Promise.all([
     supabase
       .from('profiles')
       .select('id', { count: 'exact', head: true })
@@ -69,10 +71,19 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
       .select('user_id, status, created_at, kind, input_tokens, output_tokens')
       .gte('created_at', startIso)
       .order('created_at', { ascending: true }),
+    // Quota-based total (each user's own current cycle), not scoped to `range` —
+    // mirrors the "Analyses / month" column in Admin > User directory.
+    supabase.from('profiles').select('effective_usage_count'),
   ]);
 
   if (newUsersRes.error) throw newUsersRes.error;
   if (logsRes.error) throw logsRes.error;
+  if (usageRes.error) throw usageRes.error;
+
+  const totalAnalysesThisMonth = (usageRes.data ?? []).reduce(
+    (sum, p) => sum + ((p['effective_usage_count'] as number | null) ?? 0),
+    0
+  );
 
   const logs = logsRes.data ?? [];
   // Only 'analyze' rows are "analyses" for the existing metrics below —
@@ -155,6 +166,7 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
     newUsersCount: newUsersRes.count ?? 0,
     totalSuccess,
     totalError,
+    totalAnalysesThisMonth,
     dailyCounts,
     topUsers,
     avgInputTokens,
