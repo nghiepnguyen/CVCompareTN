@@ -128,8 +128,8 @@ Vercel dùng một handler duy nhất dispatch theo `type` field. Express dùng 
 - **reCAPTCHA:** Bắt buộc (score ≥ 0.5).
 
 **Welcome** (`type: 'welcome'`):
-- **Body:** `{ type: 'welcome', token, userEmail, userName }`
-- **reCAPTCHA:** Production: bắt buộc (score ≥ 0.5); dev: bypass. Token bắt buộc khi `NODE_ENV === 'production'`.
+- **Body:** `{ type: 'welcome', userEmail, userName }`
+- **reCAPTCHA:** Không (bỏ 2026-07 — trigger là `createUserProfile()` client-side ngay sau khi tạo `profiles` row mới, không có sẵn token ở bước này; email nội bộ cho user đã qua Supabase Auth nên không cần captcha). Fire-and-forget từ `userService.ts::createUserProfile()`, log lỗi HTTP status nếu gửi thất bại nhưng không throw/block đăng nhập.
 
 #### VIP Upgrade Email (server-side)
 

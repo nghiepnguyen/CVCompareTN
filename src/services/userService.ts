@@ -112,7 +112,7 @@ interface AuthUserInput {
   photoURL?: string;
 }
 
-export async function createUserProfile(user: AuthUserInput, recaptchaToken?: string): Promise<UserProfile> {
+export async function createUserProfile(user: AuthUserInput): Promise<UserProfile> {
   // Compute usage_month in YYYY-MM-DD format matching public.current_quota_cycle(reset_day)
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
   const today = now.getDate();
@@ -148,19 +148,23 @@ export async function createUserProfile(user: AuthUserInput, recaptchaToken?: st
     const profile = mapProfile(data);
 
     // Luôn gởi welcome email sau khi tạo profile thành công.
-    // Token reCAPTCHA được gởi lên server nếu có; server tự quyết định verify.
     fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'welcome',
-        token: recaptchaToken || '',
         userEmail: profile.email,
         userName: profile.displayName,
       }),
-    }).catch(emailError => {
-      console.error("Lỗi khi gửi email chào mừng:", emailError);
-    });
+    })
+      .then(async res => {
+        if (!res.ok) {
+          console.error('Gửi email chào mừng thất bại:', res.status, await res.text());
+        }
+      })
+      .catch(emailError => {
+        console.error('Lỗi khi gửi email chào mừng:', emailError);
+      });
 
     return profile;
   } catch (error) {

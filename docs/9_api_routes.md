@@ -13,7 +13,7 @@ Canonical reference for **which runtime handles each capability**. Từ 2026-06,
 | PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` (Auth: Bearer or reCAPTCHA) | `POST /api/extract-pdf` → `server/routes/pdf.ts` (idem) | `_server-lib/pdf/handler.ts` |
 | reCAPTCHA verify (auth flow) | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` | `_server-lib/recaptcha.ts` |
 | Feedback email | `POST /api/send-email` (`type:'feedback'`) → `api/send-email.ts` | `POST /api/send-feedback` → `server/routes/feedback.ts` | `_server-lib/email/handlers.ts` |
-| Welcome email | `POST /api/send-email` (`type:'welcome'`) → `api/send-email.ts` | `POST /api/send-welcome-email` → `server/routes/welcomeEmail.ts` | `_server-lib/email/handlers.ts` |
+| Welcome email (no reCAPTCHA, 2026-07) | `POST /api/send-email` (`type:'welcome'`) → `api/send-email.ts` | `POST /api/send-welcome-email` → `server/routes/welcomeEmail.ts` | `_server-lib/email/handlers.ts` |
 | VIP upgrade email | server-side via `_server-lib/payment/vipUpgradeEmail.ts` | — | — |
 | PayOS — tạo link | `POST /api/payment/create` → `api/payment.ts` (unified) | `POST /api/payment/create` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
 | PayOS — webhook | `POST /api/payment/webhook` → `api/payment.ts` | `POST /api/payment/webhook` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |

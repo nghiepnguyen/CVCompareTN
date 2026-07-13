@@ -131,16 +131,6 @@ export async function handleSendWelcomeEmail(body: unknown): Promise<HandlerResu
     return { status: 400, body: { success: false, message: 'Invalid input', errors } };
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    if (!b.token) {
-      return { status: 400, body: { success: false, message: 'reCAPTCHA token required' } };
-    }
-    const captcha = await verifyRecaptcha(b.token);
-    if (!captcha.ok) {
-      return { status: captcha.status ?? 400, body: { success: false, message: captcha.error } };
-    }
-  }
-
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     return { status: 500, body: { success: false, message: 'Resend API key missing' } };

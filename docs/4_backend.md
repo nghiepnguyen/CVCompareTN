@@ -23,7 +23,7 @@ Vercel handler  → _server-lib/module/handler.ts → _server-lib/services
 |--------|---------------|--------|
 | Analyze | `_server-lib/analyze/handler.ts` | `handleAnalyze()` — auth, reCAPTCHA, quota, Gemini call |
 | PDF | `_server-lib/pdf/handler.ts` | `handleExtractPdf()` — auth, reCAPTCHA, PDF validation |
-| Email | `_server-lib/email/handlers.ts` | `handleSendFeedback()`, `handleSendWelcomeEmail()` |
+| Email | `_server-lib/email/handlers.ts` | `handleSendFeedback()` (reCAPTCHA bắt buộc), `handleSendWelcomeEmail()` (không reCAPTCHA, 2026-07) |
 | Payment | `_server-lib/payment/handlers.ts` | `handlePaymentCreate/Webhook/Confirm()` |
 | reCAPTCHA | `_server-lib/recaptcha.ts` | `verifyRecaptcha(token, threshold?)` — shared utility |
 | CV rewrite (nền) | `_server-lib/rewriteCv/handler.ts` | `handleRewriteCv()` — auth, reCAPTCHA, wall-clock budget, gọi `_server-lib/ai/rewriteService.ts` |
@@ -101,7 +101,7 @@ Hệ thống gởi 3 loại email qua dịch vụ **Resend**:
 
 | Email | Trigger | Endpoint | reCAPTCHA |
 |-------|---------|----------|-----------|
-| **Welcome** | User mới đăng ký (Google OAuth hoặc email) | `POST /api/send-email` (`type: 'welcome'`) | Production: bắt buộc (score ≥ 0.5); dev: bypass |
+| **Welcome** | User mới đăng ký (Google OAuth hoặc email) — trigger client-side ngay sau khi tạo `profiles` row mới (`userService.ts::createUserProfile()`), fire-and-forget | `POST /api/send-email` (`type: 'welcome'`) | Không (bỏ 2026-07 — trước đó luôn thất bại vì client không có token để gửi, lỗi bị nuốt âm thầm) |
 | **Feedback** | User đánh giá kết quả phân tích | `POST /api/send-email` (`type: 'feedback'`) | Bắt buộc (score ≥ 0.5) |
 | **VIP Upgrade** | Thanh toán PayOS thành công (webhook/confirm) | Server-side (gọi trực tiếp từ `_server-lib/payment/handlers.ts`) | Không (server-side, non-blocking) |
 
