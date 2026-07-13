@@ -1,6 +1,12 @@
 import { supabase } from "../lib/supabase";
 import type { ProcessedFile } from "../hooks/useFileProcessor";
 
+/** Strip diacritics and replace chars Supabase Storage keys reject, so non-ASCII/space filenames don't 400. */
+function sanitizeStorageFileName(name: string): string {
+  const normalized = name.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return normalized.replace(/[^A-Za-z0-9._-]/g, "_").slice(-150);
+}
+
 export interface SavedCV {
   id: string;
   cvId: string;
@@ -44,7 +50,7 @@ export async function saveCVToStorage(
   file: File
 ): Promise<{ cvId: string; publicUrl: string; filePath: string }> {
   const cvId = Math.random().toString(36).substring(7);
-  const storagePath = `${uid}/${cvId}/${file.name}`;
+  const storagePath = `${uid}/${cvId}/${sanitizeStorageFileName(file.name)}`;
 
   // Upload file to Storage
   const { error: uploadError } = await supabase.storage
@@ -164,7 +170,7 @@ export function getCVPublicUrl(filePath: string): string {
  * for telling the server to clean this up after processing.
  */
 export async function uploadTempAnalysisFile(uid: string, file: File): Promise<string> {
-  const storagePath = `${uid}/${crypto.randomUUID()}-${file.name}`;
+  const storagePath = `${uid}/${crypto.randomUUID()}-${sanitizeStorageFileName(file.name)}`;
 
   const { error } = await supabase.storage
     .from("cv-analyze-tmp")

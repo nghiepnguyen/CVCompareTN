@@ -34,10 +34,15 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const [cvText, setCvText] = useState('');
   const [cvInputMode, setCvInputMode] = useState<'file' | 'text'>('file');
   const [files, setFiles] = useState<(File | StoredCVRef)[]>([]);
+  const filesRef = useRef(files);
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
 
   const [loadingCvIds, setLoadingCvIds] = useState<Set<string>>(new Set());
 
   const loadCVFromStore = useCallback((cv: SavedCV) => {
+    if (filesRef.current.some(f => isStoredCVRef(f) && f.cvId === cv.cvId)) return;
     const ref = makeStoredCVRef(cv);
     const uid = user?.id ?? '';
     setLoadingCvIds(prev => new Set([...prev, cv.cvId]));
