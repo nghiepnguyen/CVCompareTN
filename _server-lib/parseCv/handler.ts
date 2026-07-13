@@ -82,7 +82,7 @@ export async function handleParseCv(
     const { parsedCV, usage } = await generateParsedCV(
       jd, cvData as string, cvMimeType, language, remainingBudgetMs, cvPdfInlineData
     );
-    logAnalysisAttempt(user?.id ?? null, 'success', 'parse_cv', undefined, usage);
+    await logAnalysisAttempt(user?.id ?? null, 'success', 'parse_cv', undefined, usage);
     return { status: 200, body: { parsedCV } };
   } catch (err) {
     console.error('CV parsing failed:', err);

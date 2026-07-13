@@ -79,7 +79,7 @@ export async function handleRewriteCv(
       language,
       remainingBudgetMs
     );
-    logAnalysisAttempt(user?.id ?? null, 'success', 'rewrite', undefined, usage);
+    await logAnalysisAttempt(user?.id ?? null, 'success', 'rewrite', undefined, usage);
     return { status: 200, body: { fullRewrittenCV } };
   } catch (err) {
     console.error('CV rewrite failed:', err);

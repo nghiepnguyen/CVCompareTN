@@ -29,6 +29,7 @@ export type HandlerResult = { status: number; body: Record<string, unknown> };
 const AUTH_TIMEOUT_MS = 4_000;
 const QUOTA_CHECK_TIMEOUT_MS = 5_000;
 const PLAN_CHECK_TIMEOUT_MS = 4_000;
+const INCREMENT_TIMEOUT_MS = 5_000;
 
 // Wall-clock budget for the whole handler, measured from the first line of
 // handleAnalyze. Vercel hard-kills the function at maxDuration=60s with no
@@ -67,8 +68,14 @@ export async function handleAnalyze(
   const cvDataStoragePath = b.cvDataStoragePath?.trim() || undefined;
   const batchTotal = typeof b.batchTotal === 'number' && b.batchTotal > 0 ? b.batchTotal : 1;
 
-  if (!jd) return { status: 400, body: { error: 'Missing jd (job description)' } };
-  if (!cvData && !cvDataStoragePath) return { status: 400, body: { error: 'Missing cvData' } };
+  if (!jd) {
+    await logAnalysisAttempt(null, 'error', 'analyze', 'Missing jd (job description)');
+    return { status: 400, body: { error: 'Missing jd (job description)' } };
+  }
+  if (!cvData && !cvDataStoragePath) {
+    await logAnalysisAttempt(null, 'error', 'analyze', 'Missing cvData');
+    return { status: 400, body: { error: 'Missing cvData' } };
+  }
 
   const user = await withTimeout(
     getUserFromBearerToken(authHeader),
@@ -81,6 +88,7 @@ export async function handleAnalyze(
   const userId = user?.id ?? null;
 
   if (!userId) {
+    await logAnalysisAttempt(null, 'error', 'analyze', 'Authentication required');
     return { status: 401, body: { error: 'Authentication required' } };
   }
 
@@ -96,10 +104,9 @@ export async function handleAnalyze(
       cvPdfInlineData = await resolveStorageRef(cvPdfStoragePath, userId);
     }
   } catch (err) {
-    return {
-      status: 400,
-      body: { error: err instanceof Error ? err.message : 'Failed to load uploaded file' },
-    };
+    const message = err instanceof Error ? err.message : 'Failed to load uploaded file';
+    await logAnalysisAttempt(userId, 'error', 'analyze', message);
+    return { status: 400, body: { error: message } };
   }
 
   // Re-check batch size server-side — the UI already enforces MAX_BATCH_BY_PLAN,
@@ -126,10 +133,9 @@ export async function handleAnalyze(
       });
       const maxBatch = MAX_BATCH_BY_PLAN[effectivePlan] ?? 1;
       if (batchTotal > maxBatch) {
-        return {
-          status: 400,
-          body: { error: `Batch size ${batchTotal} exceeds plan limit (${maxBatch})` },
-        };
+        const message = `Batch size ${batchTotal} exceeds plan limit (${maxBatch})`;
+        await logAnalysisAttempt(userId, 'error', 'analyze', message);
+        return { status: 400, body: { error: message } };
       }
     }
   } catch (planErr) {
@@ -152,6 +158,7 @@ export async function handleAnalyze(
     } else if (quota && typeof quota === 'object') {
       const q = quota as { allowed?: boolean; used?: number; limit?: number };
       if (!q.allowed) {
+        await logAnalysisAttempt(userId, 'error', 'analyze', 'Monthly analysis limit exceeded');
         return {
           status: 429,
           body: { error: 'Monthly analysis limit exceeded', used: q.used, limit: q.limit },
@@ -165,6 +172,7 @@ export async function handleAnalyze(
 
   const remainingBudgetMs = TOTAL_BUDGET_MS - (Date.now() - requestStart);
   if (remainingBudgetMs < MIN_ANALYZE_BUDGET_MS) {
+    await logAnalysisAttempt(userId, 'error', 'analyze', 'Preflight timeout: no budget left before calling analyzeCV');
     return {
       status: 504,
       body: {
@@ -180,14 +188,20 @@ export async function handleAnalyze(
       jd, cvData as string, cvMimeType, cvName, language, remainingBudgetMs, cvPdfInlineData
     );
 
-    void (async () => {
-      try {
-        await getSupabaseAdmin().rpc('increment_usage_count', { user_id: userId });
-      } catch (err) {
-        console.error('increment_usage_count failed:', err);
-      }
-    })();
-    logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage);
+    try {
+      const { error: incrementError } = await withTimeout(
+        getSupabaseAdmin().rpc('increment_usage_count', { user_id: userId }) as unknown as Promise<{
+          data: unknown;
+          error: unknown;
+        }>,
+        INCREMENT_TIMEOUT_MS,
+        'Usage increment'
+      );
+      if (incrementError) console.error('increment_usage_count failed:', incrementError);
+    } catch (err) {
+      console.error('increment_usage_count failed:', err);
+    }
+    await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage);
 
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (analysisError) {
@@ -195,7 +209,7 @@ export async function handleAnalyze(
     const message =
       analysisError instanceof Error ? analysisError.message : 'Analysis failed';
     const isTimeout = message.includes('(Timeout)');
-    logAnalysisAttempt(userId, 'error', 'analyze', message);
+    await logAnalysisAttempt(userId, 'error', 'analyze', message);
     return {
       status: isTimeout ? 504 : 500,
       body: {
