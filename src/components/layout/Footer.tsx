@@ -1,4 +1,4 @@
-import { FileSearch, Heart } from 'lucide-react';
+import { FileSearch } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
 import { resetAnalyticsConsentPrompt } from '../../lib/ga4';
 
@@ -78,14 +78,6 @@ export function Footer() {
                   </svg>
                 </a>
               </div>
-              <a
-                href={`/${reportLanguage}/support`}
-                onClick={(e) => { e.preventDefault(); setActiveTab('support'); window.scrollTo(0, 0); }}
-                className="group flex items-center gap-3 rounded-2xl dark:bg-white/[0.03] bg-surface-muted px-5 py-3 text-sm font-bold text-text-main transition-all hover:bg-accent/10 hover:text-accent active:scale-95 border border-border"
-              >
-                <Heart className="h-4 w-4 fill-accent/10 text-accent transition-transform group-hover:scale-125" />
-                <span>{t.footerSupportDev}</span>
-              </a>
             </div>
           </div>
         </div>
