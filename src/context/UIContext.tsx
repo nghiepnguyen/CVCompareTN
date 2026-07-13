@@ -23,6 +23,9 @@ function tabFromPath(path: string, params: URLSearchParams): Tab {
   if (path.includes('/terms')) return 'terms';
     if (path.includes('/support')) return 'support';
     if (path.includes('/about')) return 'about';
+  if (path.includes('/history')) return 'history';
+  if (path.includes('/recruiter')) return 'recruiter';
+  if (path.includes('/admin')) return 'admin';
   if (params.get('policy') === 'true' || params.get('privacy') === 'true') return 'privacy';
   if (params.get('terms') === 'true') return 'terms';
   if (params.get('support') === 'true') return 'support';
@@ -144,6 +147,9 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     else if (activeTab === 'support') subPath = '/support';
     else if (activeTab === 'upgrade') subPath = '/upgrade';
     else if (activeTab === 'about') subPath = '/about';
+    else if (activeTab === 'history') subPath = '/history';
+    else if (activeTab === 'recruiter') subPath = '/recruiter';
+    else if (activeTab === 'admin') subPath = '/admin';
 
     const newPathname = langPrefix + subPath;
 
