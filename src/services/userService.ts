@@ -36,6 +36,9 @@ export function resolveEffectiveMonthlyAnalyticsLimit(
   profile: Pick<UserProfile, 'monthlyAnalyticsLimitCustom' | 'monthlyAnalyticsLimit' | 'plan' | 'planExpiresAt' | 'role'>,
   globalDefault: number
 ): number | null {
+  // Mirrors check_analytics_quota/increment_usage_count: role='admin' is always
+  // unlimited at the DB layer regardless of plan or custom override.
+  if (profile.role === 'admin') return null;
   if (profile.monthlyAnalyticsLimitCustom) {
     return profile.monthlyAnalyticsLimit;
   }
@@ -71,6 +74,31 @@ export function mapProfile(data: Record<string, unknown>): UserProfile {
     planExpiresAt: (data['plan_expires_at'] as string | null) ?? null,
     quotaResetDay: typeof data['quota_reset_day'] === 'number' ? data['quota_reset_day'] : 1,
   };
+}
+
+/**
+ * Full profiles table for admin search/plan-filter. The default Admin > Users
+ * browse view lazy-loads 50 at a time, which silently misses matches beyond
+ * the loaded window once profiles exceeds 50 rows — this paginates through
+ * PostgREST's row cap so search/filter results are always complete.
+ */
+export async function fetchAllProfiles(): Promise<UserProfile[]> {
+  const PAGE_SIZE = 1000;
+  const rows: Record<string, unknown>[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*, effective_usage_count')
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return rows.map(mapProfile);
 }
 
 export async function fetchEffectiveUserPlan(userId: string): Promise<UserPlan> {

@@ -21,6 +21,7 @@ import {
   adminPlanSelectValue,
   getDisplayEffectivePlan,
   deleteUser,
+  fetchAllProfiles,
   type AdminPlanGrant,
   type UserProfile,
 } from '../../services/userService';
@@ -71,15 +72,31 @@ export function AdminView() {
     }
   }, [adminSubTab, loadGlobalDefaultLimit]);
 
+  // The default browse view lazy-loads 50 profiles at a time (see useAdminUsers +
+  // "Load more" below) — filtering/searching that loaded window only would silently
+  // miss matches past it. Whenever a search term or plan filter is active, scan the
+  // full profiles table instead so results are always complete.
+  const isFiltering = userSearchTerm.trim() !== '' || planFilter !== 'all';
+  const [allProfiles, setAllProfiles] = useState<UserProfile[] | null>(null);
+  useEffect(() => {
+    if (!isFiltering) return;
+    let cancelled = false;
+    fetchAllProfiles()
+      .then((rows) => { if (!cancelled) setAllProfiles(rows); })
+      .catch((err: unknown) => console.error('fetchAllProfiles failed:', err));
+    return () => { cancelled = true; };
+  }, [isFiltering]);
+  const searchScopedUsers = isFiltering ? (allProfiles ?? []) : allUsers;
+
   const filteredUsers = useMemo(
     () =>
-      allUsers.filter(u => {
+      searchScopedUsers.filter(u => {
         const matchSearch = u.email.toLowerCase().includes(userSearchTerm.toLowerCase());
         const matchPlan =
           planFilter === 'all' || getDisplayEffectivePlan(u) === planFilter;
         return matchSearch && matchPlan;
       }),
-    [allUsers, userSearchTerm, planFilter]
+    [searchScopedUsers, userSearchTerm, planFilter]
   );
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const paginatedUsers = useMemo(
@@ -341,8 +358,12 @@ export function AdminView() {
                 {t.adminDirectoryTitle}
               </h3>
               <div className="relative w-full sm:w-72 group">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-light group-focus-within:text-accent transition-colors" />
-                <input 
+                {isFiltering && allProfiles === null ? (
+                  <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-light animate-spin" />
+                ) : (
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-light group-focus-within:text-accent transition-colors" />
+                )}
+                <input
                   type="text" 
                   placeholder={t.adminSearchPlaceholder}
                   value={userSearchTerm}

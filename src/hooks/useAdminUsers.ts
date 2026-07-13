@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { mapProfile } from '../services/userService';
 import type { UserProfile } from '../services/userService';
@@ -18,12 +18,15 @@ export function useAdminUsers(): AdminUsersState {
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  // Realtime handler below is subscribed once and must always see the latest
+  // loaded page count, not the value captured at subscribe time.
+  const pageRef = useRef(0);
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
 
-  const fetchPage = useCallback(async (pageIndex: number, replace: boolean) => {
+  const fetchRange = useCallback(async (from: number, to: number, replace: boolean) => {
     setIsLoading(true);
-    const from = pageIndex * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-
     const { data, error } = await supabase
       .from('profiles')
       .select('*, effective_usage_count')
@@ -31,31 +34,32 @@ export function useAdminUsers(): AdminUsersState {
       .range(from, to);
 
     if (error) {
-      console.error('useAdminUsers fetchPage error:', error);
+      console.error('useAdminUsers fetchRange error:', error);
       setIsLoading(false);
       return;
     }
 
     const mapped = (data ?? []).map(mapProfile);
     setUsers(prev => (replace ? mapped : [...prev, ...mapped]));
-    setHasMore(mapped.length === PAGE_SIZE);
+    setHasMore(mapped.length === to - from + 1);
     setIsLoading(false);
   }, []);
 
+  // Re-fetches every row already loaded (not just page 0), so a change to any
+  // profile doesn't silently drop pages an admin has already paged into.
   const refresh = useCallback(() => {
-    setPage(0);
-    fetchPage(0, true);
-  }, [fetchPage]);
+    fetchRange(0, (pageRef.current + 1) * PAGE_SIZE - 1, true);
+  }, [fetchRange]);
 
   const loadMore = useCallback(() => {
     if (isLoading || !hasMore) return;
     const next = page + 1;
     setPage(next);
-    fetchPage(next, false);
-  }, [isLoading, hasMore, page, fetchPage]);
+    fetchRange(next * PAGE_SIZE, next * PAGE_SIZE + PAGE_SIZE - 1, false);
+  }, [isLoading, hasMore, page, fetchRange]);
 
   useEffect(() => {
-    fetchPage(0, true);
+    fetchRange(0, PAGE_SIZE - 1, true);
 
     const channel = supabase
       .channel('admin_users_changes')
@@ -65,7 +69,7 @@ export function useAdminUsers(): AdminUsersState {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [refresh]);
 
   return { users, isLoading, hasMore, loadMore, refresh };
 }
