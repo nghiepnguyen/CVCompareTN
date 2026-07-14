@@ -45,8 +45,8 @@ export const admin = {
     en: "Analyses / month",
   },
   adminReportAnalysesThisMonthTooltip: {
-    vi: "Không theo tháng dương lịch, không phải 30 ngày gần nhất. Đây là tổng usage_count của TẤT CẢ user tính tại chu kỳ quota hiện tại của riêng từng người (theo quota_reset_day), không đổi theo bộ lọc Hôm nay/7 ngày/30 ngày ở trên.",
-    en: "Not calendar month, not a rolling 30 days. This sums every user's usage_count in THEIR OWN current quota cycle (based on each user's quota_reset_day) — it does not change with the Today/7d/30d filter above.",
+    vi: "Tổng lượt phân tích (thành công + lỗi) từ đầu tháng dương lịch hiện tại đến nay, không đổi theo bộ lọc Hôm nay/7 ngày/30 ngày ở trên.",
+    en: "Total analyses (success + error) since the start of the current calendar month, regardless of the Today/7d/30d filter above.",
   },
   adminReportSuccessCount: {
     vi: "Thành công",

@@ -19,7 +19,7 @@ export interface AdminReportStats {
   newUsersCount: number;
   totalSuccess: number;
   totalError: number;
-  /** Sum of every user's effective_usage_count (quota consumed in their own current cycle) — independent of `range`. */
+  /** Count of 'analyze' rows (success + error) since the start of the current calendar month (VN time) — independent of `range`. */
   totalAnalysesThisMonth: number;
   dailyCounts: DailyAnalysisCount[];
   topUsers: TopAnalysisUser[];
@@ -36,6 +36,12 @@ export interface AdminReportStats {
 // since raw tokens (not cost) are what's persisted in analysis_log.
 const GEMINI_INPUT_PRICE_PER_1M_USD = 0.5;
 const GEMINI_OUTPUT_PRICE_PER_1M_USD = 3.0;
+
+// analysis_log.input_tokens/output_tokens only exist from this migration onward
+// (supabase/migrations/20260704000000_analysis_log_token_usage.sql); older rows are
+// backfilled with 0. Averages must exclude them from the denominator or they dilute
+// avg token/cost toward 0 for any range (e.g. 30d) that still spans pre-migration rows.
+const TOKEN_TRACKING_START_ISO = '2026-07-04T00:00:00.000Z';
 
 // Anchor "today" to Asia/Ho_Chi_Minh (GMT+7, no DST), matching the quota
 // system's day boundary (current_quota_cycle) rather than the admin's browser timezone.
@@ -56,6 +62,11 @@ function getRangeStart(range: ReportRange): Date {
 function dayKey(iso: string): string {
   const { y, m, day } = vnDateParts(new Date(iso));
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function getCalendarMonthStart(): Date {
+  const { y, m } = vnDateParts(new Date());
+  return new Date(Date.UTC(y, m, 1, 0, 0, 0) - 7 * 60 * 60 * 1000);
 }
 
 // PostgREST caps rows per request (commonly 1000). Any query that can grow with
@@ -90,8 +101,9 @@ interface AnalysisLogRow {
 
 export async function getAdminReportStats(range: ReportRange): Promise<AdminReportStats> {
   const startIso = getRangeStart(range).toISOString();
+  const monthStartIso = getCalendarMonthStart().toISOString();
 
-  const [newUsersRes, logs, usageRows] = await Promise.all([
+  const [newUsersRes, logs, monthRes] = await Promise.all([
     supabase
       .from('profiles')
       .select('id', { count: 'exact', head: true })
@@ -104,23 +116,18 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
         .order('created_at', { ascending: true })
         .range(from, to)
     ),
-    // Quota-based total (each user's own current cycle), not scoped to `range` —
-    // mirrors the "Analyses / month" column in Admin > User directory.
-    fetchAllRows<{ effective_usage_count: number | null }>((from, to) =>
-      supabase
-        .from('profiles')
-        .select('effective_usage_count')
-        .order('id', { ascending: true })
-        .range(from, to)
-    ),
+    // Calendar-month total (success + error), not scoped to `range`.
+    supabase
+      .from('analysis_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('kind', 'analyze')
+      .gte('created_at', monthStartIso),
   ]);
 
   if (newUsersRes.error) throw newUsersRes.error;
+  if (monthRes.error) throw monthRes.error;
 
-  const totalAnalysesThisMonth = usageRows.reduce(
-    (sum, p) => sum + (p.effective_usage_count ?? 0),
-    0
-  );
+  const totalAnalysesThisMonth = monthRes.count ?? 0;
 
   // Only 'analyze' rows are "analyses" for the existing metrics below —
   // 'parse_cv'/'rewrite' rows are the auto-triggered follow-up Gemini calls
@@ -194,9 +201,16 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
   const totalCostUsd =
     (totalInputTokens / 1_000_000) * GEMINI_INPUT_PRICE_PER_1M_USD +
     (totalOutputTokens / 1_000_000) * GEMINI_OUTPUT_PRICE_PER_1M_USD;
-  const avgInputTokens = totalSuccess > 0 ? totalInputTokens / totalSuccess : 0;
-  const avgOutputTokens = totalSuccess > 0 ? totalOutputTokens / totalSuccess : 0;
-  const avgCostUsd = totalSuccess > 0 ? totalCostUsd / totalSuccess : 0;
+
+  // Denominator for averages: successful 'analyze' rows created after token
+  // tracking began. Excludes pre-migration rows (input/output_tokens backfilled
+  // to 0) so a wide range like 30d doesn't drag the averages toward 0.
+  const trackedSuccessCount = analyzeLogs.filter(
+    (l) => l.status === 'success' && l.created_at >= TOKEN_TRACKING_START_ISO
+  ).length;
+  const avgInputTokens = trackedSuccessCount > 0 ? totalInputTokens / trackedSuccessCount : 0;
+  const avgOutputTokens = trackedSuccessCount > 0 ? totalOutputTokens / trackedSuccessCount : 0;
+  const avgCostUsd = trackedSuccessCount > 0 ? totalCostUsd / trackedSuccessCount : 0;
 
   return {
     newUsersCount: newUsersRes.count ?? 0,
