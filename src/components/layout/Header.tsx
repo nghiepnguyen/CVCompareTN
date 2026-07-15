@@ -31,6 +31,7 @@ export function Header() {
   const handleLogout = async () => {
     await logout();
     setIsUserMenuOpen(false);
+    setActiveTab('analyze');
   };
 
   return (
