@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileSearch, LayoutDashboard, History as HistoryIcon, ShieldCheck, Briefcase, LogOut, LogIn, ExternalLink, User as UserIcon, Sparkles, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, History as HistoryIcon, ShieldCheck, Briefcase, LogOut, LogIn, ExternalLink, User as UserIcon, Sparkles, Sun, Moon } from 'lucide-react';
+import { Logo } from '../icons/Logo';
 import { useAuth } from '../../context/AuthContext';
 import { formatPlanExpiryDate, isProPlan, isRecruiterPlan } from '../../lib/planLimits';
 import { formatLabel } from '../../translations';
@@ -58,7 +59,7 @@ export function Header() {
             user ? "dark:bg-primary bg-accent" : "bg-accent"
           )}>
             <div className="absolute inset-0 bg-accent opacity-20 blur-lg rounded-full" />
-            <FileSearch className="text-white w-5 h-5 relative z-10" strokeWidth={1.75} />
+            <Logo className="relative z-10" />
           </div>
           <span className={cn(
             "hidden min-[360px]:inline text-xl font-extrabold tracking-tighter font-sans",

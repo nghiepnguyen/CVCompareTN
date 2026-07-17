@@ -1,5 +1,5 @@
-import { FileSearch } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
+import { Logo } from '../icons/Logo';
 import { resetAnalyticsConsentPrompt } from '../../lib/ga4';
 
 export function Footer() {
@@ -19,7 +19,7 @@ export function Footer() {
             >
               <div className="relative w-10 h-10 dark:bg-primary bg-accent rounded-xl flex items-center justify-center shadow-xl">
                 <div className="absolute inset-0 bg-accent opacity-20 blur-lg rounded-full" />
-                <FileSearch className="text-white w-5 h-5 relative z-10" />
+                <Logo className="relative z-10" />
               </div>
               <span className="text-xl font-extrabold tracking-tighter text-text-main font-sans">
                 cv<span className="text-accent">Fit</span>.pro
