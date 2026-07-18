@@ -342,7 +342,10 @@ function renderPage(template: string, subPath: string, lang: 'vi' | 'en'): strin
 
   $('script[type="application/ld+json"]').text(JSON.stringify(buildSchemaGraph(subPath, lang, desc), null, 2));
 
-  const bodyHtml = `${renderNav(lang)}<main>${renderRouteContent(subPath, lang)}</main>${renderFooterLinks(lang)}`;
+  // Visually hidden: crawlers that don't run JS (this fixes Ahrefs' "no outgoing
+  // links") still parse the raw HTML regardless of CSS, but real users would
+  // otherwise see this unstyled text flash before React hydrates and replaces it.
+  const bodyHtml = `<div style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">${renderNav(lang)}<main>${renderRouteContent(subPath, lang)}</main>${renderFooterLinks(lang)}</div>`;
   $('#root').html(bodyHtml);
 
   return $.html();
