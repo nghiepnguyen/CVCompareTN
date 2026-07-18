@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import * as cheerio from 'cheerio';
+import { UI_LABELS } from '../src/translations';
+
+type Lang = 'vi' | 'en';
 
 // Mirrors the SEO map in index.html's pre-hydration script (kept in sync manually
 // since this runs in Node against the built HTML, not in the browser).
@@ -177,6 +180,130 @@ function buildSchemaGraph(subPath: string, lang: 'vi' | 'en', desc: string) {
   return { '@context': 'https://schema.org', '@graph': graph };
 }
 
+// Crawlable body content injected into the pre-rendered static HTML (index.html's
+// #root is empty until React hydrates client-side — bots that don't run JS, like a
+// non-JS-rendering Ahrefs crawl, would otherwise see zero content and zero outgoing
+// links). Kept as hand-written markup rather than importing the real page components,
+// which pull in Supabase/Sentry/GA4 init code that isn't safe to run outside Vite.
+const SUPPORT_COPY: Record<Lang, { title: string; heroDesc: string; features: { title: string; desc: string }[] }> = {
+  vi: {
+    title: 'Hỗ Trợ Phát Triển',
+    heroDesc: 'Nếu bạn thấy trang web hữu ích, hãy ủng hộ để chúng tôi có thêm động lực phát triển các tính năng mới tuyệt vời hơn.',
+    features: [
+      { title: 'Tính năng mới', desc: 'Nghiên cứu và triển khai các công cụ AI hỗ trợ tìm việc hiện đại nhất.' },
+      { title: 'Duy trì hệ thống', desc: 'Đảm bảo trang web luôn hoạt động ổn định, nhanh chóng và bảo mật.' },
+      { title: 'Trải nghiệm tốt hơn', desc: 'Cải thiện giao diện và tối ưu hóa trải nghiệm cho hàng ngàn người dùng.' },
+    ],
+  },
+  en: {
+    title: 'Support Development',
+    heroDesc: 'If you find this website helpful, please support us to have more motivation to develop even better features.',
+    features: [
+      { title: 'New Features', desc: 'Research and deploy the most modern AI tools for job searching.' },
+      { title: 'System Maintenance', desc: 'Ensuring the website runs stably, quickly, and securely.' },
+      { title: 'Better Experience', desc: 'Improving the interface and optimizing the experience for thousands of users.' },
+    ],
+  },
+};
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderNav(lang: Lang): string {
+  const t = UI_LABELS[lang];
+  const p = `/${lang}`;
+  const links = [
+    { href: `${p}/`, label: lang === 'vi' ? 'Trang chủ' : 'Home' },
+    { href: `${p}/about`, label: t.aboutPageTitle },
+    { href: `${p}/upgrade`, label: t.upgradePageTitle },
+    { href: `${p}/privacy`, label: t.footerPrivacyPolicy },
+    { href: `${p}/terms`, label: t.footerTermsOfService },
+    { href: `${p}/support`, label: t.supportPageTitle },
+  ];
+  const items = links.map((l) => `<a href="${l.href}">${escapeHtml(l.label)}</a>`).join('');
+  return `<nav aria-label="primary">${items}</nav>`;
+}
+
+function renderFooterLinks(lang: Lang): string {
+  const t = UI_LABELS[lang];
+  const p = `/${lang}`;
+  return `<footer>
+    <a href="${p}/privacy">${escapeHtml(t.footerPrivacyPolicy)}</a>
+    <a href="${p}/terms">${escapeHtml(t.footerTermsOfService)}</a>
+    <a href="${p}/about">${escapeHtml(t.aboutPageTitle)}</a>
+    <a href="${p}/support">${escapeHtml(t.supportPageTitle)}</a>
+    <a href="https://blog.cvfit.pro" target="_blank" rel="noopener noreferrer">Blog</a>
+    <a href="https://www.facebook.com/Cvfitpro" target="_blank" rel="noopener noreferrer">Facebook</a>
+    <a href="https://www.linkedin.com/company/cvfitpro/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+  </footer>`;
+}
+
+function renderRouteContent(subPath: string, lang: Lang): string {
+  const t = UI_LABELS[lang];
+  const e = escapeHtml;
+
+  if (subPath === '/') {
+    const features = [1, 2, 3, 4].map((n) => {
+      const title = t[`feature${n}Title` as keyof typeof t] as string;
+      const desc = t[`feature${n}Desc` as keyof typeof t] as string;
+      return `<li><strong>${e(title)}</strong>: ${e(desc)}</li>`;
+    }).join('');
+    return `<h1>${e(t.heroTitle)} cvFit</h1>
+      <p>${e(t.heroDesc)}</p>
+      <h2>${e(t.whyTitle)}</h2>
+      <ul>${features}</ul>`;
+  }
+
+  if (subPath === '/about') {
+    return `<h1>${e(t.aboutHeroTitle)}</h1>
+      <p>${e(t.aboutHeroSub)}</p>
+      <h2>${e(t.aboutMissionTitle)}</h2><p>${e(t.aboutMissionBody)}</p>
+      <h2>${e(t.aboutStoryTitle)}</h2><p>${e(t.aboutStoryBody)}</p>
+      <h2>${e(t.aboutTechTitle)}</h2><p>${e(t.aboutTechBody)}</p>
+      <h2>${e(t.aboutTeamTitle)}</h2><p>${e(t.aboutTeamBody)}</p>
+      <h2>${e(t.aboutContactTitle)}</h2><p>${e(t.aboutContactBody)}</p>`;
+  }
+
+  if (subPath === '/privacy') {
+    return `<h1>${e(t.privacyPolicyPageTitle)}</h1>
+      <p>${e(t.privacyHeroSubtitle)}</p>
+      <h2>${e(t.privacyS1Title)}</h2><p>${e(t.privacyS1Intro)}</p>
+      <ul><li>${e(t.privacyS1Item1)}</li><li>${e(t.privacyS1Item2)}</li><li>${e(t.privacyS1Item3)}</li><li>${e(t.privacyS1Item4)}</li><li>${e(t.privacyS1Item5)}</li></ul>
+      <h2>${e(t.privacyS2Title)}</h2><p>${e(t.privacyS2Intro)}</p>
+      <ul><li>${e(t.privacyS2Item1)}</li><li>${e(t.privacyS2Item2)}</li><li>${e(t.privacyS2Item3)}</li><li>${e(t.privacyS2Item4)}</li></ul>
+      <p>${e(t.privacyS2Note)}</p>
+      <h2>${e(t.privacyS3Title)}</h2><p>${e(t.privacyS3Body)}</p>
+      <h2>${e(t.privacyS4Title)}</h2><p>${e(t.privacyS4Intro)}</p>
+      <ul><li>${e(t.privacyS4Ga4)}</li><li>${e(t.privacyS4Vercel)}</li></ul>
+      <h2>${e(t.privacyS5Title)}</h2><p>${e(t.privacyS5Body)}</p>
+      <p>${e(t.privacyLastUpdated)}</p>`;
+  }
+
+  if (subPath === '/terms') {
+    return `<h1>${e(t.termsPageTitle)}</h1>
+      <p>${e(t.termsHeroSubtitle)}</p>
+      <h2>${e(t.termsS1Title)}</h2><p>${e(t.termsS1Body)}</p>
+      <h2>${e(t.termsS2Title)}</h2><p>${e(t.termsS2Intro)}</p>
+      <ul><li>${e(t.termsS2Item1)}</li><li>${e(t.termsS2Item2)}</li><li>${e(t.termsS2Item3)}</li></ul>
+      <h2>${e(t.termsS3Title)}</h2><p>${e(t.termsS3Body)}</p>
+      <h2>${e(t.termsS4Title)}</h2><p>${e(t.termsS4Body)}</p>
+      <p>${e(t.termsLastUpdated)}</p>`;
+  }
+
+  if (subPath === '/support') {
+    const c = SUPPORT_COPY[lang];
+    const features = c.features.map((f) => `<li><strong>${e(f.title)}</strong>: ${e(f.desc)}</li>`).join('');
+    return `<h1>${e(c.title)}</h1><p>${e(c.heroDesc)}</p><ul>${features}</ul>`;
+  }
+
+  if (subPath === '/upgrade') {
+    return `<h1>${e(t.upgradePageTitle)}</h1><p>${e(t.upgradePageDesc)}</p>`;
+  }
+
+  return '';
+}
+
 function renderPage(template: string, subPath: string, lang: 'vi' | 'en'): string {
   const $ = cheerio.load(template);
   const route = SEO[subPath];
@@ -214,6 +341,9 @@ function renderPage(template: string, subPath: string, lang: 'vi' | 'en'): strin
   });
 
   $('script[type="application/ld+json"]').text(JSON.stringify(buildSchemaGraph(subPath, lang, desc), null, 2));
+
+  const bodyHtml = `${renderNav(lang)}<main>${renderRouteContent(subPath, lang)}</main>${renderFooterLinks(lang)}`;
+  $('#root').html(bodyHtml);
 
   return $.html();
 }

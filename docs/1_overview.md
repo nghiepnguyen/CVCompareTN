@@ -8,7 +8,7 @@
 2.  **AI-Powered Analysis:** Gemini 3 Flash Preview phân tích CV + JD như chuyên gia tuyển dụng.
 3.  **Multilingual:** Tiếng Việt + tiếng Anh.
 4.  **Premium UX:** Industrial Utilitarian design, Motion animations, mobile-first.
-5.  **SEO:** Pre-hydration `<script>` trong `index.html` (title, OG, hreflang vi/en/x-default, Schema.org); `AppContent.tsx` đồng bộ sau SPA navigation; sitemap 14 URL; legacy paths redirect 301. Chi tiết: [3_frontend.md](3_frontend.md).
+5.  **SEO:** Pre-hydration `<script>` trong `index.html` (title, OG, hreflang vi/en/x-default, Schema.org); `AppContent.tsx` đồng bộ sau SPA navigation; sitemap 14 URL; legacy paths redirect 301; `scripts/generate-static-pages.ts` render sẵn nav + nội dung text vào `#root` cho từng route/locale để crawler không chạy JS vẫn thấy content + outgoing links (2026-07-18, fix Ahrefs "Page has no outgoing links"). Chi tiết: [3_frontend.md](3_frontend.md).
 6.  **Security & Privacy:** Supabase RLS/Auth/Storage; API proxy giữ secret server-side (Gemini, reCAPTCHA). Không commit `.env` — xem [Triển khai §5](7_deployment.md#5-bảo-mật-mã-nguồn-và-bi-mật).
 7.  **Mobile-First:** Bottom Navigation, Bottom Sheets, adaptive layouts.
 8.  **Multi-channel Auth:** Google OAuth + Email/Password (Supabase Auth). Email auth bảo vệ bởi reCAPTCHA v3 qua `/api/verify-recaptcha`. `AuthModal.tsx`: Sign In / Sign Up / Reset Password với Motion layoutId animation.

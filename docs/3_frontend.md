@@ -151,6 +151,7 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
 -   **In-App Browser detection:** Cảnh báo khi vào từ Zalo/Facebook (Google login bị block).
 -   **Auth Modal:** `AuthModal.tsx` — Sign In/Sign Up/Reset Password, Motion layoutId animation, reCAPTCHA v3, Google OAuth. Mở qua `openAuthModal()`.
 -   **SEO Pre-hydration:** `<script>` sync trong `index.html` — title, OG, hreflang (vi/en/x-default), Schema.org, `noindex` cho payment/admin. `AppContent.tsx` đồng bộ sau mỗi SPA nav. Legacy paths redirect 301 → `/vi/:path`.
+-   **Static body prerender (`scripts/generate-static-pages.ts`):** App là Vite SPA (`createRoot().render()`, không SSR) — `#root` rỗng cho tới khi React hydrate, nên crawler không chạy JS (vd Ahrefs mặc định) thấy 0 nội dung/0 outgoing link. Script build này (chạy sau `vite build`, ghi ra `dist/{vi,en}/{route}/index.html`) inject thêm nav (Home/About/Upgrade/Privacy/Terms/Support) + nội dung text thật của từng trang (kéo từ `src/translations`, không import component thật để tránh side-effect Supabase/Sentry/GA4 lúc build) vào `#root`. An toàn vì client dùng `createRoot` (replace hoàn toàn, không phải `hydrateRoot`) nên không có hydration mismatch.
 -   **Lazy Loading:** `React.lazy` + `Suspense` cho tất cả View lớn.
 -   **Industrial Utilitarian Design:** Motion `layoutId` "sliding pill" khi chuyển tab; "Scan Line" trên result nav bar.
 -   **Mobile-First:** Bottom Navigation, Sticky Results Nav, Smart Auto-Scroll, Bottom Sheets, adaptive card layouts. Startup: auth check song song (~100–200ms).
