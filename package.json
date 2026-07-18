@@ -68,6 +68,17 @@
   "overrides": {
     "exceljs": {
       "uuid": "^11.1.1"
+    },
+    "@vercel/node": {
+      "undici": "^8.7.0",
+      "path-to-regexp": "^6.3.0",
+      "ajv": "^8.20.0",
+      "js-yaml": "^4.3.0",
+      "minimatch": "^10.2.3",
+      "smol-toml": "^1.7.0"
+    },
+    "tsx": {
+      "esbuild": "^0.28.1"
     }
   }
 }
