@@ -4,6 +4,7 @@ import { AlertCircle, Clock, Search, ShieldAlert } from 'lucide-react';
 import type { LandingLabels } from './types';
 import type { SectionTheme } from './shared';
 import { GlassCard, FeatureIcon, SectionHeading } from './shared';
+import { ScoreCompare } from './FeatureVisuals';
 
 export function ProblemSection({ t, theme = 'dark' }: { t: LandingLabels; theme?: SectionTheme }) {
   const isLight = theme === 'light';
@@ -47,16 +48,21 @@ export function ProblemSection({ t, theme = 'dark' }: { t: LandingLabels; theme?
             </p>
           </GlassCard>
 
-          {/* Card 4 - highlight */}
+          {/* Card 4 - highlight, with before/after score visual */}
           <GlassCard className={cn('lg:col-span-2', isLight ? 'border-accent/30' : 'border-accent/20 animate-border-glow')} delay={0.2} hover={false} theme={theme}>
-            <div className="flex h-full flex-col justify-center">
-              <FeatureIcon icon={ShieldAlert} size="md" theme={theme} />
-              <h3 className={cn('mb-4 font-serif text-2xl md:text-3xl font-bold leading-tight', isLight ? 'text-slate-900' : 'text-white')}>
-                {t.problemResult}
-              </h3>
-              <p className={cn('leading-relaxed', isLight ? 'text-slate-500' : 'text-text-muted')}>
-                {t.problemDescCard4Detail}
-              </p>
+            <div className="flex h-full flex-col gap-8 lg:flex-row lg:items-center lg:gap-10">
+              <div className="flex flex-col justify-center lg:flex-1">
+                <FeatureIcon icon={ShieldAlert} size="md" theme={theme} />
+                <h3 className={cn('mb-4 font-serif text-2xl md:text-3xl font-bold leading-tight', isLight ? 'text-slate-900' : 'text-white')}>
+                  {t.problemResult}
+                </h3>
+                <p className={cn('leading-relaxed', isLight ? 'text-slate-500' : 'text-text-muted')}>
+                  {t.problemDescCard4Detail}
+                </p>
+              </div>
+              <div className="flex justify-center lg:flex-1 lg:justify-end">
+                <ScoreCompare />
+              </div>
             </div>
           </GlassCard>
         </div>

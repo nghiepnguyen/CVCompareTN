@@ -24,48 +24,29 @@ export function LandingView() {
   const scale = useTransform(scrollYProgress, [0, 0.15], [1, 0.97]);
 
   return (
-    <div className="relative flex w-full flex-col items-center overflow-hidden font-body dark bg-[#0A0A0A]">
-      {/* Global ambient background — only visible behind dark sections */}
+    <div className="relative flex w-full flex-col items-center overflow-hidden font-body bg-[#F8FAFC]">
+      {/* Global ambient background — subtle emerald wash, single light tone */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute top-0 left-1/4 h-96 w-96 rounded-full bg-accent/3 blur-[150px]" />
-        <div className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-accent/2 blur-[150px]" />
+        <div className="absolute top-0 left-1/4 h-96 w-96 rounded-full bg-emerald-100/40 blur-[150px]" />
+        <div className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-emerald-50/50 blur-[150px]" />
       </div>
 
       <div className="relative z-10 w-full">
-        {/* DARK */}
+        {/* Hero — light mint gradient, fades into the page */}
         <HeroSection t={t} login={() => openAuthModal('signUp')} opacity={opacity} scale={scale} />
 
-        {/* LIGHT */}
+        {/* Consistent light theme throughout — sections vary only by subtle
+            surface shade (white ↔ slate-50) for gentle rhythm, no hard flips */}
         <TrustSection t={t} theme="light" />
-
-        {/* DARK */}
-        <ProblemSection t={t} />
-
-        {/* LIGHT */}
+        <ProblemSection t={t} theme="light" />
         <WhyChooseSection t={t} theme="light" />
-
-        {/* DARK */}
-        <HowItWorksSection t={t} />
-
-        {/* LIGHT — showcase product in clean environment */}
+        <HowItWorksSection t={t} theme="light" />
         <DemoResultSection t={t} theme="light" />
-
-        {/* DARK */}
-        <StatsSection t={t} />
-
-        {/* LIGHT */}
+        <StatsSection t={t} theme="light" />
         <TargetUsersSection t={t} theme="light" />
-
-        {/* DARK */}
-        <RecruiterFeaturesSection t={t} />
-
-        {/* LIGHT — pricing table shines on white */}
+        <RecruiterFeaturesSection t={t} theme="light" />
         <PricingSection t={t} login={() => openAuthModal('signUp')} theme="light" />
-
-        {/* DARK */}
-        <CtaSection t={t} login={() => openAuthModal('signUp')} />
-
-        {/* LIGHT — friendly ending */}
+        <CtaSection t={t} login={() => openAuthModal('signUp')} theme="light" />
         <FaqSection t={t} openFaqIndex={openFaqIndex} setOpenFaqIndex={setOpenFaqIndex} theme="light" />
       </div>
     </div>

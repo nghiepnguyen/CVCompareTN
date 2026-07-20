@@ -133,16 +133,19 @@ export function SectionHeading({
   as: Tag = 'h2',
   goldLine = false,
   theme = 'dark',
+  align = 'center',
 }: {
   children: React.ReactNode;
   className?: string;
   as?: 'h1' | 'h2' | 'h3';
   goldLine?: boolean;
   theme?: SectionTheme;
+  align?: 'center' | 'left';
 }) {
   const isLight = theme === 'light';
+  const isLeft = align === 'left';
   return (
-    <div className="mb-14 md:mb-20 text-center">
+    <div className={cn('mb-14 md:mb-20', isLeft ? 'text-left' : 'text-center')}>
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -161,7 +164,8 @@ export function SectionHeading({
         {goldLine && (
           <div
             className={cn(
-              'mt-6 mx-auto h-px w-24',
+              'mt-6 h-px w-24',
+              isLeft ? 'ml-0' : 'mx-auto',
               isLight
                 ? 'gold-line-light'
                 : 'bg-gradient-to-r from-transparent via-accent to-transparent',

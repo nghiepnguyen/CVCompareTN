@@ -1,7 +1,6 @@
 import React from 'react';
-import { motion } from 'motion/react';
 import { cn } from '../../../lib/utils';
-import { Briefcase, FileSpreadsheet, MessageSquareText, BarChart3, Upload, Target, Zap } from 'lucide-react';
+import { Briefcase, FileSpreadsheet, MessageSquareText, BarChart3, Upload, Target } from 'lucide-react';
 import type { LandingLabels } from './types';
 import type { SectionTheme } from './shared';
 import { GlassCard, FeatureIcon, SectionHeading, SectionBadge } from './shared';
@@ -69,16 +68,16 @@ export function RecruiterFeaturesSection({ t, theme = 'dark' }: { t: RecruiterT;
       </div>
 
       <div className="container-premium relative z-10">
-        <div className="text-center mb-14">
+        <div className="mb-6 text-left">
           <SectionBadge icon={Briefcase} theme={theme}>
             {t.badgeRecruiter || 'Dành cho Nhà tuyển dụng'}
           </SectionBadge>
         </div>
-        <SectionHeading as="h2" goldLine theme={theme}>
+        <SectionHeading as="h2" goldLine theme={theme} align="left">
           {t.recruiterSectionTitle || 'Tuyển dụng thông minh với AI'}
         </SectionHeading>
 
-        <p className={cn('text-center text-sm max-w-2xl mx-auto -mt-10 mb-14', isLight ? 'text-slate-500' : 'text-text-muted')}>
+        <p className={cn('text-left text-sm max-w-2xl -mt-10 mb-14', isLight ? 'text-slate-500' : 'text-text-muted')}>
           {t.recruiterSectionDesc || ''}
         </p>
 
@@ -96,26 +95,6 @@ export function RecruiterFeaturesSection({ t, theme = 'dark' }: { t: RecruiterT;
           ))}
         </div>
 
-        {/* CTA Link */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.4 }}
-          className="text-center mt-12"
-        >
-          <a
-            href="#pricing"
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-400/20 hover:bg-purple-500/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
-            onClick={(e) => {
-              e.preventDefault();
-              document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' });
-            }}
-          >
-            <Zap className="w-4 h-4" strokeWidth={1.5} />
-            {t.recruiterViewPlans || 'Xem gói Recruiter'}
-          </a>
-        </motion.div>
       </div>
     </section>
   );

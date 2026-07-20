@@ -1,18 +1,19 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { cn } from '../../../lib/utils';
-import { Upload, FileText, Brain, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import type { LandingLabels } from './types';
 import type { SectionTheme } from './shared';
 import { SectionHeading, SectionBadge } from './shared';
+import { UploadTile, PasteTile, AnalyzeTile, ReportTile } from './HowItWorksVisuals';
 
 export function HowItWorksSection({ t, theme = 'dark' }: { t: LandingLabels; theme?: SectionTheme }) {
   const isLight = theme === 'light';
   const steps = [
-    { title: t.howItWorksStep1Title, desc: t.howItWorksStep1Desc, icon: Upload },
-    { title: t.howItWorksStep2Title, desc: t.howItWorksStep2Desc, icon: FileText },
-    { title: t.howItWorksStep3Title, desc: t.howItWorksStep3Desc, icon: Brain },
-    { title: t.howItWorksStep4Title, desc: t.howItWorksStep4Desc, icon: Sparkles },
+    { title: t.howItWorksStep1Title, desc: t.howItWorksStep1Desc, visual: <UploadTile /> },
+    { title: t.howItWorksStep2Title, desc: t.howItWorksStep2Desc, visual: <PasteTile /> },
+    { title: t.howItWorksStep3Title, desc: t.howItWorksStep3Desc, visual: <AnalyzeTile /> },
+    { title: t.howItWorksStep4Title, desc: t.howItWorksStep4Desc, visual: <ReportTile /> },
   ];
 
   return (
@@ -26,91 +27,25 @@ export function HowItWorksSection({ t, theme = 'dark' }: { t: LandingLabels; the
         </div>
         <SectionHeading goldLine theme={theme}>{t.howItWorksTitle}</SectionHeading>
 
-        {/* Desktop: horizontal steps with connecting line */}
-        <div className="relative hidden md:grid md:grid-cols-4 gap-8">
-          {/* Connecting line */}
-          <div
-            className={cn(
-              'absolute top-12 left-[12.5%] right-[12.5%] h-px',
-              isLight
-                ? 'bg-gradient-to-r from-transparent via-slate-300 to-transparent'
-                : 'bg-gradient-to-r from-transparent via-accent/30 to-transparent',
-            )}
-          />
-
+        {/* Process cards — each step carries a diagrammatic mini-visual */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.15 }}
-              className="relative flex flex-col items-center text-center group"
+              viewport={{ once: true, margin: '-60px' }}
+              transition={{ duration: 0.5, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="group flex flex-col rounded-3xl border border-slate-200 bg-white p-5 transition-[border-color,box-shadow,transform] duration-500 hover:-translate-y-1 hover:border-accent/30 hover:shadow-[0_8px_30px_rgba(5,150,105,0.08)]"
             >
-              {/* Step number circle */}
-              <div
-                className={cn(
-                  'relative z-10 mb-8 flex h-24 w-24 items-center justify-center rounded-full border shadow-2xl transition-all duration-500',
-                  isLight
-                    ? 'border-slate-200 bg-white group-hover:border-accent/30 group-hover:shadow-accent/5'
-                    : 'border-white/[0.08] bg-primary-light group-hover:border-accent/30 group-hover:shadow-accent/5',
-                )}
-              >
-                <div
-                  className={cn(
-                    'absolute inset-1.5 rounded-full transition-all duration-500',
-                    isLight
-                      ? 'bg-emerald-50 group-hover:bg-emerald-100'
-                      : 'bg-accent/5 group-hover:bg-accent/10',
-                  )}
-                />
-                <span className="relative z-10 font-serif text-3xl font-black text-accent">
+              {step.visual}
+              <div className="mt-5 flex items-center gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 font-serif text-sm font-black tabular-nums text-accent">
                   {String(i + 1).padStart(2, '0')}
                 </span>
+                <h4 className="font-sans text-base font-bold leading-snug text-slate-800">{step.title}</h4>
               </div>
-
-              <h4 className={cn('mb-3 font-sans text-lg font-bold', isLight ? 'text-slate-800' : 'text-text-main')}>
-                {step.title}
-              </h4>
-              <p className={cn('max-w-[200px] text-sm leading-relaxed', isLight ? 'text-slate-500' : 'text-text-muted')}>
-                {step.desc}
-              </p>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Mobile: vertical timeline */}
-        <div className="md:hidden space-y-8">
-          {steps.map((step, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              className="flex items-start gap-5 group"
-            >
-              <div className="relative flex flex-col items-center">
-                <div
-                  className={cn(
-                    'flex h-14 w-14 items-center justify-center rounded-full border transition-all duration-500',
-                    isLight
-                      ? 'border-slate-200 bg-white group-hover:border-accent/30'
-                      : 'border-white/[0.08] bg-primary-light group-hover:border-accent/30',
-                  )}
-                >
-                  <span className="font-serif text-xl font-black text-accent">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                </div>
-                {i < steps.length - 1 && (
-                  <div className="mt-2 h-8 w-px bg-gradient-to-b from-accent/20 to-transparent" />
-                )}
-              </div>
-              <div className="pt-3">
-                <h4 className={cn('mb-1 font-sans text-lg font-bold', isLight ? 'text-slate-800' : 'text-text-main')}>{step.title}</h4>
-                <p className={cn('text-sm leading-relaxed', isLight ? 'text-slate-500' : 'text-text-muted')}>{step.desc}</p>
-              </div>
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">{step.desc}</p>
             </motion.div>
           ))}
         </div>
@@ -120,21 +55,12 @@ export function HowItWorksSection({ t, theme = 'dark' }: { t: LandingLabels; the
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.6 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
           className="mt-16 md:mt-20 text-center"
         >
-          <div
-            className={cn(
-              'inline-flex items-center gap-2 rounded-full px-6 py-3 backdrop-blur-md',
-              isLight
-                ? 'border border-emerald-200 bg-emerald-50'
-                : 'border border-accent/10 bg-accent/5',
-            )}
-          >
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-6 py-3">
             <Sparkles className="h-4 w-4 text-accent" strokeWidth={1.5} />
-            <span className={cn('font-sans text-sm font-semibold text-accent')}>
-              {t.howItWorksFooter}
-            </span>
+            <span className="font-sans text-sm font-semibold text-accent">{t.howItWorksFooter}</span>
           </div>
         </motion.div>
       </div>

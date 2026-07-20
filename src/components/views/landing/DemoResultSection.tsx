@@ -20,7 +20,7 @@ export function DemoResultSection({ t, theme = 'dark' }: { t: LandingLabels; the
       {isLight && (
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-0 right-1/4 h-80 w-80 rounded-full bg-emerald-50 blur-[120px]" />
-          <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-blue-50 blur-[100px]" />
+          <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-emerald-50 blur-[100px]" />
         </div>
       )}
 
