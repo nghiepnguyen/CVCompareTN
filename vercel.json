@@ -70,7 +70,10 @@
     "api/recruiter/*.ts": {
       "maxDuration": 30
     },
-    "api/blog/[[...path]].ts": {
+    "api/blog/index.ts": {
+      "maxDuration": 15
+    },
+    "api/blog/[...path].ts": {
       "maxDuration": 15
     }
   },
