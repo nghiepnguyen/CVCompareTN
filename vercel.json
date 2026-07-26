@@ -41,17 +41,18 @@
       "destination": "/api/parse-cv.ts"
     },
     {
-      "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
-      "destination": "/index.html"
-    },
-    {
       "source": "/blog",
       "destination": "https://blog.cvfit.pro"
     },
     {
       "source": "/blog/:path*",
       "destination": "https://blog.cvfit.pro/:path*"
+    },
+    {
+      "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
+      "destination": "/index.html"
     }
+    
   ],
   "functions": {
     "api/analyze.ts": {
