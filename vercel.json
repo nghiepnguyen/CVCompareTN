@@ -43,22 +43,6 @@
     {
       "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
       "destination": "/index.html"
-    },
-    {
-      "source": "/blog",
-      "destination": "https://blog.cvfit.pro"
-    },
-    {
-      "source": "/blog/:path*",
-      "destination": "https://blog.cvfit.pro/:path*"
-    },
-    {
-      "source": "/wp-content/:path*",
-      "destination": "https://blog.cvfit.pro/wp-content/:path*"
-    },
-    {
-      "source": "/wp-includes/:path*",
-      "destination": "https://blog.cvfit.pro/wp-includes/:path*"
     }
   ],
   "functions": {
