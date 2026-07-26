@@ -1,4 +1,4 @@
-import { proxyBlogRequest } from './_proxy.js';
+import { proxyBlogRequest } from './blog/_proxy.js';
 
 export const config = { runtime: 'edge' };
 

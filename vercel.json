@@ -42,17 +42,20 @@
     },
     {
       "source": "/blog",
-      "destination": "/api/blog"
+      "destination": "/api/blog-proxy"
     },
     {
       "source": "/blog/:path*",
-      "destination": "/api/blog/:path*"
+      "destination": "/api/blog-proxy"
+    },
+    {
+      "source": "/blog/:path*/",
+      "destination": "/api/blog-proxy"
     },
     {
       "source": "/((?!api|src|node_modules|@vite|@react-refresh|assets|.*\\..*).*)",
       "destination": "/index.html"
     }
-    
   ],
   "functions": {
     "api/analyze.ts": {
@@ -69,12 +72,6 @@
     },
     "api/recruiter/*.ts": {
       "maxDuration": 30
-    },
-    "api/blog/index.ts": {
-      "maxDuration": 15
-    },
-    "api/blog/[...path].ts": {
-      "maxDuration": 15
     }
   },
   "redirects": [
