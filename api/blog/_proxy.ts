@@ -11,7 +11,7 @@ const HOP_BY_HOP_HEADERS = [
 
 export async function proxyBlogRequest(req: Request): Promise<Response> {
   const url = new URL(req.url);
-  const targetPath = url.pathname.replace(/^\/api\/blog/, '') || '/';
+  const targetPath = url.pathname.replace(/^\/blog/, '') || '/';
   const targetUrl = `${UPSTREAM_ORIGIN}${targetPath}${url.search}`;
 
   const upstreamRes = await fetch(targetUrl, {
