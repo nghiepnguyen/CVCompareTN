@@ -14,12 +14,15 @@ export async function proxyBlogRequest(req: Request): Promise<Response> {
   const targetPath = url.pathname.replace(/^\/blog/, '') || '/';
   const targetUrl = `${UPSTREAM_ORIGIN}${targetPath}${url.search}`;
 
+  const proxySecret = process.env.BLOG_PROXY_SECRET;
+
   const upstreamRes = await fetch(targetUrl, {
     method: req.method,
     headers: {
       'user-agent': req.headers.get('user-agent') || '',
       cookie: req.headers.get('cookie') || '',
       accept: req.headers.get('accept') || '',
+      ...(proxySecret ? { 'x-blog-proxy-secret': proxySecret } : {}),
     },
     redirect: 'manual',
     body: ['GET', 'HEAD'].includes(req.method) ? undefined : await req.text(),
