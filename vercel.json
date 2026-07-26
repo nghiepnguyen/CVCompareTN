@@ -46,11 +46,11 @@
     },
     {
       "source": "/blog",
-      "destination": "https://blog.cvfit.pro"
+      "destination": "https://blog.cvfit.pro/blog"
     },
     {
       "source": "/blog/:path*",
-      "destination": "https://blog.cvfit.pro/:path*"
+      "destination": "https://blog.cvfit.pro/blog/:path*"
     }
   ],
   "functions": {
