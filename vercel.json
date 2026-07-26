@@ -51,14 +51,6 @@
     {
       "source": "/blog/:path*",
       "destination": "https://blog.cvfit.pro/:path*"
-    },
-    {
-      "source": "/wp-content/:path*",
-      "destination": "https://blog.cvfit.pro/wp-content/:path*"
-    },
-    {
-      "source": "/wp-includes/:path*",
-      "destination": "https://blog.cvfit.pro/wp-includes/:path*"
     }
   ],
   "functions": {
