@@ -26,7 +26,7 @@ export function initSentry() {
     tracesSampleRate: 0.1,
     tracePropagationTargets: ['localhost', /^https:\/\/cvfit\.pro\/api/],
     replaysOnErrorSampleRate: 0,
-    denyUrls: [/extensions\//i, /^chrome:\/\//i],
+    denyUrls: [/extensions\//i, /^chrome:\/\//i, /beacon\.min\.js/i],
     beforeSend(event, hint) {
       // Supabase refresh token errors are expected when sessions expire — not actionable
       const err = hint?.originalException;
