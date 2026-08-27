@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+import { supabase, withAuthRetry } from "../lib/supabase";
 
 export interface SavedJD {
   id: string;
@@ -28,13 +28,16 @@ export async function saveJDToProfile(
 
 export async function getSavedJDs(uid: string): Promise<SavedJD[]> {
   try {
-    const { data, error } = await supabase
-      .from("saved_jds")
-      .select("*")
-      .eq("user_id", uid)
-      .order("timestamp", { ascending: false });
+    const { data, error } = await withAuthRetry(() =>
+      supabase
+        .from("saved_jds")
+        .select("*")
+        .eq("user_id", uid)
+        .order("timestamp", { ascending: false })
+    );
 
     if (error) throw error;
+    if (!data) return [];
     return data.map((d) => ({
       id: d.jd_id || d.id,
       title: d.title,

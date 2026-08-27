@@ -65,3 +65,23 @@ export const getSupabaseUser = async () => {
   if (error) throw error;
   return user;
 };
+
+function isJwtError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === 'PGRST301' || /jwt/i.test(error.message ?? '');
+}
+
+/**
+ * Retries a PostgREST query once after refreshing the session if it failed due to
+ * an expired JWT (happens when a tab sits backgrounded past autoRefreshToken's timer).
+ */
+export async function withAuthRetry<T>(
+  queryFn: () => PromiseLike<{ data: T | null; error: { code?: string; message?: string } | null }>
+): Promise<{ data: T | null; error: { code?: string; message?: string } | null }> {
+  const result = await queryFn();
+  if (isJwtError(result.error)) {
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (!refreshError) return await queryFn();
+  }
+  return result;
+}

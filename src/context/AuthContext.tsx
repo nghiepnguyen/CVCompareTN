@@ -214,7 +214,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const interval = setInterval(refresh, 5 * 60 * 1000);
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') void refresh();
+      if (document.visibilityState === 'visible') {
+        // getSession() proactively refreshes the token if it's near/past expiry —
+        // guards against autoRefreshToken's timer missing while the tab was backgrounded.
+        void supabase.auth.getSession().then(() => refresh());
+      }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 

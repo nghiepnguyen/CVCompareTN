@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+import { supabase, withAuthRetry } from "../lib/supabase";
 import { AnalysisResult, normalizeAnalysisPayload, normalizeParsedCV } from "./ai";
 import type { UserPlan } from "./userService";
 import { HISTORY_DAYS_BY_PLAN } from "../lib/planLimits";
@@ -164,10 +164,12 @@ export async function getUserHistory(uid: string, plan: UserPlan = 'free'): Prom
     if (plan === 'free') {
       query = query.gte('timestamp', cutoff.toISOString());
     }
+    const finalQuery = query.limit(plan === 'pro' ? 500 : 50);
 
-    const { data, error } = await query.limit(plan === 'pro' ? 500 : 50);
+    const { data, error } = await withAuthRetry(() => finalQuery);
 
     if (error) throw error;
+    if (!data) return [];
     return data.map(mapHistory);
   } catch (error) {
     console.error('Error fetching user history:', error);
