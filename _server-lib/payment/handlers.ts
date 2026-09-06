@@ -33,6 +33,16 @@ function isWebhookPaymentSuccess(payload: {
   return payload.code === '00';
 }
 
+/**
+ * PayOS sends a fixed test ping when the webhook URL is registered/verified
+ * on the dashboard (orderCode 123, description "VQRIO123", a stale
+ * transactionDateTime). It must be ack'd with 200 without DB/timestamp
+ * validation, or the dashboard reports the URL as failing.
+ */
+function isPayosTestPing(data: Record<string, unknown> | undefined): boolean {
+  return !!data && data.orderCode === 123 && data.description === 'VQRIO123';
+}
+
 async function activateProForOrder(
   supabase: SupabaseClient,
   userId: string,
@@ -200,6 +210,10 @@ export async function handlePaymentWebhook(
 
   if (!isWebhookPaymentSuccess(payload)) {
     return { status: 200, body: { success: true, ignored: true } };
+  }
+
+  if (isPayosTestPing(payload.data)) {
+    return { status: 200, body: { success: true, test: true } };
   }
 
   // Replay-attack protection: reject successful webhooks whose transactionDateTime
