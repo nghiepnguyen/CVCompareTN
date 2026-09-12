@@ -18,7 +18,7 @@ type ComparisonRow = {
 
 function buildRows(t: LandingLabels): ComparisonRow[] {
   return [
-    { key: 'analyses', labelKey: 'pricingAnalyses', free: { value: '10', icon: 'dash' }, pro: { value: '100', icon: 'check' }, recruiter: { value: '500', icon: 'check' } },
+    { key: 'analyses', labelKey: 'pricingAnalyses', free: { value: '5', icon: 'dash' }, pro: { value: '100', icon: 'check' }, recruiter: { value: '500', icon: 'check' } },
     { key: 'batch', labelKey: 'pricingBatch', free: { value: '1', icon: 'dash' }, pro: { value: '5', icon: 'check' }, recruiter: { value: '50', icon: 'check' } },
     { key: 'campaignCvs', labelKey: 'pricingCampaignCvs', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '50', icon: 'check' } },
     { key: 'campaigns', labelKey: 'pricingCampaigns', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '10' + (t.pricingPerMonth || '/ tháng'), icon: 'check' } },

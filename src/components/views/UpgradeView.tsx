@@ -91,7 +91,7 @@ export function UpgradeView() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [freeAnalyticsLimit, setFreeAnalyticsLimit] = useState(10);
+  const [freeAnalyticsLimit, setFreeAnalyticsLimit] = useState(5);
 
   useEffect(() => {
     getDefaultMonthlyAnalyticsLimit()

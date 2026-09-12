@@ -142,14 +142,14 @@ Mọi event GA4 đi qua **`trackEvent(name, params?)`** trong `src/lib/ga4.ts`. 
 
 ## Hạn mức phân tích CV/tháng (Supabase — không phải GA4)
 
-Giới hạn số lượt **phân tích CV–JD thành công** mỗi user. Mặc định hệ thống: **10** lượt/chu kỳ (có thể đổi runtime qua `app_settings`).
+Giới hạn số lượt **phân tích CV–JD thành công** mỗi user. Mặc định hệ thống: **5** lượt/chu kỳ (có thể đổi runtime qua `app_settings`).
 
 ### Chu kỳ quota (quota_reset_day)
 
 Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_count` được reset về 0. Mặc định = 1 (tương thích ngược với cơ chế cũ theo đầu tháng).
 
 - **User mới:** `quota_reset_day` = ngày đăng ký (clamped ≤28).
-- **Upgrade Free → Pro/Recruiter:** Giữ nguyên `usage_count` + `usage_month` — user thấy tally thực tế trên limit mới (VD: đã dùng 10/10 free → upgrade → thấy **10/100**).
+- **Upgrade Free → Pro/Recruiter:** Giữ nguyên `usage_count` + `usage_month` — user thấy tally thực tế trên limit mới (VD: đã dùng 5/5 free → upgrade → thấy **5/100**).
 - **Gia hạn cùng plan (Pro → Pro, Recruiter → Recruiter):** `usage_count` reset về 0 — user nhận **quota mới 0/100** khi mua thêm.
 - **Pro/Recruiter hết hạn tự nhiên → Free:** `usage_count` reset về 0, `quota_reset_day` giữ nguyên (xử lý bởi `sync_profile_usage_month`).
 - **Chu kỳ:** Tính từ ngày reset tháng này đến trước ngày reset tháng sau (VD: `quota_reset_day=20` → chu kỳ 20/6–19/7).
@@ -235,7 +235,7 @@ flowchart TD
 
 | Hàm | Vai trò |
 |-----|---------|
-| `get_default_monthly_analytics_limit()` | Đọc `app_settings` (fallback **10**). |
+| `get_default_monthly_analytics_limit()` | Đọc `app_settings` (fallback **5**). |
 | `effective_monthly_analytics_limit(custom, stored_limit)` | `custom = false` → global default; `custom = true` → `stored_limit` (`NULL` = unlimited). |
 | `resolve_monthly_analytics_limit(plan, custom, stored_limit)` | **Custom limit luôn thắng plan** (từ `20260703040000`): `custom = true` → `stored_limit` (`NULL` = unlimited), bất kể plan. Chỉ khi `custom = false` mới xét plan: `recruiter` = 500, `pro` = 100, `free` = `app_settings` default. |
 | `check_analytics_quota(user_id, additional?)` | Trả JSON `allowed`, `used`, `limit`, `month` (chu kỳ `YYYY-MM-DD`), `plan`, `resetDay`, `reason`. Gọi **trước** khi chạy batch analyze. |
@@ -270,6 +270,7 @@ Chạy **theo thứ tự timestamp** trong `supabase/migrations/`:
 | `20260703040000_custom_limit_overrides_plan.sql` | Fix `resolve_monthly_analytics_limit`: custom limit (admin override) kiểm tra **trước** plan tier — trước đó pro/recruiter luôn thắng, khiến custom limit của admin bị enforcement bỏ qua dù Admin UI vẫn hiển thị đúng số đã set (display-vs-enforcement mismatch). |
 | `20260703050000_effective_usage_count_computed_column.sql` | Thêm PostgREST computed column `effective_usage_count(profiles)` — read-only, chiếu `usage_count` qua rollover đang chờ (đổi chu kỳ/plan hết hạn) không cần ghi DB. Fix Admin Users table hiện số cũ khi user chưa phân tích gì trong chu kỳ mới. |
 | `20260703060000_block_recruiter_to_pro_downgrade.sql` | Chặn downgrade recruiter→pro (còn active) ở `admin_set_user_plan` và `activate_pro_plan` — `RAISE EXCEPTION 'cannot_downgrade_recruiter_to_pro'`. Downgrade về free không bị ảnh hưởng. |
+| `20260912000000_free_quota_default_5.sql` | Đổi giới hạn mặc định Free từ 10 → **5** lượt/chu kỳ (cả `app_settings` lẫn fallback hàm). |
 
 Áp dụng: `supabase db push` hoặc chạy từng file trong SQL Editor.
 
@@ -335,7 +336,7 @@ Chỉ user có `monthly_analytics_limit_custom = false` nhận giá trị mới.
 
 ### Kiểm tra (quota)
 
-1. User `custom = false`, global = 10, `usage_count = 10` → lượt 11 bị `check_analytics_quota` từ chối.
+1. User `custom = false`, global = 5, `usage_count = 5` → lượt 6 bị `check_analytics_quota` từ chối.
 2. `UPDATE app_settings` → 30 → cùng user được thêm quota (không redeploy frontend).
 3. User `custom = true`, `monthly_analytics_limit = 5` → vẫn 5 dù global = 30.
 4. User `custom = true`, `monthly_analytics_limit IS NULL` → unlimited.
