@@ -129,7 +129,34 @@ Tệp `vercel.json` ở thư mục gốc đóng vai trò quan trọng trong vi�
     | `object-src` | `'none'` |
     | `frame-ancestors` | `'none'` (bổ sung cho `X-Frame-Options`) |
 
-    > `'unsafe-inline'` cho script/style là cần thiết do có inline script SEO pre-hydration và gtag init trong `index.html`. Nếu muốn loại bỏ, cần chuyển các script inline ra file ngoài và dùng nonce/hash.
+    > `'unsafe-inline'` cho script/style là cần thiết do có inline script SEO pre-hydration, script gắn class `js` (ẩn `#seo-static`) và gtag init trong `index.html`. Nếu muốn loại bỏ, cần chuyển các script inline ra file ngoài và dùng nonce/hash.
+
+## 4b. Cloudflare edge và verify branding Google Auth Platform
+
+Domain `cvfit.pro` đi qua Cloudflare trước khi tới Vercel. Hai thứ ở tầng edge từng làm hỏng nội dung mà bot đọc được, dù browser vẫn hiển thị đúng:
+
+| Vấn đề | Triệu chứng | Cách xử lý |
+|--------|-------------|------------|
+| **Email Address Obfuscation** (Scrape Shield, bật mặc định) | Mọi email trong HTML bị đổi thành link `/cdn-cgi/l/email-protection`, chỉ JS giải mã. Bot đọc `[email protected]` → chính sách bảo mật coi như không có contact | Bọc `<!--email_off--> … <!--/email_off-->` (helper `emailOff()` trong `scripts/generate-static-pages.ts`). Không cần chỉnh dashboard |
+| **Redirect gốc** | `https://cvfit.pro/` trả `308` → `/vi/` | Khai báo URL trực tiếp `https://cvfit.pro/vi/...` trong Google Console thay vì URL gốc |
+
+### Checklist trước khi resubmit verification
+
+Google Auth Platform kiểm tra **HTML thô**, không chạy JS. Verify trên edge live sau khi Vercel deploy xong, không chỉ trên `dist/`:
+
+```bash
+curl -s https://cvfit.pro/vi/privacy | grep -c "Limited Use"      # mong đợi 2
+curl -s https://cvfit.pro/vi/privacy | grep -c "admin@cvfit.pro"  # mong đợi 2
+curl -s https://cvfit.pro/ -L | grep -c "cvFit là gì"             # mong đợi 1
+```
+
+Yêu cầu nội dung của Google (đáp ứng bởi `src/translations/legal.ts` mục 1–12 + `HOME_PURPOSE` trong `scripts/generate-static-pages.ts`):
+
+-   **Privacy policy** phải nêu: dữ liệu thu thập, cách dùng, scope OAuth cụ thể (`openid`, `userinfo.email`, `userinfo.profile`), **Limited Use disclosure** kèm link [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), danh sách bên thứ ba, thời gian lưu trữ, cách yêu cầu xóa, email liên hệ.
+-   **Home page** phải đọc được khi chưa đăng nhập và phải nói rõ ứng dụng làm gì, cho ai, và rằng không cần đăng nhập để xem thông tin.
+-   Mọi claim về dữ liệu phải **nhất quán giữa các trang** — FAQ landing từng ghi "tự động xóa sau 24 giờ" trái với retention thật trong chính sách bảo mật.
+
+Trong Google Cloud Console → OAuth consent screen, khai báo: home `https://cvfit.pro/vi/`, privacy `https://cvfit.pro/vi/privacy`, terms `https://cvfit.pro/vi/terms`. Domain phải được verify trong Search Console cùng tài khoản submit.
 
 ## 5. Bảo mật mã nguồn và bí mật
 

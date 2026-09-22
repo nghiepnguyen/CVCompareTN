@@ -40,6 +40,7 @@ This file contains custom instructions and context for the AI Studio Build agent
 ### 5. Specific Workflows
 - **File Processing:** Simple text/images are handled client-side; PDF text extraction uses **`POST /api/extract-pdf`** on Vercel (`api/extract-pdf.ts`) and **`POST /api/extract-pdf/extract`** when running the Express server (`npm start` → `server/routes/pdf.ts`). Optional Supabase Edge Function `extract-pdf` may be used for some JD flows (`supabase.functions.invoke`). Full routing matrix: [`docs/9_api_routes.md`](docs/9_api_routes.md).
 - **Feedback System:** Feedback submission requires reCAPTCHA verification on the backend before sending an email via Resend.
+- **Crawler-facing content:** The app is a client-only SPA — raw HTML ships an empty `#root`. `scripts/generate-static-pages.ts` (runs as part of `npm run build`) is the **only** server-rendered content bots see. When editing landing/legal copy, update the translations it pulls from, never hardcode a second copy. Never hide that block with CSS (Google treats clipped text as cloaking) and wrap any email in `<!--email_off-->` (Cloudflare rewrites bare addresses). Verify on the live edge with `curl`, not on `dist/`. See [`docs/7_deployment.md`](docs/7_deployment.md) §4b.
 
 ### 6. Vercel Deployment Constraints (Hobby Plan)
 - **Serverless Function limit:** Hobby plan allows **max 12 functions** per deployment.
