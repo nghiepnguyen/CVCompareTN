@@ -238,6 +238,17 @@ const HOME_PURPOSE: Record<Lang, {
   },
 };
 
+// Cloudflare's Email Address Obfuscation (Scrape Shield) rewrites every email
+// address in the HTML it serves into a /cdn-cgi/l/email-protection link that only
+// JS can decode. Agents that don't run JS — including Google's OAuth brand
+// verification crawler — then read "[email protected]" instead of our contact
+// address, so the privacy policy reads as having no way to reach us. These markers
+// opt the wrapped region out of that rewrite.
+// https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/
+function emailOff(html: string): string {
+  return `<!--email_off-->${html}<!--/email_off-->`;
+}
+
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -333,11 +344,11 @@ function renderRouteContent(subPath: string, lang: Lang): string {
       <p>${e(t.privacyS7Note)}</p>
       <h2>${e(t.privacyS8Title)}</h2>
       <ul><li>${e(t.privacyS8Item1)}</li><li>${e(t.privacyS8Item2)}</li><li>${e(t.privacyS8Item3)}</li><li>${e(t.privacyS8Item4)}</li></ul>
-      <p>${e(t.privacyS8Delete)}</p>
+      <p>${emailOff(e(t.privacyS8Delete))}</p>
       <h2>${e(t.privacyS9Title)}</h2><p>${e(t.privacyS9Body)}</p>
       <h2>${e(t.privacyS10Title)}</h2><p>${e(t.privacyS10Body)}</p>
       <h2>${e(t.privacyS11Title)}</h2><p>${e(t.privacyS11Body)}</p>
-      <h2>${e(t.privacyS12Title)}</h2><p>${e(t.privacyS12Body)} <a href="mailto:admin@cvfit.pro">admin@cvfit.pro</a></p>
+      <h2>${e(t.privacyS12Title)}</h2><p>${emailOff(`${e(t.privacyS12Body)} <a href="mailto:admin@cvfit.pro">admin@cvfit.pro</a>`)}</p>
       <p>${e(t.privacyLastUpdated)}</p>`;
   }
 
