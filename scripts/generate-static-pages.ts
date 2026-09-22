@@ -79,7 +79,7 @@ const ROUTE_BREADCRUMB_NAME: Record<string, { vi: string; en: string }> = {
 };
 
 const FAQ_VI = [
-  { q: 'Dữ liệu của tôi có được bảo mật không?', a: 'Tuyệt đối bảo mật. Mọi tập tin bạn tải lên đều được mã hóa bằng giao thức SSL/TLS. Hệ thống sẽ tự động xóa vĩnh viễn dữ liệu của bạn sau 24 giờ kể từ khi phân tích xong. Chúng tôi cam kết không chia sẻ thông tin của bạn cho bất kỳ bên thứ ba nào khi chưa có sự cho phép.' },
+  { q: 'Dữ liệu của tôi có được bảo mật không?', a: 'Tuyệt đối bảo mật. Mọi tập tin bạn tải lên đều được mã hóa bằng giao thức SSL/TLS. Tệp tải lên tạm thời được xóa ngay sau khi trích xuất xong; lịch sử phân tích được giữ cho đến khi bạn tự xóa hoặc xóa tài khoản. Chúng tôi cam kết không chia sẻ thông tin của bạn cho bất kỳ bên thứ ba nào khi chưa có sự cho phép.' },
   { q: 'Hệ thống hỗ trợ những định dạng file nào?', a: 'Công cụ hỗ trợ PDF (.pdf), Word (.docx) và file hình ảnh (JPG, PNG). Khuyến khích dùng PDF để AI phân tích chính xác nhất về bố cục và khả năng đọc của ATS.' },
   { q: 'Làm sao để biết CV của tôi đã chuẩn ATS chưa?', a: 'Sau khi quét, hệ thống sẽ trả về Báo cáo ATS chi tiết. CV được coi là chuẩn ATS khi đạt Matching Score trên 80%, không chứa yếu tố gây nhiễu Robot, và chứa đầy đủ từ khóa quan trọng từ JD.' },
   { q: 'Tôi có thể sử dụng công cụ này miễn phí không?', a: 'Có! Chúng tôi cung cấp phân tích chuyên sâu hoàn toàn miễn phí cho người dùng mới để bạn trải nghiệm sức mạnh của AI.' },
@@ -87,7 +87,7 @@ const FAQ_VI = [
 ];
 
 const FAQ_EN = [
-  { q: 'Is my data secure?', a: 'Absolutely. All uploaded files are encrypted via SSL/TLS. The system permanently deletes your data 24 hours after analysis. We never share your information with third parties without your permission.' },
+  { q: 'Is my data secure?', a: 'Absolutely. All uploaded files are encrypted via SSL/TLS. Temporary uploads are deleted right after text extraction; your analysis history is kept until you delete it or delete your account. We never share your information with third parties without your permission.' },
   { q: 'What file formats are supported?', a: 'PDF (.pdf), Word (.docx), and images (JPG, PNG). We recommend PDF for the most accurate layout and ATS readability analysis.' },
   { q: 'How do I know if my CV is ATS-ready?', a: "After scanning, you'll receive a detailed ATS Report. Your CV is ATS-ready when it scores above 80%, contains no robot-confusing elements, and includes all key JD keywords." },
   { q: 'Can I use this tool for free?', a: 'Yes! We offer in-depth analysis completely free for new users to experience the power of AI.' },
@@ -206,6 +206,38 @@ const SUPPORT_COPY: Record<Lang, { title: string; heroDesc: string; features: { 
   },
 };
 
+const HOME_PURPOSE: Record<Lang, {
+  purposeTitle: string;
+  purposeBody: string;
+  audience: string;
+  noLogin: string;
+  howTitle: string;
+  faqTitle: string;
+}> = {
+  vi: {
+    purposeTitle: 'cvFit là gì?',
+    purposeBody:
+      'cvFit (cvfit.pro) là ứng dụng web giúp người tìm việc kiểm tra mức độ phù hợp giữa CV của mình và một bản mô tả công việc (JD) cụ thể. Bạn tải CV lên (PDF, Word hoặc ảnh) và dán JD vào, hệ thống dùng AI để chấm điểm tương thích ATS, chỉ ra kỹ năng và từ khóa còn thiếu, gợi ý cách viết lại từng phần, và tạo bản CV đã tối ưu để bạn tải về.',
+    audience:
+      'Sản phẩm dành cho ứng viên đang ứng tuyển, sinh viên mới ra trường, người chuyển ngành, và nhà tuyển dụng muốn sàng lọc hồ sơ nhanh hơn.',
+    noLogin:
+      'Bạn có thể xem toàn bộ thông tin về sản phẩm, tính năng, bảng giá, chính sách bảo mật và điều khoản dịch vụ mà không cần đăng nhập. Tài khoản Google chỉ cần khi bạn muốn chạy phân tích và lưu lịch sử kết quả.',
+    howTitle: 'Cách hoạt động',
+    faqTitle: 'Câu hỏi thường gặp',
+  },
+  en: {
+    purposeTitle: 'What is cvFit?',
+    purposeBody:
+      'cvFit (cvfit.pro) is a web application that helps job seekers measure how well their CV matches a specific job description. You upload a CV (PDF, Word or image) and paste in the job description; the app uses AI to score ATS compatibility, highlight missing skills and keywords, suggest section-by-section rewrites, and generate an optimised CV you can download.',
+    audience:
+      'It is built for candidates applying to jobs, new graduates, career changers, and recruiters who want to screen applications faster.',
+    noLogin:
+      'You can browse everything about the product — features, pricing, privacy policy and terms of service — without signing in. A Google account is only required when you want to run an analysis and save your result history.',
+    howTitle: 'How it works',
+    faqTitle: 'Frequently asked questions',
+  },
+};
+
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -249,10 +281,25 @@ function renderRouteContent(subPath: string, lang: Lang): string {
       const desc = t[`feature${n}Desc` as keyof typeof t] as string;
       return `<li><strong>${e(title)}</strong>: ${e(desc)}</li>`;
     }).join('');
+    const steps = (lang === 'vi' ? HOWTO_STEPS_VI : HOWTO_STEPS_EN)
+      .map((st) => `<li><strong>${e(st.name)}</strong>: ${e(st.text)}</li>`)
+      .join('');
+    const faq = (lang === 'vi' ? FAQ_VI : FAQ_EN)
+      .map((f) => `<li><strong>${e(f.q)}</strong> ${e(f.a)}</li>`)
+      .join('');
+    const c = HOME_PURPOSE[lang];
     return `<h1>${e(t.heroTitle)} cvFit</h1>
       <p>${e(t.heroDesc)}</p>
+      <h2>${e(c.purposeTitle)}</h2>
+      <p>${e(c.purposeBody)}</p>
+      <p>${e(c.audience)}</p>
+      <p>${e(c.noLogin)}</p>
+      <h2>${e(c.howTitle)}</h2>
+      <ol>${steps}</ol>
       <h2>${e(t.whyTitle)}</h2>
-      <ul>${features}</ul>`;
+      <ul>${features}</ul>
+      <h2>${e(c.faqTitle)}</h2>
+      <ul>${faq}</ul>`;
   }
 
   if (subPath === '/about') {
@@ -277,6 +324,20 @@ function renderRouteContent(subPath: string, lang: Lang): string {
       <h2>${e(t.privacyS4Title)}</h2><p>${e(t.privacyS4Intro)}</p>
       <ul><li>${e(t.privacyS4Ga4)}</li><li>${e(t.privacyS4Vercel)}</li></ul>
       <h2>${e(t.privacyS5Title)}</h2><p>${e(t.privacyS5Body)}</p>
+      <h2>${e(t.privacyS6Title)}</h2><p>${e(t.privacyS6Intro)}</p>
+      <ul><li>${e(t.privacyS6Scope1)}</li><li>${e(t.privacyS6Scope2)}</li><li>${e(t.privacyS6Scope3)}</li></ul>
+      <p>${e(t.privacyS6Note)}</p>
+      <p>${e(t.privacyS6LimitedUse)} <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a></p>
+      <h2>${e(t.privacyS7Title)}</h2><p>${e(t.privacyS7Intro)}</p>
+      <ul><li>${e(t.privacyS7Item1)}</li><li>${e(t.privacyS7Item2)}</li><li>${e(t.privacyS7Item3)}</li><li>${e(t.privacyS7Item4)}</li><li>${e(t.privacyS7Item5)}</li></ul>
+      <p>${e(t.privacyS7Note)}</p>
+      <h2>${e(t.privacyS8Title)}</h2>
+      <ul><li>${e(t.privacyS8Item1)}</li><li>${e(t.privacyS8Item2)}</li><li>${e(t.privacyS8Item3)}</li><li>${e(t.privacyS8Item4)}</li></ul>
+      <p>${e(t.privacyS8Delete)}</p>
+      <h2>${e(t.privacyS9Title)}</h2><p>${e(t.privacyS9Body)}</p>
+      <h2>${e(t.privacyS10Title)}</h2><p>${e(t.privacyS10Body)}</p>
+      <h2>${e(t.privacyS11Title)}</h2><p>${e(t.privacyS11Body)}</p>
+      <h2>${e(t.privacyS12Title)}</h2><p>${e(t.privacyS12Body)} <a href="mailto:admin@cvfit.pro">admin@cvfit.pro</a></p>
       <p>${e(t.privacyLastUpdated)}</p>`;
   }
 
@@ -342,10 +403,12 @@ function renderPage(template: string, subPath: string, lang: 'vi' | 'en'): strin
 
   $('script[type="application/ld+json"]').text(JSON.stringify(buildSchemaGraph(subPath, lang, desc), null, 2));
 
-  // Visually hidden: crawlers that don't run JS (this fixes Ahrefs' "no outgoing
-  // links") still parse the raw HTML regardless of CSS, but real users would
-  // otherwise see this unstyled text flash before React hydrates and replaces it.
-  const bodyHtml = `<div style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">${renderNav(lang)}<main>${renderRouteContent(subPath, lang)}</main>${renderFooterLinks(lang)}</div>`;
+  // Real, un-clipped content for agents that don't run JS — Google's OAuth brand
+  // verification crawler and Ahrefs both read the raw HTML. It is NOT visually
+  // hidden (clipped text reads as cloaking and gets discounted); instead index.html
+  // adds `.js` to <html> in a head script, and `.js #seo-static { display:none }`
+  // removes it before first paint for real users. React wipes #root on mount anyway.
+  const bodyHtml = `<div id="seo-static">${renderNav(lang)}<main>${renderRouteContent(subPath, lang)}</main>${renderFooterLinks(lang)}</div>`;
   $('#root').html(bodyHtml);
 
   return $.html();
@@ -373,6 +436,12 @@ function main() {
       console.log(`[generate-static-pages] wrote ${path.relative(distDir, outDir)}/index.html`);
     }
   }
+
+  // dist/index.html is the SPA fallback every unprefixed URL rewrites to. Left as
+  // the raw Vite output it ships an empty <div id="root">, so any agent that lands
+  // there without running JS sees zero content. Give it the Vietnamese home render.
+  fs.writeFileSync(templatePath, renderPage(template, '/', 'vi'));
+  console.log('[generate-static-pages] wrote index.html (SPA fallback, vi home)');
 }
 
 main();

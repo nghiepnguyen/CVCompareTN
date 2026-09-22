@@ -484,7 +484,7 @@ export const landing = {
     vi: [
       {
         q: "Dữ liệu của tôi có được bảo mật không?",
-        a: "Tuyệt đối bảo mật. Chúng tôi hiểu rằng CV chứa nhiều thông tin cá nhân nhạy cảm. Mọi tập tin bạn tải lên đều được mã hóa bằng giao thức SSL/TLS cao cấp. Hệ thống sẽ tự động xóa vĩnh viễn dữ liệu của bạn sau 24 giờ kể từ khi phân tích xong. Chúng tôi cam kết không chia sẻ thông tin của bạn cho bất kỳ bên thứ ba hay nhà tuyển dụng nào khi chưa có sự cho phép."
+        a: "Tuyệt đối bảo mật. Chúng tôi hiểu rằng CV chứa nhiều thông tin cá nhân nhạy cảm. Mọi tập tin bạn tải lên đều được mã hóa bằng giao thức SSL/TLS cao cấp. Tệp tải lên tạm thời được xóa ngay sau khi trích xuất xong; lịch sử phân tích được giữ cho đến khi bạn tự xóa hoặc xóa tài khoản. Chúng tôi cam kết không chia sẻ thông tin của bạn cho bất kỳ bên thứ ba hay nhà tuyển dụng nào khi chưa có sự cho phép."
       },
       {
         q: "Hệ thống hỗ trợ những định dạng file nào?",
@@ -506,7 +506,7 @@ export const landing = {
     en: [
       {
         q: "Is my data secure?",
-        a: "Absolutely secure. We understand that CVs contain sensitive personal information. All files you upload are encrypted using high-level SSL/TLS protocols. The system automatically permanently deletes your data 24 hours after analysis is complete. We commit not to share your information with any third party or recruiter without your permission."
+        a: "Absolutely secure. We understand that CVs contain sensitive personal information. All files you upload are encrypted using high-level SSL/TLS protocols. Temporary uploads are deleted right after text extraction; your analysis history is kept until you delete it or delete your account. We commit not to share your information with any third party or recruiter without your permission."
       },
       {
         q: "What file formats are supported?",

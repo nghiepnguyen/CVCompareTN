@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Lock, Eye, FileText, ArrowLeft, Share2, Check, Cookie } from 'lucide-react';
+import { Shield, Lock, Eye, FileText, ArrowLeft, Share2, Check, Cookie, KeyRound, Users, Clock, Baby, Globe, RefreshCw, Mail } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 
 export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
@@ -22,6 +22,15 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
     t.privacyS1Item5,
   ];
   const useItems = [t.privacyS2Item1, t.privacyS2Item2, t.privacyS2Item3, t.privacyS2Item4];
+  const scopeItems = [t.privacyS6Scope1, t.privacyS6Scope2, t.privacyS6Scope3];
+  const thirdPartyItems = [
+    t.privacyS7Item1,
+    t.privacyS7Item2,
+    t.privacyS7Item3,
+    t.privacyS7Item4,
+    t.privacyS7Item5,
+  ];
+  const retentionItems = [t.privacyS8Item1, t.privacyS8Item2, t.privacyS8Item3, t.privacyS8Item4];
 
   return (
     <div className="max-w-4xl mx-auto pt-28 pb-12 px-4">
@@ -120,6 +129,97 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
               <h2 className="text-2xl font-black tracking-tight">{t.privacyS5Title}</h2>
             </div>
             <p className="leading-relaxed">{t.privacyS5Body}</p>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 text-accent mb-2">
+              <KeyRound className="w-6 h-6" />
+              <h2 className="text-2xl font-black tracking-tight">{t.privacyS6Title}</h2>
+            </div>
+            <p className="leading-relaxed">{t.privacyS6Intro}</p>
+            <ul className="list-disc list-inside space-y-2 ml-4">
+              {scopeItems.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <p className="leading-relaxed font-bold">{t.privacyS6Note}</p>
+            <p className="dark:bg-white/[0.03] bg-surface-secondary p-4 rounded-xl border-l-4 border-accent text-sm leading-relaxed">
+              {t.privacyS6LimitedUse}{' '}
+              <a
+                href="https://developers.google.com/terms/api-services-user-data-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent font-bold underline underline-offset-2"
+              >
+                Google API Services User Data Policy
+              </a>
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 text-accent mb-2">
+              <Users className="w-6 h-6" />
+              <h2 className="text-2xl font-black tracking-tight">{t.privacyS7Title}</h2>
+            </div>
+            <p className="leading-relaxed">{t.privacyS7Intro}</p>
+            <ul className="list-disc list-inside space-y-2 ml-4">
+              {thirdPartyItems.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <p className="leading-relaxed">{t.privacyS7Note}</p>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 text-accent mb-2">
+              <Clock className="w-6 h-6" />
+              <h2 className="text-2xl font-black tracking-tight">{t.privacyS8Title}</h2>
+            </div>
+            <ul className="list-disc list-inside space-y-2 ml-4">
+              {retentionItems.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <p className="dark:bg-white/[0.03] bg-surface-secondary p-4 rounded-xl border-l-4 border-accent text-sm leading-relaxed">
+              {t.privacyS8Delete}
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 text-accent mb-2">
+              <Baby className="w-6 h-6" />
+              <h2 className="text-2xl font-black tracking-tight">{t.privacyS9Title}</h2>
+            </div>
+            <p className="leading-relaxed">{t.privacyS9Body}</p>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 text-accent mb-2">
+              <Globe className="w-6 h-6" />
+              <h2 className="text-2xl font-black tracking-tight">{t.privacyS10Title}</h2>
+            </div>
+            <p className="leading-relaxed">{t.privacyS10Body}</p>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 text-accent mb-2">
+              <RefreshCw className="w-6 h-6" />
+              <h2 className="text-2xl font-black tracking-tight">{t.privacyS11Title}</h2>
+            </div>
+            <p className="leading-relaxed">{t.privacyS11Body}</p>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 text-accent mb-2">
+              <Mail className="w-6 h-6" />
+              <h2 className="text-2xl font-black tracking-tight">{t.privacyS12Title}</h2>
+            </div>
+            <p className="leading-relaxed">
+              {t.privacyS12Body.replace('admin@cvfit.pro', '').trim()}{' '}
+              <a href="mailto:admin@cvfit.pro" className="text-accent font-bold underline underline-offset-2">
+                admin@cvfit.pro
+              </a>
+            </p>
           </section>
 
           <div className="pt-8 border-t border-white/[0.06] text-sm text-text-light text-center">

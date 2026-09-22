@@ -3,6 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Prerendered #seo-static (scripts/generate-static-pages.ts) stays visible for
+         agents that do not run JS: Google OAuth brand verification and Ahrefs read
+         the raw HTML. This head script runs before the document body is parsed, so
+         JS users never see the unstyled block flash. -->
+    <script>document.documentElement.className += " js";</script>
+    <style>.js #seo-static { display: none; }</style>
     <!-- Critical origins for first paint: LCP asset host + Google Fonts -->
     <link rel="preconnect" href="https://data.cvfit.pro" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

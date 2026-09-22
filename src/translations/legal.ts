@@ -100,9 +100,125 @@ export const legal = {
     vi: "Bạn có quyền truy cập, chỉnh sửa hoặc yêu cầu xóa dữ liệu cá nhân của mình bất kỳ lúc nào thông qua các tính năng trên trang web hoặc liên hệ trực tiếp với chúng tôi.",
     en: "You may access, correct, or request deletion of your personal data at any time through features on the website or by contacting us directly.",
   },
+  privacyS6Title: {
+    vi: "6. Dữ liệu tài khoản Google và chính sách Limited Use",
+    en: "6. Google account data and the Limited Use policy",
+  },
+  privacyS6Intro: {
+    vi: "cvfit.pro dùng Google Sign-In (OAuth 2.0) làm phương thức đăng nhập. Chúng tôi chỉ yêu cầu các phạm vi (scope) cơ bản, không nhạy cảm:",
+    en: "cvfit.pro uses Google Sign-In (OAuth 2.0) for authentication. We request only basic, non-sensitive scopes:",
+  },
+  privacyS6Scope1: {
+    vi: "openid — xác định danh tính tài khoản Google của bạn.",
+    en: "openid — identifies your Google account.",
+  },
+  privacyS6Scope2: {
+    vi: "userinfo.email — lấy địa chỉ email để tạo và định danh tài khoản cvfit.pro của bạn.",
+    en: "userinfo.email — retrieves your email address to create and identify your cvfit.pro account.",
+  },
+  privacyS6Scope3: {
+    vi: "userinfo.profile — lấy tên hiển thị và ảnh đại diện để hiển thị trong ứng dụng.",
+    en: "userinfo.profile — retrieves your display name and avatar to show inside the app.",
+  },
+  privacyS6Note: {
+    vi: "Chúng tôi KHÔNG yêu cầu quyền truy cập Gmail, Google Drive, Danh bạ, Lịch hay bất kỳ phạm vi nhạy cảm hoặc hạn chế nào khác.",
+    en: "We do NOT request access to Gmail, Google Drive, Contacts, Calendar, or any other sensitive or restricted scope.",
+  },
+  privacyS6LimitedUse: {
+    vi: "Việc cvfit.pro sử dụng và chuyển giao thông tin nhận được từ Google API tới bất kỳ ứng dụng nào khác đều tuân thủ Chính sách Dữ liệu Người dùng Dịch vụ API của Google (Google API Services User Data Policy), bao gồm các yêu cầu Sử dụng Giới hạn (Limited Use). Cụ thể: dữ liệu Google của bạn chỉ dùng để cung cấp và cải thiện những tính năng bạn nhìn thấy trong ứng dụng; không dùng cho quảng cáo; không bán cho bên thứ ba; và không để con người đọc trừ khi bạn cho phép rõ ràng, khi cần cho mục đích bảo mật, hoặc khi pháp luật yêu cầu.",
+    en: "cvfit.pro's use and transfer of information received from Google APIs to any other app adheres to the Google API Services User Data Policy, including the Limited Use requirements. Specifically: your Google data is used only to provide and improve user-facing features in the app; it is never used for advertising; it is never sold to third parties; and no human reads it unless you give explicit consent, it is needed for security purposes, or the law requires it.",
+  },
+  privacyS7Title: {
+    vi: "7. Chia sẻ dữ liệu với bên thứ ba",
+    en: "7. Sharing data with third parties",
+  },
+  privacyS7Intro: {
+    vi: "Chúng tôi không bán dữ liệu cá nhân. Dữ liệu chỉ được chia sẻ với các nhà cung cấp dịch vụ cần thiết để vận hành sản phẩm:",
+    en: "We do not sell personal data. Data is shared only with the service providers required to operate the product:",
+  },
+  privacyS7Item1: {
+    vi: "Google Gemini API (Google LLC) — nội dung CV và JD được gửi tới để phân tích bằng AI. Google không dùng dữ liệu từ API trả phí để huấn luyện mô hình.",
+    en: "Google Gemini API (Google LLC) — CV and JD content is sent there for AI analysis. Google does not use paid-API data to train its models.",
+  },
+  privacyS7Item2: {
+    vi: "Supabase (PostgreSQL, Auth, Storage) — lưu trữ tài khoản, lịch sử phân tích và tệp bạn tải lên.",
+    en: "Supabase (PostgreSQL, Auth, Storage) — stores your account, analysis history, and uploaded files.",
+  },
+  privacyS7Item3: {
+    vi: "Vercel — hạ tầng lưu trữ và chạy máy chủ ứng dụng.",
+    en: "Vercel — hosting and application server infrastructure.",
+  },
+  privacyS7Item4: {
+    vi: "Resend — gửi email giao dịch và phản hồi.",
+    en: "Resend — delivery of transactional and feedback emails.",
+  },
+  privacyS7Item5: {
+    vi: "PayOS — xử lý thanh toán khi bạn nâng cấp gói. Chúng tôi không lưu trữ số thẻ của bạn.",
+    en: "PayOS — payment processing when you upgrade. We never store your card number.",
+  },
+  privacyS7Note: {
+    vi: "Ngoài các trường hợp trên, chúng tôi chỉ tiết lộ dữ liệu khi pháp luật yêu cầu.",
+    en: "Apart from the cases above, we disclose data only when required by law.",
+  },
+  privacyS8Title: {
+    vi: "8. Thời gian lưu trữ và cách xóa dữ liệu",
+    en: "8. Data retention and deletion",
+  },
+  privacyS8Item1: {
+    vi: "Hồ sơ tài khoản (tên, email, ảnh đại diện): lưu trong suốt thời gian tài khoản còn hoạt động.",
+    en: "Account profile (name, email, avatar): retained for as long as your account is active.",
+  },
+  privacyS8Item2: {
+    vi: "Lịch sử phân tích, CV và JD đã lưu: lưu cho đến khi bạn tự xóa chúng hoặc xóa tài khoản.",
+    en: "Analysis history, saved CVs and JDs: retained until you delete them or delete your account.",
+  },
+  privacyS8Item3: {
+    vi: "Tệp tải lên tạm thời phục vụ trích xuất văn bản: xóa ngay sau khi xử lý xong.",
+    en: "Temporary uploads used for text extraction: deleted as soon as processing finishes.",
+  },
+  privacyS8Item4: {
+    vi: "Nhật ký kỹ thuật và dữ liệu đo hiệu năng ẩn danh: tối đa 90 ngày.",
+    en: "Technical logs and anonymous performance metrics: at most 90 days.",
+  },
+  privacyS8Delete: {
+    vi: 'Bạn có thể xóa từng mục trong trang "Lịch sử", hoặc yêu cầu xóa toàn bộ tài khoản và mọi dữ liệu liên quan bằng cách gửi email tới admin@cvfit.pro. Chúng tôi xử lý yêu cầu xóa trong vòng 30 ngày.',
+    en: 'You can delete individual items from the "History" page, or request deletion of your entire account and all associated data by emailing admin@cvfit.pro. We process deletion requests within 30 days.',
+  },
+  privacyS9Title: {
+    vi: "9. Trẻ em",
+    en: "9. Children",
+  },
+  privacyS9Body: {
+    vi: "Dịch vụ không dành cho người dưới 16 tuổi. Nếu phát hiện đã vô tình thu thập dữ liệu của trẻ em dưới 16 tuổi, chúng tôi sẽ xóa dữ liệu đó ngay khi được thông báo.",
+    en: "The service is not intended for anyone under 16. If we learn that we have collected data from a child under 16, we delete that data as soon as we are notified.",
+  },
+  privacyS10Title: {
+    vi: "10. Chuyển dữ liệu quốc tế",
+    en: "10. International data transfers",
+  },
+  privacyS10Body: {
+    vi: "Dữ liệu của bạn có thể được xử lý trên máy chủ đặt ngoài Việt Nam (Supabase, Vercel, Google Cloud). Chúng tôi chỉ chọn những nhà cung cấp áp dụng biện pháp bảo vệ dữ liệu theo tiêu chuẩn quốc tế.",
+    en: "Your data may be processed on servers outside Vietnam (Supabase, Vercel, Google Cloud). We only work with providers that apply internationally recognised data-protection safeguards.",
+  },
+  privacyS11Title: {
+    vi: "11. Thay đổi chính sách",
+    en: "11. Changes to this policy",
+  },
+  privacyS11Body: {
+    vi: "Khi có thay đổi quan trọng, chúng tôi sẽ cập nhật ngày ở cuối trang này và thông báo trong ứng dụng hoặc qua email trước khi thay đổi có hiệu lực.",
+    en: "When we make material changes, we update the date at the bottom of this page and notify you in the app or by email before the changes take effect.",
+  },
+  privacyS12Title: {
+    vi: "12. Liên hệ",
+    en: "12. Contact",
+  },
+  privacyS12Body: {
+    vi: "Mọi câu hỏi về quyền riêng tư, yêu cầu truy cập, chỉnh sửa hoặc xóa dữ liệu, vui lòng liên hệ: admin@cvfit.pro",
+    en: "For any privacy question, or to request access to, correction of, or deletion of your data, contact: admin@cvfit.pro",
+  },
   privacyLastUpdated: {
-    vi: "Cập nhật lần cuối: Ngày 16 tháng 05 năm 2026",
-    en: "Last updated: May 16, 2026",
+    vi: "Cập nhật lần cuối: Ngày 22 tháng 09 năm 2026",
+    en: "Last updated: September 22, 2026",
   },
   termsHeroSubtitle: {
     vi: "Các quy định và điều kiện khi sử dụng dịch vụ của cvfit.pro",
