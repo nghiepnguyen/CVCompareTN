@@ -139,10 +139,11 @@ Domain `cvfit.pro` đi qua Cloudflare trước khi tới Vercel. Hai thứ ở t
 |--------|-------------|------------|
 | **Email Address Obfuscation** (Scrape Shield, bật mặc định) | Mọi email trong HTML bị đổi thành link `/cdn-cgi/l/email-protection`, chỉ JS giải mã. Bot đọc `[email protected]` → chính sách bảo mật coi như không có contact | Bọc `<!--email_off--> … <!--/email_off-->` (helper `emailOff()` trong `scripts/generate-static-pages.ts`). Không cần chỉnh dashboard |
 | **Redirect gốc** | `https://cvfit.pro/` trả `308` → `/vi/` | Khai báo URL trực tiếp `https://cvfit.pro/vi/...` trong Google Console thay vì URL gốc |
+| **Cookie banner che trang** | Google render JS khi verify. Banner cookie cũ có scrim `backdrop-blur` toàn màn hình + `aria-modal` → home bị coi là "behind a login page", privacy "not sufficient content" dù HTML thô đầy đủ | `CookieConsentBanner` là dải không chặn: không scrim, không blur, `role="region"`. Không thêm overlay/modal tự bật nào lên trang public |
 
 ### Checklist trước khi resubmit verification
 
-Google Auth Platform kiểm tra **HTML thô**, không chạy JS. Verify trên edge live sau khi Vercel deploy xong, không chỉ trên `dist/`:
+Google Auth Platform kiểm tra **cả HTML thô lẫn bản render JS** (screenshot). Kiểm tra bản render bằng `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --window-size=1280,1600 --virtual-time-budget=8000 --screenshot=out.png https://cvfit.pro/en/privacy` — trang không được mờ/bị che. Verify trên edge live sau khi Vercel deploy xong, không chỉ trên `dist/`:
 
 ```bash
 curl -s https://cvfit.pro/vi/privacy | grep -c "Limited Use"      # mong đợi 2
@@ -156,7 +157,7 @@ Yêu cầu nội dung của Google (đáp ứng bởi `src/translations/legal.ts
 -   **Home page** phải đọc được khi chưa đăng nhập và phải nói rõ ứng dụng làm gì, cho ai, và rằng không cần đăng nhập để xem thông tin.
 -   Mọi claim về dữ liệu phải **nhất quán giữa các trang** — FAQ landing từng ghi "tự động xóa sau 24 giờ" trái với retention thật trong chính sách bảo mật.
 
-Trong Google Cloud Console → OAuth consent screen, khai báo: home `https://cvfit.pro/vi/`, privacy `https://cvfit.pro/vi/privacy`, terms `https://cvfit.pro/vi/terms`. Domain phải được verify trong Search Console cùng tài khoản submit.
+Trong Google Cloud Console → OAuth consent screen, khai báo: home `https://cvfit.pro/en/`, privacy `https://cvfit.pro/en/privacy`, terms `https://cvfit.pro/en/terms` (bản tiếng Anh cho reviewer). Domain phải được verify trong Search Console cùng tài khoản submit.
 
 ## 5. Bảo mật mã nguồn và bí mật
 
