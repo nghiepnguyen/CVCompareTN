@@ -12,19 +12,31 @@ permissions:
 jobs:
   ping:
     name: Ping Supabase
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Ping Supabase REST API
         run: |
-          code=$(curl -sS -o /tmp/ping.json -w '%{http_code}' \
-            "${SUPABASE_URL}/rest/v1/" \
-            -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
-          echo "HTTP ${code}"
-          if [ "${code}" -ge 400 ]; then
-            echo "Body:"; cat /tmp/ping.json
-            exit 1
-          fi
+          # Không gọi /rest/v1/ (root) — endpoint đó yêu cầu SECRET key,
+          # publishable/anon key sẽ bị trả 401 "Secret API key required".
+          # Thay vào đó gọi một truy vấn nhẹ vào bảng profiles để chạm vào Postgres.
+          for i in 1 2 3; do
+            code=$(curl -sS -o /tmp/ping.json -w '%{http_code}' \
+              "${SUPABASE_URL}/rest/v1/profiles?select=id&limit=1" \
+              -H "apikey: ${SUPABASE_ANON_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+            echo "Attempt ${i}: HTTP ${code}"
+            if [ "${code}" -lt 400 ]; then
+              echo "OK - Supabase is alive"
+              exit 0
+            fi
+            # 4xx = sai key/cấu hình -> dừng ngay; 5xx = có thể project đang wake-up -> thử lại
+            if [ "${code}" -lt 500 ]; then
+              break
+            fi
+            sleep 15
+          done
+          echo "Body:"; cat /tmp/ping.json
+          exit 1
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
