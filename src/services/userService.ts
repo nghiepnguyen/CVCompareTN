@@ -208,13 +208,12 @@ export async function createUserProfile(user: AuthUserInput): Promise<UserProfil
 // Audit logging
 // ---------------------------------------------------------------------------
 
+// Role/plan/delete are audited server-side in _server-lib/admin/audit.ts,
+// next to the privileged write. Only direct client-side profile writes log here.
 type AuditAction =
-  | 'update_role'
   | 'update_permission'
-  | 'update_plan'
   | 'update_analytics_limit'
-  | 'reset_analytics_limit'
-  | 'delete_user';
+  | 'reset_analytics_limit';
 
 async function logAdminAction(
   action: AuditAction,
@@ -300,8 +299,6 @@ export async function updateUserRole(uid: string, role: 'admin' | 'user'): Promi
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string })?.error || `Request failed: ${res.status}`);
   }
-
-  void logAdminAction('update_role', uid, { role });
 }
 
 export type AdminPlanGrant = 'free' | 'pro_30' | 'pro_90' | 'pro_365' | 'recruiter_30';
@@ -357,8 +354,6 @@ export async function adminUpdateUserPlan(
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string })?.error || `Request failed: ${res.status}`);
   }
-
-  void logAdminAction('update_plan', uid, { grant, plan, duration_days: durationDays });
 }
 
 // Server-side hard delete (auth user + cascaded rows + storage). Deleting only

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { logAdminAudit } from './audit.js';
 
 // Buckets whose objects are keyed `${userId}/...` (see src/services/cvService.ts).
 const USER_STORAGE_BUCKETS = ['cv-files', 'cv-analyze-tmp'] as const;
@@ -66,13 +67,7 @@ export async function adminDeleteUser(
 
   // Audit before delete: admin_audit_log.target_user_id is ON DELETE SET NULL,
   // so keep the email in details to know who was removed afterwards.
-  const { error: auditError } = await supabase.from('admin_audit_log').insert({
-    admin_id: callerId,
-    action: 'delete_user',
-    target_user_id: targetUserId,
-    details: { email: target?.email ?? null },
-  });
-  if (auditError) console.error('admin_audit_log insert failed:', auditError);
+  await logAdminAudit(supabase, callerId, 'delete_user', targetUserId, { email: target?.email ?? null });
 
   // Storage first: once the auth user is gone nothing else points at these
   // paths. Best-effort — orphaned files must not block the account deletion.

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getUserFromBearerToken, getSupabaseAdmin } from '../../_server-lib/payment/supabaseAdmin';
 import { adminDeleteUser } from '../../_server-lib/admin/deleteUser';
+import { logAdminAudit } from '../../_server-lib/admin/audit';
 
 const router = Router();
 
@@ -56,6 +57,8 @@ router.post('/set-user-role', async (req, res) => {
       console.error('set_user_role RPC failed:', rpcError);
       return res.status(500).json({ error: 'Failed to update user role', detail: rpcError.message });
     }
+
+    await logAdminAudit(supabase, user.id, 'update_role', p_user_id, { role: p_role });
 
     return res.status(200).json({ success: true });
   } catch (err) {
@@ -119,6 +122,11 @@ router.post('/set-user-plan', async (req, res) => {
       console.error('admin_set_user_plan RPC failed:', rpcError);
       return res.status(500).json({ error: 'Failed to update user plan', detail: rpcError.message });
     }
+
+    await logAdminAudit(supabase, user.id, 'update_plan', p_user_id, {
+      plan: p_plan,
+      duration_days: p_duration_days ?? 30,
+    });
 
     return res.status(200).json({ success: true });
   } catch (err) {

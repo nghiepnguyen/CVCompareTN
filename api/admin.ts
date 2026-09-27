@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
 import { getUserFromBearerToken, getSupabaseAdmin } from '../_server-lib/payment/supabaseAdmin.js';
 import { adminDeleteUser } from '../_server-lib/admin/deleteUser.js';
+import { logAdminAudit } from '../_server-lib/admin/audit.js';
 
 /**
  * Unified admin handler — dispatches by URL path segment.
@@ -68,6 +69,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(500).json({ error: 'Failed to update user role', detail: rpcError.message });
         }
 
+        await logAdminAudit(supabase, user.id, 'update_role', p_user_id, { role: p_role });
+
         return res.status(200).json({ success: true });
       }
 
@@ -95,6 +98,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.error('admin_set_user_plan RPC failed:', rpcError);
           return res.status(500).json({ error: 'Failed to update user plan', detail: rpcError.message });
         }
+
+        await logAdminAudit(supabase, user.id, 'update_plan', p_user_id, {
+          plan: p_plan,
+          duration_days: p_duration_days ?? 30,
+        });
 
         return res.status(200).json({ success: true });
       }
