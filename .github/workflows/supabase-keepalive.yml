@@ -2,8 +2,8 @@ name: Supabase Keep-Alive
 
 on:
   schedule:
-    # Mỗi ngày 06:00 UTC — thấp hơn nhiều ngưỡng pause 7 ngày của Supabase Free
-    - cron: '0 6 * * *'
+    # 5 ngày/lần vào 06:00 UTC (ngày 1, 6, 11, 16, 21, 26, 31) — dưới ngưỡng pause 7 ngày
+    - cron: '0 6 */5 * *'
   workflow_dispatch: {}
 
 permissions:
