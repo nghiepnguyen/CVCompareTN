@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getUserFromBearerToken, getSupabaseAdmin } from '../../_server-lib/payment/supabaseAdmin';
+import { adminDeleteUser } from '../../_server-lib/admin/deleteUser';
 
 const router = Router();
 
@@ -122,6 +123,49 @@ router.post('/set-user-plan', async (req, res) => {
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error('admin/set-user-plan error:', err);
+    const message = err instanceof Error ? err.message : 'Server error';
+    return res.status(500).json({ error: 'Server error', detail: message });
+  }
+});
+
+/**
+ * POST /api/admin/delete-user
+ * Admin-only: hard-delete auth user (cascades profile/history) + storage objects.
+ */
+router.post('/delete-user', async (req, res) => {
+  try {
+    const authHeader =
+      typeof req.headers.authorization === 'string' ? req.headers.authorization : undefined;
+
+    const user = await getUserFromBearerToken(authHeader);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { p_user_id } = req.body as { p_user_id?: string };
+    if (!p_user_id) {
+      return res.status(400).json({ error: 'Missing p_user_id' });
+    }
+
+    const supabase = getSupabaseAdmin();
+
+    const { data: profileCheck, error: profileCheckError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profileCheckError || !profileCheck || profileCheck.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: admin access required' });
+    }
+
+    const result = await adminDeleteUser(supabase, user.id, p_user_id);
+    if (result.ok === false) {
+      return res.status(result.status).json({ error: result.error });
+    }
+    return res.status(200).json({ success: true, storageErrors: result.storageErrors });
+  } catch (err) {
+    console.error('admin/delete-user error:', err);
     const message = err instanceof Error ? err.message : 'Server error';
     return res.status(500).json({ error: 'Server error', detail: message });
   }

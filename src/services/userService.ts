@@ -361,16 +361,26 @@ export async function adminUpdateUserPlan(
   void logAdminAction('update_plan', uid, { grant, plan, duration_days: durationDays });
 }
 
+// Server-side hard delete (auth user + cascaded rows + storage). Deleting only
+// the profiles row left the auth account alive, so the next login re-created a
+// fresh profile with usage_count 0. The server also writes the audit log entry.
 export async function deleteUser(id: string): Promise<void> {
-  // Log before delete so target_user_id still resolves in the DB
-  await logAdminAction('delete_user', id);
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Not authenticated');
 
-  const { error } = await supabase
-    .from('profiles')
-    .delete()
-    .eq('id', id);
+  const res = await fetch('/api/admin/delete-user', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ p_user_id: id }),
+  });
 
-  if (error) throw error;
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string })?.error || `Request failed: ${res.status}`);
+  }
 }
 
 export async function getAllUsers(): Promise<UserProfile[]> {

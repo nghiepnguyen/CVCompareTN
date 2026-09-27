@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign, Gauge, HelpCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useUI } from '../../context/UIContext';
@@ -19,17 +19,22 @@ export function AdminReportTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Guard against out-of-order responses: switching range quickly must not let
+  // a slower, older request overwrite the stats for the range now selected.
+  const requestIdRef = useRef(0);
   const loadStats = useCallback(async (r: ReportRange) => {
+    const requestId = ++requestIdRef.current;
     setIsLoading(true);
     setError(null);
     try {
       const data = await getAdminReportStats(r);
-      setStats(data);
+      if (requestId === requestIdRef.current) setStats(data);
     } catch (err: unknown) {
+      if (requestId !== requestIdRef.current) return;
       const message = err instanceof Error ? err.message : String(err);
       setError(formatLabel(t.adminReportLoadError, { message }));
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) setIsLoading(false);
     }
   }, [t.adminReportLoadError]);
 
@@ -39,7 +44,7 @@ export function AdminReportTab() {
 
   const chartData = (stats?.dailyCounts ?? []).map((d) => ({
     ...d,
-    label: new Date(d.date).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit' }),
+    label: new Date(`${d.date}T00:00:00Z`).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', timeZone: 'UTC' }),
   }));
 
   const formatTokens = (value: number) => Math.round(value).toLocaleString(dateLocale);
@@ -66,7 +71,7 @@ export function AdminReportTab() {
               type="button"
               onClick={() => setRange(opt.value)}
               className={cn(
-                'px-4 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wide transition-all cursor-pointer',
+                'px-4 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wide transition-all cursor-pointer hover:scale-105 active:scale-95',
                 range === opt.value
                   ? 'bg-surface text-accent shadow-sm border border-border'
                   : 'text-text-muted hover:text-text-main'
@@ -87,7 +92,7 @@ export function AdminReportTab() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
           { label: t.adminReportNewUsers, value: stats?.newUsersCount ?? 0, icon: UserPlus, color: 'text-accent', bg: 'bg-accent-light' },
           { label: t.adminReportTotalAnalyses, value: (stats?.totalSuccess ?? 0) + (stats?.totalError ?? 0), icon: Activity, color: 'text-text-main', bg: 'bg-surface-secondary' },
@@ -169,7 +174,7 @@ export function AdminReportTab() {
           <BarChart3 className="w-5 h-5 text-accent" />
           {t.adminReportDailyChartTitle}
         </h3>
-        {chartData.length === 0 ? (
+        {chartData.every((d) => d.success + d.error === 0) ? (
           <p className="text-sm text-text-muted text-center py-12">{t.adminReportEmptyState}</p>
         ) : (
           <div className="h-64 min-h-[256px] w-full min-w-0 shrink-0">

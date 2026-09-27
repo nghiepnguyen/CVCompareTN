@@ -21,6 +21,11 @@ export interface UiLabels {
   adminColMember: string;
   adminColStatus: string;
   adminConfirmDelete: string;
+  adminConfirmRoleChange: string;
+  adminDismissError: string;
+  adminUsersEmptyState: string;
+  adminLoadingMore: string;
+  adminLoadMoreUsers: string;
   adminDelete: string;
   adminDirectoryTitle: string;
   adminFilterRole: string;

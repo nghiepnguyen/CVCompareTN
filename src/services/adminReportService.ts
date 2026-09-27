@@ -156,9 +156,17 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
     }
   }
 
-  const dailyCounts = Array.from(dailyMap.entries())
-    .map(([date, v]) => ({ date, success: v.success, error: v.error }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  // Emit every VN day in the range (zeros included) — skipping empty days made
+  // the 7d/30d chart silently collapse gaps, so quiet days looked like neighbours.
+  const dailyCounts: DailyAnalysisCount[] = [];
+  const rangeStart = getRangeStart(range);
+  const todayKey = dayKey(new Date().toISOString());
+  for (let d = new Date(rangeStart); ; d.setUTCDate(d.getUTCDate() + 1)) {
+    const key = dayKey(d.toISOString());
+    const v = dailyMap.get(key) ?? { success: 0, error: 0 };
+    dailyCounts.push({ date: key, success: v.success, error: v.error });
+    if (key >= todayKey) break;
+  }
 
   const topUserIds = Array.from(userCounts.entries())
     .sort((a, b) => b[1] - a[1])

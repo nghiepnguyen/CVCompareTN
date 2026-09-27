@@ -312,6 +312,26 @@ export const admin = {
     vi: "Xác nhận xóa vĩnh viễn thực thể này?",
     en: "Permanently delete this user?",
   },
+  adminConfirmRoleChange: {
+    vi: "Đổi quyền của {email} thành \"{role}\"?",
+    en: "Change {email}'s role to \"{role}\"?",
+  },
+  adminDismissError: {
+    vi: "Đóng thông báo lỗi",
+    en: "Dismiss error",
+  },
+  adminUsersEmptyState: {
+    vi: "Không có người dùng nào khớp.",
+    en: "No matching users.",
+  },
+  adminLoadingMore: {
+    vi: "Đang tải...",
+    en: "Loading...",
+  },
+  adminLoadMoreUsers: {
+    vi: "Tải thêm (đã tải {count})",
+    en: "Load more ({count} loaded)",
+  },
   adminMarkReadError: {
     vi: "Lỗi: {message}",
     en: "Error: {message}",

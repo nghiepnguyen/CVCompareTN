@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, BarChart3, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown, Briefcase } from 'lucide-react';
+import { Users, BarChart3, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown, Briefcase, AlertCircle, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -41,11 +41,10 @@ export function AdminView() {
   const [planFilter, setPlanFilter] = useState<'all' | 'free' | 'pro' | 'recruiter'>('all');
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
   const [savingLimitUserId, setSavingLimitUserId] = useState<string | null>(null);
   const [savingPlanUserId, setSavingPlanUserId] = useState<string | null>(null);
-  const [globalDefaultLimit, setGlobalDefaultLimit] = useState(10);
-  const [globalLimitDraft, setGlobalLimitDraft] = useState('10');
+  const [globalDefaultLimit, setGlobalDefaultLimit] = useState(5);
+  const [globalLimitDraft, setGlobalLimitDraft] = useState('5');
   const [isSavingGlobalLimit, setIsSavingGlobalLimit] = useState(false);
   const [globalLimitMessage, setGlobalLimitMessage] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -76,6 +75,9 @@ export function AdminView() {
   // "Load more" below) — filtering/searching that loaded window only would silently
   // miss matches past it. Whenever a search term or plan filter is active, scan the
   // full profiles table instead so results are always complete.
+  // allUsers gets a new reference on every realtime profiles change (useAdminUsers
+  // re-fetches), so depending on it keeps the filtered snapshot live too — otherwise
+  // usage/limit/plan edits never show up while a search or filter is active.
   const isFiltering = userSearchTerm.trim() !== '' || planFilter !== 'all';
   const [allProfiles, setAllProfiles] = useState<UserProfile[] | null>(null);
   useEffect(() => {
@@ -85,7 +87,7 @@ export function AdminView() {
       .then((rows) => { if (!cancelled) setAllProfiles(rows); })
       .catch((err: unknown) => console.error('fetchAllProfiles failed:', err));
     return () => { cancelled = true; };
-  }, [isFiltering]);
+  }, [isFiltering, allUsers]);
   const searchScopedUsers = isFiltering ? (allProfiles ?? []) : allUsers;
 
   const filteredUsers = useMemo(
@@ -108,11 +110,13 @@ export function AdminView() {
     setCurrentPage(1);
   }, [userSearchTerm, planFilter]);
 
-  const getLimitDraft = (u: UserProfile) => {
-    if (limitDrafts[u.id] !== undefined) return limitDrafts[u.id];
-    if (!u.monthlyAnalyticsLimitCustom) return '';
-    return u.monthlyAnalyticsLimit === null ? '' : String(u.monthlyAnalyticsLimit);
-  };
+  // Realtime refreshes/deletes can shrink the list under the current page —
+  // clamp so the table never lands on an empty page past the end.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const toErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
   const formatUsageLimit = (u: UserProfile) => {
     const effective = resolveEffectiveMonthlyAnalyticsLimit(u, globalDefaultLimit);
@@ -137,42 +141,39 @@ export function AdminView() {
       setGlobalDefaultLimit(parsed);
       setGlobalLimitMessage(t.adminGlobalAnalyticsSaved);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
+      setError(toErrorMessage(err));
     } finally {
       setIsSavingGlobalLimit(false);
     }
   };
 
-  const handleResetToGlobalLimit = async (u: UserProfile) => {
+  const handleResetToGlobalLimit = async (u: UserProfile): Promise<boolean> => {
     setSavingLimitUserId(u.id);
     setError(null);
     try {
       await resetUserToGlobalAnalyticsLimit(u.id);
-      setLimitDrafts((prev) => {
-        const next = { ...prev };
-        delete next[u.id];
-        return next;
-      });
+      return true;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
+      setError(toErrorMessage(err));
+      return false;
     } finally {
       setSavingLimitUserId(null);
     }
   };
 
-  const handleSaveMonthlyLimit = async (u: UserProfile) => {
-    const raw = getLimitDraft(u).trim();
+  // Takes the draft explicitly: reading it back from state right after a
+  // setState in the same handler would see the stale pre-update value.
+  const handleSaveMonthlyLimit = async (u: UserProfile, rawDraft: string): Promise<boolean> => {
+    const raw = rawDraft.trim();
     if (raw === '' && !u.monthlyAnalyticsLimitCustom) {
-      return;
+      return true;
     }
     let limit: number | null = null;
     if (raw !== '') {
       const parsed = parseInt(raw, 10);
       if (Number.isNaN(parsed) || parsed < 0) {
         setError(t.adminInvalidAnalyticsLimit);
-        return;
+        return false;
       }
       limit = parsed;
     }
@@ -180,30 +181,79 @@ export function AdminView() {
     setError(null);
     try {
       await updateUserMonthlyAnalyticsLimit(u.id, limit);
-      setLimitDrafts((prev) => {
-        const next = { ...prev };
-        delete next[u.id];
-        return next;
-      });
+      return true;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
+      setError(toErrorMessage(err));
+      return false;
     } finally {
       setSavingLimitUserId(null);
     }
   };
 
-  const handleAdminPlanChange = async (u: UserProfile, grant: AdminPlanGrant) => {
+  const handleAdminPlanChange = async (u: UserProfile, grant: AdminPlanGrant): Promise<boolean> => {
     setSavingPlanUserId(u.id);
     setError(null);
     try {
       await adminUpdateUserPlan(u.id, grant);
-      setPlanModal(null);
+      return true;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(formatLabel(t.adminPlanChangeError, { message }));
+      setError(formatLabel(t.adminPlanChangeError, { message: toErrorMessage(err) }));
+      return false;
     } finally {
       setSavingPlanUserId(null);
+    }
+  };
+
+  const handleSavePlanModal = async () => {
+    if (!planModal) return;
+    const { user: target, limitDraft, grant } = planModal;
+    const newLimit = limitDraft.trim();
+    const oldLimit = target.monthlyAnalyticsLimitCustom
+      ? (target.monthlyAnalyticsLimit === null ? '' : String(target.monthlyAnalyticsLimit))
+      : '';
+    if (newLimit !== oldLimit) {
+      const ok = newLimit === ''
+        ? (target.monthlyAnalyticsLimitCustom ? await handleResetToGlobalLimit(target) : true)
+        : await handleSaveMonthlyLimit(target, newLimit);
+      if (!ok) return;
+    }
+    if (grant !== adminPlanSelectValue(target)) {
+      const ok = await handleAdminPlanChange(target, grant);
+      if (!ok) return;
+    }
+    setPlanModal(null);
+  };
+
+  const handleToggleRole = async (u: UserProfile) => {
+    const nextRole = u.role === 'admin' ? 'user' : 'admin';
+    if (!window.confirm(formatLabel(t.adminConfirmRoleChange, { email: u.email, role: nextRole }))) return;
+    setError(null);
+    try {
+      await updateUserRole(u.id, nextRole);
+    } catch (err: unknown) {
+      setError(toErrorMessage(err));
+    }
+  };
+
+  const handleTogglePermission = async (u: UserProfile) => {
+    setError(null);
+    try {
+      await updateUserPermission(u.id, !u.hasPermission);
+    } catch (err: unknown) {
+      setError(toErrorMessage(err));
+    }
+  };
+
+  const handleDeleteUser = async (u: UserProfile) => {
+    if (!window.confirm(t.adminConfirmDelete)) return;
+    setDeletingUserId(u.id);
+    setError(null);
+    try {
+      await deleteUser(u.id);
+    } catch (err: unknown) {
+      setError(toErrorMessage(err));
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -224,7 +274,7 @@ export function AdminView() {
           <button 
             onClick={() => setAdminSubTab('users')}
             className={cn(
-              "px-5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 uppercase tracking-wider",
+              "px-5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95",
               adminSubTab === 'users' ? "bg-surface text-accent shadow-sm border border-border" : "text-text-muted hover:text-text-main"
             )}
           >
@@ -234,7 +284,7 @@ export function AdminView() {
           <button
             onClick={() => setAdminSubTab('report')}
             className={cn(
-              "px-5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 uppercase tracking-wider",
+              "px-5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95",
               adminSubTab === 'report' ? "bg-surface text-accent shadow-sm border border-border" : "text-text-muted hover:text-text-main"
             )}
           >
@@ -246,6 +296,20 @@ export function AdminView() {
 
       {adminSubTab === 'users' ? (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {error && !planModal && (
+            <div role="alert" className="p-4 rounded-xl border bg-error-light border-error/10 text-error flex items-center gap-3">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span className="text-xs font-bold flex-1">{error}</span>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                aria-label={t.adminDismissError}
+                className="p-1 rounded-md cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           {/* Quick Stats / New Users */}
           <AnimatePresence>
             {newUsersCount > 0 && (
@@ -458,8 +522,8 @@ export function AdminView() {
                           </span>
                           {u.id !== user?.id && (
                             <button 
-                              onClick={() => updateUserRole(u.id, u.role === 'admin' ? 'user' : 'admin')}
-                              className="opacity-0 group-hover:opacity-100 p-1 text-text-light hover:text-accent transition-all hover:scale-110"
+                              onClick={() => void handleToggleRole(u)}
+                              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 text-text-light hover:text-accent transition-all cursor-pointer hover:scale-110 active:scale-95"
                               title={t.adminToggleRole}
                             >
                               <UserCog className="w-3.5 h-3.5" />
@@ -517,7 +581,7 @@ export function AdminView() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4" colSpan={0}>
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-1.5">
                           <Activity className="w-3.5 h-3.5 text-accent-light shrink-0" />
                           <span className="text-[11px] font-black text-text-main">
@@ -552,26 +616,25 @@ export function AdminView() {
                           {u.id !== user?.id && (
                             <>
                               <button 
-                                onClick={() => updateUserPermission(u.id, !u.hasPermission)}
+                                onClick={() => void handleTogglePermission(u)}
                                 className={cn(
-                                  "p-2 rounded-lg transition-all hover:scale-110 active:scale-95",
+                                  "p-2 rounded-lg transition-all cursor-pointer hover:scale-110 active:scale-95",
                                   u.hasPermission ? "text-text-light hover:text-warning hover:bg-warning-light" : "text-success hover:bg-success-light"
                                 )}
                                 title={u.hasPermission ? t.adminLock : t.adminUnlock}
                               >
                                 {u.hasPermission ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                               </button>
+                              {u.role !== 'admin' && (
                               <button 
-                                onClick={() => {
-                                  if (window.confirm(t.adminConfirmDelete)) {
-                                    deleteUser(u.id);
-                                  }
-                                }}
-                                className="p-2 text-text-light hover:text-error hover:bg-error-light rounded-lg transition-all hover:scale-110"
+                                onClick={() => void handleDeleteUser(u)}
+                                disabled={deletingUserId === u.id}
+                                className="p-2 text-text-light hover:text-error hover:bg-error-light rounded-lg transition-all cursor-pointer hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                 title={t.adminDelete}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                {deletingUserId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                               </button>
+                              )}
                             </>
                           )}
                           <ChevronRight className="w-4 h-4 text-border group-hover:text-accent-light transition-colors" />
@@ -579,6 +642,17 @@ export function AdminView() {
                       </td>
                     </tr>
                   ))}
+                  {paginatedUsers.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-sm text-text-muted">
+                        {isFiltering && allProfiles === null ? (
+                          <Loader2 className="w-5 h-5 animate-spin mx-auto text-text-light" />
+                        ) : (
+                          t.adminUsersEmptyState
+                        )}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
               </div>
@@ -587,7 +661,7 @@ export function AdminView() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm px-1">
               <p className="text-xs font-bold text-text-muted">
                 {formatLabel(t.adminPaginationInfo, {
-                  start: String((currentPage - 1) * pageSize + 1),
+                  start: String(filteredUsers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1),
                   end: String(Math.min(currentPage * pageSize, filteredUsers.length)),
                   total: String(filteredUsers.length),
                 })}
@@ -597,7 +671,7 @@ export function AdminView() {
                   type="button"
                   disabled={currentPage <= 1}
                   onClick={() => setCurrentPage(1)}
-                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   <ChevronsLeft className="size-4" />
                 </button>
@@ -605,7 +679,7 @@ export function AdminView() {
                   type="button"
                   disabled={currentPage <= 1}
                   onClick={() => setCurrentPage(p => p - 1)}
-                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   <ChevronLeft className="size-4" />
                 </button>
@@ -620,7 +694,7 @@ export function AdminView() {
                         type="button"
                         onClick={() => setCurrentPage(p)}
                         className={cn(
-                          'min-w-[32px] px-2 py-1.5 rounded-lg text-xs font-black transition-all',
+                          'min-w-[32px] px-2 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer hover:scale-105 active:scale-95',
                           p === currentPage
                             ? 'bg-accent text-white'
                             : 'text-text-light hover:text-text-main hover:bg-surface-secondary'
@@ -634,7 +708,7 @@ export function AdminView() {
                   type="button"
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage(p => p + 1)}
-                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   <ChevronRight className="size-4" />
                 </button>
@@ -642,23 +716,25 @@ export function AdminView() {
                   type="button"
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage(totalPages)}
-                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-2 rounded-lg text-text-light hover:text-text-main hover:bg-surface-secondary transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   <ChevronsRight className="size-4" />
                 </button>
               </div>
             </div>
 
-            {hasMore && (
+            {hasMore && !isFiltering && (
               <div className="flex justify-center pt-2 pb-4">
                 <button
                   type="button"
                   onClick={loadMore}
                   disabled={isLoadingUsers}
-                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold text-accent border border-accent/30 hover:bg-accent/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold text-accent border border-accent/30 hover:bg-accent/5 transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoadingUsers ? <Loader2 className="size-4 animate-spin" /> : null}
-                  {isLoadingUsers ? 'Đang tải...' : `Tải thêm ${allUsers.length}+ người dùng`}
+                  {isLoadingUsers
+                    ? t.adminLoadingMore
+                    : formatLabel(t.adminLoadMoreUsers, { count: String(allUsers.length) })}
                 </button>
               </div>
             )}
@@ -676,7 +752,7 @@ export function AdminView() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setPlanModal(null)}
+              onClick={() => { setError(null); setPlanModal(null); }}
             />
             <motion.div
               className="relative z-10 w-full max-w-sm bg-surface border border-border rounded-2xl shadow-2xl p-6"
@@ -754,12 +830,11 @@ export function AdminView() {
                 {planModal.user.monthlyAnalyticsLimitCustom && (
                   <button
                     type="button"
-                    onClick={() => {
-                      void handleResetToGlobalLimit(planModal.user);
+                    onClick={() =>
                       setPlanModal((prev) =>
                         prev ? { ...prev, limitDraft: '' } : prev
-                      );
-                    }}
+                      )
+                    }
                     disabled={savingLimitUserId === planModal.user.id}
                     className="mt-2 text-[10px] font-bold text-accent uppercase tracking-wider hover:underline cursor-pointer disabled:opacity-50"
                   >
@@ -768,10 +843,17 @@ export function AdminView() {
                 )}
               </div>
 
+              {error && (
+                <div role="alert" className="mb-4 p-3 rounded-xl border bg-error-light border-error/10 text-error flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span className="text-xs font-bold">{error}</span>
+                </div>
+              )}
+
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setPlanModal(null)}
+                  onClick={() => { setError(null); setPlanModal(null); }}
                   className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold border border-border text-text-muted hover:text-text-main cursor-pointer transition-colors bg-surface-secondary"
                 >
                   Huỷ
@@ -779,33 +861,7 @@ export function AdminView() {
                 <button
                   type="button"
                   disabled={savingPlanUserId === planModal.user.id || savingLimitUserId === planModal.user.id}
-                  onClick={async () => {
-                    // Save analytics limit if changed
-                    const newLimit = planModal.limitDraft.trim();
-                    const oldLimit = planModal.user.monthlyAnalyticsLimitCustom
-                      ? (planModal.user.monthlyAnalyticsLimit === null ? '' : String(planModal.user.monthlyAnalyticsLimit))
-                      : '';
-                    if (newLimit !== oldLimit) {
-                      if (newLimit === '') {
-                        // Reset to global
-                        if (planModal.user.monthlyAnalyticsLimitCustom) {
-                          await handleResetToGlobalLimit(planModal.user);
-                        }
-                      } else {
-                        const parsed = parseInt(newLimit, 10);
-                        if (!Number.isNaN(parsed) && parsed >= 0) {
-                          setLimitDrafts((prev) => ({ ...prev, [planModal.user.id]: newLimit }));
-                          await handleSaveMonthlyLimit(planModal.user);
-                        }
-                      }
-                    }
-                    // Save plan if changed
-                    if (planModal.grant !== adminPlanSelectValue(planModal.user)) {
-                      await handleAdminPlanChange(planModal.user, planModal.grant);
-                    } else {
-                      setPlanModal(null);
-                    }
-                  }}
+                  onClick={() => void handleSavePlanModal()}
                   className={cn(
                     'flex-1 px-4 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider text-white cursor-pointer transition-all bg-accent hover:scale-[1.02] active:scale-[0.98]',
                     (savingPlanUserId === planModal.user.id || savingLimitUserId === planModal.user.id) &&

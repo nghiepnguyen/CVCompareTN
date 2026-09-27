@@ -18,6 +18,8 @@ Canonical reference for **which runtime handles each capability**. Từ 2026-06,
 | PayOS — tạo link | `POST /api/payment/create` → `api/payment.ts` (unified) | `POST /api/payment/create` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
 | PayOS — webhook | `POST /api/payment/webhook` → `api/payment.ts` | `POST /api/payment/webhook` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
 | PayOS — confirm (fallback) | `POST /api/payment/confirm` → `api/payment.ts` | `POST /api/payment/confirm` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
+| Admin — đổi role / plan | `POST /api/admin/set-user-role`, `/api/admin/set-user-plan` → `api/admin.ts` (unified, Bearer + role=admin) | `server/routes/admin.ts` | RPC `set_user_role` / `admin_set_user_plan` |
+| Admin — xoá user (hard delete) | `POST /api/admin/delete-user` → `api/admin.ts` | `POST /api/admin/delete-user` → `server/routes/admin.ts` | `_server-lib/admin/deleteUser.ts` (xoá `auth.users` → cascade profiles/history; dọn storage `cv-files`, `cv-analyze-tmp`; chặn xoá admin/chính mình) |
 | Recruiter — lưu phân tích | `POST /api/recruiter/save-analysis` → `api/recruiter/save-analysis.ts` | `POST /api/recruiter/save-analysis` → `server/routes/recruiter.ts` | Inline (RPC call) |
 
 Rewrites are defined in [`vercel.json`](../vercel.json).

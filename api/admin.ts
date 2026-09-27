@@ -1,12 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
 import { getUserFromBearerToken, getSupabaseAdmin } from '../_server-lib/payment/supabaseAdmin.js';
+import { adminDeleteUser } from '../_server-lib/admin/deleteUser.js';
 
 /**
  * Unified admin handler — dispatches by URL path segment.
  *
  * Vercel rewrite maps /api/admin/{action} → /api/admin.ts
- * Actions: set-user-role, set-user-plan
+ * Actions: set-user-role, set-user-plan, delete-user
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentryServer();
@@ -96,6 +97,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         return res.status(200).json({ success: true });
+      }
+
+      case 'delete-user': {
+        const { p_user_id } = (req.body || {}) as { p_user_id?: string };
+        if (!p_user_id) {
+          return res.status(400).json({ error: 'Missing p_user_id' });
+        }
+
+        const result = await adminDeleteUser(supabase, user.id, p_user_id);
+        if (result.ok === false) {
+          return res.status(result.status).json({ error: result.error });
+        }
+        return res.status(200).json({ success: true, storageErrors: result.storageErrors });
       }
 
       default: {
