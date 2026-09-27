@@ -4,6 +4,12 @@ import { mapProfile } from '../services/userService';
 import type { UserProfile } from '../services/userService';
 
 const PAGE_SIZE = 50;
+// Every analysis bumps a profiles row, so bursts of realtime events are normal —
+// coalesce them into one re-fetch instead of one per event.
+const REALTIME_DEBOUNCE_MS = 1000;
+// effective_usage_count is time-dependent (quota cycle rollover / plan expiry)
+// and changes without any row write, so no realtime event ever fires for it.
+const PERIODIC_REFRESH_MS = 5 * 60 * 1000;
 
 export interface AdminUsersState {
   users: UserProfile[];
@@ -61,12 +67,32 @@ export function useAdminUsers(): AdminUsersState {
   useEffect(() => {
     fetchRange(0, PAGE_SIZE - 1, true);
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        refresh();
+      }, REALTIME_DEBOUNCE_MS);
+    };
+
     const channel = supabase
       .channel('admin_users_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, scheduleRefresh)
       .subscribe();
 
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, PERIODIC_REFRESH_MS);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       supabase.removeChannel(channel);
     };
   }, [refresh]);
