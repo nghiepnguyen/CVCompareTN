@@ -72,7 +72,10 @@ export function useAdminUsers(): AdminUsersState {
     fetchRange(0, PAGE_SIZE - 1, true);
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    // removeChannel is async — an in-flight event can still land after cleanup.
+    let disposed = false;
     const scheduleRefresh = () => {
+      if (disposed) return;
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
@@ -94,6 +97,7 @@ export function useAdminUsers(): AdminUsersState {
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
+      disposed = true;
       if (debounceTimer) clearTimeout(debounceTimer);
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisibilityChange);
