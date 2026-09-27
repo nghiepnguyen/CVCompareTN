@@ -304,13 +304,41 @@ export const admin = {
     vi: "Mặc định: {limit}",
     en: "Default: {limit}",
   },
-  adminResetToGlobalLimit: {
-    vi: "Dùng mặc định",
-    en: "Use default",
-  },
   adminConfirmDelete: {
     vi: "Xác nhận xóa vĩnh viễn thực thể này?",
     en: "Permanently delete this user?",
+  },
+  adminEditUserButton: {
+    vi: "Chỉnh sửa ▾",
+    en: "Edit ▾",
+  },
+  adminCustomLimitBadge: {
+    vi: "(tuỳ chỉnh)",
+    en: "(custom)",
+  },
+  adminEditUserTitle: {
+    vi: "Chỉnh sửa người dùng",
+    en: "Edit user",
+  },
+  adminPlanSectionLabel: {
+    vi: "Gói dịch vụ",
+    en: "Plan",
+  },
+  adminResetToGlobalLimitWithValue: {
+    vi: "Dùng mặc định ({limit}/tháng)",
+    en: "Use default ({limit}/month)",
+  },
+  adminCancel: {
+    vi: "Huỷ",
+    en: "Cancel",
+  },
+  adminSaveChanges: {
+    vi: "Lưu thay đổi",
+    en: "Save changes",
+  },
+  adminPaginationDbTotal: {
+    vi: "· tổng {total} trong hệ thống",
+    en: "· {total} total in database",
   },
   adminConfirmRoleChange: {
     vi: "Đổi quyền của {email} thành \"{role}\"?",

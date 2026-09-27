@@ -21,6 +21,14 @@ export interface UiLabels {
   adminColMember: string;
   adminColStatus: string;
   adminConfirmDelete: string;
+  adminEditUserButton: string;
+  adminCustomLimitBadge: string;
+  adminEditUserTitle: string;
+  adminPlanSectionLabel: string;
+  adminResetToGlobalLimitWithValue: string;
+  adminCancel: string;
+  adminSaveChanges: string;
+  adminPaginationDbTotal: string;
   adminConfirmRoleChange: string;
   adminDismissError: string;
   adminUsersEmptyState: string;
@@ -45,7 +53,6 @@ export interface UiLabels {
   adminGlobalAnalyticsSaved: string;
   adminAnalyticsUsingDefault: string;
   adminAnalyticsLimitPlaceholderInherit: string;
-  adminResetToGlobalLimit: string;
   adminLock: string;
   adminMarkReadError: string;
   adminPlanChangeError: string;

@@ -32,7 +32,7 @@ import { AdminReportTab } from './AdminReportTab';
 export function AdminView() {
   const { user, userProfile } = useAuth();
   const { t, reportLanguage } = useUI();
-  const { users: allUsers, isLoading: isLoadingUsers, hasMore, loadMore } = useAdminUsers();
+  const { users: allUsers, isLoading: isLoadingUsers, hasMore, totalCount, loadMore } = useAdminUsers();
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
   const newUsersCount = allUsers.filter(u => u.isNew && u.role !== 'admin').length;
 
@@ -523,7 +523,7 @@ export function AdminView() {
                           {u.id !== user?.id && (
                             <button 
                               onClick={() => void handleToggleRole(u)}
-                              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 text-text-light hover:text-accent transition-all cursor-pointer hover:scale-110 active:scale-95"
+                              className="md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 p-1 text-text-light hover:text-accent transition-all cursor-pointer hover:scale-110 active:scale-95"
                               title={t.adminToggleRole}
                             >
                               <UserCog className="w-3.5 h-3.5" />
@@ -571,7 +571,7 @@ export function AdminView() {
                                 'cursor-pointer hover:scale-105 active:scale-95 transition-transform hover:border-accent/30 hover:text-accent',
                               )}
                             >
-                              Chỉnh sửa ▾
+                              {t.adminEditUserButton}
                             </button>
                           )}
                           {u.planExpiresAt && (getDisplayEffectivePlan(u) === 'pro' || getDisplayEffectivePlan(u) === 'recruiter') && (
@@ -589,7 +589,7 @@ export function AdminView() {
                           </span>
                           {u.monthlyAnalyticsLimitCustom && (
                             <span className="text-[9px] font-bold text-success uppercase tracking-wider ml-1">
-                              (tuỳ chỉnh)
+                              {t.adminCustomLimitBadge}
                             </span>
                           )}
                         </div>
@@ -665,6 +665,12 @@ export function AdminView() {
                   end: String(Math.min(currentPage * pageSize, filteredUsers.length)),
                   total: String(filteredUsers.length),
                 })}
+                {/* Unfiltered browse only holds the loaded window — show the real DB total too. */}
+                {!isFiltering && totalCount !== null && totalCount > allUsers.length && (
+                  <span className="text-text-light">
+                    {' '}{formatLabel(t.adminPaginationDbTotal, { total: String(totalCount) })}
+                  </span>
+                )}
               </p>
               <div className="flex items-center gap-1">
                 <button
@@ -761,14 +767,14 @@ export function AdminView() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.2 }}
             >
-              <h3 className="text-lg font-black text-text-main mb-1">Chỉnh sửa người dùng</h3>
+              <h3 className="text-lg font-black text-text-main mb-1">{t.adminEditUserTitle}</h3>
               <p className="text-xs text-text-muted mb-4">
                 {planModal.user.displayName || planModal.user.email}
               </p>
 
               {/* Plan Section */}
               <div className="mb-5">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-text-muted mb-2">Gói dịch vụ</p>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-text-muted mb-2">{t.adminPlanSectionLabel}</p>
                 {getDisplayEffectivePlan(planModal.user) === 'recruiter' && (
                   <p className="text-[10px] font-bold text-warning mb-2">{t.adminPlanRecruiterNoDowngrade}</p>
                 )}
@@ -838,7 +844,7 @@ export function AdminView() {
                     disabled={savingLimitUserId === planModal.user.id}
                     className="mt-2 text-[10px] font-bold text-accent uppercase tracking-wider hover:underline cursor-pointer disabled:opacity-50"
                   >
-                    {t.adminResetToGlobalLimit} ({globalDefaultLimit}/tháng)
+                    {formatLabel(t.adminResetToGlobalLimitWithValue, { limit: String(globalDefaultLimit) })}
                   </button>
                 )}
               </div>
@@ -856,7 +862,7 @@ export function AdminView() {
                   onClick={() => { setError(null); setPlanModal(null); }}
                   className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold border border-border text-text-muted hover:text-text-main cursor-pointer transition-colors bg-surface-secondary"
                 >
-                  Huỷ
+                  {t.adminCancel}
                 </button>
                 <button
                   type="button"
@@ -871,7 +877,7 @@ export function AdminView() {
                   {savingPlanUserId === planModal.user.id || savingLimitUserId === planModal.user.id ? (
                     <Loader2 className="w-4 h-4 animate-spin mx-auto" />
                   ) : (
-                    'Lưu thay đổi'
+                    t.adminSaveChanges
                   )}
                 </button>
               </div>

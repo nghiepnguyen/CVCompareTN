@@ -15,6 +15,8 @@ export interface AdminUsersState {
   users: UserProfile[];
   isLoading: boolean;
   hasMore: boolean;
+  /** Total profiles in the DB (not just the loaded window); null until first fetch. */
+  totalCount: number | null;
   loadMore: () => void;
   refresh: () => void;
 }
@@ -24,6 +26,7 @@ export function useAdminUsers(): AdminUsersState {
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   // Realtime handler below is subscribed once and must always see the latest
   // loaded page count, not the value captured at subscribe time.
   const pageRef = useRef(0);
@@ -33,9 +36,9 @@ export function useAdminUsers(): AdminUsersState {
 
   const fetchRange = useCallback(async (from: number, to: number, replace: boolean) => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    const { data, error, count } = await supabase
       .from('profiles')
-      .select('*, effective_usage_count')
+      .select('*, effective_usage_count', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -48,6 +51,7 @@ export function useAdminUsers(): AdminUsersState {
     const mapped = (data ?? []).map(mapProfile);
     setUsers(prev => (replace ? mapped : [...prev, ...mapped]));
     setHasMore(mapped.length === to - from + 1);
+    if (count !== null) setTotalCount(count);
     setIsLoading(false);
   }, []);
 
@@ -97,5 +101,5 @@ export function useAdminUsers(): AdminUsersState {
     };
   }, [refresh]);
 
-  return { users, isLoading, hasMore, loadMore, refresh };
+  return { users, isLoading, hasMore, totalCount, loadMore, refresh };
 }
