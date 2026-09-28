@@ -11,7 +11,20 @@ import {
 import { trackEvent } from '../lib/ga4';
 import { setSentryUser } from '../lib/sentryUser';
 
-export type AuthModalMode = 'signIn' | 'signUp' | 'resetPassword' | 'resendConfirmation' | null;
+const SESSION_INIT_TIMEOUT_MS = 6000;
+
+/** Resolves to the promise's value, or null if it doesn't settle within `ms`. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
+export type AuthModalMode ='signIn' | 'signUp' | 'resetPassword' | 'resendConfirmation' | null;
 
 export interface EmailAuthResult {
   success: boolean;
@@ -143,16 +156,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!isMounted) return;
+      // getSession() may refresh an expired token over the network (auth-js retries up
+      // to ~30s, each fetch without a timeout). On iOS Safari with a resumed tab or
+      // flaky network this held the splash screen indefinitely. Cap the wait: on
+      // timeout render as anonymous and let onAuthStateChange deliver the session.
+      try {
+        const result = await withTimeout(supabase.auth.getSession(), SESSION_INIT_TIMEOUT_MS);
+        if (!isMounted) return;
 
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setSentryUser(currentUser?.id ?? null);
+        if (result) {
+          const currentUser = result.data.session?.user ?? null;
+          setUser(currentUser);
+          setSentryUser(currentUser?.id ?? null);
 
-      if (currentUser) {
-        loadUserProfileData(currentUser);
-      } else {
+          if (currentUser) {
+            loadUserProfileData(currentUser);
+          } else {
+            setIsLoadingProfile(false);
+          }
+        } else {
+          console.warn('[Auth] getSession() timed out; continuing without session');
+          setIsLoadingProfile(false);
+        }
+      } catch (err) {
+        console.error('[Auth] getSession() failed:', err);
+        if (!isMounted) return;
         setIsLoadingProfile(false);
       }
       setIsAuthInitialized(true);
@@ -176,7 +204,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription = data.subscription;
     };
 
-    run();
+    run().catch((err) => {
+      console.error('[Auth] Initialization failed:', err);
+      if (isMounted) {
+        setIsLoadingProfile(false);
+        setIsAuthInitialized(true);
+      }
+    });
 
     return () => {
       isMounted = false;

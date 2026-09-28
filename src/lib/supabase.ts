@@ -22,8 +22,11 @@ export async function bootstrapSupabase(): Promise<boolean> {
     return true;
   }
 
+  // Bounded so a hung request can't hold the app on the init splash screen.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch('/api/config');
+    const res = await fetch('/api/config', { signal: controller.signal });
     if (!res.ok) return false;
     const data = (await res.json()) as Record<string, string | undefined>;
     const url = (data.VITE_SUPABASE_URL || data.SUPABASE_URL || '').trim();
@@ -34,6 +37,8 @@ export async function bootstrapSupabase(): Promise<boolean> {
     }
   } catch (err) {
     console.error('[Supabase] Không tải được /api/config:', err);
+  } finally {
+    clearTimeout(timer);
   }
 
   return false;
