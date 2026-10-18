@@ -144,3 +144,16 @@ Xác minh schema:
 - Security Advisor không có ERROR; còn 5 WARN thuộc các RPC có sẵn và Auth leaked-password protection, không thuộc các object storage mới.
 
 R2 vẫn chưa được bật cho ghi thật; chưa deploy mã mới, chưa chạy lịch cleanup production hoặc migrate file CV cũ. Các kiểm chứng này thay thế các trạng thái "chưa cấu hình/chưa áp dụng migration" trong các ghi chú lịch sử ở trên.
+
+
+## Deploy production, giữ R2 tắt (2026-10-18)
+
+Đã đẩy nhánh `codex/cloudflare-r2-integration`, mở [PR #3](https://github.com/nghiepnguyen/CVCompareTN/pull/3) và deploy code commit `43f5958` lên [cvfit.pro](https://cvfit.pro). Deployment: `dpl_ATFenfFaEcJ1ks5yPePShSfkYkGB` ([Vercel](https://vercel.com/nghiepnguyens/cv-compare-tn/ATFenfFaEcJ1ks5yPePShSfkYkGB)). PR chưa merge vào main.
+
+- 165 tests pass; frontend/API TypeScript và build pass. CI, CodeQL, GitGuardian và Vercel preview đều pass trên commit code này.
+- Đã sửa thứ tự `functions` để pattern riêng `api/extract-pdf.ts` đứng trước `api/*.ts`; Vercel chỉ lấy pattern khớp đầu tiên. Bản production có 9 functions.
+- Kiểm tra live edge: `/api/config` 200, `storageWriteProvider=supabase`, `storageR2Purposes=[temp]`; API storage không có/sai token trả 401; cleanup không secret trả 401; GET PDF trả 405.
+- `/vi/privacy/` và `/en/privacy/` trả 200, raw HTML có nội dung Cloudflare R2.
+- Thư mục deploy lấy từ Git archive; không mang `.env`, file riêng hoặc thay đổi Graphify vào deployment.
+
+Chưa bật ghi R2, chưa bật scheduler cleanup, chưa migrate CV cũ và chưa chạy canary UI có đăng nhập trên production. Trạng thái deploy này thay thế ghi chú chưa deploy trong phần lịch sử phía trên. Dependency audit vẫn còn 33 advisory có sẵn; không có dependency cũ bị nâng phiên bản trong thay đổi này.
