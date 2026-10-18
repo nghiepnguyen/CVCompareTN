@@ -73,8 +73,8 @@ export const legal = {
     en: "3. Data security",
   },
   privacyS3Body: {
-    vi: "Chúng tôi áp dụng các biện pháp bảo mật kỹ thuật và tổ chức nghiêm ngặt để bảo vệ dữ liệu của bạn khỏi việc truy cập, thay đổi hoặc phá hủy trái phép. Dữ liệu của bạn được lưu trữ trên hạ tầng Supabase (PostgreSQL và Storage), được triển khai trên đám mây với các điều khiển truy cập và mã hóa phù hợp.",
-    en: "We apply strict technical and organizational security measures to protect your data from unauthorized access, alteration, or destruction. Your data is stored on Supabase infrastructure (PostgreSQL and Storage), deployed in the cloud with appropriate access controls and encryption.",
+    vi: "Chúng tôi áp dụng các biện pháp bảo mật kỹ thuật và tổ chức nghiêm ngặt để bảo vệ dữ liệu của bạn khỏi việc truy cập, thay đổi hoặc phá hủy trái phép. Thông tin tài khoản và dữ liệu ứng dụng được lưu trên Supabase. File CV được lưu trên Supabase Storage hoặc Cloudflare R2 tùy giai đoạn triển khai, với các điều khiển truy cập và mã hóa phù hợp.",
+    en: "We apply strict technical and organizational security measures to protect your data from unauthorized access, alteration, or destruction. Account information and application data are stored on Supabase. CV files are stored on Supabase Storage or Cloudflare R2 depending on the deployment stage, with appropriate access controls and encryption.",
   },
   privacyS4Title: {
     vi: "4. Cookie và phân tích",

@@ -1,0 +1,26 @@
+name: Storage cleanup
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: storage-cleanup
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: vars.STORAGE_CLEANUP_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Sweep storage cleanup queue
+        env:
+          CLEANUP_URL: ${{ vars.STORAGE_CLEANUP_URL }}
+          CLEANUP_SECRET: ${{ secrets.STORAGE_CLEANUP_SECRET }}
+        run: |
+          test -n "$CLEANUP_URL"
+          test -n "$CLEANUP_SECRET"
+          curl --fail-with-body --silent --show-error --max-time 65 \
+            --header "Authorization: Bearer $CLEANUP_SECRET" \
+            "$CLEANUP_URL"

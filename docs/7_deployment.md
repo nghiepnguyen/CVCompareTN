@@ -185,3 +185,8 @@ Nếu đã commit nhầm secret: xoá khỏi lịch sử Git, **rotate** key tr�
 ### Supabase CLI
 
 Sau `supabase link`, thư mục `supabase/.temp/` được tạo tự động — **không** add vào repo. Migrations trong `supabase/migrations/` vẫn được commit bình thường.
+
+
+## Cập nhật storage R2 (2026-10-18)
+
+Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới giữ Supabase làm nơi upload mặc định và đọc theo metadata; có thể bật R2 riêng cho `temp`, `saved`, `candidate` qua cấu hình server. File tạm R2 dùng reference `r2:{uploadId}`, file lâu dài giữ `file_path` cùng `storage_provider`. Tải file cá nhân/recruiter qua `POST /api/storage` với JWT, không dùng public URL. Cleanup có queue bền vững và scheduler, kể cả khi xoá campaign/user. Xem [10_storage_r2.md](10_storage_r2.md) cho migration bắt buộc, API, CORS/lifecycle, kiểm thử và rollback.

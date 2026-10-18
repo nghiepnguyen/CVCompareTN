@@ -1,3 +1,4 @@
+import { getPrivateFileUrl, storageRequest, uploadR2, useR2Uploads } from './storageClient';
 import { supabase } from '../lib/supabase';
 
 // ---- Types ----
@@ -155,6 +156,7 @@ export async function getCampaignCandidates(
     .from('candidate_cvs')
     .select('*')
     .eq('campaign_id', campaignId)
+    .eq('storage_status', 'ready')
     .order('match_score', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: true });
 
@@ -179,7 +181,13 @@ export async function createCandidate(params: {
   fileName: string;
   filePath: string;
   fileSize: number;
+  candidateId?: string;
 }): Promise<CandidateCV> {
+  if (params.candidateId) {
+    const candidate = await getCandidate(params.candidateId);
+    if (!candidate) throw new Error('Không tìm thấy ứng viên');
+    return candidate;
+  }
   const { data, error } = await supabase
     .from('candidate_cvs')
     .insert({
@@ -257,13 +265,8 @@ export async function saveCandidateAnalysis(
 }
 
 export async function deleteCandidate(candidateId: string): Promise<void> {
-  const { error } = await supabase
-    .from('candidate_cvs')
-    .delete()
-    .eq('id', candidateId);
-
-  if (error) throw error;
-  // Counter sync will happen via sync_campaign_counters
+  const candidate = await getCandidate(candidateId);
+  if (candidate) await storageRequest({ action: 'delete', filePath: candidate.filePath });
 }
 
 // ---- Storage Upload ----
@@ -274,8 +277,12 @@ export async function uploadCandidateFile(params: {
   userId: string;
   campaignId: string;
   file: File;
-}): Promise<{ filePath: string; fileName: string }> {
+}): Promise<{ filePath: string; fileName: string; candidateId?: string }> {
   const { userId, campaignId, file } = params;
+  if (await useR2Uploads('candidate')) {
+    const result = await uploadR2(file, 'candidate', campaignId);
+    return { filePath: result.filePath, fileName: file.name, candidateId: result.candidateId };
+  }
   const fileExt = file.name.split('.').pop() || 'bin';
   const uniqueName = `${crypto.randomUUID()}.${fileExt}`;
   const filePath = `${userId}/campaigns/${campaignId}/${uniqueName}`;
@@ -293,21 +300,5 @@ export async function uploadCandidateFile(params: {
 }
 
 export async function getCandidateFileUrl(filePath: string): Promise<string> {
-  const { data } = supabase.storage
-    .from(CV_FILES_BUCKET)
-    .getPublicUrl(filePath);
-
-  if (!data?.publicUrl) {
-    throw new Error('Không lấy được URL file');
-  }
-
-  return data.publicUrl;
-}
-
-export async function deleteCandidateFile(filePath: string): Promise<void> {
-  const { error } = await supabase.storage
-    .from(CV_FILES_BUCKET)
-    .remove([filePath]);
-
-  if (error) throw error;
+  return getPrivateFileUrl(filePath);
 }

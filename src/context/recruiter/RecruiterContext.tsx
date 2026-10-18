@@ -21,7 +21,7 @@ import {
   updateCandidateHrStatus,
   saveCandidateAnalysis,
   deleteCandidate,
-  deleteCandidateFile,
+  getCandidateFileUrl,
   type RecruitmentCampaign,
   type CandidateCV,
   type CampaignStatus,
@@ -142,7 +142,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
 
       for (const file of files) {
         // Upload file to storage
-        const { filePath, fileName } = await uploadCandidateFile({
+        const { filePath, fileName, candidateId } = await uploadCandidateFile({
           userId: user.id,
           campaignId,
           file,
@@ -153,6 +153,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
         const candidate = await createCandidate({
           campaignId,
           candidateName,
+          candidateId,
           fileName,
           filePath,
           fileSize: file.size,
@@ -238,19 +239,17 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             ),
           );
 
+          let tempPaths: string[] = [];
           try {
-            // Get file content from storage URL
-            const { data: publicUrl } = supabase.storage
-              .from('cv-files')
-              .getPublicUrl(candidate.filePath);
-
-            // Download file and process
-            const response = await fetch(publicUrl.publicUrl);
+            const response = await fetch(await getCandidateFileUrl(candidate.filePath));
+            if (!response.ok) throw new Error('Không tải được CV ứng viên');
             const blob = await response.blob();
             const file = new File([blob], candidate.fileName, { type: blob.type });
 
             const { data: textData, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath } =
               await processFileUtil(file, user?.id ?? '');
+
+            tempPaths = [pdfStoragePath, dataStoragePath].filter((p): p is string => Boolean(p));
 
             // Get session token for authenticated API call
             const { data: { session } } = await supabase.auth.getSession();
@@ -268,12 +267,6 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
               pdfStoragePath,
               dataStoragePath,
             );
-            // Single consumer of the temp upload (unlike the main analyze flow,
-            // recruiter candidates don't get a follow-up rewrite/parse-cv call)
-            // — safe to clean up right after this analyzeCV call finishes.
-            const tempPaths = [pdfStoragePath, dataStoragePath].filter((p): p is string => Boolean(p));
-            if (tempPaths.length > 0) void cleanupTempAnalysisFiles(tempPaths);
-
             // Save result via backend API (service_role RPC)
             await saveCandidateAnalysis(
               candidate.id,
@@ -319,6 +312,8 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
                   : c,
               ),
             );
+          } finally {
+            if (tempPaths.length) void cleanupTempAnalysisFiles(tempPaths);
           }
         }
       } finally {
@@ -357,10 +352,6 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
 
   const handleDeleteCandidateCV = useCallback(
     async (candidateId: string, filePath: string) => {
-      // Remove file from storage
-      deleteCandidateFile(filePath).catch((err) =>
-        console.error('Failed to delete candidate file:', err),
-      );
       // Remove from database
       await deleteCandidate(candidateId);
       // Update local state

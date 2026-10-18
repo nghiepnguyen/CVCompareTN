@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { adminDeleteUser } from '../deleteUser';
+import { adminDeleteUser } from '../deleteUser.js';
 
 const CALLER = 'admin-1';
 const TARGET = 'user-1';
