@@ -1,3 +1,4 @@
+import { VN_TIME_ZONE } from './vnTime.js';
 export type UserPlan = 'free' | 'pro' | 'recruiter';
 
 export const MAX_BATCH_BY_PLAN: Record<UserPlan, number> = {
@@ -55,5 +56,6 @@ export function formatPlanExpiryDate(
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: VN_TIME_ZONE,
   });
 }

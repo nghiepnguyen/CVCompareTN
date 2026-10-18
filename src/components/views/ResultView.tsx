@@ -16,6 +16,7 @@ import { OptimizationTab } from './result/OptimizationTab';
 import { ParsedCVTab } from './result/ParsedCVTab';
 import { FullCVTab } from './result/FullCVTab';
 import { RatingSection } from './result/RatingSection';
+import { VN_TIME_ZONE } from '../../lib/vnTime';
 
 export function ResultView() {
   const { user } = useAuth();
@@ -94,7 +95,7 @@ export function ResultView() {
                   <div className="text-right hidden sm:block">
                     <div className="text-[10px] font-black text-text-light uppercase tracking-widest mb-1">{t.analysisTime}</div>
                     <div className="text-sm font-bold text-text-main">
-                      {new Date(selectedResult.timestamp).toLocaleString(reportLanguage === 'vi' ? 'vi-VN' : 'en-US')}
+                      {new Date(selectedResult.timestamp).toLocaleString(reportLanguage === 'vi' ? 'vi-VN' : 'en-US', { timeZone: VN_TIME_ZONE })}
                     </div>
                   </div>
                 </div>

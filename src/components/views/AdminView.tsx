@@ -28,6 +28,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAdminUsers } from '../../hooks/useAdminUsers';
 import { AdminReportTab } from './AdminReportTab';
+import { VN_TIME_ZONE } from '../../lib/vnTime';
 
 export function AdminView() {
   const { user, userProfile } = useAuth();
@@ -576,7 +577,7 @@ export function AdminView() {
                           )}
                           {u.planExpiresAt && (getDisplayEffectivePlan(u) === 'pro' || getDisplayEffectivePlan(u) === 'recruiter') && (
                             <span className="text-[9px] text-text-light font-mono">
-                              {new Date(u.planExpiresAt).toLocaleDateString(dateLocale)}
+                              {new Date(u.planExpiresAt).toLocaleDateString(dateLocale, { timeZone: VN_TIME_ZONE })}
                             </span>
                           )}
                         </div>
@@ -609,7 +610,7 @@ export function AdminView() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-[11px] text-text-muted font-medium">
-                        {new Date(u.createdAt).toLocaleDateString(dateLocale)}
+                        {new Date(u.createdAt).toLocaleDateString(dateLocale, { timeZone: VN_TIME_ZONE })}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1">

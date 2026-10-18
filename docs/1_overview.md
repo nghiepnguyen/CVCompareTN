@@ -42,6 +42,8 @@
 | [7_deployment.md](7_deployment.md) | Vercel, Supabase migrations, **bảo mật Git** |
 | [8_analytics.md](8_analytics.md) | GA4 + Vercel Analytics, cookie consent, **bảng event**, **hạn mức phân tích/tháng** (`app_settings`) |
 | [9_api_routes.md](9_api_routes.md) | Ma trận route: Vercel `/api`, Express, Supabase Edge |
+| [10_storage_r2.md](10_storage_r2.md) | Storage R2/Supabase, cleanup scheduler |
+| [11_timezone.md](11_timezone.md) | Quy tắc time zone ICT (`Asia/Ho_Chi_Minh`), rà soát file:line |
 
 **Cấu trúc mã (2026-05):** `src/app/` (shell), `src/context/analysis/` (providers phân tích), `src/components/views/landing/` (section landing). Chi tiết: [3_frontend.md](3_frontend.md).
 

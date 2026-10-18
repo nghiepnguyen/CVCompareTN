@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import type { UserPlan } from "../lib/planLimits";
+import { vnSignupQuotaCycle } from "../lib/vnTime";
 export type { UserPlan } from "../lib/planLimits";
 
 export const DEFAULT_AVATAR_URL = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
@@ -142,13 +143,7 @@ interface AuthUserInput {
 }
 
 export async function createUserProfile(user: AuthUserInput): Promise<UserProfile> {
-  // Compute usage_month in YYYY-MM-DD format matching public.current_quota_cycle(reset_day)
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-  const today = now.getDate();
-  const resetDay = Math.min(today, 28);
-  const pad = (n: number) => String(n).padStart(2, '0');
-
-  const usageMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(resetDay)}`;
+  const { resetDay, usageMonth } = vnSignupQuotaCycle(new Date());
 
   const profileData = {
     id: user.id,
@@ -161,7 +156,6 @@ export async function createUserProfile(user: AuthUserInput): Promise<UserProfil
     usage_month: usageMonth,
     monthly_analytics_limit_custom: false,
     quota_reset_day: resetDay,
-    created_at: now.toISOString(),
     is_new: true,
   };
 
