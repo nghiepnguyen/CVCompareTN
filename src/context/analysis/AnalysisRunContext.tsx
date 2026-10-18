@@ -340,6 +340,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             if (i >= totalFiles) return;
             const fileOrRef = files[i];
             let succeeded = false;
+            let tempPaths: string[] = [];
 
             setBatchFiles((prev) =>
               prev.map((f, idx) => (idx === i ? { ...f, status: 'processing' } : f))
@@ -358,6 +359,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
                 ({ data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath } = await processFile(file, user?.id ?? ''));
               }
 
+              tempPaths = [pdfStoragePath, dataStoragePath].filter((p): p is string => Boolean(p));
               const analysis = await analyzeCV(
                 jd,
                 data,
@@ -379,6 +381,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
                 input_mode: 'file',
               });
             } catch (fileErr) {
+              if (tempPaths.length) void cleanupTempAnalysisFiles(tempPaths);
               console.error(`Analysis failed for ${fileOrRef.name}:`, fileErr);
               Sentry.captureException(fileErr, {
                 tags: { feature: 'analyze_cv_batch_item' },

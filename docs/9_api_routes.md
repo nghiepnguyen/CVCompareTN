@@ -88,3 +88,13 @@ Do **not** assume one Edge function replaces Express and Vercel handlers without
 
 - Merging `api/` and `server/` into a single deployable.
 - Changing analyze or auth behavior.
+
+
+## Cập nhật storage R2 (2026-10-18)
+
+Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới giữ Supabase làm nơi upload mặc định và đọc theo metadata; có thể bật R2 riêng cho `temp`, `saved`, `candidate` qua cấu hình server. File tạm R2 dùng reference `r2:{uploadId}`, file lâu dài giữ `file_path` cùng `storage_provider`. Tải file cá nhân/recruiter qua `POST /api/storage` với JWT, không dùng public URL. Cleanup có queue bền vững và scheduler, kể cả khi xoá campaign/user. Xem [10_storage_r2.md](10_storage_r2.md) cho migration bắt buộc, API, CORS/lifecycle, kiểm thử và rollback.
+
+| Route bổ sung | Vercel | Express |
+| --- | --- | --- |
+| `POST /api/storage` | `api/extract-pdf.ts?resource=storage` (dùng chung function PDF; vẫn tổng 9 handler) | `server/routes/storage.ts` |
+| `GET /api/storage?action=cleanup` | Cùng function, Bearer cleanup secret riêng | Cùng router |

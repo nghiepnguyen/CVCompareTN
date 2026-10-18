@@ -40,3 +40,6 @@ users_backup.json
 graphify-out/*
 !graphify-out/GRAPH_REPORT.md
 .cursor/
+
+# Local R2 migration checkpoints (may identify user records)
+.r2-migration/

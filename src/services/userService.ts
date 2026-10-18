@@ -1,8 +1,9 @@
 import { supabase } from "../lib/supabase";
+import type { UserPlan } from "../lib/planLimits";
+export type { UserPlan } from "../lib/planLimits";
 
 export const DEFAULT_AVATAR_URL = "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
 
-export type UserPlan = 'free' | 'pro' | 'recruiter';
 
 /** Plan-based monthly analytics limits — must match DB's resolve_monthly_analytics_limit. */
 export const PRO_MONTHLY_ANALYTICS_LIMIT = 100;

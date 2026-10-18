@@ -1,4 +1,4 @@
-import type { UserPlan } from '../services/userService';
+export type UserPlan = 'free' | 'pro' | 'recruiter';
 
 export const MAX_BATCH_BY_PLAN: Record<UserPlan, number> = {
   free: 1,

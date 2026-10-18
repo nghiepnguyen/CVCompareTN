@@ -1,3 +1,4 @@
+import { getPrivateFileUrl, storageRequest, uploadR2, useR2Uploads } from './storageClient';
 import { supabase } from "../lib/supabase";
 import type { ProcessedFile } from "../hooks/useFileProcessor";
 
@@ -17,7 +18,7 @@ export interface SavedCV {
   timestamp: number;
 }
 
-/** Lazy reference to a CV stored in Supabase Storage — not yet downloaded. */
+/** Lazy reference to a CV stored in private storage — not yet downloaded. */
 export interface StoredCVRef {
   readonly _storedRef: true;
   readonly name: string;
@@ -42,13 +43,16 @@ export async function resolveToFile(ref: StoredCVRef): Promise<File> {
 }
 
 /**
- * Upload a CV file to Supabase Storage and save metadata to saved_cvs table.
- * Returns the public URL of the uploaded file.
+ * Upload a CV using the configured provider and save its metadata.
  */
 export async function saveCVToStorage(
   uid: string,
   file: File
-): Promise<{ cvId: string; publicUrl: string; filePath: string }> {
+): Promise<{ cvId: string; filePath: string }> {
+  if (await useR2Uploads('saved')) {
+    const uploaded = await uploadR2(file, 'saved');
+    return { cvId: uploaded.cvId, filePath: uploaded.filePath };
+  }
   const cvId = Math.random().toString(36).substring(7);
   const storagePath = `${uid}/${cvId}/${sanitizeStorageFileName(file.name)}`;
 
@@ -61,13 +65,6 @@ export async function saveCVToStorage(
     });
 
   if (uploadError) throw uploadError;
-
-  // Get public URL
-  const { data: urlData } = supabase.storage
-    .from("cv-files")
-    .getPublicUrl(storagePath);
-
-  const publicUrl = urlData?.publicUrl ?? "";
 
   // Insert metadata
   const { error: insertError } = await supabase.from("saved_cvs").insert([
@@ -88,7 +85,7 @@ export async function saveCVToStorage(
     throw insertError;
   }
 
-  return { cvId, publicUrl, filePath: storagePath };
+  return { cvId, filePath: storagePath };
 }
 
 export async function getSavedCVs(uid: string): Promise<SavedCV[]> {
@@ -97,6 +94,7 @@ export async function getSavedCVs(uid: string): Promise<SavedCV[]> {
       .from("saved_cvs")
       .select("cv_id, file_name, file_path, file_type, file_size, timestamp")
       .eq("user_id", uid)
+      .eq("storage_status", "ready")
       .order("timestamp", { ascending: false });
 
     if (error) throw error;
@@ -120,27 +118,11 @@ export async function deleteSavedCV(
   cvId: string,
   filePath: string
 ): Promise<void> {
-  // Delete from storage
-  const { error: storageError } = await supabase.storage
-    .from("cv-files")
-    .remove([filePath]);
-
-  if (storageError) {
-    console.error("Error deleting CV from storage:", storageError);
-  }
-
-  // Delete metadata
-  const { error: dbError } = await supabase
-    .from("saved_cvs")
-    .delete()
-    .eq("user_id", uid)
-    .eq("cv_id", cvId);
-
-  if (dbError) throw dbError;
+  await storageRequest({ action: 'delete', filePath });
 }
 
 /**
- * Download a saved CV file from Supabase Storage by its path.
+ * Download an authorized CV from its recorded storage provider.
  * Returns a File object that can be added to the files state.
  */
 export async function downloadCVFromStorage(
@@ -148,20 +130,10 @@ export async function downloadCVFromStorage(
   fileName: string,
   fileType: string
 ): Promise<File> {
-  const { data, error } = await supabase.storage
-    .from("cv-files")
-    .download(filePath);
-
-  if (error) throw error;
-
-  return new File([data], fileName, {
-    type: fileType || "application/octet-stream",
-  });
-}
-
-export function getCVPublicUrl(filePath: string): string {
-  const { data } = supabase.storage.from("cv-files").getPublicUrl(filePath);
-  return data?.publicUrl ?? "";
+  const url = await getPrivateFileUrl(filePath);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Không tải được CV');
+  return new File([await response.blob()], fileName, { type: fileType || 'application/octet-stream' });
 }
 
 /**
@@ -170,6 +142,7 @@ export function getCVPublicUrl(filePath: string): string {
  * for telling the server to clean this up after processing.
  */
 export async function uploadTempAnalysisFile(uid: string, file: File): Promise<string> {
+  if (await useR2Uploads('temp')) return (await uploadR2(file, 'temp')).reference!;
   const storagePath = `${uid}/${crypto.randomUUID()}-${sanitizeStorageFileName(file.name)}`;
 
   const { error } = await supabase.storage
@@ -187,6 +160,6 @@ export async function uploadTempAnalysisFile(uid: string, file: File): Promise<s
  */
 export async function cleanupTempAnalysisFiles(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
-  const { error } = await supabase.storage.from("cv-analyze-tmp").remove(paths);
-  if (error) console.error("Error cleaning up temp analyze files:", error);
+  try { await storageRequest({ action: 'delete-temp', paths }); }
+  catch (error) { console.error('Error cleaning up temp analyze files:', error); }
 }

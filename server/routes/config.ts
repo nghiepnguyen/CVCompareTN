@@ -13,6 +13,8 @@ function publicConfig() {
     '';
 
   return {
+    storageWriteProvider: process.env.STORAGE_WRITE_PROVIDER === 'r2' ? 'r2' : 'supabase',
+    storageR2Purposes: (process.env.STORAGE_R2_PURPOSES || 'temp').split(',').map(s => s.trim()).filter(s => ['temp', 'saved', 'candidate'].includes(s)),
     VITE_SUPABASE_URL: supabaseUrl,
     VITE_SUPABASE_ANON_KEY: supabaseAnonKey,
     SUPABASE_URL: supabaseUrl,
@@ -21,6 +23,7 @@ function publicConfig() {
 }
 
 router.get('/', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   res.json(publicConfig());
 });
 

@@ -9,6 +9,7 @@ import { createServer as createViteServer } from 'vite';
 import { apiLimiter, strictLimiter, emailLimiter, staticLimiter } from './server/lib/rateLimiter';
 
 // Routes
+import storageRouter from './server/routes/storage';
 import configRouter from './server/routes/config';
 import feedbackRouter from './server/routes/feedback';
 import welcomeEmailRouter from './server/routes/welcomeEmail';
@@ -45,6 +46,7 @@ async function startServer() {
   app.use('/api', apiLimiter);
 
   // Apply route-specific stricter limits for expensive operations
+  app.use('/api/storage', storageRouter);
   app.use('/api/config', configRouter);
   app.use('/api/send-feedback', emailLimiter, feedbackRouter); // Resend email — 5 req / hour
   app.use('/api/send-welcome-email', emailLimiter, welcomeEmailRouter); // Resend email — 5 req / hour

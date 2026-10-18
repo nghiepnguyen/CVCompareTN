@@ -170,3 +170,8 @@ Shell (`AppShell`) chỉ gắn providers; logic nghiệp vụ nằm trong `src/c
     -   **Watermark Free user:** 6 lớp (gradient, diagonal stripe, "cvFit.pro" giữa, grid amber, text lặp, badge góc phải).
     -   **Print sync:** `sessionStorage` (`cvFit_viewMode`, `cvFit_printVersion`) + Custom Event `cvfit:viewModeChanged` → `PrintView` luôn dùng đúng variant.
     -   **Files:** `OptimizationTab.tsx`, `CvMarkdownBody.tsx` (variant prop), `PrintView.tsx`.
+
+
+## Cập nhật storage R2 (2026-10-18)
+
+Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới giữ Supabase làm nơi upload mặc định và đọc theo metadata; có thể bật R2 riêng cho `temp`, `saved`, `candidate` qua cấu hình server. File tạm R2 dùng reference `r2:{uploadId}`, file lâu dài giữ `file_path` cùng `storage_provider`. Tải file cá nhân/recruiter qua `POST /api/storage` với JWT, không dùng public URL. Cleanup có queue bền vững và scheduler, kể cả khi xoá campaign/user. Xem [10_storage_r2.md](10_storage_r2.md) cho migration bắt buộc, API, CORS/lifecycle, kiểm thử và rollback.
