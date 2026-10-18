@@ -7,6 +7,7 @@ import { formatLabel } from '../../translations';
 import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell, Tooltip } from 'recharts';
+import { VN_TIME_ZONE, vnStartOfDay } from '../../lib/vnTime';
 
 export function HistoryView() {
     const { 
@@ -47,18 +48,13 @@ export function HistoryView() {
       let matchesDate = true;
       const itemDate = new Date(item.timestamp);
       const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
       if (historyDateFilter === 'today') {
-        matchesDate = itemDate >= today;
+        matchesDate = itemDate >= vnStartOfDay(now);
       } else if (historyDateFilter === 'week') {
-        const lastWeek = new Date(today);
-        lastWeek.setDate(lastWeek.getDate() - 7);
-        matchesDate = itemDate >= lastWeek;
+        matchesDate = itemDate >= vnStartOfDay(now, -7);
       } else if (historyDateFilter === 'month') {
-        const lastMonth = new Date(today);
-        lastMonth.setMonth(lastMonth.getMonth() - 1);
-        matchesDate = itemDate >= lastMonth;
+        matchesDate = itemDate >= vnStartOfDay(now, 0, -1);
       }
       
       return matchesSearch && matchesScore && matchesDate;
@@ -146,7 +142,7 @@ export function HistoryView() {
                       </div>
                       <div className="h-48 min-h-[192px] w-full min-w-0 shrink-0">
                         <ResponsiveContainer width="100%" height={192} debounce={32}>
-                          <AreaChart data={[...history].reverse().slice(-10).map(h => ({ name: new Date(h.timestamp).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit' }), score: h.matchScore }))}>
+                          <AreaChart data={[...history].reverse().slice(-10).map(h => ({ name: new Date(h.timestamp).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', timeZone: VN_TIME_ZONE }), score: h.matchScore }))}>
                             <defs>
                               <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
@@ -327,7 +323,7 @@ export function HistoryView() {
                             <div className="flex items-center gap-4 mt-3">
                               <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-light uppercase tracking-wider">
                                 <Clock className="w-3 h-3" />
-                                {new Date(item.timestamp).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                {new Date(item.timestamp).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: VN_TIME_ZONE })}
                               </div>
                               <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-light uppercase tracking-wider">
                                 <Target className="w-3 h-3" />

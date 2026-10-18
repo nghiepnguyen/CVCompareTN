@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { escapeHtml } from '../escapeHtml.js';
+import { VN_TIME_ZONE } from '../../src/lib/vnTime.js';
 
 export interface VipUpgradeEmailParams {
   userEmail: string;
@@ -35,6 +36,7 @@ export async function sendVipUpgradeEmail(
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
+        timeZone: VN_TIME_ZONE,
       });
 
   // Differentiated benefit lists reflecting src/lib/planLimits.ts

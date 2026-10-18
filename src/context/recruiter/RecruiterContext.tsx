@@ -28,6 +28,7 @@ import {
   type HrStatus,
 } from '../../services/recruiterService';
 import type { RecruiterContextValue } from './types';
+import { VN_TIME_ZONE } from '../../lib/vnTime';
 
 const RecruiterContext = createContext<RecruiterContextValue | undefined>(undefined);
 
@@ -420,7 +421,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
                         : c.hrStatus,
             'Ghi chú': c.hrNote ?? '',
             'Thời gian PT': c.analyzedAt
-              ? new Date(c.analyzedAt).toLocaleString('vi-VN')
+              ? new Date(c.analyzedAt).toLocaleString('vi-VN', { timeZone: VN_TIME_ZONE })
               : '',
           };
         });

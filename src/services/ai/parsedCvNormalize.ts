@@ -7,6 +7,7 @@ import type {
   ParsedSkills,
   ParsedWorkExperience,
 } from "./types.js";
+import { vnDateParts } from "../../lib/vnTime.js";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v != null && typeof v === "object" && !Array.isArray(v);
@@ -51,7 +52,7 @@ export function computeYearsOfExperience(
     const start = parseMonthYear(w.duration?.start);
     if (!start) continue;
     const end = w.duration?.is_current
-      ? { year: now.getFullYear(), month: now.getMonth() + 1 }
+      ? { year: vnDateParts(now).y, month: vnDateParts(now).m + 1 }
       : parseMonthYear(w.duration?.end);
     if (!end) continue;
     const startIdx = toMonthIndex(start);

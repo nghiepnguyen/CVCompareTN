@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { formatLabel } from '../translations';
 import type { SavedJD } from '../services/historyService';
+import { VN_TIME_ZONE } from '../lib/vnTime';
 
 export interface SavedJdsListModalProps {
   isOpen: boolean;
@@ -136,7 +137,8 @@ export function SavedJdsListModal({
                           <Clock className="w-3 h-3 text-text-light" />
                           <span className="text-[10px] text-text-light font-bold uppercase tracking-wider">
                             {new Date(savedJd.timestamp).toLocaleDateString(
-                              reportLanguage === 'vi' ? 'vi-VN' : 'en-US'
+                              reportLanguage === 'vi' ? 'vi-VN' : 'en-US',
+                              { timeZone: VN_TIME_ZONE }
                             )}
                           </span>
                         </div>

@@ -271,6 +271,7 @@ Chạy **theo thứ tự timestamp** trong `supabase/migrations/`:
 | `20260703050000_effective_usage_count_computed_column.sql` | Thêm PostgREST computed column `effective_usage_count(profiles)` — read-only, chiếu `usage_count` qua rollover đang chờ (đổi chu kỳ/plan hết hạn) không cần ghi DB. Fix Admin Users table hiện số cũ khi user chưa phân tích gì trong chu kỳ mới. |
 | `20260703060000_block_recruiter_to_pro_downgrade.sql` | Chặn downgrade recruiter→pro (còn active) ở `admin_set_user_plan` và `activate_pro_plan` — `RAISE EXCEPTION 'cannot_downgrade_recruiter_to_pro'`. Downgrade về free không bị ảnh hưởng. |
 | `20260912000000_free_quota_default_5.sql` | Đổi giới hạn mặc định Free từ 10 → **5** lượt/chu kỳ (cả `app_settings` lẫn fallback hàm). |
+| `20261019000000_usage_month_default_ict.sql` | DEFAULT `profiles.usage_month` từ UTC `YYYY-MM` → `current_quota_cycle(1)` (ICT `YYYY-MM-DD`). Chưa áp production. |
 
 Áp dụng: `supabase db push` hoặc chạy từng file trong SQL Editor.
 
@@ -340,7 +341,7 @@ Chỉ user có `monthly_analytics_limit_custom = false` nhận giá trị mới.
 2. `UPDATE app_settings` → 30 → cùng user được thêm quota (không redeploy frontend).
 3. User `custom = true`, `monthly_analytics_limit = 5` → vẫn 5 dù global = 30.
 4. User `custom = true`, `monthly_analytics_limit IS NULL` → unlimited.
-5. Sang tháng UTC mới → `usage_count` reset về 0 (giữ limit).
+5. Qua ngày reset của chu kỳ (`quota_reset_day`, tính theo giờ ICT — `current_quota_cycle`) → `usage_count` reset về 0 (giữ limit). Xem [11_timezone.md](11_timezone.md).
 
 ### Thông báo lỗi (UI)
 

@@ -59,6 +59,8 @@ This document outlines the coding standards and conventions for the CV Matcher &
 
 ## 6. TypeScript Usage
 
+-   **Time zone:** Lưu UTC; mốc ngày/tháng và hiển thị theo ICT. Format một thời điểm từ DB với `timeZone: VN_TIME_ZONE`; tính ranh giới ngày bằng `vnDateParts`/`vnStartOfDay` trong `src/lib/vnTime.ts`. Không dùng `new Date(x.toLocaleString(..., { timeZone }))`. Chi tiết: [docs/11_timezone.md](docs/11_timezone.md).
+
 -   **Explicit Types:** Define explicit types or interfaces for component props, API responses, and complex state objects.
 -   **Avoid `any`:** Use `unknown` if the type is truly unknown, and use type narrowing. Use generics where appropriate.
 -   **Enums vs. Union Types:** Prefer string union types over enums for simple sets of values, as they are often easier to work with and compile cleaner.

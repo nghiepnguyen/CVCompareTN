@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { vnDateParts, vnStartOfDay } from '../lib/vnTime';
 
 export type ReportRange = 'today' | '7d' | '30d';
 
@@ -43,20 +44,10 @@ const GEMINI_OUTPUT_PRICE_PER_1M_USD = 3.0;
 // avg token/cost toward 0 for any range (e.g. 30d) that still spans pre-migration rows.
 const TOKEN_TRACKING_START_ISO = '2026-07-04T00:00:00.000Z';
 
-// Anchor "today" to Asia/Ho_Chi_Minh (GMT+7, no DST), matching the quota
-// system's day boundary (current_quota_cycle) rather than the admin's browser timezone.
-function vnDateParts(d: Date): { y: number; m: number; day: number } {
-  const vn = new Date(d.getTime() + 7 * 60 * 60 * 1000);
-  return { y: vn.getUTCFullYear(), m: vn.getUTCMonth(), day: vn.getUTCDate() };
-}
-
+// Anchor "today" to ICT, matching the quota system's day boundary
+// (current_quota_cycle) rather than the admin's browser timezone.
 function getRangeStart(range: ReportRange): Date {
-  const { y, m, day } = vnDateParts(new Date());
-  const startUtcMs = Date.UTC(y, m, day, 0, 0, 0) - 7 * 60 * 60 * 1000;
-  const start = new Date(startUtcMs);
-  if (range === '7d') start.setUTCDate(start.getUTCDate() - 6);
-  if (range === '30d') start.setUTCDate(start.getUTCDate() - 29);
-  return start;
+  return vnStartOfDay(new Date(), range === '7d' ? -6 : range === '30d' ? -29 : 0);
 }
 
 function dayKey(iso: string): string {
@@ -65,8 +56,8 @@ function dayKey(iso: string): string {
 }
 
 function getCalendarMonthStart(): Date {
-  const { y, m } = vnDateParts(new Date());
-  return new Date(Date.UTC(y, m, 1, 0, 0, 0) - 7 * 60 * 60 * 1000);
+  const now = new Date();
+  return vnStartOfDay(now, 1 - vnDateParts(now).day);
 }
 
 // PostgREST caps rows per request (commonly 1000). Any query that can grow with

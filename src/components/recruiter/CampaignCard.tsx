@@ -4,6 +4,7 @@ import { ChevronRight, Users, CheckCircle2, Star, MoreHorizontal } from 'lucide-
 import { cn } from '../../lib/utils';
 import { useUI } from '../../context/UIContext';
 import type { RecruitmentCampaign } from '../../context/recruiter';
+import { VN_TIME_ZONE } from '../../lib/vnTime';
 
 interface CampaignCardProps {
   campaign: RecruitmentCampaign;
@@ -135,7 +136,7 @@ export function CampaignCard({ campaign, onClick, onChangeStatus, onDelete }: Ca
         </div>
         <div className="flex-1" />
         <div className="text-[10px] text-text-muted tabular-nums">
-          {new Date(campaign.createdAt).toLocaleDateString('vi-VN')}
+          {new Date(campaign.createdAt).toLocaleDateString('vi-VN', { timeZone: VN_TIME_ZONE })}
         </div>
         <ChevronRight className="w-4 h-4 text-text-muted" />
       </div>
