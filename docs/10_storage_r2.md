@@ -24,7 +24,7 @@ Final Plan: [2026-10-17-cloudflare-r2-integration-revised.md](superpowers/plans/
 2. Áp dụng migration `supabase/migrations/20261018023549_cloudflare_r2_storage.sql` theo quy trình database của dự án trước khi deploy code mới. Migration additive, dữ liệu cũ mặc định provider Supabase/ready; policy mutation `cv-files` được giới hạn theo folder owner. Không rollback bằng cách drop metadata đang chứa reference R2.
 3. Deploy code vẫn tắt R2. Xác minh tải CV/recruiter cũ và endpoint PDF. Sau khi code mới hoạt động, chuyển `cv-files` sang private trên Dashboard (hoặc `UPDATE storage.buckets SET public=false WHERE id='cv-files'` qua quy trình quản trị DB). Không tắt public trước khi thay code recruiter dùng public URL. SELECT policy owner phải được đối chiếu thực tế.
 4. Tạo hai bucket R2 private; khai báo secrets phía server theo `.env.example`. Không dùng tiền tố `VITE_` cho secrets. Credentials chỉ giới hạn hai bucket cần thiết.
-5. Cấu hình CORS/lifecycle bên dưới; cấu hình scheduler và chạy thủ công thành công.
+5. Cấu hình CORS/lifecycle bên dưới; áp dụng migration pg_cron, tạo secret Vault và xác nhận `net._http_response` có `status_code=200` liên tục qua nhiều mốc 15 phút.
 6. Bật `STORAGE_WRITE_PROVIDER=r2`, `STORAGE_R2_PURPOSES=temp` trên staging. Kiểm tra PDF text/scan, ảnh, background parse/rewrite, đóng tab, lỗi phân tích và cleanup. Đo baseline/canary và chốt ngưỡng trước mở rộng.
 7. Sau nghiệm thu, bật `STORAGE_R2_PURPOSES=temp,saved,candidate`. Kiểm tra lưu/tải/xoá CV, ứng viên, campaign, user và retry; dữ liệu Supabase cũ phải tiếp tục mở được.
 8. Chỉ copy file cũ bằng script sau khi R2 ổn định. Giữ nguồn qua cửa sổ rollback được chốt. Không tự xoá nguồn production trong script.
@@ -57,11 +57,39 @@ Lifecycle bắt buộc:
 
 ## Scheduler
 
-Workflow `.github/workflows/storage-cleanup.yml` chạy mỗi 15 phút hoặc `workflow_dispatch` và chỉ hoạt động khi repository variable `STORAGE_CLEANUP_ENABLED=true`.
+### Chính: Supabase pg_cron + pg_net
+
+GitHub Actions `schedule` không bảo đảm chạy: sau khi đổi lịch ngày 2026-10-18 chỉ khoảng 3/43 mốc thực sự chạy (cách nhau khoảng 2,5 giờ). Vercel Hobby chỉ cho cron mỗi ngày một lần. Vì vậy dùng `pg_cron` trong Supabase làm scheduler chính và giữ workflow GitHub làm dự phòng. Hai scheduler chạy chồng nhau vẫn an toàn: job xoá có lease; bước quét upload hết hạn idempotent (upsert job bỏ trùng, cập nhật trạng thái có điều kiện); xoá object không tồn tại coi như đã xoá.
+
+Migration `supabase/migrations/20261018230000_storage_cleanup_pg_cron.sql`:
+
+- Bật `pg_cron` và `pg_net` (schema `extensions`).
+- Tạo `storage_internal.invoke_storage_cleanup()`: đọc URL và secret từ Vault, gọi `net.http_get` với header Bearer và timeout 60 giây (mặc định của pg_net là 5 giây, quá ngắn so với budget endpoint). Thu hồi quyền execute của `anon`/`authenticated`/`service_role`.
+- Lên lịch job `storage-cleanup` `*/15 * * * *` (UTC). `cron.schedule` upsert theo tên nên chạy lại không tạo job trùng.
+- Chưa có secret Vault thì hàm trả `NULL`, không gọi HTTP. Nhờ vậy migration áp dụng an toàn trước khi cấu hình.
+
+Áp dụng riêng file này như migration R2 trước (repo còn migration quota `20260912000000` chưa áp dụng, đừng dùng `db push`):
+
+```sh
+supabase db query --linked --file supabase/migrations/20261018230000_storage_cleanup_pg_cron.sql
+supabase migration repair 20261018230000 --status applied --linked
+```
+
+Tạo 2 secret trong Dashboard, mục Vault, nút "Add new secret": name `storage_cleanup_url` với value là `https://cv-compare-tn.vercel.app/api/storage?action=cleanup`, và name `storage_cleanup_secret` với value là `STORAGE_CLEANUP_SECRET` production. Không đưa giá trị secret vào Git, file migration, lịch sử shell hay SQL Editor (SQL Editor lưu lịch sử và snippet). Nếu bắt buộc dùng SQL `vault.create_secret(...)` thì phải xoá snippet hoặc lịch sử ngay sau đó.
+
+Đổi secret bằng `vault.update_secret(id, new_secret)`. Kiểm tra chỉ đọc bằng [storage_cleanup_cron_verify.sql](../supabase/tests/storage_cleanup_cron_verify.sql): job active, đủ 2 secret, 5 lượt chạy gần nhất ở `cron.job_run_details` và mã HTTP ở `net._http_response` (pg_net giữ khoảng 6 giờ). `job_run_details` `succeeded` chỉ có nghĩa là request đã vào queue; phải xem `status_code=200` mới chắc endpoint chạy được. Tắt tạm: `SELECT cron.alter_job((SELECT jobid FROM cron.job WHERE jobname='storage-cleanup'), active := false);`.
+
+Request trong queue của pg_net chứa header secret cho đến khi được gửi đi. Queue này chỉ role quản trị database đọc được, cùng mức tin cậy với Vault.
+
+Kiểm chứng local (2026-10-19): Postgres 16 với stub cho pg_cron/pg_net/Vault. Không có secret thì không gọi HTTP; có secret thì gọi đúng URL, header Bearer và timeout 60000; `authenticated` bị từ chối execute; áp dụng hai lần vẫn chỉ có một job. Trên Supabase thật (chỉ đọc): role `postgres` có quyền SELECT `vault.decrypted_secrets`. Quyền `net`/`cron` chưa kiểm được vì hai extension chưa bật; chưa test với extension thật.
+
+### Dự phòng: GitHub Actions
+
+Workflow `.github/workflows/storage-cleanup.yml` chạy mỗi 15 phút hoặc `workflow_dispatch` và chỉ hoạt động khi repository variable `STORAGE_CLEANUP_ENABLED=true`. Lịch thực tế không đều; dùng để chạy thủ công và làm lớp dự phòng.
 
 Thiết lập GitHub repository:
 
-- Variable `STORAGE_CLEANUP_URL=https://<deployment-host>/api/storage?action=cleanup`.
+- Variable `STORAGE_CLEANUP_URL=https://cv-compare-tn.vercel.app/api/storage?action=cleanup`. Dùng alias production ổn định này để request từ GitHub runner không gặp browser challenge của Cloudflare trên `cvfit.pro`; endpoint vẫn bắt buộc Bearer secret.
 - Secret `STORAGE_CLEANUP_SECRET`: cùng giá trị server, tối thiểu 32 ký tự ngẫu nhiên.
 - Variable `STORAGE_CLEANUP_ENABLED=true` sau khi endpoint đã deploy và migration đã áp dụng.
 
@@ -157,3 +185,35 @@ R2 vẫn chưa được bật cho ghi thật; chưa deploy mã mới, chưa ch�
 - Thư mục deploy lấy từ Git archive; không mang `.env`, file riêng hoặc thay đổi Graphify vào deployment.
 
 Chưa bật ghi R2, chưa bật scheduler cleanup, chưa migrate CV cũ và chưa chạy canary UI có đăng nhập trên production. Trạng thái deploy này thay thế ghi chú chưa deploy trong phần lịch sử phía trên. Dependency audit vẫn còn 33 advisory có sẵn; không có dependency cũ bị nâng phiên bản trong thay đổi này.
+
+
+## Scheduler cleanup đã bật và kiểm chứng (2026-10-18)
+
+Theo xác nhận của người dùng, [PR #3](https://github.com/nghiepnguyen/CVCompareTN/pull/3) đã merge vào `main` tại commit `977b86931f8d8d66ef5bc4bdc5af5d743f991611`. Workflow `storage-cleanup.yml` có trên nhánh mặc định, cron mỗi 15 phút và hỗ trợ chạy thủ công.
+
+Đã cấu hình repository variable `STORAGE_CLEANUP_ENABLED=true`, `STORAGE_CLEANUP_URL=https://cv-compare-tn.vercel.app/api/storage?action=cleanup`, và repository secret `STORAGE_CLEANUP_SECRET` khớp production (không lưu giá trị trong Git). Request thiếu secret tới alias này trả 401.
+
+- Thử API trực tiếp: 2 job R2 xử lý thành công, `completed=2`, `failed=0`; object thử đã xóa và queue về 0.
+- [Lượt GitHub Actions đầu](https://github.com/nghiepnguyen/CVCompareTN/actions/runs/39109885284) dùng `cvfit.pro` bị Cloudflare managed challenge 403 trước API. Đã sửa URL scheduler sang alias production Vercel; không thay đổi firewall hoặc auth.
+- [Lượt GitHub Actions kiểm chứng](https://github.com/nghiepnguyen/CVCompareTN/actions/runs/39109923999) trên `main` thành công, log API trả `{"completed":3,"failed":0}`. Fixture là 3 ảnh tổng hợp ở R2 temp, R2 CV dưới `staging/`, và Supabase temp; không dùng CV người dùng.
+- Sau workflow: HEAD R2 xác nhận hai object không còn; list Supabase xác nhận object tạm không còn; ba hàng queue thử đã xóa, tổng queue còn lại bằng 0.
+
+Ghi R2 vẫn tắt (`supabase`), chưa migrate file CV cũ. Đã kiểm chứng lượt chạy thủ công của workflow; chưa chờ lượt cron tự động đầu tiên. GitHub schedule có thể chạy trễ theo tải runner. Phần này thay thế trạng thái chưa merge/chưa bật scheduler trong lịch sử phía trên.
+
+
+## Điều chỉnh lịch GitHub Actions (2026-10-18, 19:01 giờ Việt Nam)
+
+Kiểm tra API GitHub vẫn chỉ có hai lượt `workflow_dispatch`, chưa có `schedule` sau gần 4 giờ. Workflow `active`, repo không archived/disabled, default branch `main`, và file cron có trên main. Chưa xác định được nguyên nhân GitHub không tạo schedule event; không kết luận cron đã hoạt động chỉ từ lần dispatch thành công.
+
+Đã cập nhật cron thành `7,22,37,52 * * * *` (giữ chu kỳ 15 phút, lệch các mốc đầu giờ) trên main và gọi enable workflow để kích hoạt lại. Đây là biện pháp thử khắc phục, chưa phải bằng chứng đã sửa xong. Mốc kế tiếp dự kiến 19:07; GitHub có thể chạy trễ. Chỉ đánh dấu xác minh tự động sau khi API có event `schedule` thành công với `failed=0`.
+
+Kết quả theo dõi đến 2026-10-18 22:45 UTC: GitHub tạo 3 event `schedule` thành công (15:46Z, 18:17Z, 20:53Z) trên khoảng 43 mốc dự kiến. Cron vẫn chạy, nhưng GitHub bỏ hoặc làm trễ phần lớn các mốc, nên không đạt yêu cầu scheduler trước khi bật R2. Hướng xử lý là chuyển sang pg_cron (mục Scheduler). Migration đã viết và đã test local, chưa áp dụng production.
+
+## pg_cron đã áp dụng production (2026-10-19)
+
+Đã áp dụng riêng `20261018230000_storage_cleanup_pg_cron.sql` bằng `supabase db query --linked --file ...`, rồi ghi nhận bằng `supabase migration repair 20261018230000 --status applied --linked`. Migration quota `20260912000000` vẫn chưa áp dụng.
+
+- Extension: `pg_cron` 1.6.4, `pg_net` 0.20.0.
+- `storage_cleanup_cron_verify.sql` đạt: job `storage-cleanup` active, `authenticated`/`anon` không có quyền execute.
+- Chưa có secret Vault (`vault_secrets_present=0`), nên `invoke_storage_cleanup()` trả `NULL` và chưa gửi request nào. Scheduler chỉ thực sự chạy sau khi tạo 2 secret và có `status_code=200` trong `net._http_response`.
+- Secret Vault đã tạo trên Dashboard. Lần gọi thử đầu trả 401 vì secret dán vào bị thiếu (22 ký tự, server yêu cầu ≥32); sửa thành giá trị đủ 64 ký tự. Lượt gọi thủ công `invoke_storage_cleanup()` lúc 23:07Z trả `200 {"completed":0,"failed":0}`. Lượt cron tự động đầu tiên chạy lúc 23:15:00Z (đúng mốc, `succeeded`), HTTP 200, không timeout; xác minh bằng `storage_cleanup_cron_verify.sql`. pg_cron là scheduler chính; workflow GitHub giữ làm dự phòng.
