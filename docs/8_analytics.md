@@ -271,7 +271,7 @@ Chạy **theo thứ tự timestamp** trong `supabase/migrations/`:
 | `20260703050000_effective_usage_count_computed_column.sql` | Thêm PostgREST computed column `effective_usage_count(profiles)` — read-only, chiếu `usage_count` qua rollover đang chờ (đổi chu kỳ/plan hết hạn) không cần ghi DB. Fix Admin Users table hiện số cũ khi user chưa phân tích gì trong chu kỳ mới. |
 | `20260703060000_block_recruiter_to_pro_downgrade.sql` | Chặn downgrade recruiter→pro (còn active) ở `admin_set_user_plan` và `activate_pro_plan` — `RAISE EXCEPTION 'cannot_downgrade_recruiter_to_pro'`. Downgrade về free không bị ảnh hưởng. |
 | `20260912000000_free_quota_default_5.sql` | Đổi giới hạn mặc định Free từ 10 → **5** lượt/chu kỳ (cả `app_settings` lẫn fallback hàm). |
-| `20261019000000_usage_month_default_ict.sql` | DEFAULT `profiles.usage_month` từ UTC `YYYY-MM` → `current_quota_cycle(1)` (ICT `YYYY-MM-DD`). Chưa áp production. |
+| `20261019000000_usage_month_default_ict.sql` | DEFAULT `profiles.usage_month` từ UTC `YYYY-MM` → `current_quota_cycle(1)` (ICT `YYYY-MM-DD`). Đã áp production 2026-10-19. |
 
 Áp dụng: `supabase db push` hoặc chạy từng file trong SQL Editor.
 
