@@ -1,5 +1,5 @@
 import { extractText } from 'unpdf';
-import { getGeminiClient, GEMINI_MODEL, GEMINI_THINKING_BUDGET, extractTokenUsage, type TokenUsage } from './geminiClient.js';
+import { getGeminiClient, GEMINI_PARSE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 import { normalizeParsedCV } from '../../src/services/ai/parsedCvNormalize.js';
 import { buildParseCvPrompt } from '../../src/services/ai/prompts.js';
 import type { ParsedCV } from '../../src/services/ai/types.js';
@@ -122,7 +122,7 @@ export async function generateParsedCV(
   language: 'vi' | 'en' = 'vi',
   timeoutMs: number = PARSE_CV_TIMEOUT_MS,
   cvPdfInlineData?: string
-): Promise<{ parsedCV: ParsedCV | undefined; usage: TokenUsage }> {
+): Promise<{ parsedCV: ParsedCV | undefined; usage: AiCallUsage }> {
   const client = getGeminiClient();
 
   const jdSection =
@@ -176,19 +176,24 @@ export async function generateParsedCV(
       }
     }
 
+    const geminiStart = Date.now();
     const geminiPromise = client.models.generateContent({
-      model: GEMINI_MODEL,
+      model: GEMINI_PARSE_MODEL,
       contents: [{ role: 'user', parts }],
       config: {
         responseMimeType: 'application/json',
         responseSchema: PARSED_CV_SCHEMA,
         maxOutputTokens: 16384,
-        thinkingConfig: { thinkingBudget: GEMINI_THINKING_BUDGET },
+        thinkingConfig: thinkingConfigFor(GEMINI_PARSE_MODEL),
       },
     });
 
     const response = await Promise.race([geminiPromise, timeoutPromise]);
-    const usage = extractTokenUsage(response.usageMetadata);
+    const usage: AiCallUsage = {
+      ...extractTokenUsage(response.usageMetadata),
+      model: GEMINI_PARSE_MODEL,
+      latencyMs: Date.now() - geminiStart,
+    };
     const resultText = response.text || '';
 
     try {

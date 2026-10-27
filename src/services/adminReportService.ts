@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { vnDateParts, vnStartOfDay } from '../lib/vnTime';
+import { GEMINI_PRICING, LEGACY_LOG_MODEL, isGeminiModel } from '../lib/geminiModels';
 
 export type ReportRange = 'today' | '7d' | '30d';
 
@@ -29,14 +30,14 @@ export interface AdminReportStats {
   avgTotalTokens: number;
   avgCostUsd: number;
   totalCostUsd: number;
+  /** Models found in successful rows with no entry in GEMINI_PRICING — their tokens are excluded from cost, never priced at a guessed rate. */
+  unpricedModels: string[];
 }
 
-// gemini-3-flash-preview official pricing (ai.google.dev/gemini-api/docs/pricing).
-// Update here if the model or its pricing changes — historical rows keep
-// whatever cost was computed with the rate in effect when they're viewed,
-// since raw tokens (not cost) are what's persisted in analysis_log.
-const GEMINI_INPUT_PRICE_PER_1M_USD = 0.5;
-const GEMINI_OUTPUT_PRICE_PER_1M_USD = 3.0;
+// Cost is priced per row from its `model` (rates in src/lib/geminiModels.ts).
+// Only raw tokens are persisted, so viewing old rows uses current rates.
+// Rows from before the model column existed (model NULL) all ran on
+// LEGACY_LOG_MODEL.
 
 // analysis_log.input_tokens/output_tokens only exist from this migration onward
 // (supabase/migrations/20260704000000_analysis_log_token_usage.sql); older rows are
@@ -88,6 +89,7 @@ interface AnalysisLogRow {
   kind: string;
   input_tokens: number | null;
   output_tokens: number | null;
+  model: string | null;
 }
 
 export async function getAdminReportStats(range: ReportRange): Promise<AdminReportStats> {
@@ -102,7 +104,7 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
     fetchAllRows<AnalysisLogRow>((from, to) =>
       supabase
         .from('analysis_log')
-        .select('user_id, status, created_at, kind, input_tokens, output_tokens')
+        .select('user_id, status, created_at, kind, input_tokens, output_tokens, model')
         .gte('created_at', startIso)
         .order('created_at', { ascending: true })
         .range(from, to)
@@ -192,14 +194,22 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
   // combined spend, averaged over the count of successful *analyze* rows.
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
+  let totalCostUsd = 0;
+  const unpricedModels = new Set<string>();
   for (const log of logs) {
     if (log.status !== 'success') continue;
-    totalInputTokens += log.input_tokens ?? 0;
-    totalOutputTokens += log.output_tokens ?? 0;
+    const input = log.input_tokens ?? 0;
+    const output = log.output_tokens ?? 0;
+    totalInputTokens += input;
+    totalOutputTokens += output;
+    const model = log.model ?? LEGACY_LOG_MODEL;
+    if (!isGeminiModel(model)) {
+      unpricedModels.add(model);
+      continue;
+    }
+    const price = GEMINI_PRICING[model];
+    totalCostUsd += (input / 1_000_000) * price.inputPer1M + (output / 1_000_000) * price.outputPer1M;
   }
-  const totalCostUsd =
-    (totalInputTokens / 1_000_000) * GEMINI_INPUT_PRICE_PER_1M_USD +
-    (totalOutputTokens / 1_000_000) * GEMINI_OUTPUT_PRICE_PER_1M_USD;
 
   // Denominator for averages: successful 'analyze' rows created after token
   // tracking began. Excludes pre-migration rows (input/output_tokens backfilled
@@ -223,5 +233,6 @@ export async function getAdminReportStats(range: ReportRange): Promise<AdminRepo
     avgTotalTokens: avgInputTokens + avgOutputTokens,
     avgCostUsd,
     totalCostUsd,
+    unpricedModels: Array.from(unpricedModels),
   };
 }

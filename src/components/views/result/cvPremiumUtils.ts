@@ -19,11 +19,14 @@ export function cleanMarkdownForPremium(fullRewrittenCV: string | undefined): st
   md = md.replace(/^#\s+[^\n]+\n?/m, '');
   // Strip contact lines right after H1 (email @, phone 0x, linkedin, .com, · separator)
   md = md.replace(/(^[^\n#\-*`>].*(?:·|@|linkedin|\.com)[^\n]*\n)+/m, '');
+  // Section ends use a Unicode-aware boundary: ASCII \b never matches after a
+  // Vietnamese letter such as the final "ữ" in "Ngoại ngữ". A section runs to
+  // the next ## or the true end of text (`$` under /m would stop at its first line).
   // Strip Education (sidebar)
-  md = md.replace(/^##\s+(?:Học vấn|Education)\b[\s\S]*?(?=\n##\s|\n*$)/im, '');
+  md = md.replace(/^##\s+(?:Học vấn|Education)(?![\p{L}\p{N}_])[\s\S]*?(?=\n##\s|\s*(?![\s\S]))/imu, '');
   // Strip Skills — all common variants (sidebar)
-  md = md.replace(/^##\s+(?:Kỹ năng(?:\s+\w+)*|Technical\s+Skills?|Skills?)\b[\s\S]*?(?=\n##\s|\n*$)/im, '');
+  md = md.replace(/^##\s+(?:Kỹ năng(?:\s+\w+)*|Technical\s+Skills?|Skills?)(?![\p{L}\p{N}_])[\s\S]*?(?=\n##\s|\s*(?![\s\S]))/imu, '');
   // Strip Languages (sidebar)
-  md = md.replace(/^##\s+(?:Ngôn\s+ngữ|Languages?)\b[\s\S]*?(?=\n##\s|\n*$)/im, '');
+  md = md.replace(/^##\s+(?:Ngôn\s+ngữ|Ngoại\s+ngữ|Languages?)(?![\p{L}\p{N}_])[\s\S]*?(?=\n##\s|\s*(?![\s\S]))/imu, '');
   return md.trim();
 }

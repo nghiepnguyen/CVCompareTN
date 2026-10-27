@@ -317,3 +317,52 @@ describe("parsedCvNormalize — computeYearsOfExperience", () => {
     ).toBeNull();
   });
 });
+describe("normalizeParsedCV — contact placeholders", () => {
+  const withContact = (contact: Record<string, unknown>) =>
+    normalizeParsedCV({ personal_information: { full_name: "A", contact, summary: "" } })!.personal_information.contact;
+
+  it.each([
+    "Not provided",
+    "Not Provided",
+    "not_provided",
+    "Not provided in CV",
+    "Not Specified",
+    "N/A",
+    "NA",
+    "null",
+    "NULL",
+    "undefined",
+    "Chưa cung cấp",
+    "Chưa cung cấp trong CV",
+    "Không cung cấp",
+    "Không có",
+    "[Email]",
+    "  not provided.  ",
+  ])("turns %j into an empty string", (placeholder) => {
+    const c = withContact({ email: placeholder, phone: placeholder, location: placeholder, linkedin: placeholder, website_portfolio: placeholder });
+    expect(c.email).toBe("");
+    expect(c.phone).toBe("");
+    expect(c.location).toBe("");
+    expect(c.linkedin).toBeUndefined();
+    expect(c.website_portfolio).toBeUndefined();
+  });
+
+  it("turns actual null/undefined into empty strings", () => {
+    const c = withContact({ email: null, phone: undefined });
+    expect(c.email).toBe("");
+    expect(c.phone).toBe("");
+    expect(c.location).toBe("");
+  });
+
+  it("keeps real contact values, including ones that merely contain a placeholder word", () => {
+    const real = {
+      email: "minhanh.tran@example.com",
+      phone: "0901 234 567",
+      location: "Hà Nội",
+      linkedin: "linkedin.com/in/not-provided-demo",
+      website_portfolio: "na.design",
+    };
+    expect(withContact(real)).toEqual(real);
+    expect(withContact({ email: "", phone: "", location: "N/A Studio, Hanoi" }).location).toBe("N/A Studio, Hanoi");
+  });
+});

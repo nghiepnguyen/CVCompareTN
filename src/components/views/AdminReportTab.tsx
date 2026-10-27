@@ -163,6 +163,11 @@ export function AdminReportTab() {
               <div className="text-[11px] text-text-light mt-1">
                 {formatLabel(t.adminReportTotalCostSubtitle, { amount: formatCostUsd(stats?.totalCostUsd ?? 0, 2) })}
               </div>
+              {stats && stats.unpricedModels.length > 0 && (
+                <div className="text-[11px] font-bold text-warning mt-1">
+                  {formatLabel(t.adminReportUnpricedModels, { models: stats.unpricedModels.join(', ') })}
+                </div>
+              )}
             </div>
           </div>
         </div>

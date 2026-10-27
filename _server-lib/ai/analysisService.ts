@@ -1,5 +1,5 @@
 import { extractText } from 'unpdf';
-import { getGeminiClient, GEMINI_MODEL, GEMINI_THINKING_BUDGET, extractTokenUsage, type TokenUsage } from './geminiClient.js';
+import { getGeminiClient, GEMINI_ANALYZE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 import { ANALYSIS_RESPONSE_SCHEMA } from './responseSchema.js';
 import {
   normalizeCategoryScores,
@@ -45,7 +45,7 @@ export async function analyzeCV(
   language: 'vi' | 'en' = 'vi',
   timeoutMs = 45_000,
   cvPdfInlineData?: string
-): Promise<{ result: AnalysisResult; usage: TokenUsage }> {
+): Promise<{ result: AnalysisResult; usage: AiCallUsage }> {
   const client = getGeminiClient();
 
   const jdSection =
@@ -121,19 +121,24 @@ export async function analyzeCV(
       }
     }
 
+    const geminiStart = Date.now();
     const geminiPromise = client.models.generateContent({
-      model: GEMINI_MODEL,
+      model: GEMINI_ANALYZE_MODEL,
       contents: [{ role: 'user', parts }],
       config: {
         responseMimeType: 'application/json',
         responseSchema: ANALYSIS_RESPONSE_SCHEMA,
         maxOutputTokens: 16384,
-        thinkingConfig: { thinkingBudget: GEMINI_THINKING_BUDGET },
+        thinkingConfig: thinkingConfigFor(GEMINI_ANALYZE_MODEL),
       },
     });
 
     const response = await Promise.race([geminiPromise, timeoutPromise]);
-    const usage = extractTokenUsage(response.usageMetadata);
+    const usage: AiCallUsage = {
+      ...extractTokenUsage(response.usageMetadata),
+      model: GEMINI_ANALYZE_MODEL,
+      latencyMs: Date.now() - geminiStart,
+    };
 
     const resultText = response.text || '';
     const parsedResult = parseGeminiJson(resultText);
