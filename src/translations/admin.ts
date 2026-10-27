@@ -112,6 +112,10 @@ export const admin = {
     vi: "Tổng chi phí kỳ này: {amount}",
     en: "Total this period: {amount}",
   },
+  adminReportUnpricedModels: {
+    vi: "Chưa có bảng giá, không tính vào chi phí: {models}",
+    en: "No pricing yet, excluded from cost: {models}",
+  },
   adminReportAvgTokenTooltip: {
     vi: "Tổng token của cả 3 loại gọi Gemini (analyze + parse_cv + rewrite) trong một lượt phân tích, chia cho số lượt phân tích thành công — không phải trung bình mỗi lệnh gọi Gemini riêng lẻ.",
     en: "Sums tokens across all 3 Gemini calls in one analysis (analyze + parse_cv + rewrite), divided by successful analyses — not the average per individual Gemini call.",

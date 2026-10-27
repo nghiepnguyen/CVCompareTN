@@ -79,6 +79,37 @@ export function computeYearsOfExperience(
   return Math.round((totalMonths / 12) * 10) / 10;
 }
 
+// Whole-value placeholders models write into required contact fields when the
+// CV has none (seen in the 2026-10-28 Gemini benchmark). Matched on the whole
+// value after lowercasing, trimming, folding "_" to a space and dropping
+// trailing dots — so a real value that merely contains one of these words
+// (e.g. "N/A Studio") is kept. Bracketed templates like "[Email]" count too.
+const CONTACT_PLACEHOLDERS = new Set([
+  "not provided",
+  "not provided in cv",
+  "not available",
+  "not specified",
+  "not mentioned",
+  "n/a",
+  "na",
+  "none",
+  "null",
+  "undefined",
+  "-",
+  "chưa cung cấp",
+  "chưa cung cấp trong cv",
+  "không cung cấp",
+  "không có",
+  "không có thông tin",
+]);
+
+function contactValue(v: unknown): string {
+  if (typeof v !== "string") return "";
+  const key = v.normalize("NFC").toLowerCase().replace(/[_\s]+/g, " ").trim().replace(/\.+$/, "");
+  if (CONTACT_PLACEHOLDERS.has(key) || /^\[[^\]]*\]$/.test(key)) return "";
+  return v;
+}
+
 /**
  * Coerces Gemini / DB JSON into a full ParsedCV shape so UI never reads undefined nested fields.
  * Returns undefined only when there is no usable object (null, non-object, or empty {}).
@@ -93,14 +124,12 @@ export function normalizeParsedCV(raw: unknown): ParsedCV | undefined {
   const personal_information: ParsedPersonalInformation = {
     full_name: typeof piRaw.full_name === "string" ? piRaw.full_name : "",
     contact: {
-      email: typeof cRaw.email === "string" ? cRaw.email : "",
-      phone: typeof cRaw.phone === "string" ? cRaw.phone : "",
-      location: typeof cRaw.location === "string" ? cRaw.location : "",
-      ...(typeof cRaw.linkedin === "string" && cRaw.linkedin.trim()
-        ? { linkedin: cRaw.linkedin }
-        : {}),
-      ...(typeof cRaw.website_portfolio === "string" && cRaw.website_portfolio.trim()
-        ? { website_portfolio: cRaw.website_portfolio }
+      email: contactValue(cRaw.email),
+      phone: contactValue(cRaw.phone),
+      location: contactValue(cRaw.location),
+      ...(contactValue(cRaw.linkedin).trim() ? { linkedin: contactValue(cRaw.linkedin) } : {}),
+      ...(contactValue(cRaw.website_portfolio).trim()
+        ? { website_portfolio: contactValue(cRaw.website_portfolio) }
         : {}),
     },
     summary: typeof piRaw.summary === "string" ? piRaw.summary : "",

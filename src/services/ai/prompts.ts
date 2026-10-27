@@ -99,6 +99,7 @@ function buildParseCvPromptVi({ jdSection }: PromptParams): string {
     YÊU CẦU QUAN TRỌNG:
     - Toàn bộ dữ liệu trích xuất (trừ phần ATS Evaluation) phải dùng ĐÚNG NGÔN NGỮ GỐC của CV (không dịch).
     - Mốc thời gian phải chuẩn hóa về MM/YYYY.
+    - Chỉ trích xuất dữ kiện có trong CV, không suy đoán. Trường thông tin liên hệ nào (email, số điện thoại, địa điểm, LinkedIn, website) CV không có thì để chuỗi rỗng "" — không tạo giá trị giả hay placeholder, không lấy địa điểm từ JD.
   `;
 }
 
@@ -119,6 +120,7 @@ function buildParseCvPromptEn({ jdSection }: PromptParams): string {
     IMPORTANT REQUIREMENTS:
     - All extracted data (except the ATS Evaluation) must use the EXACT ORIGINAL LANGUAGE of the CV (do not translate).
     - Standardize dates to MM/YYYY format.
+    - Extract only facts present in the CV; never guess. Any contact field (email, phone, location, LinkedIn, website) the CV lacks must be an empty string "" — no made-up values or placeholders, and never take a location from the JD.
   `;
 }
 

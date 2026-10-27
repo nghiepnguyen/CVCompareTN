@@ -1,5 +1,6 @@
 import { getUserFromBearerToken, getSupabaseAdmin } from '../payment/supabaseAdmin.js';
 import { analyzeCV } from '../ai/analysisService.js';
+import { GEMINI_ANALYZE_MODEL } from '../ai/geminiClient.js';
 import { withTimeout } from '../withTimeout.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
 import { MAX_BATCH_BY_PLAN } from '../../src/lib/planLimits.js';
@@ -209,7 +210,7 @@ export async function handleAnalyze(
     const message =
       analysisError instanceof Error ? analysisError.message : 'Analysis failed';
     const isTimeout = message.includes('(Timeout)');
-    await logAnalysisAttempt(userId, 'error', 'analyze', message);
+    await logAnalysisAttempt(userId, 'error', 'analyze', message, { model: GEMINI_ANALYZE_MODEL });
     return {
       status: isTimeout ? 504 : 500,
       body: {

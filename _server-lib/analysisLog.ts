@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from './payment/supabaseAdmin.js';
 import { withTimeout } from './withTimeout.js';
-import type { TokenUsage } from './ai/geminiClient.js';
+import type { AiCallUsage } from './ai/geminiClient.js';
 
 export type AnalysisLogKind = 'analyze' | 'parse_cv' | 'rewrite';
 
@@ -16,7 +16,9 @@ export async function logAnalysisAttempt(
   status: 'success' | 'error',
   kind: AnalysisLogKind,
   errorMessage?: string,
-  usage?: TokenUsage
+  // Full usage on success; only `model` when the Gemini call itself failed;
+  // omitted for preflight failures (no model ran).
+  usage?: Partial<AiCallUsage>
 ): Promise<void> {
   try {
     const { error } = await withTimeout(
@@ -27,6 +29,8 @@ export async function logAnalysisAttempt(
         error_message: errorMessage,
         input_tokens: usage?.inputTokens ?? 0,
         output_tokens: usage?.outputTokens ?? 0,
+        model: usage?.model ?? null,
+        latency_ms: usage?.latencyMs ?? null,
       }) as unknown as Promise<{ error: unknown }>,
       LOG_TIMEOUT_MS,
       'analysis_log insert'

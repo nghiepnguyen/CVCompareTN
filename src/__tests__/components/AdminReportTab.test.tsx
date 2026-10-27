@@ -32,6 +32,7 @@ function stats(newUsersCount: number): AdminReportStats {
     avgTotalTokens: 0,
     avgCostUsd: 0,
     totalCostUsd: 0,
+    unpricedModels: [],
   };
 }
 
