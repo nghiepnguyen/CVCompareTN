@@ -366,3 +366,23 @@ describe("normalizeParsedCV — contact placeholders", () => {
     expect(withContact({ email: "", phone: "", location: "N/A Studio, Hanoi" }).location).toBe("N/A Studio, Hanoi");
   });
 });
+
+describe("normalizeParsedCV — textual month dates", () => {
+  const job = (start: string, end: string, is_current = false) => ({
+    company: "C", job_title: "T", duration: { start, end, is_current }, responsibilities: [], achievements: [],
+  });
+
+  it("normalizes English month names in durations to MM/YYYY", () => {
+    const cv = normalizeParsedCV({ work_experience: [job("Jan 2022", "Sept 2024")] })!;
+    expect(cv.work_experience[0].duration).toEqual({ start: "01/2022", end: "09/2024", is_current: false });
+  });
+
+  it("keeps year-only and existing MM/YYYY durations unchanged", () => {
+    const cv = normalizeParsedCV({ work_experience: [job("2018", "06/2022")] })!;
+    expect(cv.work_experience[0].duration).toMatchObject({ start: "2018", end: "06/2022" });
+  });
+
+  it("counts textual-month ranges in years of experience", () => {
+    expect(computeYearsOfExperience([job("January 2020", "December 2021")] as never)).toBe(2);
+  });
+});

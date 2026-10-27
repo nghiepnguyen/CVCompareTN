@@ -8,6 +8,7 @@ import type {
   ParsedWorkExperience,
 } from "./types.js";
 import { vnDateParts } from "../../lib/vnTime.js";
+import { normalizeTextualMonthYear } from "../../lib/cvDates.js";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v != null && typeof v === "object" && !Array.isArray(v);
@@ -17,7 +18,7 @@ type MonthYear = { year: number; month: number };
 
 function parseMonthYear(s: string | undefined): MonthYear | null {
   if (typeof s !== "string") return null;
-  const trimmed = s.trim();
+  const trimmed = normalizeTextualMonthYear(s.trim());
   let m = trimmed.match(/^(\d{1,2})\/(\d{4})$/);
   if (m) {
     const month = parseInt(m[1], 10);
@@ -161,8 +162,8 @@ export function normalizeParsedCV(raw: unknown): ParsedCV | undefined {
           company: typeof w.company === "string" ? w.company : "",
           job_title: typeof w.job_title === "string" ? w.job_title : "",
           duration: {
-            start: typeof dur.start === "string" ? dur.start : "",
-            end: typeof dur.end === "string" ? dur.end : "",
+            start: typeof dur.start === "string" ? normalizeTextualMonthYear(dur.start) : "",
+            end: typeof dur.end === "string" ? normalizeTextualMonthYear(dur.end) : "",
             is_current: Boolean(dur.is_current),
           },
           responsibilities: Array.isArray(w.responsibilities)
