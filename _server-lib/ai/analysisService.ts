@@ -12,6 +12,7 @@ import {
 } from '../../src/services/ai/resultPayloadNormalize.js';
 import type { AnalysisResult } from '../../src/services/ai/types.js';
 import { buildAnalyzePrompt } from '../../src/services/ai/prompts.js';
+import { vnDateParts } from '../../src/lib/vnTime.js';
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -53,7 +54,9 @@ export async function analyzeCV(
       ? `Mô tả công việc (JD):\n${jd}`
       : `Job Description (JD):\n${jd}`;
 
-  const finalPrompt = buildAnalyzePrompt({ jdSection, language });
+  const { y, m } = vnDateParts(new Date());
+  const currentMonth = `${String(m + 1).padStart(2, '0')}/${y}`;
+  const finalPrompt = buildAnalyzePrompt({ jdSection, language, currentMonth });
 
   type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
   const parts: GeminiPart[] = [{ text: finalPrompt }];

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildAnalyzePromptVi, buildAnalyzePromptEn, buildParseCvPrompt } from "../../services/ai/prompts";
+import { buildAnalyzePrompt, buildAnalyzePromptVi, buildAnalyzePromptEn, buildParseCvPrompt } from "../../services/ai/prompts";
 
 const mockJdSection = "<!-- JD: Senior Frontend Developer -->";
 
@@ -23,7 +23,7 @@ describe("prompts — buildAnalyzePromptVi", () => {
 
   it("contains key analysis instructions in Vietnamese", () => {
     const result = buildAnalyzePromptVi({ jdSection: mockJdSection });
-    expect(result).toContain("Google XYZ");
+    expect(result).not.toContain("Google XYZ");
     expect(result).toContain("MM/YYYY");
     expect(result).toContain("detailedComparison");
   });
@@ -61,7 +61,7 @@ describe("prompts — buildAnalyzePromptEn", () => {
 
   it("contains key analysis instructions in English", () => {
     const result = buildAnalyzePromptEn({ jdSection: mockJdSection });
-    expect(result).toContain("Google XYZ");
+    expect(result).not.toContain("Google XYZ");
     expect(result).toContain("MM/YYYY");
     expect(result).toContain("detailed comparison table");
   });
@@ -105,5 +105,74 @@ describe("prompts — buildParseCvPrompt", () => {
   it("defaults to Vietnamese when language is omitted", () => {
     const result = buildParseCvPrompt({ jdSection: mockJdSection });
     expect(result).toContain("Trích xuất");
+  });
+});
+describe("prompts — analyze evidence guardrails", () => {
+  const cases = [
+    {
+      lang: "vi",
+      build: buildAnalyzePromptVi,
+      expectAll: [
+        "nguồn dữ kiện DUY NHẤT về ứng viên", // CV = candidate source of truth
+        "KHÔNG BAO GIỜ là bằng chứng", // JD != candidate evidence
+        "Không tự tính ra số liệu mới", // no invented metrics
+        "không thêm kỹ năng chỉ có trong JD", // no JD-only skills in suggestions
+        "Nếu bạn thực sự đã sử dụng X", // conditional recommendation
+        "KHÁC \"ứng viên không làm được\"", // not evidenced != cannot
+        "PostgreSQL không có nghĩa là có BigQuery", // semantic != exact
+        "Không thêm kỹ năng/công cụ mới dưới bất kỳ hình thức nào", // skills section
+        "Giữ nguyên mọi con số CV đã nêu",
+        "KHÔNG đưa gợi ý viết lại cho mục Kỹ năng/Skills",
+        "ĐÚNG NGÔN NGỮ GỐC của CV",
+      ],
+    },
+    {
+      lang: "en",
+      build: buildAnalyzePromptEn,
+      expectAll: [
+        "ONLY source of facts about the candidate",
+        "NEVER treat the JD as evidence",
+        "Do not derive new metrics",
+        "never add JD-only skills",
+        "If you have actually used X",
+        "is NOT \"the candidate cannot do it\"",
+        "PostgreSQL in the CV does not mean BigQuery",
+        "Never add a new skill/tool in any form",
+        "Keep every number the CV states as is",
+        "Do NOT make rewrite suggestions for a Skills section",
+        "EXACT ORIGINAL LANGUAGE of the CV",
+      ],
+    },
+  ] as const;
+
+  for (const { lang, build, expectAll } of cases) {
+    describe(lang, () => {
+      const p = build({ jdSection: mockJdSection });
+
+      it.each(expectAll)("contains guardrail %s", (phrase) => {
+        expect(p).toContain(phrase);
+      });
+
+      it("does not show the XYZ template for the model to copy", () => {
+        expect(p).not.toMatch(/Accomplished \[X\]|as measured by \[Y\]|by doing \[Z\]/);
+      });
+
+      it("maps evidence states onto the existing status enum", () => {
+        expect(p).toContain('"matched"');
+        expect(p).toContain('"partial"');
+        expect(p).toContain('"missing"');
+      });
+
+      it("keeps year-only dates as YYYY instead of inventing months", () => {
+        expect(p).toMatch(/YYYY/);
+        expect(p).not.toMatch(/chuẩn hóa về MM\/YYYY\.|Standardize dates to MM\/YYYY format/);
+      });
+    });
+  }
+
+  it("states the current month only when provided", () => {
+    expect(buildAnalyzePrompt({ jdSection: mockJdSection, language: "vi", currentMonth: "10/2026" })).toContain("Thời điểm hiện tại: 10/2026");
+    expect(buildAnalyzePrompt({ jdSection: mockJdSection, language: "en", currentMonth: "10/2026" })).toContain("Current month: 10/2026");
+    expect(buildAnalyzePromptVi({ jdSection: mockJdSection })).not.toContain("Thời điểm hiện tại");
   });
 });

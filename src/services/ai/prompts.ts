@@ -2,22 +2,41 @@
 export interface PromptParams {
   jdSection: string;
   language?: 'vi' | 'en';
+  /** Current month as MM/YYYY (ICT), so "Present"/"nay" ranges are measured from today, not the model's training date. */
+  currentMonth?: string;
 }
 
-export function buildAnalyzePrompt({ jdSection, language = 'vi' }: PromptParams): string {
-  if (language === 'en') return buildAnalyzePromptEn({ jdSection });
-  return buildAnalyzePromptVi({ jdSection });
+export function buildAnalyzePrompt({ jdSection, language = 'vi', currentMonth }: PromptParams): string {
+  if (language === 'en') return buildAnalyzePromptEn({ jdSection, currentMonth });
+  return buildAnalyzePromptVi({ jdSection, currentMonth });
 }
+
+// Analyze guardrails mirror the rewrite ones (_server-lib/ai/rewriteService.ts):
+// the CV is the only source of candidate facts, the JD only supplies
+// requirements. Before this, suggestions invented metrics ("15% ROAS"),
+// inserted JD-only tools and dropped Vietnamese CVs into English
+// (analyze benchmark 2026-10-29, scripts/benchmark-gemini-analyze.ts).
 
 /**
  * Build the Vietnamese analysis prompt for Gemini.
  */
-export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
+export function buildAnalyzePromptVi({ jdSection, currentMonth }: PromptParams): string {
   return `
     Bạn là một chuyên gia tuyển dụng HR và chuyên gia về hệ thống ATS (Applicant Tracking System).
     Hãy phân tích sự phù hợp của CV này so với Mô tả công việc (JD).
 
     ${jdSection}
+${currentMonth ? `\n    Thời điểm hiện tại: ${currentMonth}. Dùng mốc này khi tính thời gian cho các vị trí ghi "nay"/"hiện tại"/"Present".\n` : ''}
+    NGUYÊN TẮC BẰNG CHỨNG (bắt buộc, áp dụng cho MỌI phần của kết quả):
+    - CV là nguồn dữ kiện DUY NHẤT về ứng viên: kinh nghiệm, công ty, chức danh, mốc thời gian, kỹ năng, công cụ, học vấn, chứng chỉ, trình độ ngoại ngữ, thành tích, số liệu, địa điểm, thông tin liên hệ.
+    - JD chỉ cho biết YÊU CẦU (kỹ năng bắt buộc/ưu tiên, trách nhiệm, từ khóa, cấp độ, lĩnh vực). JD được dùng để so sánh với CV, KHÔNG BAO GIỜ là bằng chứng ứng viên có điều gì.
+    - Đánh giá mỗi yêu cầu theo đúng một trong ba trạng thái:
+      + Có bằng chứng (status "matched"): CV nêu trực tiếp yêu cầu đó hoặc biến thể tên gọi được công nhận.
+      + Chưa chắc chắn (status "partial"): CV có kinh nghiệm liên quan nhưng không đủ để khẳng định yêu cầu cụ thể (VD: CV có "dashboard phân tích", JD yêu cầu "Looker").
+      + Chưa thể hiện (status "missing"): CV không đề cập.
+    - Tương đồng ngữ nghĩa KHÔNG phải là khớp chính xác: CV có PostgreSQL không có nghĩa là có BigQuery; CV có Tableau không có nghĩa là có Looker. Không giả định ứng viên biết công cụ tương đương.
+    - "Chưa thể hiện trong CV" KHÁC "ứng viên không làm được". Viết là "CV chưa thể hiện rõ …", không viết "ứng viên thiếu khả năng …" khi CV chỉ đơn giản không đề cập (áp dụng cho kỹ năng, lãnh đạo, ngoại ngữ, công cụ, kiến thức ngành, kỹ năng mềm).
+    - Mọi số liệu trình bày như dữ kiện về ứng viên (%, doanh thu, số người dùng, quy mô team, xếp hạng, uptime, ROAS/CPA/chuyển đổi, traffic, thời gian tiết kiệm, chi phí giảm, tăng trưởng, số dự án…) phải có nguyên văn trong CV. Không tự tính ra số liệu mới, không đưa số mẫu.
 
     Nhiệm vụ: Phân tích và So sánh với JD:
     1. Xác định chức danh công việc (Job Title) từ JD.
@@ -33,9 +52,10 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
        - 40-59: Chỉ đáp ứng dưới 50% yêu cầu BẮT BUỘC, hoặc thiếu ít nhất 1 yêu cầu BẮT BUỘC quan trọng (critical) của category.
        - 20-39: Hầu như không đáp ứng yêu cầu BẮT BUỘC nào của category, chỉ có liên hệ mơ hồ/gián tiếp.
        - 0-19: Không có bằng chứng liên quan trong CV.
+       Chỉ tính là đáp ứng khi có bằng chứng trong CV ("matched"); "partial" chỉ được tính một phần, "missing" không được tính. Kỹ năng chỉ có trong JD không bao giờ được tính như ứng viên đã có. Gợi ý cải thiện không làm thay đổi điểm.
        Riêng điểm "Kinh nghiệm" (Experience): nếu đã xác định được số năm YÊU CẦU ở bước 2, tính số năm kinh nghiệm THỰC TẾ của candidate (ước tính từ TOÀN BỘ mốc thời gian công việc trong CV, không chỉ vị trí gần nhất), dùng thang điểm trên làm điểm nền rồi điều chỉnh: thực tế ≥100% yêu cầu → giữ điểm nền; 80-99% → trừ 10-15 điểm; 50-79% → trừ 25-35 điểm; dưới 50% → điểm tối đa 40 dù các yếu tố khác tốt.
-    4. Liệt kê các điểm tương đồng cụ thể theo danh mục (matchingPoints).
-    5. Liệt kê các điểm còn thiếu (missingGaps). Yêu cầu BẮT BUỘC bị thiếu LUÔN gán impact = "High"; yêu cầu ƯU TIÊN bị thiếu gán impact = "Medium" hoặc "Low" tùy mức độ ảnh hưởng thực tế.
+    4. Liệt kê các điểm tương đồng cụ thể theo danh mục (matchingPoints) — CHỈ những điểm có bằng chứng trực tiếp trong CV, nêu rõ bằng chứng đó.
+    5. Liệt kê các điểm còn thiếu (missingGaps), diễn đạt là "CV chưa thể hiện …". Yêu cầu BẮT BUỘC bị thiếu LUÔN gán impact = "High"; yêu cầu ƯU TIÊN bị thiếu gán impact = "Medium" hoặc "Low" tùy mức độ ảnh hưởng thực tế.
     6. Xác định từ khóa ATS (atsKeywords) theo cách một bộ máy ATS THẬT hoạt động — so khớp CHUỖI/CỤM TỪ gần-chính xác, KHÔNG suy diễn ngữ nghĩa lỏng:
        - So khớp không phân biệt hoa/thường, chấp nhận số ít/số nhiều và các biến thể viết tắt ↔ đầy đủ được công nhận rộng rãi (VD: "JS" ↔ "JavaScript", "AWS" ↔ "Amazon Web Services", "PM" ↔ "Project Manager").
        - Với mỗi từ khóa/cụm từ quan trọng trong JD (kỹ năng, công cụ, chứng chỉ, chức danh, công nghệ...): kiểm tra chuỗi đó (hoặc biến thể được công nhận) có xuất hiện LITERAL trong text CV hay không — không tính là khớp chỉ vì có khái niệm liên quan về ngữ nghĩa.
@@ -43,10 +63,16 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
        - Nếu JD nêu rõ nhưng KHÔNG có chuỗi/biến thể nào xuất hiện literal trong CV (kể cả khi CV có kinh nghiệm/kỹ năng liên quan về nghĩa) → liệt kê vào missingGaps và ghi rõ trong "content" đây là thiếu TỪ KHÓA CHÍNH XÁC cho ATS (VD: "CV có kinh nghiệm phân tích số liệu tương đương nhưng không ghi rõ chuỗi 'Google Analytics'").
     7. Cung cấp 5–8 gợi ý viết lại cụ thể bằng cách:
        - Đọc kỹ TOÀN BỘ nội dung CV đã cung cấp (không bỏ sót phần nào).
-       - Bắt buộc cover TẤT CẢ các section có trong CV: Professional Summary, từng vị trí Work Experience, Skills, Education, Projects, Certifications (nếu có).
-       - Với mỗi gợi ý: trích dẫn CHÍNH XÁC câu/đoạn gốc trong CV vào field "original" (không được để trống, không paraphrase), viết lại vào "optimized" theo công thức Google XYZ (Accomplished [X] as measured by [Y], by doing [Z]) với số liệu cụ thể nếu CV đã cung cấp, và giải thích lý do tối ưu vào "explanation".
+       - Bắt buộc cover các section có trong CV: Professional Summary, từng vị trí Work Experience, Projects; Education/Certifications chỉ khi thực sự có điểm cần trình bày lại.
+       - KHÔNG đưa gợi ý viết lại cho mục Kỹ năng/Skills: danh sách kỹ năng không thể "tối ưu" mà không thêm kỹ năng mới. Kỹ năng JD yêu cầu mà CV chưa thể hiện thuộc về missingGaps, không thuộc rewriteSuggestions.
+       - Với mỗi gợi ý: trích dẫn CHÍNH XÁC câu/đoạn gốc trong CV vào field "original" (không được để trống, không paraphrase), viết lại vào "optimized", và giải thích lý do tối ưu vào "explanation".
+       - "optimized" CHỈ diễn đạt lại dữ kiện đã có trong CV: động từ hành động rõ ràng + phạm vi/cách làm + kết quả (chỉ khi CV đã nêu). Không thêm số liệu, công cụ, kỹ năng, thành tích hay trách nhiệm mà CV không có; không thêm kỹ năng chỉ có trong JD; không nâng chức danh; không dùng placeholder kiểu [X%]. Không viết các nhãn/cụm như "Accomplished", "as measured by", "by doing".
+       - Giữ nguyên mọi con số CV đã nêu, kể cả số năm kinh nghiệm ghi trong CV (không tính lại từ mốc thời gian để thay thế).
+       - Gợi ý cho mục Kỹ năng/Skills chỉ được sắp xếp, nhóm lại hoặc đổi cách gọi tương đương nghĩa các kỹ năng CV ĐÃ CÓ. Không thêm kỹ năng/công cụ mới dưới bất kỳ hình thức nào, kể cả kèm ghi chú như "(đang học)", "(cơ bản)", "(familiarity)", "am hiểu về …".
+       - Không phải bullet nào cũng cần số liệu. Nếu thêm số liệu sẽ giúp ích nhưng CV không có, ghi trong "explanation" dạng có điều kiện, VD: "Nếu có số liệu thực tế, hãy bổ sung quy mô hoặc kết quả để tăng tính thuyết phục."
+       - Nếu JD yêu cầu một kỹ năng/công cụ mà CV không thể hiện: không đưa vào "optimized"; chỉ có thể gợi ý trong "explanation" dạng "Nếu bạn thực sự đã sử dụng X, hãy bổ sung vào phần kinh nghiệm tương ứng."
        - Mỗi Work Experience entry phải có ít nhất 2 gợi ý riêng biệt cho 2 bullet point khác nhau.
-       - Ưu tiên các bullet point thiếu số liệu định lượng, dùng động từ yếu, hoặc không liên quan đến yêu cầu JD, ĐẶC BIỆT các yêu cầu BẮT BUỘC.
+       - Ưu tiên các bullet point diễn đạt mơ hồ, dùng động từ yếu, hoặc chưa làm nổi bật phần kinh nghiệm liên quan tới yêu cầu JD (ĐẶC BIỆT yêu cầu BẮT BUỘC) mà CV thực sự có.
     8. Ước tính xác suất thành công khi phỏng vấn và khả năng vượt qua vòng lọc CV, phản ánh đúng việc các gap thuộc yêu cầu BẮT BUỘC ảnh hưởng nặng hơn nhiều so với gap thuộc yêu cầu ƯU TIÊN.
     9. Cung cấp bảng so sánh chi tiết (detailedComparison) đối chiếu TẤT CẢ các yêu cầu trong JD, phân bổ MỖI yêu cầu vào ĐÚNG MỘT nhóm sau (không bỏ sót, không trùng lặp một yêu cầu ở nhiều nhóm):
        - "skills": mọi yêu cầu về NĂNG LỰC/KỸ NĂNG nói chung — kỹ năng cứng, kỹ năng mềm, kỹ năng kỹ thuật/ngôn ngữ lập trình, và năng lực ngoại ngữ (VD: "thành thạo React", "kỹ năng giao tiếp tốt", "tiếng Anh trôi chảy").
@@ -55,14 +81,15 @@ export function buildAnalyzePromptVi({ jdSection }: PromptParams): string {
        - "education": yêu cầu về bằng cấp, chuyên ngành, trường học, và chứng chỉ chuyên môn (certifications).
        - "keywords": thuật ngữ/cụm từ/từ viết tắt xuất hiện trong JD mà một ATS literal sẽ tìm kiếm nguyên văn nhưng KHÔNG map rõ vào 4 nhóm trên (VD: tên phương pháp luận như "Agile/Scrum", biệt ngữ ngành, mô hình kinh doanh "B2B SaaS"). Nhóm này LUÔN xuất hiện trong kết quả, có thể là mảng rỗng nếu JD không có thuật ngữ phù hợp.
        Với MỖI item trong detailedComparison, đặt "priority" = "required" nếu yêu cầu thuộc nhóm BẮT BUỘC ở bước 2, hoặc "nice-to-have" nếu thuộc nhóm ƯU TIÊN.
+       "status" theo ba trạng thái ở NGUYÊN TẮC BẰNG CHỨNG. "cvEvidence" chỉ nêu những gì CV thực sự ghi (để trống khi "missing"). "improvement" phải phân biệt: cách trình bày lại nội dung đã có; bổ sung bằng chứng CHỈ NẾU ứng viên thực sự có ("Nếu bạn đã từng …, hãy ghi rõ …"); hoặc học thêm kỹ năng còn thiếu ("… là khoảng trống so với JD; cân nhắc học hoặc thực hành trước khi ứng tuyển"). Không bao giờ khuyên "thêm X vào kinh nghiệm" khi CV không có X.
     10. Đánh giá khả năng đọc được của ATS (formatAssessment) dựa trên FILE GỐC của CV, nếu file gốc (PDF/ảnh) được cung cấp kèm theo (không chỉ text đã trích xuất):
        - Nếu có file gốc: quan sát trực quan bố cục — có bị chia nhiều cột không (hasMultiColumnLayout), có dùng bảng/hình ảnh/biểu đồ để trình bày nội dung chính không (hasTablesOrGraphics), các heading section có dùng tên chuẩn ATS nhận diện được không như "Kinh nghiệm/Experience", "Học vấn/Education", "Kỹ năng/Skills" (hasStandardSectionHeadings), thông tin liên hệ (email/SĐT) có bị đặt trong header/footer hoặc text box tách biệt khỏi nội dung chính không — đây là lỗi phổ biến khiến ATS không đọc được (contactInfoInHeaderFooter), font chữ có nhất quán xuyên suốt CV không (fontConsistencyIssue: true nếu KHÔNG nhất quán), định dạng ngày có nhất quán không (dateFormatConsistent), CV có phải là ảnh scan/chụp thay vì file tạo từ phần mềm không (isLikelyScannedImage). Tính overallAtsParseabilityScore (0-100: 100 = cực dễ đọc với ATS, 0 = ATS gần như không đọc được) và liệt kê các phát hiện cụ thể bằng câu văn dễ hiểu vào formatIssues. Đặt analysisAvailable = true.
        - Nếu KHÔNG có file gốc (chỉ có text CV): KHÔNG suy đoán về layout — đặt analysisAvailable = false, overallAtsParseabilityScore = 0, tất cả các cờ boolean còn lại = false, và formatIssues = [].
 
     YÊU CẦU QUAN TRỌNG:
     - Toàn bộ nội dung phân tích (điểm số, nhận xét, giải thích) phải bằng TIẾNG VIỆT.
-    - RIÊNG các gợi ý 'optimized' phải dùng ĐÚNG NGÔN NGỮ GỐC của CV.
-    - Mốc thời gian phải chuẩn hóa về MM/YYYY.
+    - RIÊNG các gợi ý 'optimized' phải dùng ĐÚNG NGÔN NGỮ GỐC của CV (CV tiếng Việt → câu tiếng Việt tự nhiên; CV tiếng Anh → tiếng Anh), kể cả khi JD hoặc hướng dẫn này dùng ngôn ngữ khác.
+    - Mốc thời gian: dùng MM/YYYY khi CV có tháng; nếu CV chỉ có năm thì giữ YYYY — không tự thêm tháng.
     - Phân loại (category) trong matchingPoints và missingGaps phải thuộc danh sách: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Language Skills", "Experience", "Tools", "Education".
       + "Hard Skills": kỹ năng chuyên môn đo lường được nói chung (VD: phân tích tài chính, quản lý dự án).
       + "Technical Skills": công nghệ/công cụ/ngôn ngữ lập trình cụ thể (VD: React, Python, SQL, AWS).
@@ -127,12 +154,23 @@ function buildParseCvPromptEn({ jdSection }: PromptParams): string {
 /**
  * Build the English analysis prompt for Gemini.
  */
-export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
+export function buildAnalyzePromptEn({ jdSection, currentMonth }: PromptParams): string {
   return `
     You are an HR recruitment expert and an ATS (Applicant Tracking System) specialist.
     Analyze the suitability of this CV against the Job Description (JD).
 
     ${jdSection}
+${currentMonth ? `\n    Current month: ${currentMonth}. Use it when measuring roles that end in "Present"/"now".\n` : ''}
+    EVIDENCE RULES (mandatory, apply to EVERY part of the output):
+    - The CV is the ONLY source of facts about the candidate: experience, companies, job titles, dates, skills, tools, education, certifications, language proficiency, achievements, metrics, location, contact details.
+    - The JD only states REQUIREMENTS (required/preferred skills, responsibilities, keywords, seniority, domain). Compare the JD against the CV; NEVER treat the JD as evidence that the candidate has anything.
+    - Judge each requirement as exactly one of three states:
+      + Supported (status "matched"): the CV states it directly or under a recognized variant name.
+      + Uncertain (status "partial"): the CV shows related experience but not enough to confirm the specific requirement (e.g. CV has "analytics dashboards", JD asks for "Looker").
+      + Missing (status "missing"): the CV does not mention it.
+    - Semantic similarity is NOT an exact match: PostgreSQL in the CV does not mean BigQuery; Tableau does not mean Looker. Never assume the candidate knows an equivalent tool.
+    - "Not shown in the CV" is NOT "the candidate cannot do it". Write "The CV does not clearly show …", never "The candidate lacks …" when the CV simply does not mention it (applies to skills, leadership, languages, tools, industry knowledge, soft skills).
+    - Every number presented as a candidate fact (%, revenue, user counts, team size, ratings, uptime, ROAS/CPA/conversion, traffic, time saved, cost reduction, growth, project counts…) must appear verbatim in the CV. Do not derive new metrics or give sample numbers.
 
     Task: Analysis & Comparison with JD:
     1. Identify the Job Title from the JD.
@@ -148,9 +186,10 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
        - 40-59: Meets fewer than 50% of REQUIRED items, or is missing at least one critical REQUIRED item for this category.
        - 20-39: Meets almost none of the REQUIRED items for this category, only vague/indirect relevance.
        - 0-19: No relevant evidence found in the CV.
+       Count a requirement as met only with CV evidence ("matched"); "partial" earns partial credit, "missing" earns none. JD-only skills never count as the candidate's. Improvement advice never changes the score.
        For the "Experience" score specifically: if a REQUIRED years figure was extracted in step 2, compute the candidate's ACTUAL years of experience (estimated from ALL work-history timelines in the CV, not just the most recent role), use the band above as the baseline score, then adjust: actual ≥100% of required → keep baseline; 80-99% → subtract 10-15 points; 50-79% → subtract 25-35 points; below 50% → cap the score at 40 regardless of how strong other factors are.
-    4. List specific matching points by category (matchingPoints).
-    5. List missing gaps (missingGaps). A missing REQUIRED item MUST always be tagged impact = "High"; a missing NICE-TO-HAVE item should be tagged impact = "Medium" or "Low" depending on actual severity.
+    4. List specific matching points by category (matchingPoints) — ONLY points with direct evidence in the CV, citing that evidence.
+    5. List missing gaps (missingGaps), phrased as "The CV does not show …". A missing REQUIRED item MUST always be tagged impact = "High"; a missing NICE-TO-HAVE item should be tagged impact = "Medium" or "Low" depending on actual severity.
     6. Identify ATS keywords (atsKeywords) the way a REAL ATS engine actually works — literal string/phrase matching, not loose semantic inference:
        - Match case-insensitively, accepting singular/plural forms and well-recognized abbreviation ↔ full-form variants (e.g. "JS" ↔ "JavaScript", "AWS" ↔ "Amazon Web Services", "PM" ↔ "Project Manager").
        - For each important keyword/phrase in the JD (skill name, tool, certification, job title, technology...): check whether that exact string (or a recognized variant) appears literally in the CV text — do not count it as a match just because a semantically related concept exists.
@@ -158,10 +197,16 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
        - If the JD states it but NO literal string/variant appears anywhere in the CV (even if the CV shows semantically related experience) → list it in missingGaps and explicitly note in "content" that this is a missing EXACT ATS KEYWORD (e.g. "CV shows equivalent analytics experience but never states the exact string 'Google Analytics'").
     7. Provide 5–8 specific rewrite suggestions by:
        - Reading the ENTIRE CV content carefully (do not skip any section).
-       - Mandatory coverage of ALL sections present in the CV: Professional Summary, each Work Experience entry, Skills, Education, Projects, Certifications (if present).
-       - For each suggestion: quote the EXACT original sentence/bullet from the CV into the "original" field (never leave it empty, never paraphrase), rewrite into "optimized" using the Google XYZ formula (Accomplished [X] as measured by [Y], by doing [Z]) with specific metrics if the CV already contains them, and explain the reasoning in "explanation".
+       - Mandatory coverage of the sections present in the CV: Professional Summary, each Work Experience entry, Projects; Education/Certifications only when there is something real to present better.
+       - Do NOT make rewrite suggestions for a Skills section: a skills list cannot be "optimized" without adding skills. JD skills the CV does not show belong in missingGaps, not rewriteSuggestions.
+       - For each suggestion: quote the EXACT original sentence/bullet from the CV into the "original" field (never leave it empty, never paraphrase), rewrite it into "optimized", and explain the reasoning in "explanation".
+       - "optimized" may ONLY rephrase facts already in the CV: clear action verb + scope/method + outcome (only when the CV states one). Never add numbers, tools, skills, achievements or responsibilities the CV lacks; never add JD-only skills; never promote a title; no placeholders like [X%]. Never write labels or phrases such as "Accomplished", "as measured by", "by doing".
+       - Keep every number the CV states as is, including years of experience written in the CV (do not recompute it from dates to replace it).
+       - Suggestions for a Skills section may only reorder, regroup or rename-with-same-meaning skills the CV ALREADY lists. Never add a new skill/tool in any form, including with qualifiers like "(learning)", "(basic)", "(familiarity)", "knowledge of …".
+       - Not every bullet needs a metric. If a metric would help but the CV has none, say so conditionally in "explanation", e.g. "If you have real figures, add the scale or result to make this more convincing."
+       - If the JD asks for a skill/tool the CV does not show: keep it out of "optimized"; at most suggest in "explanation": "If you have actually used X, add it to the relevant experience."
        - Each Work Experience entry must have at least 2 separate suggestions for 2 different bullet points.
-       - Prioritize bullet points that lack quantitative metrics, use weak action verbs, or are not aligned with JD requirements, ESPECIALLY REQUIRED requirements.
+       - Prioritize bullet points that are vague, use weak action verbs, or under-sell experience the CV actually has that relates to JD requirements, ESPECIALLY REQUIRED ones.
     8. Estimate success probability and pass probability, correctly reflecting that gaps in REQUIRED items hurt these estimates far more than gaps in NICE-TO-HAVE items.
     9. Provide a detailed comparison table (detailedComparison) against ALL JD requirements, assigning EACH requirement to EXACTLY ONE of the following buckets (no omissions, no duplicating a requirement across buckets):
        - "skills": any requirement about general ABILITY/COMPETENCY — hard skills, soft skills, technical skills/programming languages, and spoken-language proficiency (e.g. "proficient in React", "strong communication skills", "fluent English").
@@ -170,14 +215,15 @@ export function buildAnalyzePromptEn({ jdSection }: PromptParams): string {
        - "education": requirements about degrees, majors, institutions, and professional certifications.
        - "keywords": terms/phrases/abbreviations appearing in the JD that a literal ATS would search for verbatim but that do NOT map cleanly to the four buckets above (e.g. methodology names like "Agile/Scrum", domain jargon, business-model terms like "B2B SaaS"). This bucket must ALWAYS be present in the output, even as an empty array if no such terms apply.
        For EVERY item in detailedComparison, set "priority" to "required" if the requirement belongs to the REQUIRED group from step 2, or "nice-to-have" if it belongs to the NICE-TO-HAVE group.
+       Set "status" by the three states in the EVIDENCE RULES. "cvEvidence" states only what the CV actually says (empty when "missing"). "improvement" must be one of: present existing content better; add evidence ONLY IF the candidate really has it ("If you have …, state it explicitly …"); or acquire the missing skill ("… is a gap versus the JD; consider learning or practicing it before applying"). Never advise "add X to your experience" when the CV has no X.
     10. Assess ATS readability (formatAssessment) based on the CV's ORIGINAL FILE, if the original file (PDF/image) was provided alongside the extracted text (not just the text itself):
        - If the original file is present: visually inspect the layout — is it split into multiple columns (hasMultiColumnLayout), does it rely on tables/images/graphics to present core content (hasTablesOrGraphics), do section headings use ATS-recognizable standard names like "Experience", "Education", "Skills" (hasStandardSectionHeadings), is contact info (email/phone) placed in a header/footer or a separate text box outside the main content flow — a common failure mode ATS parsers can't read (contactInfoInHeaderFooter), is the font consistent throughout the document (fontConsistencyIssue: true if NOT consistent), are dates formatted consistently (dateFormatConsistent), does the document look like a scanned/photographed image rather than a digitally generated file (isLikelyScannedImage). Compute overallAtsParseabilityScore (0-100: 100 = extremely ATS-readable, 0 = ATS can barely read it) and list concrete, plain-language findings in formatIssues. Set analysisAvailable = true.
        - If NO original file is present (text only): do NOT guess about layout — set analysisAvailable = false, overallAtsParseabilityScore = 0, every other boolean flag = false, and formatIssues = [].
 
     IMPORTANT REQUIREMENTS:
     - All analysis content (scores, comments, explanations) must be in ENGLISH.
-    - The 'optimized' suggestions must use the EXACT ORIGINAL LANGUAGE of the CV.
-    - Standardize dates to MM/YYYY format.
+    - The 'optimized' suggestions must use the EXACT ORIGINAL LANGUAGE of the CV (Vietnamese CV → natural Vietnamese; English CV → English), even if the JD or these instructions use another language.
+    - Dates: use MM/YYYY when the CV gives a month; if it only gives a year keep YYYY — never add months.
     - Categories in matchingPoints and missingGaps must be one of: "Skills", "Soft Skills", "Hard Skills", "Technical Skills", "Language Skills", "Experience", "Tools", "Education".
       + "Hard Skills": general measurable professional skills (e.g. financial analysis, project management).
       + "Technical Skills": specific technologies/tools/programming languages (e.g. React, Python, SQL, AWS).
