@@ -42,7 +42,7 @@ CÁCH VIẾT BULLET:
 
 ĐỊNH DẠNG — trả về chuỗi Markdown (GFM) trong trường fullRewrittenCV, dùng ký tự xuống dòng thật:
 - Dòng đầu: tiêu đề cấp 1 (# Họ và Tên đầy đủ)
-- Tiếp theo 1–3 dòng thông tin liên lạc có trong CV (không dùng #); bỏ qua nếu CV không có
+- Tiếp theo 1–3 dòng thông tin liên lạc có trong CV (không dùng #). Nếu CV không có thông tin liên lạc, chuyển thẳng sang mục ## đầu tiên — không đặt nội dung khác vào vị trí này
 - Mỗi mục chính: ## Tên Mục
 - Mỗi vị trí công việc: ### Chức danh — Công ty | thời gian, tiếp theo các dòng gạch đầu dòng (- )
 - Luôn dùng gạch đầu dòng (- ) cho danh sách; không dùng đoạn văn liền mạch không có heading.
@@ -74,7 +74,7 @@ BULLET STYLE:
 
 FORMAT — return a GitHub-Flavored Markdown string in the fullRewrittenCV field, using real newline characters:
 - First line: level-1 heading (# Full Name)
-- Next 1–3 lines for contact info present in the CV (no leading #); skip if none
+- Next 1–3 lines for contact info present in the CV (no leading #). If the CV has none, go straight to the first ## section — put nothing else in that slot
 - Each major section: ## Section Name
 - Each job: ### Job Title — Company | dates, then hyphen bullet lines (- )
 - Always use hyphen bullet lists (- ); do not output prose without Markdown headings.
