@@ -45,6 +45,40 @@ describe('validateFullRewrite: numbers', () => {
   });
 });
 
+describe('validateFullRewrite: leading zeros', () => {
+  const nums = (cv: string, rewrite: string) => check(cv, '', `- ${rewrite}`).valid;
+
+  it.each([
+    ['5 thương hiệu', '05 thương hiệu'],
+    ['05 thương hiệu', '5 thương hiệu'],
+    ['6 tháng', '06 tháng'],
+    ['5 brands', '005 brands'],
+    ['5 brands', '0005 brands'],
+  ])('CV "%s" ↔ rewrite "%s": same value, PASS', (cv, rewrite) => {
+    expect(nums(cv, rewrite)).toBe(true);
+  });
+
+  it.each([
+    ['5 brands', '50 brands'],
+    ['5 brands', '15 brands'],
+    ['15 brands', '5 brands'],
+    ['5 brands', '0.5 brands'],
+    ['5 brands', '0,5 brands'],
+    ['0.5 FTE', '5 FTE'],
+  ])('CV "%s" ↔ rewrite "%s": different value, FAIL', (cv, rewrite) => {
+    expect(nums(cv, rewrite)).toBe(false);
+  });
+
+  it('keeps decimals: "0,5" ↔ "0.5" and "5.0" ↔ "5.0" PASS', () => {
+    expect(nums('0,5 FTE', '0.5 FTE')).toBe(true);
+    expect(nums('rated 5.0', 'rated 5.0')).toBe(true);
+  });
+
+  it('known debt unchanged: "800 nghìn" ↔ "800.000" still fails', () => {
+    expect(nums('800 nghìn đơn/ngày', '800.000 đơn/ngày')).toBe(false);
+  });
+});
+
 describe('validateFullRewrite: raw-JD concepts', () => {
   const jd = 'We need self-serve analytics in BigQuery and strong demand forecasting.';
 

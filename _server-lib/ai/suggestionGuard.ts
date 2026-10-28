@@ -3,11 +3,16 @@ import type { RewriteSuggestion } from '../../src/services/ai/types.js';
 // Numbers as a CV would state them ("7", "1,2", "35%"), separators dropped so
 // "1,2 triệu" and "1.2M" compare equal. MM/YYYY dates and bare years are
 // chronology the pipeline normalizes from the CV's own dates, not metrics.
-function metricNumbers(text: string): string[] {
+// stripLeadingZeros (Full CV only): "05" and "5" are the same value — the
+// rewrite zero-pads counts ("05 thương hiệu"). Zeros are stripped from the raw
+// match before separators are dropped, so "0.5"/"0,5" stay distinct from "5".
+function metricNumbers(text: string, stripLeadingZeros = false): string[] {
   const stripped = text
     .replace(/\b\d{1,2}\/(?:19|20)\d{2}\b/g, ' ')
     .replace(/\b(?:19|20)\d{2}\b/g, ' ');
-  return (stripped.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/[.,]/g, ''));
+  return (stripped.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) =>
+    (stripLeadingZeros ? n.replace(/^0+(?=\d)/, '') : n).replace(/[.,]/g, '')
+  );
 }
 
 // A JD term that must not enter "optimized" unless the CV states it. Only
@@ -178,9 +183,9 @@ export function validateFullRewrite({
 }): FullRewriteValidation {
   const firstSection = rewrittenCv.search(/^##\s/m);
   const body = firstSection > 0 ? rewrittenCv.slice(firstSection) : rewrittenCv;
-  const cvNumbers = new Set(metricNumbers(originalCvText));
+  const cvNumbers = new Set(metricNumbers(originalCvText, true));
   const violations: FullRewriteViolation[] = [];
-  for (const n of new Set(metricNumbers(body))) {
+  for (const n of new Set(metricNumbers(body, true))) {
     if (!cvNumbers.has(n)) violations.push({ reason: 'unsupported-number', concept: n });
   }
   const canonicalBody = canonicalText(body);
