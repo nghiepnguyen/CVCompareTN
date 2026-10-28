@@ -18,13 +18,13 @@ Tiền tố `/api`. Trên Vercel, rewrite trong `vercel.json` trỏ tới các f
 
 ### Phân tích CV (Gemini — server-side)
 
-Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì một call gộp hết — vì Vercel Hobby plan khoá cứng `maxDuration: 60s` và không thể nới, một prompt yêu cầu Gemini trả quá nhiều field (điểm số + gợi ý viết lại + trích xuất CV đầy đủ + CV viết lại hoàn chỉnh) trong một lần dễ vượt trần và bị Vercel hard-kill (504 không có JSON body). Giải pháp: `/api/analyze` chỉ trả kết quả chấm điểm/so sánh (cần hiển thị ngay); `fullRewrittenCV` và `parsedCV` được generate **sau, trong nền**, qua hai endpoint riêng.
+Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì một call gộp hết — vì (khi đó) trần `maxDuration` 60s, một prompt yêu cầu Gemini trả quá nhiều field (điểm số + gợi ý viết lại + trích xuất CV đầy đủ + CV viết lại hoàn chỉnh) trong một lần dễ vượt trần và bị Vercel hard-kill (504 không có JSON body). Giải pháp: `/api/analyze` chỉ trả kết quả chấm điểm/so sánh (cần hiển thị ngay); `fullRewrittenCV` và `parsedCV` được generate **sau, trong nền**, qua hai endpoint riêng.
 
 #### `POST /api/analyze` — chính, đồng bộ
 
 | Môi trường | Method & path | File |
 |------------|----------------|------|
-| **Vercel** | `POST /api/analyze` | `api/analyze.ts` (maxDuration 60s) |
+| **Vercel** | `POST /api/analyze` | `api/analyze.ts` (maxDuration 300s, deadline 65s) |
 | **Express** | `POST /api/analyze` | `server/routes/analyze.ts` |
 
 - **Auth:** Bearer token (Supabase JWT) — **bắt buộc** (2026-07: đã bỏ nhánh anonymous/reCAPTCHA vì UI luôn chặn phân tích khi chưa đăng nhập — nhánh anonymous chỉ có thể chạm tới qua gọi API trực tiếp, không quota, không rate-limit trên Vercel). Không có token hợp lệ → `401`.
@@ -44,7 +44,7 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
   ```
 - **Response:** `AnalysisResult` JSON — matchScore, categoryScores, matchingPoints, missingGaps, atsKeywords, rewriteSuggestions, detailedComparison (mỗi item có thêm `priority: 'required' | 'nice-to-have'`, 2026-07), `formatAssessment` (2026-07 — parseability score + checklist layout/format, xem dưới), successProbability/passProbability/passExplanation/mainFactor. `fullRewrittenCV` luôn là `''` và `parsedCV` luôn `undefined` trong response này — frontend fill hai field đó sau qua `/api/rewrite-cv` và `/api/parse-cv` (xem `generateFullCV`/`generateParsedCVForResult` trong `AnalysisRunContext.tsx`).
 - **Server-side flow (`_server-lib/analyze/handler.ts`):** xác thực Bearer (timeout 4s, thất bại → `401` ngay) → tra plan hiệu lực từ `profiles` (`plan`/`plan_expires_at`/`role`, timeout 4s) và validate `batchTotal` so với `MAX_BATCH_BY_PLAN[effectivePlan]` (vượt hạn mức batch theo plan → `400`; fail-open nếu lookup lỗi/timeout — đây là defense-in-depth, UI đã chặn theo `MAX_BATCH_BY_PLAN` trước khi gọi, bước này chặn caller gọi trực tiếp API) → `check_analytics_quota` RPC (timeout 5s, fail-open nếu lỗi/timeout) → gọi Gemini (`_server-lib/ai/analysisService.ts`) → `increment_usage_count` (fire-and-forget).
-- **Timeout — mô hình wall-clock budget (từ 2026-07):** thay vì cộng dồn timeout độc lập của từng bước (dễ vượt trần nếu mỗi bước chạy gần mức max của nó), handler tính một **deadline duy nhất 50s** kể từ dòng đầu tiên của request. Ngân sách còn lại sau auth/quota được truyền thẳng cho lệnh gọi Gemini (`timeoutMs` param của `analyzeCV()`), đảm bảo tổng thời gian xử lý không bao giờ vượt 50s — chừa 10s buffer trước khi Vercel hard-kill ở 60s. Nếu ngân sách còn lại < 10s trước khi gọi Gemini, server trả `504` với JSON hợp lệ (`retryable: true`) ngay lập tức thay vì cố gọi và bị Vercel giết giữa chừng.
+- **Timeout — Deadline (Stage 3.5, 2026-10-29):** cả 3 endpoint dùng chung một request deadline **65s** (`_server-lib/deadline.ts`) tính từ đầu handler. Gemini chạy theo deadline AI = 65s − 6s dự phòng (cho tăng quota, ghi `analysis_log`, trả response); không gọi Gemini khi còn < 10s. Mỗi tham chiếu storage tối đa 15s (DB lookup + R2 HEAD/GET/body hoặc Supabase download dùng chung một AbortSignal, hủy thật). Quota/telemetry bị giới hạn bởi phần còn lại. Lỗi có kiểm soát trả JSON `504`/`500` và ghi `analysis_log.error_message` dạng phân loại (`[storage_timeout]`, `[storage_error]`, `[gemini_timeout]`, `[gemini_error]`, `[request_budget_exhausted]`). Client chờ 75s. `maxDuration: 300` (Hobby + Fluid Compute, đã xác minh) chỉ là trần an toàn.
 - **maxOutputTokens:** 16384.
 - **Rate limit:** 10 req/15 min (strictLimiter).
 - **Prompt (2026-07):** trước khi chấm điểm, model phân loại từng yêu cầu JD thành `required`/`nice-to-have`, áp thang điểm chuẩn hóa 6 mức cho `categoryScores`, và match `atsKeywords` theo kiểu literal string (không suy diễn ngữ nghĩa lỏng) để mô phỏng đúng cách một ATS thật đọc CV. Chi tiết: `src/services/ai/prompts.ts`.
@@ -54,21 +54,21 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
 
 | Môi trường | Method & path | File |
 |------------|----------------|------|
-| **Vercel** | `POST /api/rewrite-cv` | `api/rewrite-cv.ts` (maxDuration 60s) |
+| **Vercel** | `POST /api/rewrite-cv` | `api/rewrite-cv.ts` (maxDuration 300s, deadline 65s) |
 | **Express** | `POST /api/rewrite-cv` | `server/routes/rewriteCv.ts` |
 
 - **Shared handler:** `_server-lib/rewriteCv/handler.ts` — `handleRewriteCv()` (giống pattern `handleAnalyze()`, dùng chung giữa Vercel và Express).
 - **Auth:** giống `/api/analyze` — Bearer bắt buộc (timeout 4s), không còn nhánh anonymous/reCAPTCHA.
 - **Body:** `{ jd, cvData, cvMimeType, language?, cvDataStoragePath? }` (không có `cvName`). `cvDataStoragePath` (2026-07, optional) — path `cv-analyze-tmp` khi `cvData` là ảnh/PDF-scan 2–15MB, resolve qua `tempFile.ts` giống `/api/analyze`.
 - **Response:** `{ fullRewrittenCV: string }` — Markdown GFM CV đã viết lại tối ưu ATS.
-- **Timeout:** cùng mô hình wall-clock 50s như `/api/analyze` (`_server-lib/ai/rewriteService.ts`, `generateFullRewrite(jd, cvData, cvMimeType, language, timeoutMs)`).
+- **Timeout:** cùng request deadline 65s như `/api/analyze`; retry Full CV chỉ chạy khi deadline AI còn ≥ 20s (`_server-lib/ai/rewriteService.ts`, `generateFullRewrite(jd, cvData, cvMimeType, language, timeoutMs)`).
 - **Trigger:** gọi tự động, không chặn UI, ngay sau khi `/api/analyze` trả kết quả (`AnalysisRunContext.generateFullCV`). `FullCVTab` hiện spinner cho tới khi có kết quả.
 
 #### `POST /api/parse-cv` — nền, tạo `parsedCV`
 
 | Môi trường | Method & path | File |
 |------------|----------------|------|
-| **Vercel** | `POST /api/parse-cv` | `api/parse-cv.ts` (maxDuration 60s) |
+| **Vercel** | `POST /api/parse-cv` | `api/parse-cv.ts` (maxDuration 300s, deadline 65s) |
 | **Express** | `POST /api/parse-cv` | `server/routes/parseCv.ts` |
 
 - **Shared handler:** `_server-lib/parseCv/handler.ts` — `handleParseCv()`.

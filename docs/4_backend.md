@@ -47,11 +47,11 @@ Vercel handler  → _server-lib/module/handler.ts → _server-lib/services
 
 ### 3. Phân tích CV với Gemini AI
 
-Gemini được gọi qua **3 endpoint** thay vì một call gộp hết (từ 2026-07) — Vercel Hobby plan khoá cứng `maxDuration: 60s` (không nới được), nên một prompt yêu cầu Gemini trả quá nhiều field trong một lần dễ vượt trần và bị Vercel hard-kill giữa chừng (504 không có JSON body, không phải lỗi app tự trả). Chi tiết đầy đủ từng endpoint: [5_api.md](5_api.md).
+Gemini được gọi qua **3 endpoint** thay vì một call gộp hết (từ 2026-07) — khi đó trần `maxDuration` là 60s, nên một prompt yêu cầu Gemini trả quá nhiều field trong một lần dễ vượt trần và bị Vercel hard-kill giữa chừng (504 không có JSON body, không phải lỗi app tự trả). Chi tiết đầy đủ từng endpoint: [5_api.md](5_api.md).
 
--   **`POST /api/analyze`** (chính, đồng bộ) — Express: `server/routes/analyze.ts`; Vercel: `api/analyze.ts` (60s timeout). Shared handler: `_server-lib/analyze/handler.ts` → `_server-lib/ai/analysisService.ts` (dùng `_server-lib/ai/geminiClient.ts` với `process.env.GEMINI_API_KEY`). Trả điểm số/so sánh/gợi ý viết lại — **không** trả `fullRewrittenCV`/`parsedCV` đầy đủ (luôn `''`/`undefined`).
--   **`POST /api/rewrite-cv`** (nền, tạo `fullRewrittenCV`) — Express: `server/routes/rewriteCv.ts`; Vercel: `api/rewrite-cv.ts` (60s timeout). Shared handler: `_server-lib/rewriteCv/handler.ts` → `_server-lib/ai/rewriteService.ts`.
--   **`POST /api/parse-cv`** (nền, tạo `parsedCV`) — Express: `server/routes/parseCv.ts`; Vercel: `api/parse-cv.ts` (60s timeout). Shared handler: `_server-lib/parseCv/handler.ts` → `_server-lib/ai/parseCvService.ts`.
+-   **`POST /api/analyze`** (chính, đồng bộ) — Express: `server/routes/analyze.ts`; Vercel: `api/analyze.ts` (maxDuration 300s). Shared handler: `_server-lib/analyze/handler.ts` → `_server-lib/ai/analysisService.ts` (dùng `_server-lib/ai/geminiClient.ts` với `process.env.GEMINI_API_KEY`). Trả điểm số/so sánh/gợi ý viết lại — **không** trả `fullRewrittenCV`/`parsedCV` đầy đủ (luôn `''`/`undefined`).
+-   **`POST /api/rewrite-cv`** (nền, tạo `fullRewrittenCV`) — Express: `server/routes/rewriteCv.ts`; Vercel: `api/rewrite-cv.ts` (maxDuration 300s). Shared handler: `_server-lib/rewriteCv/handler.ts` → `_server-lib/ai/rewriteService.ts`.
+-   **`POST /api/parse-cv`** (nền, tạo `parsedCV`) — Express: `server/routes/parseCv.ts`; Vercel: `api/parse-cv.ts` (maxDuration 300s). Shared handler: `_server-lib/parseCv/handler.ts` → `_server-lib/ai/parseCvService.ts`.
 
 **Flow server-side (`/api/analyze`):**
 
@@ -62,7 +62,7 @@ Gemini được gọi qua **3 endpoint** thay vì một call gộp hết (từ 2
 5. `increment_usage_count` RPC (fire-and-forget)
 6. **Frontend** — khi phân tích nhiều CV, các request `/api/analyze` chạy **song song qua worker pool cố định 5** (`AnalysisRunContext.handleAnalyze`, `CONCURRENCY = 5`), không còn lặp tuần tự từng file; ngay sau khi có kết quả mỗi CV, gọi song song `/api/rewrite-cv` và `/api/parse-cv` trong nền (`generateFullCV` / `generateParsedCVForResult`) để fill `fullRewrittenCV` và `parsedCV`; `FullCVTab`/`ParsedCVTab` hiện spinner cho tới khi xong.
 
-**Timeout — mô hình wall-clock budget:** cả 3 endpoint tính một **deadline duy nhất 50s** kể từ đầu request (thay vì cộng timeout độc lập từng bước, vốn dễ vượt trần nếu mỗi bước chạy gần mức max) — ngân sách còn lại sau auth/quota được truyền thẳng cho lệnh gọi Gemini. Nếu ngân sách còn lại quá thấp (<10s) trước khi gọi Gemini, server trả `504` JSON hợp lệ ngay (`retryable: true`) thay vì cố gọi và bị Vercel giết giữa chừng không JSON body. Utility dùng chung: `_server-lib/withTimeout.ts`.
+**Deadline (Stage 3.5, 2026-10-29):** cả 3 endpoint dùng chung một request deadline **65s** (`_server-lib/deadline.ts`) tính từ đầu handler. Gemini chạy theo deadline AI = 65s − 6s dự phòng (cho tăng quota, ghi `analysis_log`, trả response); không gọi Gemini khi còn < 10s. Mỗi tham chiếu storage tối đa 15s (DB lookup + R2 HEAD/GET/body hoặc Supabase download dùng chung một AbortSignal, hủy thật). Quota/telemetry bị giới hạn bởi phần còn lại. Lỗi có kiểm soát trả JSON `504`/`500` và ghi `analysis_log.error_message` dạng phân loại (`[storage_timeout]`, `[storage_error]`, `[gemini_timeout]`, `[gemini_error]`, `[request_budget_exhausted]`). Client chờ 75s. `maxDuration: 300` (Hobby + Fluid Compute, đã xác minh) chỉ là trần an toàn. Utility: `_server-lib/deadline.ts`, `_server-lib/withTimeout.ts`.
 
 **Lý do chuyển Gemini lên server:** `VITE_GEMINI_API_KEY` trước đây bị bundle vào client JS — bất kỳ ai mở DevTools đều lấy được key. Sau SEC-4, chỉ `process.env.GEMINI_API_KEY` trên server được dùng; frontend chỉ gọi `/api/analyze` (+ `/api/rewrite-cv`, `/api/parse-cv`).
 
