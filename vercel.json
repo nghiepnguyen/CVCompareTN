@@ -51,13 +51,13 @@
   ],
   "functions": {
     "api/analyze.ts": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/rewrite-cv.ts": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/parse-cv.ts": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/extract-pdf.ts": {
       "maxDuration": 60

@@ -21,8 +21,9 @@ export async function queueCleanup(provider: string, kind: BucketKind, key: stri
   const { error } = await getSupabaseAdmin().from('storage_cleanup_jobs').upsert({ provider, bucket_kind: kind, object_key: key, not_before: new Date(Date.now() + delayMs).toISOString() }, { onConflict: 'provider,bucket_kind,object_key,scope' });
   checkDb(error);
 }
-export async function loadUpload(id: string, userId: string): Promise<UploadRow> {
-  const { data, error } = await getSupabaseAdmin().from('storage_uploads').select('*').eq('id', id).eq('user_id', userId).maybeSingle();
+export async function loadUpload(id: string, userId: string, signal?: AbortSignal): Promise<UploadRow> {
+  const query = getSupabaseAdmin().from('storage_uploads').select('*').eq('id', id).eq('user_id', userId);
+  const { data, error } = await (signal ? query.abortSignal(signal) : query).maybeSingle();
   checkDb(error);
   if (!data) throw new StorageError('Không tìm thấy file', 404);
   return data as UploadRow;
@@ -74,10 +75,10 @@ async function download(userId: string, path: string) {
   checkDb(error);
   return { url: data!.signedUrl };
 }
-export async function readTempUpload(id: string, userId: string): Promise<string> {
-  const row = await loadUpload(id, userId);
+export async function readTempUpload(id: string, userId: string, signal?: AbortSignal): Promise<string> {
+  const row = await loadUpload(id, userId, signal);
   if (row.purpose !== 'temp' || row.status !== 'ready' || new Date(row.expires_at).getTime() <= Date.now()) throw new StorageError('File tạm chưa sẵn sàng hoặc đã hết hạn');
-  return (await readObject('temp', row.final_key!, 15 * 1024 * 1024)).toString('base64');
+  return (await readObject('temp', row.final_key!, 15 * 1024 * 1024, signal)).toString('base64');
 }
 export async function handleStorage(authHeader: string | undefined, input: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
   try {

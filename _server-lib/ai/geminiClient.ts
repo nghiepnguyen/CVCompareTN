@@ -9,7 +9,7 @@ export const GEMINI_PARSE_MODEL: GeminiModel = 'gemini-3.5-flash-lite';
 export const GEMINI_REWRITE_MODEL: GeminiModel = 'gemini-3-flash-preview';
 
 // Gemini 3 preview defaults to dynamic (unbounded) thinking, which risks
-// blowing the 50s wall-clock deadline shared with Vercel's 60s maxDuration —
+// blowing the shared request deadline (_server-lib/deadline.ts) —
 // cap it low instead of disabling outright, to keep some reasoning quality.
 // Newer models only document thinkingLevel, so each model gets its own config.
 const THINKING_CONFIG: Record<GeminiModel, ThinkingConfig> = {

@@ -78,15 +78,19 @@ the row (no extra DB write). Values are counts, booleans and one enum only.
 ## NULL vs 0 / false
 
 - `guard_metrics IS NULL`: telemetry unavailable or not applicable — rows
-  before 2026-10-29, `parse_cv` rows, error rows. Never read as zero.
+  before 2026-10-29, `parse_cv` rows, error rows (including the categorical
+  rewrite/parse failure rows added in Stage 3.5). Never read as zero.
 - Zero counters / `false`: the request was measured and nothing happened.
 
 ## Denominator limits
 
-- Rewrite rows exist only for **successful** `/api/rewrite-cv` executions. A
-  rewrite that ends in a 500/504 (including a first-pass Gemini timeout) is not
-  logged. Full CV rates are therefore "among successful rewrite executions
-  recorded in analysis_log", not among every attempted rewrite.
+- Full CV rates are computed over **successful** `/api/rewrite-cv` executions
+  (`status='success'`). Since Stage 3.5 (2026-10-29) a rewrite or parse that
+  fails through a controlled path also writes a `status='error'` row whose
+  `error_message` is only a category (`[storage_timeout]`, `[storage_error]`,
+  `[gemini_timeout]`, `[gemini_error]`, `[request_budget_exhausted]`); before
+  that, failed rewrites/parses had no row at all. A request killed by the
+  platform or with an unreachable log insert still leaves no row.
 - A fidelity fallback is a successful execution (`status='success'`) with
   `fidelityFallback: true`.
 

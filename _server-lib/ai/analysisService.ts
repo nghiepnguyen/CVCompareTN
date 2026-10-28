@@ -1,4 +1,5 @@
 import { extractText } from 'unpdf';
+import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS } from '../deadline.js';
 import { getGeminiClient, GEMINI_ANALYZE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 import { ANALYSIS_RESPONSE_SCHEMA } from './responseSchema.js';
 import {
@@ -67,8 +68,8 @@ export async function analyzeCV(
 
   // Start the timeout BEFORE PDF extraction so the whole analyzeCV budget is bounded.
   // `timeoutMs` is whatever budget the caller has left after auth/quota/recaptcha —
-  // see _server-lib/analyze/handler.ts, which derives it from a single wall-clock
-  // deadline so the total handler time can't exceed Vercel's 60s maxDuration.
+  // see _server-lib/analyze/handler.ts, which derives it from the single
+  // request deadline (_server-lib/deadline.ts).
   let analyzeTimer: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     analyzeTimer = setTimeout(
@@ -82,7 +83,13 @@ export async function analyzeCV(
     );
   });
 
+  // Real cancellation of the Gemini HTTP request at the same moment the
+  // timeout below fires (client-side abort; generation config is unchanged).
+  const deadline = createDeadline(timeoutMs);
+  const abortSignal = deadline.signal();
+
   try {
+    assertBudget(deadline, MIN_GEMINI_BUDGET_MS);
     if (cvMimeType === 'application/pdf') {
       let usedText = false;
       try {
@@ -130,6 +137,9 @@ export async function analyzeCV(
       }
     }
 
+    // unpdf cannot be cancelled: re-check the budget once preparation is done
+    // and never start Gemini without enough time left.
+    assertBudget(deadline, MIN_GEMINI_BUDGET_MS);
     const geminiStart = Date.now();
     const geminiPromise = client.models.generateContent({
       model: GEMINI_ANALYZE_MODEL,
@@ -139,6 +149,7 @@ export async function analyzeCV(
         responseSchema: ANALYSIS_RESPONSE_SCHEMA,
         maxOutputTokens: 16384,
         thinkingConfig: thinkingConfigFor(GEMINI_ANALYZE_MODEL),
+        abortSignal,
       },
     });
 
@@ -219,11 +230,13 @@ export async function analyzeCV(
 
     return { result: finalResult as AnalysisResult, usage, guardMetrics };
   } catch (error: unknown) {
+    if (error instanceof ControlledError) throw error;
     console.error('Gemini Analysis Error:', error);
 
-    // Treat both our Promise.race timeout and SDK-level DEADLINE_EXCEEDED as timeouts
+    // Our Promise.race timeout, the deadline abort and SDK DEADLINE_EXCEEDED are all timeouts
     if (error instanceof Error) {
       const isTimeout =
+        abortSignal.aborted ||
         error.message.includes('(Timeout)') ||
         error.message.includes('DEADLINE_EXCEEDED');
       if (isTimeout) {

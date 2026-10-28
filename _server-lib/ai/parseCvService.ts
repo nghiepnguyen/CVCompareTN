@@ -1,4 +1,5 @@
 import { extractText } from 'unpdf';
+import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS } from '../deadline.js';
 import { getGeminiClient, GEMINI_PARSE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 import { normalizeParsedCV } from '../../src/services/ai/parsedCvNormalize.js';
 import { buildParseCvPrompt } from '../../src/services/ai/prompts.js';
@@ -140,7 +141,12 @@ export async function generateParsedCV(
     );
   });
 
+  // Real cancellation of the Gemini HTTP request when the timeout fires.
+  const deadline = createDeadline(timeoutMs);
+  const abortSignal = deadline.signal();
+
   try {
+    assertBudget(deadline, MIN_GEMINI_BUDGET_MS);
     if (cvMimeType === 'application/pdf') {
       let usedText = false;
       try {
@@ -176,6 +182,9 @@ export async function generateParsedCV(
       }
     }
 
+    // unpdf cannot be cancelled: re-check the budget once preparation is done
+    // and never start Gemini without enough time left.
+    assertBudget(deadline, MIN_GEMINI_BUDGET_MS);
     const geminiStart = Date.now();
     const geminiPromise = client.models.generateContent({
       model: GEMINI_PARSE_MODEL,
@@ -185,6 +194,7 @@ export async function generateParsedCV(
         responseSchema: PARSED_CV_SCHEMA,
         maxOutputTokens: 16384,
         thinkingConfig: thinkingConfigFor(GEMINI_PARSE_MODEL),
+        abortSignal,
       },
     });
 
@@ -204,7 +214,8 @@ export async function generateParsedCV(
       throw new SyntaxError('No JSON object found in Gemini response');
     }
   } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes('(Timeout)')) {
+    if (error instanceof ControlledError) throw error;
+    if (abortSignal.aborted || (error instanceof Error && error.message.includes('(Timeout)'))) {
       throw new Error('CV parsing is taking too long. Please try again. (Timeout)');
     }
     if (error instanceof Error && error.message.includes('DEADLINE_EXCEEDED')) {

@@ -15,7 +15,8 @@ import {
 } from '../../../_server-lib/ai/rewriteService';
 import { GEMINI_PRICING } from '../../lib/geminiModels';
 
-const insertMock = vi.fn().mockResolvedValue({ error: null });
+// insert() returns a builder; logAnalysisAttempt chains .abortSignal() on it.
+const insertMock = vi.fn(() => ({ abortSignal: () => Promise.resolve({ error: null }) }));
 vi.mock('../../../_server-lib/payment/supabaseAdmin.js', () => ({
   getSupabaseAdmin: () => ({ from: () => ({ insert: insertMock }) }),
 }));

@@ -7,9 +7,9 @@ Canonical reference for **which runtime handles each capability**. Từ 2026-06,
 | Capability | Vercel (`api/`) | Express (`server/routes/`) | Shared logic |
 |------------|-----------------|---------------------------|--------------|
 | Public config (Supabase keys) | `GET /api/config` → `api/config.ts` | `server/routes/config.ts` | Inline (env vars only) |
-| **Gemini CV analysis** (chấm điểm, sync) | `POST /api/analyze` → `api/analyze.ts` (60s timeout, 50s wall-clock budget nội bộ) | `POST /api/analyze` → `server/routes/analyze.ts` | `_server-lib/analyze/handler.ts` |
-| **Gemini CV rewrite** (nền, `fullRewrittenCV`) | `POST /api/rewrite-cv` → `api/rewrite-cv.ts` (60s timeout) | `POST /api/rewrite-cv` → `server/routes/rewriteCv.ts` | `_server-lib/rewriteCv/handler.ts` |
-| **Gemini CV parse** (nền, `parsedCV`) | `POST /api/parse-cv` → `api/parse-cv.ts` (60s timeout) | `POST /api/parse-cv` → `server/routes/parseCv.ts` | `_server-lib/parseCv/handler.ts` |
+| **Gemini CV analysis** (chấm điểm, sync) | `POST /api/analyze` → `api/analyze.ts` (maxDuration 300s làm trần an toàn, deadline nội bộ 65s) | `POST /api/analyze` → `server/routes/analyze.ts` | `_server-lib/analyze/handler.ts` |
+| **Gemini CV rewrite** (nền, `fullRewrittenCV`) | `POST /api/rewrite-cv` → `api/rewrite-cv.ts` (maxDuration 300s, deadline 65s) | `POST /api/rewrite-cv` → `server/routes/rewriteCv.ts` | `_server-lib/rewriteCv/handler.ts` |
+| **Gemini CV parse** (nền, `parsedCV`) | `POST /api/parse-cv` → `api/parse-cv.ts` (maxDuration 300s, deadline 65s) | `POST /api/parse-cv` → `server/routes/parseCv.ts` | `_server-lib/parseCv/handler.ts` |
 | PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` (Auth: Bearer or reCAPTCHA) | `POST /api/extract-pdf` → `server/routes/pdf.ts` (idem) | `_server-lib/pdf/handler.ts` |
 | reCAPTCHA verify (auth flow) | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` | `_server-lib/recaptcha.ts` |
 | Feedback email | `POST /api/send-email` (`type:'feedback'`) → `api/send-email.ts` | `POST /api/send-feedback` → `server/routes/feedback.ts` | `_server-lib/email/handlers.ts` |
@@ -28,7 +28,7 @@ Rewrites are defined in [`vercel.json`](../vercel.json).
 
 **Recruiter save-analysis:** `POST /api/recruiter/save-analysis` yêu cầu `Authorization: Bearer <supabase_access_token>`. Dùng service role để ghi kết quả phân tích vào bảng recruiter campaigns.
 
-**Gemini CV rewrite/parse (nền):** Cả hai đều dùng mô hình wall-clock budget 50s giống `/api/analyze` (deadline tính từ đầu request, ngân sách còn lại sau auth/reCAPTCHA truyền thẳng cho Gemini) để đảm bảo luôn trả JSON hợp lệ trước khi Vercel hard-kill ở 60s. Chi tiết: [5_api.md](./5_api.md).
+**Deadline (Stage 3.5):** `/api/analyze`, `/api/rewrite-cv`, `/api/parse-cv` dùng chung một request deadline 65s (`_server-lib/deadline.ts`) tính từ đầu handler. Storage (≤15s/ref, hủy thật qua AbortSignal), Gemini (deadline AI = 65s − 6s dự phòng, hủy thật), quota và `analysis_log` đều bị giới hạn bởi phần còn lại, nên server trả JSON trước khi client (75s) bỏ cuộc. `maxDuration: 300` (Hobby + Fluid Compute đã xác minh) chỉ là trần an toàn, không phải ngân sách request. Chi tiết: [5_api.md](./5_api.md).
 
 ## Request flow (high level)
 
