@@ -373,6 +373,7 @@ Migration: `supabase/migrations/20260703030000_admin_analysis_log.sql`.
 | `status` | `success` hoặc `error`. |
 | `error_message` | Message lỗi khi `status = 'error'`. |
 | `created_at` | Thời điểm ghi log. |
+| `guard_metrics` | Telemetry guard factual (jsonb v1, chỉ số đếm — không có nội dung CV/JD/PII). NULL = row trước 2026-10-29, parse_cv, lỗi. Xem [11_guard_metrics.md](11_guard_metrics.md); migration phải apply **trước** khi deploy code. |
 
 Ghi bởi `logAnalysisAttempt()` trong `_server-lib/analyze/handler.ts` — fire-and-forget, gọi ở **cả 2 nhánh** của `/api/analyze`: sau `analyzeCV()` thành công, và trong `catch` khi thất bại. **Không** ghi cho `/api/rewrite-cv`/`/api/parse-cv` (không phải lượt phân tích riêng, chỉ là follow-up nền — xem [4_backend.md](4_backend.md) mục 3). RLS: chỉ `is_admin()` được SELECT; không có policy INSERT cho `authenticated` — chỉ service role (backend) ghi được.
 
