@@ -195,6 +195,50 @@ export function validateFullRewrite({
   return { valid: violations.length === 0, violations };
 }
 
+// ---------------------------------------------------------------------------
+// Guard telemetry (analysis_log.guard_metrics, v1). Aggregate counters and
+// state only — never a concept, number, CV/JD/suggestion/rewrite text or PII.
+// See docs/11_guard_metrics.md.
+// ---------------------------------------------------------------------------
+export type ViolationCounts = { unsupportedNumber: number; rawJd: number };
+
+export type SuggestionGuardMetrics = {
+  suggestionsIn: number;
+  droppedTotal: number;
+  skills: number;
+  numeric: number;
+  rawJd: number;
+  // CV text was available, so the numeric/raw-JD checks could run. false
+  // (inline PDF/image) does not mean no guard ran: the Skills rule still does.
+  factualChecks: boolean;
+};
+
+export type FullCvRetryOutcome = 'not_needed' | 'skipped_budget' | 'error' | 'invalid' | 'recovered';
+
+export type FullCvGuardMetrics = {
+  validationAttempted: boolean;
+  validationSkipped: boolean;
+  firstPassValid: boolean | null;
+  firstPassViolations?: ViolationCounts;
+  retryOutcome: FullCvRetryOutcome;
+  retryViolations?: ViolationCounts;
+  fidelityFallback: boolean;
+  // 2 once the retry call was started, even if it errored (its usage is then
+  // missing from the token totals).
+  geminiCalls: 1 | 2;
+};
+
+export type GuardMetrics =
+  | { v: 1; suggestionGuard: SuggestionGuardMetrics }
+  | { v: 1; fullCv: FullCvGuardMetrics };
+
+export function countViolations(violations: FullRewriteViolation[]): ViolationCounts {
+  return {
+    unsupportedNumber: violations.filter((v) => v.reason === 'unsupported-number').length,
+    rawJd: violations.filter((v) => v.reason === 'raw-jd').length,
+  };
+}
+
 export type DroppedSuggestion = {
   section: string;
   reason: 'skills-section' | 'unsupported-number' | 'unsupported-jd-concept';

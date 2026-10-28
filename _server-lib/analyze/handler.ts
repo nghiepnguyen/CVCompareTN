@@ -185,7 +185,7 @@ export async function handleAnalyze(
   }
 
   try {
-    const { result, usage } = await analyzeCV(
+    const { result, usage, guardMetrics } = await analyzeCV(
       jd, cvData as string, cvMimeType, cvName, language, remainingBudgetMs, cvPdfInlineData
     );
 
@@ -202,7 +202,7 @@ export async function handleAnalyze(
     } catch (err) {
       console.error('increment_usage_count failed:', err);
     }
-    await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage);
+    await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics });
 
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (analysisError) {

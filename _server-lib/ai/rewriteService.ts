@@ -1,6 +1,11 @@
 import { extractText } from 'unpdf';
 import { normalizeTextualMonthYear } from '../../src/lib/cvDates.js';
-import { validateFullRewrite, type FullRewriteViolation } from './suggestionGuard.js';
+import {
+  countViolations,
+  validateFullRewrite,
+  type FullCvGuardMetrics,
+  type FullRewriteViolation,
+} from './suggestionGuard.js';
 import { getGeminiClient, GEMINI_REWRITE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 
 const REWRITE_TIMEOUT_MS = 50_000;
@@ -140,12 +145,14 @@ const addUsage = (a: AiCallUsage, b: AiCallUsage): AiCallUsage => ({
   latencyMs: a.latencyMs + b.latencyMs,
 });
 
-// Violation details without number values (a number outside the preamble
-// may still be contact data); raw-JD concepts are JD vocabulary, not PII.
+// Production logs carry counts only; the concept/number itself (JD wording,
+// or a number that may be contact data) only with SUGGESTION_GUARD_DEBUG=1.
 const logFidelity = (pass: 'first' | 'retry', violations: FullRewriteViolation[]) =>
   console.info(
     '[fullRewriteGuard] violation',
-    JSON.stringify({ pass, violations: violations.map((v) => (v.reason === 'raw-jd' ? v : { reason: v.reason })) })
+    JSON.stringify(
+      process.env.SUGGESTION_GUARD_DEBUG === '1' ? { pass, violations } : { pass, ...countViolations(violations) }
+    )
   );
 
 /**
@@ -161,7 +168,7 @@ export async function generateFullRewrite(
   cvMimeType: string,
   language: 'vi' | 'en' = 'vi',
   timeoutMs: number = REWRITE_TIMEOUT_MS
-): Promise<{ fullRewrittenCV: string; usage: AiCallUsage; fidelityFallback?: true }> {
+): Promise<{ fullRewrittenCV: string; usage: AiCallUsage; fidelityFallback?: true; guardMetrics: FullCvGuardMetrics }> {
   const client = getGeminiClient();
   const deadline = Date.now() + timeoutMs;
 
@@ -239,25 +246,53 @@ export async function generateFullRewrite(
     }
 
     const first = await callRewrite(buildPrompt(jdSection));
-    if (cvText === undefined) return first;
+    if (cvText === undefined) {
+      return {
+        ...first,
+        guardMetrics: {
+          validationAttempted: false, validationSkipped: true, firstPassValid: null,
+          retryOutcome: 'not_needed', fidelityFallback: false, geminiCalls: 1,
+        },
+      };
+    }
     const firstCheck = validateFullRewrite({ originalCvText: cvText, jd, rewrittenCv: first.fullRewrittenCV });
-    if (firstCheck.valid) return first;
+    const validated = { validationAttempted: true, validationSkipped: false } as const;
+    if (firstCheck.valid) {
+      return {
+        ...first,
+        guardMetrics: { ...validated, firstPassValid: true, retryOutcome: 'not_needed', fidelityFallback: false, geminiCalls: 1 },
+      };
+    }
     logFidelity('first', firstCheck.violations);
+    const failedFirst = { ...validated, firstPassValid: false, firstPassViolations: countViolations(firstCheck.violations) };
 
-    const fallback = (usage: AiCallUsage) => ({ fullRewrittenCV: '', usage, fidelityFallback: true as const });
-    if (deadline - Date.now() < REWRITE_RETRY_MIN_BUDGET_MS) return fallback(first.usage);
+    const fallback = (usage: AiCallUsage, guard: Pick<FullCvGuardMetrics, 'retryOutcome' | 'retryViolations' | 'geminiCalls'>) => ({
+      fullRewrittenCV: '',
+      usage,
+      fidelityFallback: true as const,
+      guardMetrics: { ...failedFirst, ...guard, fidelityFallback: true },
+    });
+    if (deadline - Date.now() < REWRITE_RETRY_MIN_BUDGET_MS) {
+      return fallback(first.usage, { retryOutcome: 'skipped_budget', geminiCalls: 1 });
+    }
     let retry: Awaited<ReturnType<typeof callRewrite>>;
     try {
       retry = await callRewrite(buildPrompt(retryJdSection(language)));
     } catch (err) {
       console.warn('[fullRewriteGuard] retry failed:', err instanceof Error ? err.message : err);
-      return fallback(first.usage);
+      return fallback(first.usage, { retryOutcome: 'error', geminiCalls: 2 });
     }
     const usage = addUsage(first.usage, retry.usage);
     const retryCheck = validateFullRewrite({ originalCvText: cvText, jd, rewrittenCv: retry.fullRewrittenCV });
-    if (retryCheck.valid) return { fullRewrittenCV: retry.fullRewrittenCV, usage };
+    if (retryCheck.valid) {
+      return {
+        fullRewrittenCV: retry.fullRewrittenCV,
+        usage,
+        guardMetrics: { ...failedFirst, retryOutcome: 'recovered', fidelityFallback: false, geminiCalls: 2 },
+      };
+    }
     logFidelity('retry', retryCheck.violations);
-    return fallback(usage);
+    return fallback(usage, { retryOutcome: 'invalid', retryViolations: countViolations(retryCheck.violations), geminiCalls: 2 });
   } catch (error: unknown) {
     if (error instanceof Error && error.message.includes('(Timeout)')) {
       throw new Error('CV rewrite is taking too long. Please try again. (Timeout)');
