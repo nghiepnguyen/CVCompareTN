@@ -67,6 +67,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const [selectedResult, setSelectedResult] = useState<AnalysisResult | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [fullCVGeneratingIds, setFullCVGeneratingIds] = useState<Set<string>>(new Set());
+  // Results whose Full CV was withheld by the server's fidelity check (session only).
+  const [fullCVFallbackIds, setFullCVFallbackIds] = useState<Set<string>>(new Set());
   const [parsedCVGeneratingIds, setParsedCVGeneratingIds] = useState<Set<string>>(new Set());
 
   const loadHistory = useCallback(async () => {
@@ -104,7 +106,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     ) => {
       setFullCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
-        const fullRewrittenCV = await rewriteFullCV(
+        const { fullRewrittenCV, fidelityFallback } = await rewriteFullCV(
           jd,
           cvData,
           cvMimeType,
@@ -112,6 +114,11 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           authToken,
           cvDataStoragePath
         );
+        if (fidelityFallback) {
+          // Nothing to show or persist: no rewrite passed the factual check.
+          setFullCVFallbackIds((prev) => new Set([...prev, resultId]));
+          return;
+        }
         const patcher = (r: AnalysisResult) =>
           r.id === resultId ? { ...r, fullRewrittenCV } : r;
         setResults((prev) => prev.map(patcher));
@@ -577,6 +584,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         loadingCvIds,
         loadCVFromStore,
         fullCVGeneratingIds,
+        fullCVFallbackIds,
         parsedCVGeneratingIds,
       }}
     >

@@ -1,5 +1,6 @@
 import { extractText } from 'unpdf';
 import { normalizeTextualMonthYear } from '../../src/lib/cvDates.js';
+import { validateFullRewrite, type FullRewriteViolation } from './suggestionGuard.js';
 import { getGeminiClient, GEMINI_REWRITE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 
 const REWRITE_TIMEOUT_MS = 50_000;
@@ -102,22 +103,76 @@ export function repairEscapedNewlines(md: string): string {
   return md;
 }
 
+// A retry is only tried when this much of the caller's single wall-clock
+// budget is still left; otherwise the request goes straight to the fidelity
+// fallback. Synthetic text CVs rewrite in ~2-6s (benchmark 2026-10-28), but
+// long real CVs and production latency were not measured, so the margin is
+// kept conservative.
+export const REWRITE_RETRY_MIN_BUDGET_MS = 20_000;
+
+// Retry after a failed fidelity check: the raw JD is withheld (it is where the
+// unsupported concepts come from) and the violations are not named, so the
+// model has nothing JD-specific to copy back.
+function retryJdSection(language: 'vi' | 'en'): string {
+  return language === 'vi'
+    ? 'KHÔNG có JD cho lần viết này. Bản viết trước đã thêm dữ kiện không có trong CV gốc. Viết lại CV chuyên nghiệp, thân thiện ATS, CHỈ dùng thông tin có trong CV gốc; bỏ qua mọi hướng dẫn liên quan đến JD bên dưới.'
+    : 'There is NO JD for this attempt. The previous draft added facts that are not in the original CV. Rewrite the CV professionally and ATS-friendly using ONLY information in the original CV; ignore any instruction below that refers to the JD.';
+}
+
+export function parseRewriteText(resultText: string): string {
+  try {
+    const parsed = JSON.parse(resultText) as { fullRewrittenCV?: string };
+    return normalizeHeadingDates(repairEscapedNewlines(parsed.fullRewrittenCV || ''));
+  } catch {
+    const jsonMatch = resultText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]) as { fullRewrittenCV?: string };
+      return normalizeHeadingDates(repairEscapedNewlines(parsed.fullRewrittenCV || ''));
+    }
+    return normalizeHeadingDates(repairEscapedNewlines(resultText));
+  }
+}
+
+const addUsage = (a: AiCallUsage, b: AiCallUsage): AiCallUsage => ({
+  model: a.model,
+  inputTokens: a.inputTokens + b.inputTokens,
+  outputTokens: a.outputTokens + b.outputTokens,
+  latencyMs: a.latencyMs + b.latencyMs,
+});
+
+// Violation details without number values (a number outside the preamble
+// may still be contact data); raw-JD concepts are JD vocabulary, not PII.
+const logFidelity = (pass: 'first' | 'retry', violations: FullRewriteViolation[]) =>
+  console.info(
+    '[fullRewriteGuard] violation',
+    JSON.stringify({ pass, violations: violations.map((v) => (v.reason === 'raw-jd' ? v : { reason: v.reason })) })
+  );
+
+/**
+ * Full CV = generation → fidelity validation → at most one safe retry →
+ * fidelity fallback (empty CV + flag). An output that failed validation is
+ * never returned. Validation needs the exact CV text the model was given, so
+ * it is skipped for inline PDF/image input (missing text is not evidence that
+ * the CV lacks a fact); those keep the prompt-only guard.
+ */
 export async function generateFullRewrite(
   jd: string,
   cvData: string,
   cvMimeType: string,
   language: 'vi' | 'en' = 'vi',
   timeoutMs: number = REWRITE_TIMEOUT_MS
-): Promise<{ fullRewrittenCV: string; usage: AiCallUsage }> {
+): Promise<{ fullRewrittenCV: string; usage: AiCallUsage; fidelityFallback?: true }> {
   const client = getGeminiClient();
+  const deadline = Date.now() + timeoutMs;
 
   const jdSection =
     language === 'vi' ? `Mô tả công việc (JD):\n${jd}` : `Job Description (JD):\n${jd}`;
-  const prompt =
-    language === 'vi' ? buildRewritePromptVi(jdSection) : buildRewritePromptEn(jdSection);
+  const buildPrompt = language === 'vi' ? buildRewritePromptVi : buildRewritePromptEn;
 
   type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
-  const parts: GeminiPart[] = [{ text: prompt }];
+  const cvParts: GeminiPart[] = [];
+  // The CV text sent to the model, when it was sent as text.
+  let cvText: string | undefined;
 
   let timer: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -132,9 +187,29 @@ export async function generateFullRewrite(
     );
   });
 
+  const callRewrite = async (promptText: string) => {
+    const geminiStart = Date.now();
+    const geminiPromise = client.models.generateContent({
+      model: GEMINI_REWRITE_MODEL,
+      contents: [{ role: 'user', parts: [{ text: promptText }, ...cvParts] }],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: REWRITE_SCHEMA,
+        maxOutputTokens: 16384,
+        thinkingConfig: thinkingConfigFor(GEMINI_REWRITE_MODEL),
+      },
+    });
+    const response = await Promise.race([geminiPromise, timeoutPromise]);
+    const usage: AiCallUsage = {
+      ...extractTokenUsage(response.usageMetadata),
+      model: GEMINI_REWRITE_MODEL,
+      latencyMs: Date.now() - geminiStart,
+    };
+    return { fullRewrittenCV: parseRewriteText(response.text || ''), usage };
+  };
+
   try {
     if (cvMimeType === 'application/pdf') {
-      let usedText = false;
       try {
         const base64Data = cvData.split(',')[1] || cvData;
         const buffer = Buffer.from(base64Data, 'base64');
@@ -143,56 +218,46 @@ export async function generateFullRewrite(
           timeoutPromise,
         ]);
         if (text && text.trim().length >= 100) {
-          parts.push({ text: `CV Content:\n${text}` });
-          usedText = true;
+          cvParts.push({ text: `CV Content:\n${text}` });
+          cvText = text;
         }
       } catch (e) {
         if (e instanceof Error && e.message.includes('(Timeout)')) throw e;
       }
-      if (!usedText) {
-        parts.push({
+      if (cvText === undefined) {
+        cvParts.push({
           inlineData: { data: cvData.split(',')[1] || cvData, mimeType: 'application/pdf' },
         });
       }
     } else if (cvMimeType.startsWith('image/')) {
-      parts.push({
+      cvParts.push({
         inlineData: { data: cvData.split(',')[1] || cvData, mimeType: cvMimeType },
       });
     } else {
-      parts.push({ text: `CV Content:\n${cvData}` });
+      cvParts.push({ text: `CV Content:\n${cvData}` });
+      cvText = cvData;
     }
 
-    const geminiStart = Date.now();
-    const geminiPromise = client.models.generateContent({
-      model: GEMINI_REWRITE_MODEL,
-      contents: [{ role: 'user', parts }],
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: REWRITE_SCHEMA,
-        maxOutputTokens: 16384,
-        thinkingConfig: thinkingConfigFor(GEMINI_REWRITE_MODEL),
-      },
-    });
+    const first = await callRewrite(buildPrompt(jdSection));
+    if (cvText === undefined) return first;
+    const firstCheck = validateFullRewrite({ originalCvText: cvText, jd, rewrittenCv: first.fullRewrittenCV });
+    if (firstCheck.valid) return first;
+    logFidelity('first', firstCheck.violations);
 
-    const response = await Promise.race([geminiPromise, timeoutPromise]);
-    const usage: AiCallUsage = {
-      ...extractTokenUsage(response.usageMetadata),
-      model: GEMINI_REWRITE_MODEL,
-      latencyMs: Date.now() - geminiStart,
-    };
-    const resultText = response.text || '';
-
+    const fallback = (usage: AiCallUsage) => ({ fullRewrittenCV: '', usage, fidelityFallback: true as const });
+    if (deadline - Date.now() < REWRITE_RETRY_MIN_BUDGET_MS) return fallback(first.usage);
+    let retry: Awaited<ReturnType<typeof callRewrite>>;
     try {
-      const parsed = JSON.parse(resultText) as { fullRewrittenCV?: string };
-      return { fullRewrittenCV: normalizeHeadingDates(repairEscapedNewlines(parsed.fullRewrittenCV || '')), usage };
-    } catch {
-      const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]) as { fullRewrittenCV?: string };
-        return { fullRewrittenCV: normalizeHeadingDates(repairEscapedNewlines(parsed.fullRewrittenCV || '')), usage };
-      }
-      return { fullRewrittenCV: normalizeHeadingDates(repairEscapedNewlines(resultText)), usage };
+      retry = await callRewrite(buildPrompt(retryJdSection(language)));
+    } catch (err) {
+      console.warn('[fullRewriteGuard] retry failed:', err instanceof Error ? err.message : err);
+      return fallback(first.usage);
     }
+    const usage = addUsage(first.usage, retry.usage);
+    const retryCheck = validateFullRewrite({ originalCvText: cvText, jd, rewrittenCv: retry.fullRewrittenCV });
+    if (retryCheck.valid) return { fullRewrittenCV: retry.fullRewrittenCV, usage };
+    logFidelity('retry', retryCheck.violations);
+    return fallback(usage);
   } catch (error: unknown) {
     if (error instanceof Error && error.message.includes('(Timeout)')) {
       throw new Error('CV rewrite is taking too long. Please try again. (Timeout)');

@@ -72,7 +72,7 @@ export async function handleRewriteCv(
   }
 
   try {
-    const { fullRewrittenCV, usage } = await generateFullRewrite(
+    const { fullRewrittenCV, usage, fidelityFallback } = await generateFullRewrite(
       jd,
       cvData as string,
       cvMimeType,
@@ -80,7 +80,9 @@ export async function handleRewriteCv(
       remainingBudgetMs
     );
     await logAnalysisAttempt(user?.id ?? null, 'success', 'rewrite', undefined, usage);
-    return { status: 200, body: { fullRewrittenCV } };
+    // fidelityFallback: no rewrite passed the factual check; the client shows
+    // a retry message instead of a CV.
+    return { status: 200, body: fidelityFallback ? { fullRewrittenCV: '', fidelityFallback } : { fullRewrittenCV } };
   } catch (err) {
     console.error('CV rewrite failed:', err);
     const message = err instanceof Error ? err.message : 'Server error';

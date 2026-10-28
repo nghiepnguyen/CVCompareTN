@@ -9,7 +9,11 @@
  *     scripts/benchmark-gemini-parse-rewrite.ts <outDir>
  * Env: RUNS (default 2), CONCURRENCY (default 3), ONLY (comma-separated sample ids),
  *      MODE=production (no override: each workload runs on its routed model,
- *      as in production; the model actually sent is recorded per call).
+ *      as in production; the model actually sent is recorded per call),
+ *      WORKLOAD (parse_cv | rewrite_cv; default both).
+ * rewrite_cv rows record the Full CV fidelity guard (Stage 3.3): Gemini calls
+ * per request (max 2), first-pass violations, fidelity fallback, and the final
+ * output re-validated (must be clean unless validation was skipped).
  * PDF samples read .r2-migration/preview/fixtures (gitignored); they are
  * skipped with a warning when those files are absent.
  *
@@ -22,7 +26,8 @@ import { join } from 'node:path';
 import { Models } from '@google/genai';
 import { extractText } from 'unpdf';
 import { generateParsedCV } from '../_server-lib/ai/parseCvService.js';
-import { generateFullRewrite } from '../_server-lib/ai/rewriteService.js';
+import { generateFullRewrite, parseRewriteText } from '../_server-lib/ai/rewriteService.js';
+import { validateFullRewrite } from '../_server-lib/ai/suggestionGuard.js';
 import { thinkingConfigFor } from '../_server-lib/ai/geminiClient.js';
 import { GEMINI_PRICING, isGeminiModel, type GeminiModel } from '../src/lib/geminiModels.js';
 import { SAMPLES, type Sample } from './benchmark-gemini-fixtures.js';
@@ -37,7 +42,12 @@ const MODELS: ModelCfg[] =
         { id: 'gemini-3.5-flash-lite', label: 'lite-low' },
       ];
 
-type Capture = { text?: string; usage?: Record<string, unknown>; geminiMs?: number; model?: string; thinkingConfig?: unknown };
+// Token/latency figures are summed over every Gemini call of the request
+// (rewrite_cv makes up to 2); `text` is the last response, `firstText` the first.
+type Capture = {
+  text?: string; firstText?: string; calls: number; inTok: number; outTok: number; thoughts?: number; totalTok: number;
+  geminiMs: number; model?: string; thinkingConfig?: unknown;
+};
 const ctx = new AsyncLocalStorage<{ model: ModelCfg; capture: Capture }>();
 
 // The SDK assigns generateContent per instance in the Models constructor
@@ -58,9 +68,16 @@ Object.defineProperty(Models.prototype, 'generateContent', {
       store.capture.model = sent.model;
       store.capture.thinkingConfig = sent.config?.thinkingConfig;
       const res = await original(sent);
-      store.capture.geminiMs = Date.now() - t;
-      store.capture.text = res.text;
-      store.capture.usage = res.usageMetadata as Record<string, unknown>;
+      const c = store.capture;
+      const u = res.usageMetadata;
+      c.calls++;
+      c.geminiMs += Date.now() - t;
+      if (c.calls === 1) c.firstText = res.text;
+      c.text = res.text;
+      c.inTok += u?.promptTokenCount ?? 0;
+      c.outTok += u?.candidatesTokenCount ?? 0;
+      c.totalTok += u?.totalTokenCount ?? 0;
+      if (u?.thoughtsTokenCount !== undefined) c.thoughts = (c.thoughts ?? 0) + u.thoughtsTokenCount;
       return res;
     };
     Object.defineProperty(this, 'generateContent', { value: wrapped, writable: true, configurable: true });
@@ -168,6 +185,7 @@ const samples = SAMPLES.filter((s) => !process.env.ONLY || process.env.ONLY.spli
 for (let run = 1; run <= RUNS; run++)
   for (const sample of samples)
     for (const workload of ['parse_cv', 'rewrite_cv'] as const)
+      if (!process.env.WORKLOAD || process.env.WORKLOAD === workload)
       for (const model of MODELS) jobs.push({ sample, workload, model, run });
 
 const cvCache = new Map<string, Awaited<ReturnType<typeof loadCv>>>();
@@ -175,7 +193,7 @@ const cvCache = new Map<string, Awaited<ReturnType<typeof loadCv>>>();
 async function runJob({ sample, workload, model, run }: Job) {
   if (!cvCache.has(sample.id)) cvCache.set(sample.id, await loadCv(sample));
   const cv = cvCache.get(sample.id)!;
-  const capture: Capture = {};
+  const capture: Capture = { calls: 0, inTok: 0, outTok: 0, totalTok: 0, geminiMs: 0 };
   const t = Date.now();
   let error: string | undefined;
   let output: unknown;
@@ -189,10 +207,7 @@ async function runJob({ sample, workload, model, run }: Job) {
     error = e instanceof Error ? e.message : String(e);
   }
   const ms = Date.now() - t;
-  const u = capture.usage || {};
-  const inTok = Number(u.promptTokenCount || 0);
-  const outTok = Number(u.candidatesTokenCount || 0);
-  const thoughts = u.thoughtsTokenCount;
+  const { inTok, outTok, thoughts } = capture;
   // Google bills thinking tokens as output when the API reports them.
   const modelRan = capture.model ?? model.id ?? 'unknown';
   const price = isGeminiModel(modelRan) ? GEMINI_PRICING[modelRan] : null;
@@ -201,9 +216,28 @@ async function runJob({ sample, workload, model, run }: Job) {
     error ? null
     : workload === 'parse_cv' ? scoreParse(capture.text, sample)
     : scoreRewrite((output as { fullRewrittenCV: string }).fullRewrittenCV, sample, cv.sourceText);
+  // Same evidence rule as the service: only text input or a PDF with >=100
+  // extracted characters is validated; inline PDF/image is skipped.
+  const validated = cv.mimeType === 'text/plain' || (cv.mimeType === 'application/pdf' && cv.sourceText.trim().length >= 100);
+  const rw = output as { fullRewrittenCV: string; fidelityFallback?: true } | undefined;
+  const fidelity =
+    workload !== 'rewrite_cv' || error || !rw ? null
+    : {
+        validated,
+        calls: capture.calls,
+        retried: capture.calls > 1,
+        fallback: !!rw.fidelityFallback,
+        firstPassViolations: validated && capture.firstText
+          ? validateFullRewrite({ originalCvText: cv.sourceText, jd: sample.jd, rewrittenCv: parseRewriteText(capture.firstText) }).violations
+          : null,
+        // Must be [] for every validated, non-fallback row.
+        finalViolations: validated && !rw.fidelityFallback
+          ? validateFullRewrite({ originalCvText: cv.sourceText, jd: sample.jd, rewrittenCv: rw.fullRewrittenCV }).violations
+          : null,
+      };
   const row = {
     sample: sample.id, workload, model: modelRan, thinkingConfig: capture.thinkingConfig, run, ms, geminiMs: capture.geminiMs,
-    inTok, outTok, totalTok: u.totalTokenCount,
+    inTok, outTok, totalTok: capture.totalTok, fidelity,
     thinkingTok: thoughts ?? 'not separately reported',
     costUsd: Number(costUsd.toFixed(6)),
     ok: !error, timeout: !!error?.includes('(Timeout)'), error: error?.slice(0, 200), quality,
@@ -211,8 +245,9 @@ async function runJob({ sample, workload, model, run }: Job) {
   appendFileSync(join(outDir, 'metrics.jsonl'), JSON.stringify(row) + '\n');
   const base = join(outDir, 'raw', `${sample.id}.${workload}.${model.label}.r${run}`);
   if (workload === 'rewrite_cv' && output) writeFileSync(base + '.md', (output as { fullRewrittenCV: string }).fullRewrittenCV);
+  if (workload === 'rewrite_cv' && capture.calls > 1 && capture.firstText) writeFileSync(base + '.first.md', parseRewriteText(capture.firstText));
   else if (capture.text) writeFileSync(base + '.json', capture.text);
-  console.log(JSON.stringify({ sample: row.sample, workload, model: modelRan, thinking: capture.thinkingConfig, run, ms, inTok, outTok, ok: row.ok, err: row.error?.slice(0, 80) }));
+  console.log(JSON.stringify({ sample: row.sample, workload, model: modelRan, thinking: capture.thinkingConfig, run, ms, inTok, outTok, ok: row.ok, calls: capture.calls, fallback: fidelity?.fallback, err: row.error?.slice(0, 80) }));
 }
 
 const queue = [...jobs];

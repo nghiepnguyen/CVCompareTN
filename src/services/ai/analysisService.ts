@@ -7,7 +7,7 @@ export async function rewriteFullCV(
   language: 'vi' | 'en' = 'vi',
   authToken?: string,
   cvDataStoragePath?: string
-): Promise<string> {
+): Promise<{ fullRewrittenCV: string; fidelityFallback: boolean }> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
@@ -23,8 +23,8 @@ export async function rewriteFullCV(
     throw new Error(err.error || `Rewrite failed (HTTP ${res.status})`);
   }
 
-  const data = (await res.json()) as { fullRewrittenCV: string };
-  return data.fullRewrittenCV || '';
+  const data = (await res.json()) as { fullRewrittenCV: string; fidelityFallback?: boolean };
+  return { fullRewrittenCV: data.fullRewrittenCV || '', fidelityFallback: data.fidelityFallback === true };
 }
 
 export async function parseCV(

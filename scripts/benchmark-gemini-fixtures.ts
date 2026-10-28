@@ -338,3 +338,83 @@ SAMPLES.push(
     jdOnlySkills: ['Google Ads', 'SEO'],
   }
 );
+
+// Full CV factual guard (Stage 3.3). The JD invites concepts the CV never
+// states: lowercase phrases seen in the production smoke ("data modeling",
+// "automated reporting" — outside the narrow raw-JD extractor, accepted
+// debt), a JD-only acronym (ETL), a JD-only hyphenated concept (self-serve)
+// and metrics to invent. The second sample's CV legitimately states the same
+// distinctive concepts, so any fidelity rejection there is a false positive.
+const JD_FULLCV = `Analytics Engineer. Responsibilities: own data modeling for the reporting layer; build ETL pipelines in Airflow; deliver automated reporting and self-serve dashboards; cut report turnaround time by 50%.
+Requirements: 3+ years SQL; ETL experience; BigQuery; Looker; stakeholder communication.`;
+
+const CV_FULLCV_NO_CONCEPTS = `HOANG MINH KHOA
+Analyst · Da Nang · khoa.hoang@example.com · 0935 111 222
+EXPERIENCE
+Sunrise Hotels Group — Reporting Analyst, 03/2021 – Present
+- Wrote SQL queries in PostgreSQL for monthly occupancy reports across 8 hotels.
+- Maintained Excel templates for the finance team.
+- Presented revenue summaries to hotel managers every month.
+Blue Ocean Travel — Junior Analyst, 07/2019 – 02/2021
+- Cleaned booking data in Excel and Google Sheets.
+EDUCATION
+University of Economics, Da Nang — B.A. Business Information Systems, 2019
+SKILLS
+SQL, PostgreSQL, Excel, Google Sheets, Power BI`;
+
+const CV_FULLCV_HAS_CONCEPTS = `TRAN BAO NGOC
+Analytics Engineer · Hanoi · ngoc.tran@example.com · linkedin.com/in/ngoc-tran-demo
+EXPERIENCE
+Lotus Retail — Analytics Engineer, 05/2021 – Present
+- Built ETL pipelines in Airflow loading POS data into BigQuery every hour.
+- Created self-serve dashboards in Looker for 40 store managers.
+- Owned the data model for sales reporting; cut report turnaround from 3 days to 4 hours.
+EDUCATION
+Hanoi University of Science and Technology — B.Eng. Computer Science, 2020
+SKILLS
+SQL, BigQuery, Airflow, Looker, Python, ETL`;
+
+SAMPLES.push(
+  {
+    id: 'en-fullcv-jd-only',
+    language: 'en',
+    jd: JD_FULLCV,
+    text: CV_FULLCV_NO_CONCEPTS,
+    truth: {
+      name: 'Hoang Minh Khoa',
+      email: 'khoa.hoang@example.com',
+      phone: '0935111222',
+      companies: ['Sunrise Hotels', 'Blue Ocean Travel'],
+      titles: ['Reporting Analyst', 'Junior Analyst'],
+      startYears: [2021, 2019],
+      institutions: ['University of Economics'],
+      gradYears: [2019],
+      skills: ['SQL', 'PostgreSQL', 'Excel', 'Power BI'],
+      certifications: [],
+      languages: [],
+    },
+    jdKeywords: ['data modeling', 'ETL', 'Airflow', 'automated reporting', 'self-serve', 'BigQuery', 'Looker', 'SQL'],
+    jdOnlySkills: ['ETL', 'Airflow', 'BigQuery', 'Looker'],
+    jdOnlyConcepts: ['data modeling', 'automated reporting', 'self-serve'],
+  },
+  {
+    id: 'en-fullcv-cv-has-concepts',
+    language: 'en',
+    jd: JD_FULLCV,
+    text: CV_FULLCV_HAS_CONCEPTS,
+    truth: {
+      name: 'Tran Bao Ngoc',
+      email: 'ngoc.tran@example.com',
+      companies: ['Lotus Retail'],
+      titles: ['Analytics Engineer'],
+      startYears: [2021],
+      institutions: ['Hanoi University of Science and Technology'],
+      gradYears: [2020],
+      skills: ['SQL', 'BigQuery', 'Airflow', 'Looker', 'ETL'],
+      certifications: [],
+      languages: [],
+    },
+    jdKeywords: ['ETL', 'Airflow', 'self-serve', 'BigQuery', 'Looker', 'SQL'],
+    jdOnlySkills: [],
+  }
+);

@@ -43,6 +43,7 @@ export interface AnalysisRunContextType {
   loadCVFromStore: (cv: SavedCV) => void;
 
   fullCVGeneratingIds: Set<string>;
+  fullCVFallbackIds: Set<string>;
   parsedCVGeneratingIds: Set<string>;
 }
 
