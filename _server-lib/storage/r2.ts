@@ -17,7 +17,8 @@ export function bucket(kind: BucketKind): string {
   if (!name) throw new StorageError('R2 bucket chưa được cấu hình', 503);
   return name;
 }
-const options = () => ({ abortSignal: AbortSignal.timeout(45000) });
+// Request-path callers pass their own deadline signal; others keep 45s per command.
+const options = (signal?: AbortSignal) => ({ abortSignal: signal ?? AbortSignal.timeout(45000) });
 export async function signUpload(kind: BucketKind, key: string, mime: string): Promise<string> {
   return getSignedUrl(r2Client(), new PutObjectCommand({ Bucket: bucket(kind), Key: key, ContentType: mime }), { expiresIn: 300, signableHeaders: new Set(['content-type']) });
 }
@@ -28,12 +29,16 @@ export async function copyObject(kind: BucketKind, source: string, target: strin
   const name = bucket(kind);
   await r2Client().send(new CopyObjectCommand({ Bucket: name, Key: target, CopySource: `${name}/${source.split('/').map(encodeURIComponent).join('/')}` }), options());
 }
-export async function readObject(kind: BucketKind, key: string, maxBytes: number): Promise<Buffer> {
-  const head = await r2Client().send(new HeadObjectCommand({ Bucket: bucket(kind), Key: key }), options());
+// With `signal`, HEAD, GET and the body read all share that one deadline.
+export async function readObject(kind: BucketKind, key: string, maxBytes: number, signal?: AbortSignal): Promise<Buffer> {
+  const head = await r2Client().send(new HeadObjectCommand({ Bucket: bucket(kind), Key: key }), options(signal));
   if (head.ContentLength === undefined || head.ContentLength > maxBytes || head.ContentLength <= 0) throw new StorageError('Dung lượng file không hợp lệ');
-  const result = await r2Client().send(new GetObjectCommand({ Bucket: bucket(kind), Key: key, IfMatch: head.ETag }), options());
+  const result = await r2Client().send(new GetObjectCommand({ Bucket: bucket(kind), Key: key, IfMatch: head.ETag }), options(signal));
   if (!result.Body) throw new StorageError('Không đọc được file');
   const chunks: Buffer[] = []; let size = 0;
+  // Abort also tears down a body that is still streaming.
+  const abortBody = () => (result.Body as unknown as { destroy?: (e?: unknown) => void }).destroy?.(signal?.reason);
+  signal?.addEventListener('abort', abortBody, { once: true });
   try {
     for await (const chunk of result.Body as AsyncIterable<Uint8Array>) {
       size += chunk.length;
@@ -41,6 +46,7 @@ export async function readObject(kind: BucketKind, key: string, maxBytes: number
       chunks.push(Buffer.from(chunk));
     }
   } finally {
+    signal?.removeEventListener('abort', abortBody);
     const stream = result.Body as unknown as { destroy?: () => void };
     stream.destroy?.();
   }

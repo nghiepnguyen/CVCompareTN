@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from './payment/supabaseAdmin.js';
 import { withTimeout } from './withTimeout.js';
+import { createDeadline, type Deadline } from './deadline.js';
 import type { AiCallUsage } from './ai/geminiClient.js';
 import type { GuardMetrics } from './ai/suggestionGuard.js';
 
@@ -22,8 +23,16 @@ export async function logAnalysisAttempt(
   usage?: Partial<AiCallUsage>,
   // Aggregate guard telemetry (successful analyze/rewrite only). The column is
   // named only when set, so other rows never depend on it.
-  guardMetrics?: GuardMetrics
+  guardMetrics?: GuardMetrics,
+  // The request deadline: the insert never runs past it (a valid response
+  // beats a telemetry row). Without it, LOG_TIMEOUT_MS alone applies.
+  deadline: Deadline = createDeadline(LOG_TIMEOUT_MS)
 ): Promise<void> {
+  const timeoutMs = Math.min(LOG_TIMEOUT_MS, deadline.remainingMs());
+  if (timeoutMs <= 0) {
+    console.warn('logAnalysisAttempt skipped: request deadline reached');
+    return;
+  }
   try {
     const { error } = await withTimeout(
       getSupabaseAdmin().from('analysis_log').insert({
@@ -36,8 +45,8 @@ export async function logAnalysisAttempt(
         model: usage?.model ?? null,
         latency_ms: usage?.latencyMs ?? null,
         ...(guardMetrics && { guard_metrics: guardMetrics }),
-      }) as unknown as Promise<{ error: unknown }>,
-      LOG_TIMEOUT_MS,
+      }).abortSignal(deadline.signal(LOG_TIMEOUT_MS)) as unknown as Promise<{ error: unknown }>,
+      timeoutMs,
       'analysis_log insert'
     );
     if (error) console.error('logAnalysisAttempt failed:', error);

@@ -5,6 +5,14 @@ import { withTimeout } from '../withTimeout.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
 import { MAX_BATCH_BY_PLAN } from '../../src/lib/planLimits.js';
 import { resolveStorageRef } from '../storage/tempFile.js';
+import {
+  aiFailureCategory,
+  ControlledError,
+  createDeadline,
+  MIN_GEMINI_BUDGET_MS,
+  POST_RESERVE_MS,
+  TOTAL_BUDGET_MS,
+} from '../deadline.js';
 
 // Inlined instead of importing src/services/userService.ts — that module
 // transitively imports src/lib/supabase.ts via an extensionless specifier,
@@ -32,21 +40,23 @@ const QUOTA_CHECK_TIMEOUT_MS = 5_000;
 const PLAN_CHECK_TIMEOUT_MS = 4_000;
 const INCREMENT_TIMEOUT_MS = 5_000;
 
-// Wall-clock budget for the whole handler, measured from the first line of
-// handleAnalyze. Vercel hard-kills the function at maxDuration=60s with no
-// JSON body (client sees a bare HTTP 504). Previously each step (auth/quota/
-// analyze) had its own independent timeout and recaptcha had none at all —
-// their worst cases could sum past 60s. Using a single deadline and handing
-// analyzeCV whatever is actually left guarantees the total never exceeds the
-// budget regardless of how long the earlier steps took.
-const TOTAL_BUDGET_MS = 50_000;
-const MIN_ANALYZE_BUDGET_MS = 10_000;
+// One request deadline (TOTAL_BUDGET_MS, see _server-lib/deadline.ts) from the
+// first line of handleAnalyze: every step — storage, plan/quota checks,
+// Gemini, usage increment, telemetry — is capped by what is left of it, so the
+// handler answers with JSON well before the client (75s) gives up. Gemini works
+// against an AI deadline POST_RESERVE_MS earlier, keeping time for the
+// increment, the log row and the response. Vercel's maxDuration (300s) is only
+// a safety ceiling; no step is meant to run toward it.
+const STORAGE_TIMEOUT_MESSAGE = 'Tải file CV quá thời gian. Vui lòng thử lại. (Timeout)';
+const ANALYZE_TIMEOUT_MESSAGE =
+  'Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại với JD ngắn hơn hoặc CV đơn giản hơn. (Timeout)';
 
 export async function handleAnalyze(
   authHeader: string | undefined,
   body: unknown
 ): Promise<HandlerResult> {
-  const requestStart = Date.now();
+  const deadline = createDeadline(TOTAL_BUDGET_MS);
+  const aiDeadline = deadline.reserve(POST_RESERVE_MS);
   const b = (body ?? {}) as {
     jd?: string;
     cvData?: string;
@@ -70,17 +80,17 @@ export async function handleAnalyze(
   const batchTotal = typeof b.batchTotal === 'number' && b.batchTotal > 0 ? b.batchTotal : 1;
 
   if (!jd) {
-    await logAnalysisAttempt(null, 'error', 'analyze', 'Missing jd (job description)');
+    await logAnalysisAttempt(null, 'error', 'analyze', 'Missing jd (job description)', undefined, undefined, deadline);
     return { status: 400, body: { error: 'Missing jd (job description)' } };
   }
   if (!cvData && !cvDataStoragePath) {
-    await logAnalysisAttempt(null, 'error', 'analyze', 'Missing cvData');
+    await logAnalysisAttempt(null, 'error', 'analyze', 'Missing cvData', undefined, undefined, deadline);
     return { status: 400, body: { error: 'Missing cvData' } };
   }
 
   const user = await withTimeout(
     getUserFromBearerToken(authHeader),
-    AUTH_TIMEOUT_MS,
+    Math.min(AUTH_TIMEOUT_MS, deadline.remainingMs()),
     'Auth verification'
   ).catch((err) => {
     console.warn('Auth verification failed:', err.message);
@@ -89,7 +99,7 @@ export async function handleAnalyze(
   const userId = user?.id ?? null;
 
   if (!userId) {
-    await logAnalysisAttempt(null, 'error', 'analyze', 'Authentication required');
+    await logAnalysisAttempt(null, 'error', 'analyze', 'Authentication required', undefined, undefined, deadline);
     return { status: 401, body: { error: 'Authentication required' } };
   }
 
@@ -97,16 +107,23 @@ export async function handleAnalyze(
   // files) — resolve it into the same base64 shape analyzeCV already expects.
   // Same path is reused by the client's follow-up rewrite/parse-cv calls, so
   // cleanup is the client's job (after all three settle), not this handler's.
+  // Each ref gets ≤ STORAGE_REF_TIMEOUT_MS and must leave MIN_GEMINI_BUDGET_MS
+  // on the AI deadline, so slow storage ends in a JSON 504, not a platform kill.
+  const storageDeadline = aiDeadline.reserve(MIN_GEMINI_BUDGET_MS);
   try {
     if (cvDataStoragePath) {
-      cvData = await resolveStorageRef(cvDataStoragePath, userId);
+      cvData = await resolveStorageRef(cvDataStoragePath, userId, storageDeadline);
     }
     if (cvPdfStoragePath) {
-      cvPdfInlineData = await resolveStorageRef(cvPdfStoragePath, userId);
+      cvPdfInlineData = await resolveStorageRef(cvPdfStoragePath, userId, storageDeadline);
     }
   } catch (err) {
+    const category = err instanceof ControlledError ? err.category : 'storage_error';
+    await logAnalysisAttempt(userId, 'error', 'analyze', `[${category}]`, undefined, undefined, deadline);
+    if (category === 'storage_timeout') {
+      return { status: 504, body: { error: STORAGE_TIMEOUT_MESSAGE, retryable: true } };
+    }
     const message = err instanceof Error ? err.message : 'Failed to load uploaded file';
-    await logAnalysisAttempt(userId, 'error', 'analyze', message);
     return { status: 400, body: { error: message } };
   }
 
@@ -120,10 +137,11 @@ export async function handleAnalyze(
         .from('profiles')
         .select('plan, plan_expires_at, role')
         .eq('id', userId)
+        .abortSignal(deadline.signal(PLAN_CHECK_TIMEOUT_MS))
         .maybeSingle() as unknown as Promise<{
           data: { plan: string; plan_expires_at: string | null; role: string } | null;
         }>,
-      PLAN_CHECK_TIMEOUT_MS,
+      Math.min(PLAN_CHECK_TIMEOUT_MS, deadline.remainingMs()),
       'Plan check'
     );
     if (profile) {
@@ -135,7 +153,7 @@ export async function handleAnalyze(
       const maxBatch = MAX_BATCH_BY_PLAN[effectivePlan] ?? 1;
       if (batchTotal > maxBatch) {
         const message = `Batch size ${batchTotal} exceeds plan limit (${maxBatch})`;
-        await logAnalysisAttempt(userId, 'error', 'analyze', message);
+        await logAnalysisAttempt(userId, 'error', 'analyze', message, undefined, undefined, deadline);
         return { status: 400, body: { error: message } };
       }
     }
@@ -150,8 +168,8 @@ export async function handleAnalyze(
       adminClient.rpc('check_analytics_quota', {
         p_user_id: userId,
         p_additional: 1,
-      }) as unknown as Promise<{ data: unknown; error: unknown }>,
-      QUOTA_CHECK_TIMEOUT_MS,
+      }).abortSignal(deadline.signal(QUOTA_CHECK_TIMEOUT_MS)) as unknown as Promise<{ data: unknown; error: unknown }>,
+      Math.min(QUOTA_CHECK_TIMEOUT_MS, deadline.remainingMs()),
       'Quota check'
     );
     if (quotaError) {
@@ -159,7 +177,7 @@ export async function handleAnalyze(
     } else if (quota && typeof quota === 'object') {
       const q = quota as { allowed?: boolean; used?: number; limit?: number };
       if (!q.allowed) {
-        await logAnalysisAttempt(userId, 'error', 'analyze', 'Monthly analysis limit exceeded');
+        await logAnalysisAttempt(userId, 'error', 'analyze', 'Monthly analysis limit exceeded', undefined, undefined, deadline);
         return {
           status: 429,
           body: { error: 'Monthly analysis limit exceeded', used: q.used, limit: q.limit },
@@ -171,46 +189,46 @@ export async function handleAnalyze(
     console.warn('Quota check skipped (timeout):', quotaErr);
   }
 
-  const remainingBudgetMs = TOTAL_BUDGET_MS - (Date.now() - requestStart);
-  if (remainingBudgetMs < MIN_ANALYZE_BUDGET_MS) {
-    await logAnalysisAttempt(userId, 'error', 'analyze', 'Preflight timeout: no budget left before calling analyzeCV');
-    return {
-      status: 504,
-      body: {
-        error:
-          'Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại với JD ngắn hơn hoặc CV đơn giản hơn. (Timeout)',
-        retryable: true,
-      },
-    };
+  if (aiDeadline.remainingMs() < MIN_GEMINI_BUDGET_MS) {
+    await logAnalysisAttempt(userId, 'error', 'analyze', '[request_budget_exhausted]', undefined, undefined, deadline);
+    return { status: 504, body: { error: ANALYZE_TIMEOUT_MESSAGE, retryable: true } };
   }
 
   try {
     const { result, usage, guardMetrics } = await analyzeCV(
-      jd, cvData as string, cvMimeType, cvName, language, remainingBudgetMs, cvPdfInlineData
+      jd, cvData as string, cvMimeType, cvName, language, aiDeadline.remainingMs(), cvPdfInlineData
     );
 
+    // Fail-open as before: a timed-out or failed increment still returns the result.
     try {
       const { error: incrementError } = await withTimeout(
-        getSupabaseAdmin().rpc('increment_usage_count', { user_id: userId }) as unknown as Promise<{
+        getSupabaseAdmin()
+          .rpc('increment_usage_count', { user_id: userId })
+          .abortSignal(deadline.signal(INCREMENT_TIMEOUT_MS)) as unknown as Promise<{
           data: unknown;
           error: unknown;
         }>,
-        INCREMENT_TIMEOUT_MS,
+        Math.min(INCREMENT_TIMEOUT_MS, deadline.remainingMs()),
         'Usage increment'
       );
       if (incrementError) console.error('increment_usage_count failed:', incrementError);
     } catch (err) {
       console.error('increment_usage_count failed:', err);
     }
-    await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics });
+    await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics }, deadline);
 
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (analysisError) {
     console.error('Analysis failed:', analysisError);
+    const category = aiFailureCategory(analysisError);
+    const isTimeout = category !== 'gemini_error';
+    // Persist only the category; the client still gets the existing message.
+    const usage = category === 'request_budget_exhausted' ? undefined : { model: GEMINI_ANALYZE_MODEL }; // model only if Gemini ran
+    await logAnalysisAttempt(userId, 'error', 'analyze', `[${category}]`, usage, undefined, deadline);
     const message =
-      analysisError instanceof Error ? analysisError.message : 'Analysis failed';
-    const isTimeout = message.includes('(Timeout)');
-    await logAnalysisAttempt(userId, 'error', 'analyze', message, { model: GEMINI_ANALYZE_MODEL });
+      category === 'request_budget_exhausted'
+        ? ANALYZE_TIMEOUT_MESSAGE
+        : analysisError instanceof Error ? analysisError.message : 'Analysis failed';
     return {
       status: isTimeout ? 504 : 500,
       body: {

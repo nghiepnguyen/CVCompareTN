@@ -105,8 +105,8 @@ ${currentMonth ? `\n    Thời điểm hiện tại: ${currentMonth}. Chỉ dùn
 /**
  * CV extraction (Parsed CV) is generated separately via /api/parse-cv in the
  * background — see _server-lib/ai/parseCvService.ts — so the main analyze
- * call's output stays small enough to reliably finish within Vercel's 60s
- * maxDuration (Hobby plan hard limit; can't be raised).
+ * call's output stays small enough to finish well within the shared request
+ * deadline (_server-lib/deadline.ts).
  */
 export function buildParseCvPrompt({ jdSection, language = 'vi' }: PromptParams): string {
   if (language === 'en') return buildParseCvPromptEn({ jdSection });

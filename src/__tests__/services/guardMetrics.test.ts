@@ -9,12 +9,16 @@ vi.mock('../../../_server-lib/ai/geminiClient.js', async (importOriginal) => ({
 }));
 
 const insert = vi.fn();
-const chain = { select: () => chain, eq: () => chain, maybeSingle: async () => ({ data: null }) };
+// Builders mirror supabase-js: .abortSignal() is chained before the query runs.
+const chain: Record<string, unknown> = { select: () => chain, eq: () => chain, abortSignal: () => chain, maybeSingle: async () => ({ data: null }) };
 vi.mock('../../../_server-lib/payment/supabaseAdmin.js', () => ({
   getUserFromBearerToken: async () => ({ id: 'user-1' }),
   getSupabaseAdmin: () => ({
-    from: (table: string) => (table === 'analysis_log' ? { insert } : chain),
-    rpc: async (fn: string) => ({ data: fn === 'check_analytics_quota' ? { allowed: true } : null, error: null }),
+    from: (table: string) =>
+      table === 'analysis_log' ? { insert: (row: unknown) => ({ abortSignal: () => insert(row) }) } : chain,
+    rpc: (fn: string) => ({
+      abortSignal: async () => ({ data: fn === 'check_analytics_quota' ? { allowed: true } : null, error: null }),
+    }),
   }),
 }));
 

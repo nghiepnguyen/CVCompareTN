@@ -1,4 +1,5 @@
 import { extractText } from 'unpdf';
+import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS } from '../deadline.js';
 import { normalizeTextualMonthYear } from '../../src/lib/cvDates.js';
 import {
   countViolations,
@@ -8,6 +9,7 @@ import {
 } from './suggestionGuard.js';
 import { getGeminiClient, GEMINI_REWRITE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 
+// Default only for direct callers (benchmarks); the handler passes its AI deadline.
 const REWRITE_TIMEOUT_MS = 50_000;
 
 const REWRITE_SCHEMA = {
@@ -170,7 +172,10 @@ export async function generateFullRewrite(
   timeoutMs: number = REWRITE_TIMEOUT_MS
 ): Promise<{ fullRewrittenCV: string; usage: AiCallUsage; fidelityFallback?: true; guardMetrics: FullCvGuardMetrics }> {
   const client = getGeminiClient();
-  const deadline = Date.now() + timeoutMs;
+  // timeoutMs is the caller's AI deadline: both Gemini calls and the retry
+  // decision use it, so the retry never eats the post-AI reserve.
+  const deadline = createDeadline(timeoutMs);
+  const abortSignal = deadline.signal();
 
   const jdSection =
     language === 'vi' ? `Mô tả công việc (JD):\n${jd}` : `Job Description (JD):\n${jd}`;
@@ -204,6 +209,7 @@ export async function generateFullRewrite(
         responseSchema: REWRITE_SCHEMA,
         maxOutputTokens: 16384,
         thinkingConfig: thinkingConfigFor(GEMINI_REWRITE_MODEL),
+        abortSignal,
       },
     });
     const response = await Promise.race([geminiPromise, timeoutPromise]);
@@ -216,6 +222,7 @@ export async function generateFullRewrite(
   };
 
   try {
+    assertBudget(deadline, MIN_GEMINI_BUDGET_MS);
     if (cvMimeType === 'application/pdf') {
       try {
         const base64Data = cvData.split(',')[1] || cvData;
@@ -245,6 +252,8 @@ export async function generateFullRewrite(
       cvText = cvData;
     }
 
+    // unpdf cannot be cancelled: re-check the budget before starting Gemini.
+    assertBudget(deadline, MIN_GEMINI_BUDGET_MS);
     const first = await callRewrite(buildPrompt(jdSection));
     if (cvText === undefined) {
       return {
@@ -272,7 +281,7 @@ export async function generateFullRewrite(
       fidelityFallback: true as const,
       guardMetrics: { ...failedFirst, ...guard, fidelityFallback: true },
     });
-    if (deadline - Date.now() < REWRITE_RETRY_MIN_BUDGET_MS) {
+    if (deadline.remainingMs() < REWRITE_RETRY_MIN_BUDGET_MS) {
       return fallback(first.usage, { retryOutcome: 'skipped_budget', geminiCalls: 1 });
     }
     let retry: Awaited<ReturnType<typeof callRewrite>>;
@@ -294,7 +303,8 @@ export async function generateFullRewrite(
     logFidelity('retry', retryCheck.violations);
     return fallback(usage, { retryOutcome: 'invalid', retryViolations: countViolations(retryCheck.violations), geminiCalls: 2 });
   } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes('(Timeout)')) {
+    if (error instanceof ControlledError) throw error;
+    if (abortSignal.aborted || (error instanceof Error && error.message.includes('(Timeout)'))) {
       throw new Error('CV rewrite is taking too long. Please try again. (Timeout)');
     }
     if (error instanceof Error && error.message.includes('DEADLINE_EXCEEDED')) {
