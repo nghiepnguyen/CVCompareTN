@@ -123,6 +123,9 @@ describe("prompts — analyze evidence guardrails", () => {
         "Không thêm kỹ năng/công cụ mới dưới bất kỳ hình thức nào", // skills section
         "Giữ nguyên mọi con số CV đã nêu",
         "KHÔNG đưa gợi ý viết lại cho mục Kỹ năng/Skills",
+        "Dữ kiện CV ghi RÕ được ưu tiên hơn giá trị tự tính", // explicit > derived
+        "KHÔNG âm thầm sửa",
+        "CV ghi \"7 năm\" thì giữ \"7 năm\"",
         "ĐÚNG NGÔN NGỮ GỐC của CV",
       ],
     },
@@ -140,6 +143,9 @@ describe("prompts — analyze evidence guardrails", () => {
         "Never add a new skill/tool in any form",
         "Keep every number the CV states as is",
         "Do NOT make rewrite suggestions for a Skills section",
+        "Facts the CV states EXPLICITLY take precedence over derived calculations",
+        "do NOT silently reconcile",
+        "if it says \"7 years\", keep \"7 years\"",
         "EXACT ORIGINAL LANGUAGE of the CV",
       ],
     },
@@ -174,5 +180,8 @@ describe("prompts — analyze evidence guardrails", () => {
     expect(buildAnalyzePrompt({ jdSection: mockJdSection, language: "vi", currentMonth: "10/2026" })).toContain("Thời điểm hiện tại: 10/2026");
     expect(buildAnalyzePrompt({ jdSection: mockJdSection, language: "en", currentMonth: "10/2026" })).toContain("Current month: 10/2026");
     expect(buildAnalyzePromptVi({ jdSection: mockJdSection })).not.toContain("Thời điểm hiện tại");
+    // The current month may only fill in durations the CV does not state.
+    expect(buildAnalyzePrompt({ jdSection: mockJdSection, language: "vi", currentMonth: "10/2026" })).toContain("không bao giờ dùng để sửa một dữ kiện CV đã ghi");
+    expect(buildAnalyzePrompt({ jdSection: mockJdSection, language: "en", currentMonth: "10/2026" })).toContain("never to change a fact the CV states");
   });
 });

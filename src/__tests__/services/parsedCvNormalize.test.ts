@@ -386,3 +386,11 @@ describe("normalizeParsedCV — textual month dates", () => {
     expect(computeYearsOfExperience([job("January 2020", "December 2021")] as never)).toBe(2);
   });
 });
+
+describe("computeYearsOfExperience — ongoing roles", () => {
+  it("measures a textual-month role ending in Present up to now (no total stated in the CV)", () => {
+    const job = { company: "C", job_title: "T", duration: { start: "Jan 2022", end: "Present", is_current: true }, responsibilities: [], achievements: [] };
+    // 01/2022 through 10/2026 inclusive = 58 months
+    expect(computeYearsOfExperience([job] as never, new Date("2026-10-15T00:00:00.000Z"))).toBe(4.8);
+  });
+});

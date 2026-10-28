@@ -26,7 +26,7 @@ export function buildAnalyzePromptVi({ jdSection, currentMonth }: PromptParams):
     Hãy phân tích sự phù hợp của CV này so với Mô tả công việc (JD).
 
     ${jdSection}
-${currentMonth ? `\n    Thời điểm hiện tại: ${currentMonth}. Dùng mốc này khi tính thời gian cho các vị trí ghi "nay"/"hiện tại"/"Present".\n` : ''}
+${currentMonth ? `\n    Thời điểm hiện tại: ${currentMonth}. Chỉ dùng mốc này để hiểu "nay"/"hiện tại"/"Present" và tính thời lượng khi CV KHÔNG tự nêu — không bao giờ dùng để sửa một dữ kiện CV đã ghi.\n` : ''}
     NGUYÊN TẮC BẰNG CHỨNG (bắt buộc, áp dụng cho MỌI phần của kết quả):
     - CV là nguồn dữ kiện DUY NHẤT về ứng viên: kinh nghiệm, công ty, chức danh, mốc thời gian, kỹ năng, công cụ, học vấn, chứng chỉ, trình độ ngoại ngữ, thành tích, số liệu, địa điểm, thông tin liên hệ.
     - JD chỉ cho biết YÊU CẦU (kỹ năng bắt buộc/ưu tiên, trách nhiệm, từ khóa, cấp độ, lĩnh vực). JD được dùng để so sánh với CV, KHÔNG BAO GIỜ là bằng chứng ứng viên có điều gì.
@@ -36,6 +36,7 @@ ${currentMonth ? `\n    Thời điểm hiện tại: ${currentMonth}. Dùng mố
       + Chưa thể hiện (status "missing"): CV không đề cập.
     - Tương đồng ngữ nghĩa KHÔNG phải là khớp chính xác: CV có PostgreSQL không có nghĩa là có BigQuery; CV có Tableau không có nghĩa là có Looker. Không giả định ứng viên biết công cụ tương đương.
     - "Chưa thể hiện trong CV" KHÁC "ứng viên không làm được". Viết là "CV chưa thể hiện rõ …", không viết "ứng viên thiếu khả năng …" khi CV chỉ đơn giản không đề cập (áp dụng cho kỹ năng, lãnh đạo, ngoại ngữ, công cụ, kiến thức ngành, kỹ năng mềm).
+    - Dữ kiện CV ghi RÕ được ưu tiên hơn giá trị tự tính. Thứ tự: (1) dữ kiện CV nêu rõ (VD: "7 năm kinh nghiệm"); (2) giá trị suy ra từ mốc thời gian CHỈ khi CV không nêu; (3) nếu hai nguồn mâu thuẫn (CV ghi 7 năm nhưng mốc thời gian cộng ra ~10 năm), KHÔNG âm thầm sửa — giữ "7 năm" ở mọi nơi trình bày dữ kiện ứng viên, có thể nêu sự không nhất quán trong nhận xét hoặc "explanation".
     - Mọi số liệu trình bày như dữ kiện về ứng viên (%, doanh thu, số người dùng, quy mô team, xếp hạng, uptime, ROAS/CPA/chuyển đổi, traffic, thời gian tiết kiệm, chi phí giảm, tăng trưởng, số dự án…) phải có nguyên văn trong CV. Không tự tính ra số liệu mới, không đưa số mẫu.
 
     Nhiệm vụ: Phân tích và So sánh với JD:
@@ -53,7 +54,7 @@ ${currentMonth ? `\n    Thời điểm hiện tại: ${currentMonth}. Dùng mố
        - 20-39: Hầu như không đáp ứng yêu cầu BẮT BUỘC nào của category, chỉ có liên hệ mơ hồ/gián tiếp.
        - 0-19: Không có bằng chứng liên quan trong CV.
        Chỉ tính là đáp ứng khi có bằng chứng trong CV ("matched"); "partial" chỉ được tính một phần, "missing" không được tính. Kỹ năng chỉ có trong JD không bao giờ được tính như ứng viên đã có. Gợi ý cải thiện không làm thay đổi điểm.
-       Riêng điểm "Kinh nghiệm" (Experience): nếu đã xác định được số năm YÊU CẦU ở bước 2, tính số năm kinh nghiệm THỰC TẾ của candidate (ước tính từ TOÀN BỘ mốc thời gian công việc trong CV, không chỉ vị trí gần nhất), dùng thang điểm trên làm điểm nền rồi điều chỉnh: thực tế ≥100% yêu cầu → giữ điểm nền; 80-99% → trừ 10-15 điểm; 50-79% → trừ 25-35 điểm; dưới 50% → điểm tối đa 40 dù các yếu tố khác tốt.
+       Riêng điểm "Kinh nghiệm" (Experience): nếu đã xác định được số năm YÊU CẦU ở bước 2, xác định số năm kinh nghiệm THỰC TẾ của candidate (dùng số năm CV ghi rõ nếu có; nếu không, ước tính từ TOÀN BỘ mốc thời gian công việc trong CV, không chỉ vị trí gần nhất), dùng thang điểm trên làm điểm nền rồi điều chỉnh: thực tế ≥100% yêu cầu → giữ điểm nền; 80-99% → trừ 10-15 điểm; 50-79% → trừ 25-35 điểm; dưới 50% → điểm tối đa 40 dù các yếu tố khác tốt.
     4. Liệt kê các điểm tương đồng cụ thể theo danh mục (matchingPoints) — CHỈ những điểm có bằng chứng trực tiếp trong CV, nêu rõ bằng chứng đó.
     5. Liệt kê các điểm còn thiếu (missingGaps), diễn đạt là "CV chưa thể hiện …". Yêu cầu BẮT BUỘC bị thiếu LUÔN gán impact = "High"; yêu cầu ƯU TIÊN bị thiếu gán impact = "Medium" hoặc "Low" tùy mức độ ảnh hưởng thực tế.
     6. Xác định từ khóa ATS (atsKeywords) theo cách một bộ máy ATS THẬT hoạt động — so khớp CHUỖI/CỤM TỪ gần-chính xác, KHÔNG suy diễn ngữ nghĩa lỏng:
@@ -67,7 +68,7 @@ ${currentMonth ? `\n    Thời điểm hiện tại: ${currentMonth}. Dùng mố
        - KHÔNG đưa gợi ý viết lại cho mục Kỹ năng/Skills: danh sách kỹ năng không thể "tối ưu" mà không thêm kỹ năng mới. Kỹ năng JD yêu cầu mà CV chưa thể hiện thuộc về missingGaps, không thuộc rewriteSuggestions.
        - Với mỗi gợi ý: trích dẫn CHÍNH XÁC câu/đoạn gốc trong CV vào field "original" (không được để trống, không paraphrase), viết lại vào "optimized", và giải thích lý do tối ưu vào "explanation".
        - "optimized" CHỈ diễn đạt lại dữ kiện đã có trong CV: động từ hành động rõ ràng + phạm vi/cách làm + kết quả (chỉ khi CV đã nêu). Không thêm số liệu, công cụ, kỹ năng, thành tích hay trách nhiệm mà CV không có; không thêm kỹ năng chỉ có trong JD; không nâng chức danh; không dùng placeholder kiểu [X%]. Không viết các nhãn/cụm như "Accomplished", "as measured by", "by doing".
-       - Giữ nguyên mọi con số CV đã nêu, kể cả số năm kinh nghiệm ghi trong CV (không tính lại từ mốc thời gian để thay thế).
+       - Giữ nguyên mọi con số CV đã nêu, kể cả số năm kinh nghiệm ghi trong CV: CV ghi "7 năm" thì giữ "7 năm", không đổi thành "hơn 10 năm"/"khoảng 10 năm" dù mốc thời gian gợi ý khác.
        - Gợi ý cho mục Kỹ năng/Skills chỉ được sắp xếp, nhóm lại hoặc đổi cách gọi tương đương nghĩa các kỹ năng CV ĐÃ CÓ. Không thêm kỹ năng/công cụ mới dưới bất kỳ hình thức nào, kể cả kèm ghi chú như "(đang học)", "(cơ bản)", "(familiarity)", "am hiểu về …".
        - Không phải bullet nào cũng cần số liệu. Nếu thêm số liệu sẽ giúp ích nhưng CV không có, ghi trong "explanation" dạng có điều kiện, VD: "Nếu có số liệu thực tế, hãy bổ sung quy mô hoặc kết quả để tăng tính thuyết phục."
        - Nếu JD yêu cầu một kỹ năng/công cụ mà CV không thể hiện: không đưa vào "optimized"; chỉ có thể gợi ý trong "explanation" dạng "Nếu bạn thực sự đã sử dụng X, hãy bổ sung vào phần kinh nghiệm tương ứng."
@@ -160,7 +161,7 @@ export function buildAnalyzePromptEn({ jdSection, currentMonth }: PromptParams):
     Analyze the suitability of this CV against the Job Description (JD).
 
     ${jdSection}
-${currentMonth ? `\n    Current month: ${currentMonth}. Use it when measuring roles that end in "Present"/"now".\n` : ''}
+${currentMonth ? `\n    Current month: ${currentMonth}. Use it only to read "Present"/"now" and to measure durations the CV does NOT state itself — never to change a fact the CV states.\n` : ''}
     EVIDENCE RULES (mandatory, apply to EVERY part of the output):
     - The CV is the ONLY source of facts about the candidate: experience, companies, job titles, dates, skills, tools, education, certifications, language proficiency, achievements, metrics, location, contact details.
     - The JD only states REQUIREMENTS (required/preferred skills, responsibilities, keywords, seniority, domain). Compare the JD against the CV; NEVER treat the JD as evidence that the candidate has anything.
@@ -170,6 +171,7 @@ ${currentMonth ? `\n    Current month: ${currentMonth}. Use it when measuring ro
       + Missing (status "missing"): the CV does not mention it.
     - Semantic similarity is NOT an exact match: PostgreSQL in the CV does not mean BigQuery; Tableau does not mean Looker. Never assume the candidate knows an equivalent tool.
     - "Not shown in the CV" is NOT "the candidate cannot do it". Write "The CV does not clearly show …", never "The candidate lacks …" when the CV simply does not mention it (applies to skills, leadership, languages, tools, industry knowledge, soft skills).
+    - Facts the CV states EXPLICITLY take precedence over derived calculations. Priority: (1) the fact as stated (e.g. "7 years of experience"); (2) a value derived from dates ONLY when the CV states none; (3) if the two conflict (CV says 7 years, dates add up to ~10), do NOT silently reconcile — keep "7 years" wherever candidate facts are presented; you may point out the inconsistency in the analysis or in "explanation".
     - Every number presented as a candidate fact (%, revenue, user counts, team size, ratings, uptime, ROAS/CPA/conversion, traffic, time saved, cost reduction, growth, project counts…) must appear verbatim in the CV. Do not derive new metrics or give sample numbers.
 
     Task: Analysis & Comparison with JD:
@@ -187,7 +189,7 @@ ${currentMonth ? `\n    Current month: ${currentMonth}. Use it when measuring ro
        - 20-39: Meets almost none of the REQUIRED items for this category, only vague/indirect relevance.
        - 0-19: No relevant evidence found in the CV.
        Count a requirement as met only with CV evidence ("matched"); "partial" earns partial credit, "missing" earns none. JD-only skills never count as the candidate's. Improvement advice never changes the score.
-       For the "Experience" score specifically: if a REQUIRED years figure was extracted in step 2, compute the candidate's ACTUAL years of experience (estimated from ALL work-history timelines in the CV, not just the most recent role), use the band above as the baseline score, then adjust: actual ≥100% of required → keep baseline; 80-99% → subtract 10-15 points; 50-79% → subtract 25-35 points; below 50% → cap the score at 40 regardless of how strong other factors are.
+       For the "Experience" score specifically: if a REQUIRED years figure was extracted in step 2, determine the candidate's ACTUAL years of experience (use the figure the CV states explicitly if any; otherwise estimate from ALL work-history timelines in the CV, not just the most recent role), use the band above as the baseline score, then adjust: actual ≥100% of required → keep baseline; 80-99% → subtract 10-15 points; 50-79% → subtract 25-35 points; below 50% → cap the score at 40 regardless of how strong other factors are.
     4. List specific matching points by category (matchingPoints) — ONLY points with direct evidence in the CV, citing that evidence.
     5. List missing gaps (missingGaps), phrased as "The CV does not show …". A missing REQUIRED item MUST always be tagged impact = "High"; a missing NICE-TO-HAVE item should be tagged impact = "Medium" or "Low" depending on actual severity.
     6. Identify ATS keywords (atsKeywords) the way a REAL ATS engine actually works — literal string/phrase matching, not loose semantic inference:
@@ -201,7 +203,7 @@ ${currentMonth ? `\n    Current month: ${currentMonth}. Use it when measuring ro
        - Do NOT make rewrite suggestions for a Skills section: a skills list cannot be "optimized" without adding skills. JD skills the CV does not show belong in missingGaps, not rewriteSuggestions.
        - For each suggestion: quote the EXACT original sentence/bullet from the CV into the "original" field (never leave it empty, never paraphrase), rewrite it into "optimized", and explain the reasoning in "explanation".
        - "optimized" may ONLY rephrase facts already in the CV: clear action verb + scope/method + outcome (only when the CV states one). Never add numbers, tools, skills, achievements or responsibilities the CV lacks; never add JD-only skills; never promote a title; no placeholders like [X%]. Never write labels or phrases such as "Accomplished", "as measured by", "by doing".
-       - Keep every number the CV states as is, including years of experience written in the CV (do not recompute it from dates to replace it).
+       - Keep every number the CV states as is, including years of experience written in the CV: if it says "7 years", keep "7 years" — never "10 years"/"more than 10 years"/"about 10 years", even if the dates suggest otherwise.
        - Suggestions for a Skills section may only reorder, regroup or rename-with-same-meaning skills the CV ALREADY lists. Never add a new skill/tool in any form, including with qualifiers like "(learning)", "(basic)", "(familiarity)", "knowledge of …".
        - Not every bullet needs a metric. If a metric would help but the CV has none, say so conditionally in "explanation", e.g. "If you have real figures, add the scale or result to make this more convincing."
        - If the JD asks for a skill/tool the CV does not show: keep it out of "optimized"; at most suggest in "explanation": "If you have actually used X, add it to the relevant experience."

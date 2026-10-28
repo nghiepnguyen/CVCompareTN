@@ -13,6 +13,7 @@ import {
 import type { AnalysisResult } from '../../src/services/ai/types.js';
 import { buildAnalyzePrompt } from '../../src/services/ai/prompts.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
+import { dropUnsupportedSuggestions } from './suggestionGuard.js';
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -60,6 +61,9 @@ export async function analyzeCV(
 
   type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
   const parts: GeminiPart[] = [{ text: finalPrompt }];
+  // CV text the model saw, when there is one (not for inline PDF/image) — used
+  // to drop suggestions with numbers the CV never states.
+  let cvText: string | undefined;
 
   // Start the timeout BEFORE PDF extraction so the whole analyzeCV budget is bounded.
   // `timeoutMs` is whatever budget the caller has left after auth/quota/recaptcha —
@@ -90,6 +94,7 @@ export async function analyzeCV(
         ]);
         if (text && text.trim().length >= 100) {
           parts.push({ text: `CV Content:\n${text}` });
+          cvText = text;
           usedText = true;
         }
       } catch (e) {
@@ -113,6 +118,7 @@ export async function analyzeCV(
       });
     } else {
       parts.push({ text: `CV Content:\n${cvData}` });
+      cvText = cvData;
       // Text extraction already succeeded — also attach the original PDF
       // (when provided and within budget) so Gemini can additionally assess
       // real layout/format for the formatAssessment section.
@@ -165,7 +171,7 @@ export async function analyzeCV(
       passExplanation: parsedResult.passExplanation || '',
       mainFactor: parsedResult.mainFactor || '',
       atsKeywords: normalizeStringArray(parsedResult.atsKeywords),
-      rewriteSuggestions: normalizeRewriteSuggestions(parsedResult.rewriteSuggestions),
+      rewriteSuggestions: dropUnsupportedSuggestions(normalizeRewriteSuggestions(parsedResult.rewriteSuggestions), cvText),
       fullRewrittenCV: '',
       detailedComparison: normalizeDetailedComparison(parsedResult.detailedComparison),
       formatAssessment: normalizeFormatAssessment(parsedResult.formatAssessment),

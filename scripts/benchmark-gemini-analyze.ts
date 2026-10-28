@@ -48,6 +48,9 @@ function score(r: AnalysisResult, s: Sample, sourceText: string, uiLang: 'vi' | 
   const sugg = r.rewriteSuggestions ?? [];
   const optimized = sugg.map((x) => x.optimized ?? '');
   const fabricatedMetrics = sourceText ? optimized.flatMap((o) => [...nums(o)].filter((n) => !srcNums.has(n))) : null;
+  // "N năm/years" in a suggestion where the CV never states N (single digits included).
+  const srcAllNums = new Set((sourceText.match(/\d+/g) || []));
+  const yearsChanged = sourceText ? optimized.flatMap((o) => [...o.matchAll(/(\d+)\+?\s*(?:năm|years?)/gi)].map((m) => m[1]).filter((n) => !srcAllNums.has(n))) : null;
   const jdOnlyInOptimized = optimized.flatMap((o) => jdOnly.filter((k) => has(o, k)));
   const jdOnlyInAtsKeywords = (r.atsKeywords ?? []).filter((kw) => jdOnly.some((k) => has(kw, k)));
   const jdOnlyInStrengths = (r.matchingPoints ?? []).flatMap((p) => jdOnly.filter((k) => has(p.content, k)).map((k) => `${k}: ${p.content.slice(0, 90)}`));
@@ -75,6 +78,7 @@ function score(r: AnalysisResult, s: Sample, sourceText: string, uiLang: 'vi' | 
     matchingPoints: r.matchingPoints?.length ?? 0,
     missingGaps: r.missingGaps?.length ?? 0,
     fabricatedMetrics,
+    yearsChanged,
     jdOnlyInOptimized,
     jdOnlyInAtsKeywords,
     jdOnlyInStrengths,
