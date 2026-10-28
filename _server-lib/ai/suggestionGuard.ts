@@ -153,6 +153,43 @@ export function rawJdConcepts(jd: string, cvText: string): DeniedConcept[] {
   return [...out.values()];
 }
 
+export type FullRewriteViolation = { reason: 'unsupported-number' | 'raw-jd'; concept: string };
+export type FullRewriteValidation = { valid: boolean; violations: FullRewriteViolation[] };
+
+/**
+ * Same numeric + raw-JD policy as dropUnsupportedSuggestions, applied to the
+ * whole rewritten CV. Detect only: the caller decides what to do (retry or
+ * withhold the CV); nothing is deleted from the Markdown here.
+ * The contact preamble (everything before the first "##" section) is not
+ * checked: the prompt reserves it for "# Name" + contact lines, where the
+ * same phone number re-spaced ("0912 345 678" → "0912345678") or a "LinkedIn"
+ * label for a CV that only has "linkedin.com/in/…" is truthful CV data, not
+ * a fabricated fact. `originalCvText` must be the exact text the model was
+ * given; without it there is no evidence and the caller must skip validation.
+ */
+export function validateFullRewrite({
+  originalCvText,
+  jd,
+  rewrittenCv,
+}: {
+  originalCvText: string;
+  jd: string;
+  rewrittenCv: string;
+}): FullRewriteValidation {
+  const firstSection = rewrittenCv.search(/^##\s/m);
+  const body = firstSection > 0 ? rewrittenCv.slice(firstSection) : rewrittenCv;
+  const cvNumbers = new Set(metricNumbers(originalCvText));
+  const violations: FullRewriteViolation[] = [];
+  for (const n of new Set(metricNumbers(body))) {
+    if (!cvNumbers.has(n)) violations.push({ reason: 'unsupported-number', concept: n });
+  }
+  const canonicalBody = canonicalText(body);
+  for (const d of rawJdConcepts(jd, originalCvText)) {
+    if (containsPhrase(canonicalBody, d.concept)) violations.push({ reason: 'raw-jd', concept: d.concept });
+  }
+  return { valid: violations.length === 0, violations };
+}
+
 export type DroppedSuggestion = {
   section: string;
   reason: 'skills-section' | 'unsupported-number' | 'unsupported-jd-concept';

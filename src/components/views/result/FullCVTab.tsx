@@ -19,8 +19,9 @@ interface FullCVTabProps {
 export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullCVTabProps) {
   const { t, reportLanguage, navigateToUpgrade } = useUI();
   const { effectivePlan, userProfile } = useAuth();
-  const { fullCVGeneratingIds } = useAnalysis();
+  const { fullCVGeneratingIds, fullCVFallbackIds } = useAnalysis();
   const isGenerating = fullCVGeneratingIds.has(selectedResult.id);
+  const isFidelityFallback = fullCVFallbackIds.has(selectedResult.id);
   const canExportOptimized =
     userProfile?.role === 'admin' || isProPlan(effectivePlan) || isRecruiterPlan(effectivePlan);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
@@ -56,6 +57,12 @@ export const FullCVTab = React.memo(function FullCVTab({ selectedResult }: FullC
               {reportLanguage === 'vi' ? 'Đang tạo CV tối ưu hoá...' : 'Generating optimized CV…'}
             </p>
           </>
+        ) : isFidelityFallback ? (
+          <p className="text-sm font-medium text-text-muted">
+            {reportLanguage === 'vi'
+              ? 'Không thể tạo bản CV tối ưu an toàn ở lần này. Vui lòng thử lại.'
+              : 'Could not generate a safe optimized CV this time. Please try again.'}
+          </p>
         ) : (
           <p className="text-sm font-medium text-text-muted">
             {reportLanguage === 'vi' ? 'Chưa có dữ liệu CV tối ưu.' : 'No optimized CV data available.'}
