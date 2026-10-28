@@ -30,6 +30,9 @@ export type Sample = {
   // JD requirements the CV gives no evidence for, even under a variant name
   // (hand-picked). Any output presenting these as the candidate's is a fabrication.
   jdOnlySkills?: string[];
+  // JD-only concepts that are not skills/tools (responsibilities, methodologies,
+  // metric concepts…). The CV gives no evidence for them either.
+  jdOnlyConcepts?: string[];
 };
 
 const JD_VI_SHORT = `Vị trí: Chuyên viên Marketing Digital. Yêu cầu: 2+ năm chạy quảng cáo Facebook Ads, Google Ads; phân tích số liệu bằng Google Analytics 4; viết nội dung; ưu tiên biết SEO. Làm việc tại Hà Nội.`;
@@ -212,6 +215,7 @@ export const SAMPLES: Sample[] = [
     },
     jdKeywords: ['A/B test', 'dbt', 'BigQuery', 'Looker', 'SQL', 'Python', 'stakeholder', 'causal inference'],
     jdOnlySkills: ['BigQuery', 'Looker', 'causal inference', 'statsmodels', 'Airflow', 'attribution'],
+    jdOnlyConcepts: ['north-star', 'guardrail', 'forecast demand', 'self-serve'],
   },
   {
     id: 'en-complex-layout',
@@ -276,7 +280,44 @@ export const SAMPLES: Sample[] = [
 ];
 
 const byId = (id: string) => SAMPLES.find((s) => s.id === id)!;
+
+// Regression for the 2026-10-28 production smoke: the model rewrote
+// "Created Tableau dashboards used in weekly business reviews" as
+// "…to track north-star and guardrail metrics" — a JD-only metric concept.
+const CV_JD_CONCEPT = `SMOKE TESTER
+Data Analyst · Singapore · smoke.tester@example.com · +65 8000 1234
+PROFILE
+Analyst with 5 years of experience turning marketplace data into decisions.
+EXPERIENCE
+Lumen Retail Group — Data Analyst II, Jan 2022 – Present
+• Built 40+ dbt models on Snowflake for finance and marketing reporting.
+• Analyzed 25 pricing experiments; one change lifted conversion 3.1%.
+• Created Tableau dashboards used in weekly business reviews.
+Kestrel Logistics — Business Analyst, Aug 2019 – Dec 2021
+• Wrote SQL reports on delivery SLAs for 12 regional hubs.
+• Automated Excel reporting with Python (pandas), saving 10 hours/week.
+EDUCATION
+National University of Singapore — B.Sc. Statistics, 2019
+SKILLS
+SQL, Python (pandas, scikit-learn), dbt, Snowflake, Tableau, Excel, A/B testing, regression
+LANGUAGES
+English (native), Tamil (fluent)`;
+
+const JD_CONCEPT = `Senior Data Analyst — E-commerce Marketplace (Remote, APAC).
+Responsibilities: design and analyze A/B tests; build and maintain dbt models on BigQuery; create Looker dashboards for weekly business reviews; define north-star and guardrail metrics; mentor junior analysts.
+Requirements: 4+ years in analytics; expert SQL; Python (pandas, statsmodels); experience with dbt and BigQuery; Looker; solid statistics including causal inference; stakeholder communication.
+Nice to have: Airflow, marketing attribution.`;
 SAMPLES.push(
+  {
+    id: 'en-jd-concept',
+    language: 'en',
+    jd: JD_CONCEPT,
+    text: CV_JD_CONCEPT,
+    truth: { ...byId('en-medium').truth, name: 'Smoke Tester', email: 'smoke.tester@example.com', phone: '+6580001234' },
+    jdKeywords: ['A/B test', 'dbt', 'BigQuery', 'Looker', 'SQL', 'Python', 'north-star', 'causal inference'],
+    jdOnlySkills: ['BigQuery', 'Looker', 'causal inference', 'statsmodels', 'Airflow', 'attribution'],
+    jdOnlyConcepts: ['north-star', 'guardrail', 'mentor'],
+  },
   {
     id: 'en-no-contact',
     language: 'en',
@@ -285,6 +326,7 @@ SAMPLES.push(
     truth: { ...byId('en-medium').truth, email: undefined, phone: undefined },
     jdKeywords: ['A/B test', 'dbt', 'BigQuery', 'Looker', 'SQL', 'Python', 'stakeholder', 'causal inference'],
     jdOnlySkills: ['BigQuery', 'Looker', 'causal inference', 'statsmodels', 'Airflow', 'attribution'],
+    jdOnlyConcepts: ['north-star', 'guardrail', 'forecast demand', 'self-serve'],
   },
   {
     id: 'vi-no-contact',

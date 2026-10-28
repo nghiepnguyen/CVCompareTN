@@ -71,6 +71,13 @@ function score(r: AnalysisResult, s: Sample, sourceText: string, uiLang: 'vi' | 
   // Advice to add a JD-only skill must be conditional ("If you…" / "Nếu…").
   const advice = [...dcItems.map((i) => i.improvement ?? ''), ...sugg.map((x) => x.explanation ?? '')];
   const unconditionalAddAdvice = advice.filter((t) => jdOnly.some((k) => has(t, k)) && /\b(add|include|thêm|bổ sung)\b/i.test(t) && !/\bif\b|nếu/i.test(t)).length;
+  // JD-only concepts that are not skills/tools (responsibilities, metric concepts…).
+  const concepts = s.jdOnlyConcepts ?? [];
+  const jdOnlyConceptInOptimized = optimized.flatMap((o) => concepts.filter((k) => has(o, k)));
+  const jdOnlyConceptInEvidence = [...(r.matchingPoints ?? []).map((p) => p.content), ...dcItems.filter((i) => i.status === 'matched').map((i) => i.cvEvidence ?? ''), ...(r.atsKeywords ?? [])]
+    .flatMap((t) => concepts.filter((k) => has(t, k)));
+  const insertVerb = /\b(add|include|insert|incorporate|mention|state|use|thêm|bổ sung|đưa|ghi|lồng ghép|sử dụng)\b/i;
+  const unconditionalConceptAdvice = advice.filter((t) => concepts.some((k) => has(t, k)) && insertVerb.test(t) && !/\bif\b|nếu/i.test(t)).length;
   return {
     matchScore: r.matchScore,
     categoryScores: r.categoryScores,
@@ -88,6 +95,9 @@ function score(r: AnalysisResult, s: Sample, sourceText: string, uiLang: 'vi' | 
     inabilityWording,
     jdOnlyFlaggedAsGap,
     unconditionalAddAdvice,
+    jdOnlyConceptInOptimized,
+    jdOnlyConceptInEvidence,
+    unconditionalConceptAdvice,
     analysisLangOk: uiLang === 'vi' ? viRatio(analysisText) > 0.05 : viRatio(analysisText) < 0.01,
     optimizedLangOk: optimized.length ? (s.language === 'vi' ? viRatio(optimized.join(' ')) > 0.05 : viRatio(optimized.join(' ')) < 0.01) : null,
   };
@@ -104,7 +114,7 @@ for (let run = 1; run <= RUNS; run++)
   for (const sample of samples) {
     jobs.push({ sample, uiLang: sample.language, run });
     // English CV analyzed from the Vietnamese UI: analysis must be Vietnamese, suggestions stay English.
-    if (sample.id === 'en-medium') jobs.push({ sample, uiLang: 'vi', run });
+    if (sample.id === 'en-medium' || sample.id === 'en-jd-concept') jobs.push({ sample, uiLang: 'vi', run });
   }
 
 const cvCache = new Map<string, Awaited<ReturnType<typeof loadCv>>>();
