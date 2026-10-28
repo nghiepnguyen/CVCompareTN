@@ -13,7 +13,7 @@ import {
 import type { AnalysisResult } from '../../src/services/ai/types.js';
 import { buildAnalyzePrompt } from '../../src/services/ai/prompts.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
-import { dropUnsupportedSuggestions } from './suggestionGuard.js';
+import { dropUnsupportedSuggestions, rawJdConcepts } from './suggestionGuard.js';
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -160,20 +160,37 @@ export async function analyzeCV(
           ? parseFloat(matchScoreRaw) || 0
           : Number(matchScoreRaw) || 0;
 
+    const missingGaps = normalizeMissingGaps(parsedResult.missingGaps);
+    const detailedComparison = normalizeDetailedComparison(parsedResult.detailedComparison);
+    const rewriteSuggestions = dropUnsupportedSuggestions(
+      normalizeRewriteSuggestions(parsedResult.rewriteSuggestions),
+      cvText,
+      // Distinctive JD terms absent from the CV. The analysis (detailedComparison,
+      // missingGaps) is deliberately not used to filter suggestions.
+      cvText ? rawJdConcepts(jd, cvText) : [],
+      // Diagnostics: section + reason (+ concept/source), never CV/JD text. The
+      // suggestion body is added only for local benchmark debugging.
+      (d, s) =>
+        console.info(
+          '[suggestionGuard] dropped',
+          JSON.stringify(process.env.SUGGESTION_GUARD_DEBUG === '1' ? { ...d, original: s.original, optimized: s.optimized } : d)
+        )
+    );
+
     const finalResult = {
       jobTitle: parsedResult.jobTitle || 'Job Position',
       matchScore,
       categoryScores: normalizeCategoryScores(parsedResult.categoryScores),
       matchingPoints: normalizeMatchingPoints(parsedResult.matchingPoints),
-      missingGaps: normalizeMissingGaps(parsedResult.missingGaps),
+      missingGaps,
       successProbability: parsedResult.successProbability || 'Medium',
       passProbability: parsedResult.passProbability || 'Medium',
       passExplanation: parsedResult.passExplanation || '',
       mainFactor: parsedResult.mainFactor || '',
       atsKeywords: normalizeStringArray(parsedResult.atsKeywords),
-      rewriteSuggestions: dropUnsupportedSuggestions(normalizeRewriteSuggestions(parsedResult.rewriteSuggestions), cvText),
+      rewriteSuggestions,
       fullRewrittenCV: '',
-      detailedComparison: normalizeDetailedComparison(parsedResult.detailedComparison),
+      detailedComparison,
       formatAssessment: normalizeFormatAssessment(parsedResult.formatAssessment),
       // parsedCV is generated separately via /api/parse-cv in the background — see
       // _server-lib/ai/parseCvService.ts — to keep this call's output small.

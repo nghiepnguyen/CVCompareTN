@@ -8,6 +8,7 @@
  *   node --env-file=.env --env-file=.env.local node_modules/.bin/tsx \
  *     scripts/benchmark-gemini-analyze.ts <outDir>
  * Env: RUNS (default 2), CONCURRENCY (default 3), ONLY (comma-separated sample ids),
+ *      UI=vi|en (only that report language),
  *      RESCORE=1 (no API calls: re-score <outDir>/raw/*.json into metrics-rescored.jsonl).
  *
  * Writes metrics.jsonl + raw JSON results to <outDir> (keep it outside the repo).
@@ -17,6 +18,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } fr
 import { join } from 'node:path';
 import { extractText } from 'unpdf';
 import { analyzeCV } from '../_server-lib/ai/analysisService.js';
+import { rawJdConcepts } from '../_server-lib/ai/suggestionGuard.js';
 import { GEMINI_PRICING } from '../src/lib/geminiModels.js';
 import type { AnalysisResult } from '../src/services/ai/types.js';
 import { SAMPLES, type Sample } from './benchmark-gemini-fixtures.js';
@@ -71,6 +73,13 @@ function score(r: AnalysisResult, s: Sample, sourceText: string, uiLang: 'vi' | 
   // Advice to add a JD-only skill must be conditional ("If you…" / "Nếu…").
   const advice = [...dcItems.map((i) => i.improvement ?? ''), ...sugg.map((x) => x.explanation ?? '')];
   const unconditionalAddAdvice = advice.filter((t) => jdOnly.some((k) => has(t, k)) && /\b(add|include|thêm|bổ sung)\b/i.test(t) && !/\bif\b|nếu/i.test(t)).length;
+  // JD-only concepts that are not skills/tools (responsibilities, metric concepts…).
+  const concepts = s.jdOnlyConcepts ?? [];
+  const jdOnlyConceptInOptimized = optimized.flatMap((o) => concepts.filter((k) => has(o, k)));
+  const jdOnlyConceptInEvidence = [...(r.matchingPoints ?? []).map((p) => p.content), ...dcItems.filter((i) => i.status === 'matched').map((i) => i.cvEvidence ?? ''), ...(r.atsKeywords ?? [])]
+    .flatMap((t) => concepts.filter((k) => has(t, k)));
+  const insertVerb = /\b(add|include|insert|incorporate|mention|state|use|thêm|bổ sung|đưa|ghi|lồng ghép|sử dụng)\b/i;
+  const unconditionalConceptAdvice = advice.filter((t) => concepts.some((k) => has(t, k)) && insertVerb.test(t) && !/\bif\b|nếu/i.test(t)).length;
   return {
     matchScore: r.matchScore,
     categoryScores: r.categoryScores,
@@ -88,6 +97,9 @@ function score(r: AnalysisResult, s: Sample, sourceText: string, uiLang: 'vi' | 
     inabilityWording,
     jdOnlyFlaggedAsGap,
     unconditionalAddAdvice,
+    jdOnlyConceptInOptimized,
+    jdOnlyConceptInEvidence,
+    unconditionalConceptAdvice,
     analysisLangOk: uiLang === 'vi' ? viRatio(analysisText) > 0.05 : viRatio(analysisText) < 0.01,
     optimizedLangOk: optimized.length ? (s.language === 'vi' ? viRatio(optimized.join(' ')) > 0.05 : viRatio(optimized.join(' ')) < 0.01) : null,
   };
@@ -104,14 +116,30 @@ for (let run = 1; run <= RUNS; run++)
   for (const sample of samples) {
     jobs.push({ sample, uiLang: sample.language, run });
     // English CV analyzed from the Vietnamese UI: analysis must be Vietnamese, suggestions stay English.
-    if (sample.id === 'en-medium') jobs.push({ sample, uiLang: 'vi', run });
+    if (sample.id === 'en-medium' || sample.id === 'en-jd-concept') jobs.push({ sample, uiLang: 'vi', run });
   }
 
+// UI=vi|en keeps only jobs for that report language (stress runs).
+if (process.env.UI) jobs.splice(0, jobs.length, ...jobs.filter((j) => j.uiLang === process.env.UI));
+
 const cvCache = new Map<string, Awaited<ReturnType<typeof loadCv>>>();
+
+// Suggestions dropped by the server-side guard (logged by analyzeCV). Only
+// attributable to a call when calls run one at a time (CONCURRENCY=1), and
+// then the log also carries original/optimized for manual review (local only).
+if (CONCURRENCY === 1) process.env.SUGGESTION_GUARD_DEBUG = '1';
+let guardDrops: unknown[] = [];
+const origInfo = console.info;
+console.info = (...args: unknown[]) => {
+  if (args[0] === '[suggestionGuard] dropped') guardDrops.push(JSON.parse(String(args[1])));
+  else origInfo(...args);
+};
+
 async function runJob({ sample, uiLang, run }: Job) {
   if (!cvCache.has(sample.id)) cvCache.set(sample.id, await loadCv(sample));
   const cv = cvCache.get(sample.id)!;
   const t = Date.now();
+  guardDrops = [];
   let row: Record<string, unknown>;
   try {
     const { result, usage } = await analyzeCV(sample.jd, cv.cvData, cv.mimeType, sample.id, uiLang);
@@ -121,6 +149,11 @@ async function runJob({ sample, uiLang, run }: Job) {
       inTok: usage.inputTokens, outTok: usage.outputTokens,
       costUsd: Number(((usage.inputTokens * price.inputPer1M + usage.outputTokens * price.outputPer1M) / 1e6).toFixed(6)),
       quality: score(result, sample, cv.sourceText, uiLang),
+      guardDrops: CONCURRENCY === 1 ? guardDrops : null,
+      // Deterministic: which fixture concepts the raw-JD extractor denies for this CV.
+      rawJdDetects: (sample.jdOnlyConcepts ?? []).filter((k) =>
+        rawJdConcepts(sample.jd, cv.sourceText).some((c) => norm(c.concept).replace(/-/g, ' ') === norm(k).replace(/-/g, ' '))
+      ),
     };
     writeFileSync(join(outDir, 'raw', `${sample.id}.${uiLang}.r${run}.json`), JSON.stringify(result, null, 2));
   } catch (e) {

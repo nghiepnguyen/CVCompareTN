@@ -116,7 +116,7 @@ describe("prompts — analyze evidence guardrails", () => {
         "nguồn dữ kiện DUY NHẤT về ứng viên", // CV = candidate source of truth
         "KHÔNG BAO GIỜ là bằng chứng", // JD != candidate evidence
         "Không tự tính ra số liệu mới", // no invented metrics
-        "không thêm kỹ năng chỉ có trong JD", // no JD-only skills in suggestions
+        "không thêm kỹ năng hay BẤT KỲ khái niệm nào chỉ có trong JD", // no JD-only skills/concepts in suggestions
         "Nếu bạn thực sự đã sử dụng X", // conditional recommendation
         "KHÁC \"ứng viên không làm được\"", // not evidenced != cannot
         "PostgreSQL không có nghĩa là có BigQuery", // semantic != exact
@@ -126,6 +126,15 @@ describe("prompts — analyze evidence guardrails", () => {
         "Dữ kiện CV ghi RÕ được ưu tiên hơn giá trị tự tính", // explicit > derived
         "KHÔNG âm thầm sửa",
         "CV ghi \"7 năm\" thì giữ \"7 năm\"",
+        // JD-only concepts beyond skills/tools
+        "KHÔNG BAO GIỜ cho biết ứng viên ĐÃ LÀM gì",
+        "trách nhiệm, phương pháp, quy trình, thuật ngữ nghiệp vụ/lĩnh vực, khái niệm chỉ số",
+        "SAI: \"Created Tableau dashboards to track north-star and guardrail metrics\"",
+        "không dùng thuật ngữ JD để làm một câu chung chung trong CV trở nên cụ thể hơn",
+        "không bao giờ khuyên chèn một từ khóa/thuật ngữ chỉ để tăng điểm ATS",
+        "Nếu đây đúng là phương pháp/chỉ số bạn đã sử dụng",
+        "Mọi điều kiện (\"nếu bạn đã …\") chỉ được nằm trong \"explanation\"",
+        "vẫn là CV tiếng Việt",
         "ĐÚNG NGÔN NGỮ GỐC của CV",
       ],
     },
@@ -146,6 +155,14 @@ describe("prompts — analyze evidence guardrails", () => {
         "Facts the CV states EXPLICITLY take precedence over derived calculations",
         "do NOT silently reconcile",
         "if it says \"7 years\", keep \"7 years\"",
+        "it NEVER tells you what the candidate DID",
+        "responsibilities, methodologies, processes, business/domain terminology, metric concepts",
+        "WRONG: \"Created Tableau dashboards to track north-star and guardrail metrics\"",
+        "never use JD terminology to make a generic CV statement more specific",
+        "never recommend inserting a keyword/term merely to improve ATS matching",
+        "If you actually used this concept, state the term explicitly",
+        "Any condition (\"if you have …\") belongs only in \"explanation\"",
+        "is still a Vietnamese CV",
         "EXACT ORIGINAL LANGUAGE of the CV",
       ],
     },
