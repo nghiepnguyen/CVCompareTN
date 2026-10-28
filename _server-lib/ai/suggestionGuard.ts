@@ -145,7 +145,10 @@ export function rawJdConcepts(jd: string, cvText: string): DeniedConcept[] {
       if (term.length < 3 && !/\d/.test(term)) continue; // AI, BI, UX… too ambiguous
       add(term);
     }
-    for (const m of line.matchAll(/\b[A-Za-z]*[a-z][A-Z][A-Za-z0-9]*\b/g)) add(m[0]);
+    // Mixed-case identifiers: take each word, then test for a lower→upper
+    // transition. A single pattern with overlapping quantifiers backtracks
+    // polynomially on long JD input (CodeQL js/polynomial-redos).
+    for (const m of line.matchAll(/\b[A-Za-z][A-Za-z0-9]*\b/g)) if (/[a-z][A-Z]/.test(m[0])) add(m[0]);
   }
   return [...out.values()];
 }
