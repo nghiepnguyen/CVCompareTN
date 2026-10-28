@@ -207,6 +207,20 @@ describe("parsedCvNormalize — normalizeParsedCV", () => {
     expect(result!.ats_evaluation.key_match_highlights).toEqual(["SQL"]);
   });
 
+  it("does not invent highlight/missing arrays for new (post Stage 3.9B) payloads", () => {
+    const result = normalizeParsedCV({ ats_evaluation: { years_of_experience: 3 } });
+    expect(result!.ats_evaluation).not.toHaveProperty("key_match_highlights");
+    expect(result!.ats_evaluation).not.toHaveProperty("missing_keywords");
+  });
+
+  it("keeps malformed legacy highlight/missing values safe", () => {
+    const result = normalizeParsedCV({
+      ats_evaluation: { years_of_experience: 2, key_match_highlights: ["SQL", 4, null], missing_keywords: "Docker" },
+    });
+    expect(result!.ats_evaluation.key_match_highlights).toEqual(["SQL"]);
+    expect(result!.ats_evaluation).not.toHaveProperty("missing_keywords");
+  });
+
   it("overrides the LLM's years_of_experience with a deterministic sum from work_experience dates", () => {
     const result = normalizeParsedCV({
       work_experience: [

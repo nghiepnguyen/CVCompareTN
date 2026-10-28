@@ -1,7 +1,7 @@
 # Gemini AI fidelity — roadmap
 
-Ngày lập: 2026-10-28. Cập nhật: 2026-10-29 (sau PR #12).
-Production hiện tại: `main` @ `ce84b7c` (PR #12 đã merge, migration `20261030000000_score_version.sql` đã apply, production smoke PASS).
+Ngày lập: 2026-10-28. Cập nhật: 2026-10-29 (sau PR #13).
+Production hiện tại: `main` @ `e7ac781` (PR #13 đã merge + deploy; PR #12 + migration `20261030000000_score_version.sql` đã apply trước đó, production smoke PASS).
 
 ## Trạng thái đã ship
 
@@ -14,6 +14,7 @@ Production hiện tại: `main` @ `ce84b7c` (PR #12 đã merge, migration `20261
 | #10 | 3.4 — CLOSED | `analysis_log.guard_metrics` jsonb v1 (suggestion drops, Full CV validation/retry/fallback/skip, geminiCalls); console production không còn section/concept/matchedForm/số |
 | — | 3.6 / 3.6b — CLOSED (audit) | MatchScore do Gemini sinh trực tiếp; ngôn ngữ UI đổi cả prompt chấm → lệch 4–10 điểm trên cùng CV/JD; cả ngôn ngữ instruction lẫn ngôn ngữ output đều đổi calibration (bằng chứng/phân loại gần như giữ nguyên). Replay tất định 360/360. Không đổi code |
 | #12 | 3.7 — CLOSED (production verified) | Chấm điểm canonical: luôn prompt EN + prose EN cho mọi UI → `scoreVersion = canonical-en-v1`; UI tiếng Việt thêm 1 lượt dịch hẹp (chỉ chuỗi trình bày, theo id, kiểm số liệu, cùng model, dùng chung deadline AI ≥15s / cap 20s, fallback EN `presentationLanguage = en`). `history.score_version`, `candidate_cvs.score_version`; history cũ NULL = legacy |
+| #13 | 3.8 — CLOSED (deployed) | 3.8A audit: parse-cv `relevant_score` = judge CV↔JD thứ hai (model `gemini-3.5-flash-lite`, prompt theo ngôn ngữ UI), chỉ dùng hiển thị → Option A. 3.8B: bỏ `relevant_score` khỏi prompt/`PARSED_CV_SCHEMA` + UI `ParsedCVTab` (%, thanh, badge lệch điểm, `computeScoreDiscrepancy`); field chỉ còn optional cho `history.parsed_cv` legacy, không migration, không score version mới. Pattern `useMemo` sau early return đã gỡ (crash hooks nghi ngờ không tái hiện trên React 19) |
 | #11 | 3.5 — CLOSED | Request deadline 65s dùng chung (AI 59s + 6s dự phòng), storage hủy thật ≤15s/ref, Gemini abort thật, quota/telemetry bị giới hạn, error row phân loại cho analyze/rewrite/parse, client 75s, `maxDuration` 300s (chỉ là trần an toàn) |
 
 Guard production:
@@ -37,6 +38,11 @@ MatchScore production (Stage 3.7):
 scoring: canonical EN judge, request identical for UI en/vi
 VI presentation: narrow localization (presentation strings only), fallback EN
 scoreVersion: canonical-en-v1 (NULL = legacy, never rescored)
+score authority: matchScore là điểm CV↔JD duy nhất (Stage 3.8);
+  parse-cv relevant_score: không generate/hiển thị/so sánh — chỉ còn trong history.parsed_cv legacy
+semantic authority (Stage 3.9B, local): điểm khớp / yêu cầu còn thiếu ở Parsed CV suy ra từ
+  detailedComparison canonical (matched / missing, không tính partial); parse-cv không còn
+  sinh key_match_highlights / missing_keywords — chỉ còn trong history.parsed_cv legacy
 ```
 
 Timing production:
@@ -55,7 +61,7 @@ Telemetry: `docs/11_guard_metrics.md` (SQL mẫu). Deadline: `_server-lib/deadli
 
 ### Ưu tiên cao
 
-0. ~~**Stage 3.8 — parse-cv `relevant_score` vẫn UI-language-coupled.**~~ **3.8B (local, chờ review):** Option A — bỏ `relevant_score` khỏi prompt/schema parse + UI `ParsedCVTab` (cả badge lệch điểm; pattern `useMemo` sau early return cũng bị gỡ, nhưng crash hooks nghi ngờ ở 3.8A KHÔNG tái hiện được trên React 19); `matchScore` canonical là điểm CV↔JD duy nhất; `relevant_score` chỉ còn trong `history.parsed_cv` legacy. Còn lại: `key_match_highlights`/`missing_keywords` vẫn theo ngôn ngữ UI. Mô tả gốc: `/api/parse-cv` vẫn chấm `ats_evaluation.relevant_score` bằng prompt theo ngôn ngữ UI, nên `ParsedCVTab` → `computeScoreDiscrepancy(matchScore, relevant_score)` đang so MatchScore canonical với một điểm do judge khác chấm → cảnh báo lệch điểm có thể sai/nhiễu với user VI. Hướng xử lý cần audit trước (giống 3.6): bỏ so sánh, chấm `relevant_score` bằng judge canonical, hay chỉ hiển thị khi cùng `scoreVersion`.
+0. ~~**Stage 3.8 — parse-cv `relevant_score` UI-language-coupled.**~~ CLOSED ở PR #13 (xem bảng trên).
 1. **Đọc telemetry production (Stage 3.4 data).** Sau 1–2 tuần, chạy SQL trong `docs/11_guard_metrics.md`: tỷ lệ guard drop, first-pass failure, retry recovery, fallback, skip; cùng tỷ lệ error row theo category (`[storage_timeout]`, `[gemini_timeout]`…). Dữ liệu này quyết định mục 2 và 4.
    - Lưu ý: rawJd thấp ≠ leakage lowercase thấp — guard không nhìn thấy loại này.
 2. **Rủi ro model preview.** `gemini-3-flash-preview` có thể bị khai tử với 2 tuần báo trước. Chuẩn bị `gemini-3.6-flash` (chậm ~1.7×, giá ×2 từ 01/2027). Deadline 65s / AI 59s giờ là một hằng số chung (`_server-lib/deadline.ts`) + client 75s + `maxDuration` 300s đã có headroom — cần benchmark lại latency để chỉnh `TOTAL_BUDGET_MS`/client cùng lúc.
@@ -95,6 +101,10 @@ Telemetry: `docs/11_guard_metrics.md` (SQL mẫu). Deadline: `_server-lib/deadli
 24. `optimized` đôi khi theo ngôn ngữ JD với tài liệu trộn ngôn ngữ (3–9%, có từ trước).
 25. Ngưỡng localization (15s / 20s) còn tạm thời — benchmark local p95 5.7s; theo dõi production.
 
+### Debt từ Stage 3.8
+
+26. ~~`ats_evaluation.key_match_highlights` / `missing_keywords` (parse-cv) vẫn do `gemini-3.5-flash-lite` chấm với prompt theo ngôn ngữ UI.~~ **Stage 3.9 (3.9A audit → Option C; 3.9B local, chờ review):** benchmark 20 call (~$0.07) cho thấy membership lệch theo UI (en-medium: "Redshift", "causal inference" 2/2 VI, 0/2 EN), output không thật sự localize, và mâu thuẫn canonical (BigQuery/Redshift "thiếu" dù yêu cầu OR đã khớp qua Snowflake). 3.9B: bỏ 2 field khỏi prompt/schema parse; `ParsedCVTab` suy ra từ `detailedComparison` canonical qua `deriveParsedCvInsights()` (matched → điểm khớp tối đa 3; chỉ `missing` → "Yêu cầu còn thiếu"; required trước); legacy fallback, không migration. Còn lại: parse-cv vẫn nhận `jd` và prompt vẫn rẽ nhánh VI/EN — cần audit riêng xem còn cần JD không.
+
 ### Ngoài code
 
-26. Vercel Hobby chỉ cho dùng phi thương mại; app thu tiền qua PayOS → rủi ro điều khoản, cân nhắc gói Pro.
+27. Vercel Hobby chỉ cho dùng phi thương mại; app thu tiền qua PayOS → rủi ro điều khoản, cân nhắc gói Pro.

@@ -106,10 +106,8 @@ export const PARSED_CV_SCHEMA = {
       type: 'OBJECT',
       properties: {
         years_of_experience: { type: 'NUMBER' },
-        key_match_highlights: { type: 'ARRAY', items: { type: 'STRING' } },
-        missing_keywords: { type: 'ARRAY', items: { type: 'STRING' } },
       },
-      required: ['years_of_experience', 'key_match_highlights', 'missing_keywords'],
+      required: ['years_of_experience'],
     },
   },
   required: ['personal_information', 'education', 'work_experience', 'skills', 'projects', 'certifications', 'ats_evaluation'],

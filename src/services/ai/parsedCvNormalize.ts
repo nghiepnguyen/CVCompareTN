@@ -213,12 +213,11 @@ export function normalizeParsedCV(raw: unknown): ParsedCV | undefined {
     : [];
 
   const ats = isRecord(raw.ats_evaluation) ? raw.ats_evaluation : {};
-  const highlights = Array.isArray(ats.key_match_highlights)
-    ? ats.key_match_highlights.filter((x): x is string => typeof x === "string")
-    : [];
-  const missingKw = Array.isArray(ats.missing_keywords)
-    ? ats.missing_keywords.filter((x): x is string => typeof x === "string")
-    : [];
+  // Legacy history.parsed_cv rows (pre Stage 3.9B) may carry these arrays;
+  // keep them readable but never add them to new payloads.
+  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : undefined);
+  const highlights = strings(ats.key_match_highlights);
+  const missingKw = strings(ats.missing_keywords);
   let years_of_experience = 0;
   if (typeof ats.years_of_experience === "number" && Number.isFinite(ats.years_of_experience)) {
     years_of_experience = ats.years_of_experience;
@@ -243,8 +242,8 @@ export function normalizeParsedCV(raw: unknown): ParsedCV | undefined {
   const ats_evaluation: ATSEvaluation = {
     years_of_experience,
     ...(Number.isFinite(legacyScore) ? { relevant_score: legacyScore } : {}),
-    key_match_highlights: highlights,
-    missing_keywords: missingKw,
+    ...(highlights ? { key_match_highlights: highlights } : {}),
+    ...(missingKw ? { missing_keywords: missingKw } : {}),
   };
 
   return {
