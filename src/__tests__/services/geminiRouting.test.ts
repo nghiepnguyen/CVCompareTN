@@ -11,6 +11,7 @@ import {
   buildRewritePromptVi,
   buildRewritePromptEn,
   repairEscapedNewlines,
+  normalizeHeadingDates,
 } from '../../../_server-lib/ai/rewriteService';
 import { GEMINI_PRICING } from '../../lib/geminiModels';
 
@@ -129,5 +130,19 @@ describe('repairEscapedNewlines', () => {
     const ok = '# Name\n## Skills\n- printf("\\n") in C';
     expect(repairEscapedNewlines(ok)).toBe(ok);
     expect(repairEscapedNewlines('# Name')).toBe('# Name');
+  });
+});
+
+describe('normalizeHeadingDates', () => {
+  it('normalizes textual months on ### role lines only', () => {
+    const md = '## Work Experience\n### Data Analyst II — Lumen Retail Group | Jan 2022 – Present\n- Joined in May 2022 and built dashboards.';
+    expect(normalizeHeadingDates(md)).toBe(
+      '## Work Experience\n### Data Analyst II — Lumen Retail Group | 01/2022 – Present\n- Joined in May 2022 and built dashboards.'
+    );
+  });
+
+  it('keeps year-only headings as written', () => {
+    const md = '### Cử nhân Marketing — Đại học Thương mại | 2018 - 2022';
+    expect(normalizeHeadingDates(md)).toBe(md);
   });
 });

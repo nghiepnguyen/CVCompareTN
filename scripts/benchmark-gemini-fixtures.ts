@@ -27,6 +27,9 @@ export type Sample = {
   truth: Truth;
   // Distinctive JD keywords the rewrite should cover naturally.
   jdKeywords: string[];
+  // JD requirements the CV gives no evidence for, even under a variant name
+  // (hand-picked). Any output presenting these as the candidate's is a fabrication.
+  jdOnlySkills?: string[];
 };
 
 const JD_VI_SHORT = `Vị trí: Chuyên viên Marketing Digital. Yêu cầu: 2+ năm chạy quảng cáo Facebook Ads, Google Ads; phân tích số liệu bằng Google Analytics 4; viết nội dung; ưu tiên biết SEO. Làm việc tại Hà Nội.`;
@@ -166,6 +169,7 @@ export const SAMPLES: Sample[] = [
       languages: ['Anh'],
     },
     jdKeywords: ['Facebook Ads', 'Google Ads', 'Google Analytics', 'SEO', 'nội dung'],
+    jdOnlySkills: ['Google Ads', 'SEO'],
   },
   {
     id: 'vi-long',
@@ -186,6 +190,7 @@ export const SAMPLES: Sample[] = [
       languages: ['Anh', 'Nhật'],
     },
     jdKeywords: ['Node.js', 'TypeScript', 'PostgreSQL', 'Redis', 'Kafka', 'Kubernetes', 'microservices', 'PCI DSS', 'OpenTelemetry'],
+    jdOnlySkills: ['PCI DSS', 'OpenTelemetry', 'event sourcing', 'CQRS', 'core banking'],
   },
   {
     id: 'en-medium',
@@ -206,6 +211,7 @@ export const SAMPLES: Sample[] = [
       languages: ['English', 'Tamil', 'Melayu'],
     },
     jdKeywords: ['A/B test', 'dbt', 'BigQuery', 'Looker', 'SQL', 'Python', 'stakeholder', 'causal inference'],
+    jdOnlySkills: ['BigQuery', 'Looker', 'causal inference', 'statsmodels', 'Airflow', 'attribution'],
   },
   {
     id: 'en-complex-layout',
@@ -226,6 +232,7 @@ export const SAMPLES: Sample[] = [
       languages: ['English', 'Yoruba', 'Swedish'],
     },
     jdKeywords: ['Figma', 'design system', 'usability testing', 'user research', 'prototyp', 'WCAG'],
+    jdOnlySkills: [],
   },
   {
     id: 'en-pdf-text',
@@ -244,6 +251,7 @@ export const SAMPLES: Sample[] = [
       languages: [],
     },
     jdKeywords: ['React', 'TypeScript', 'accessib', 'REST API', 'Vitest', 'performance'],
+    jdOnlySkills: [],
   },
   {
     id: 'en-pdf-scan-inline',
@@ -263,6 +271,7 @@ export const SAMPLES: Sample[] = [
       languages: [],
     },
     jdKeywords: ['React', 'TypeScript', 'accessib', 'REST API', 'Vitest', 'performance'],
+    jdOnlySkills: [],
   },
 ];
 
@@ -275,6 +284,7 @@ SAMPLES.push(
     text: CV_EN_NO_CONTACT,
     truth: { ...byId('en-medium').truth, email: undefined, phone: undefined },
     jdKeywords: ['A/B test', 'dbt', 'BigQuery', 'Looker', 'SQL', 'Python', 'stakeholder', 'causal inference'],
+    jdOnlySkills: ['BigQuery', 'Looker', 'causal inference', 'statsmodels', 'Airflow', 'attribution'],
   },
   {
     id: 'vi-no-contact',
@@ -283,5 +293,6 @@ SAMPLES.push(
     text: CV_VI_NO_CONTACT,
     truth: { ...byId('vi-short').truth, email: undefined, phone: undefined },
     jdKeywords: ['Facebook Ads', 'Google Ads', 'Google Analytics', 'SEO', 'nội dung'],
+    jdOnlySkills: ['Google Ads', 'SEO'],
   }
 );

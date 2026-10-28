@@ -366,3 +366,31 @@ describe("normalizeParsedCV — contact placeholders", () => {
     expect(withContact({ email: "", phone: "", location: "N/A Studio, Hanoi" }).location).toBe("N/A Studio, Hanoi");
   });
 });
+
+describe("normalizeParsedCV — textual month dates", () => {
+  const job = (start: string, end: string, is_current = false) => ({
+    company: "C", job_title: "T", duration: { start, end, is_current }, responsibilities: [], achievements: [],
+  });
+
+  it("normalizes English month names in durations to MM/YYYY", () => {
+    const cv = normalizeParsedCV({ work_experience: [job("Jan 2022", "Sept 2024")] })!;
+    expect(cv.work_experience[0].duration).toEqual({ start: "01/2022", end: "09/2024", is_current: false });
+  });
+
+  it("keeps year-only and existing MM/YYYY durations unchanged", () => {
+    const cv = normalizeParsedCV({ work_experience: [job("2018", "06/2022")] })!;
+    expect(cv.work_experience[0].duration).toMatchObject({ start: "2018", end: "06/2022" });
+  });
+
+  it("counts textual-month ranges in years of experience", () => {
+    expect(computeYearsOfExperience([job("January 2020", "December 2021")] as never)).toBe(2);
+  });
+});
+
+describe("computeYearsOfExperience — ongoing roles", () => {
+  it("measures a textual-month role ending in Present up to now (no total stated in the CV)", () => {
+    const job = { company: "C", job_title: "T", duration: { start: "Jan 2022", end: "Present", is_current: true }, responsibilities: [], achievements: [] };
+    // 01/2022 through 10/2026 inclusive = 58 months
+    expect(computeYearsOfExperience([job] as never, new Date("2026-10-15T00:00:00.000Z"))).toBe(4.8);
+  });
+});

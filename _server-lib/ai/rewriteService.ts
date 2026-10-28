@@ -1,4 +1,5 @@
 import { extractText } from 'unpdf';
+import { normalizeTextualMonthYear } from '../../src/lib/cvDates.js';
 import { getGeminiClient, GEMINI_REWRITE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 
 const REWRITE_TIMEOUT_MS = 50_000;
@@ -86,6 +87,14 @@ FORMAT — return a GitHub-Flavored Markdown string in the fullRewrittenCV field
 // preview rewrites, benchmark 2026-10-28) and renders as a single paragraph.
 // Only repair when the text has no real newline at all: a multi-line CV that
 // mentions "\n" literally (e.g. a code snippet) is left untouched.
+// The prompt asks for MM/YYYY when the CV gives a month, but the model often
+// keeps English textual months ("Jan 2022 – Present"). Normalize only the ###
+// role/education heading lines, the structural place dates live; body prose
+// is left as written.
+export function normalizeHeadingDates(md: string): string {
+  return md.replace(/^###[^\n]*$/gm, (line) => normalizeTextualMonthYear(line));
+}
+
 export function repairEscapedNewlines(md: string): string {
   if (md.includes('\\n') && !md.includes('\n')) {
     return md.replace(/\\r\\n|\\n/g, '\n').replace(/\\t/g, '\t');
@@ -175,14 +184,14 @@ export async function generateFullRewrite(
 
     try {
       const parsed = JSON.parse(resultText) as { fullRewrittenCV?: string };
-      return { fullRewrittenCV: repairEscapedNewlines(parsed.fullRewrittenCV || ''), usage };
+      return { fullRewrittenCV: normalizeHeadingDates(repairEscapedNewlines(parsed.fullRewrittenCV || '')), usage };
     } catch {
       const jsonMatch = resultText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]) as { fullRewrittenCV?: string };
-        return { fullRewrittenCV: repairEscapedNewlines(parsed.fullRewrittenCV || ''), usage };
+        return { fullRewrittenCV: normalizeHeadingDates(repairEscapedNewlines(parsed.fullRewrittenCV || '')), usage };
       }
-      return { fullRewrittenCV: repairEscapedNewlines(resultText), usage };
+      return { fullRewrittenCV: normalizeHeadingDates(repairEscapedNewlines(resultText)), usage };
     }
   } catch (error: unknown) {
     if (error instanceof Error && error.message.includes('(Timeout)')) {
