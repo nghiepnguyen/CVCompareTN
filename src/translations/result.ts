@@ -456,6 +456,10 @@ export const result = {
     vi: "Từ khóa còn thiếu",
     en: "Missing Keywords",
   },
+  parsedMissingRequirements: {
+    vi: "Yêu cầu còn thiếu",
+    en: "Missing requirements",
+  },
   parsedPresent: {
     vi: "Hiện tại",
     en: "Present",

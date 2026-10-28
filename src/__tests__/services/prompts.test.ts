@@ -91,7 +91,7 @@ describe("prompts — buildParseCvPrompt", () => {
     const result = buildParseCvPrompt({ jdSection: mockJdSection, language: "vi" });
     expect(result).toContain("Kinh nghiệm làm việc");
     expect(result).toContain("technical_skills");
-    expect(result).not.toContain("relevant_score");
+    for (const field of ["relevant_score", "key_match_highlights", "missing_keywords"]) expect(result).not.toContain(field);
     expect(result).toContain("MM/YYYY");
   });
 
@@ -99,7 +99,7 @@ describe("prompts — buildParseCvPrompt", () => {
     const result = buildParseCvPrompt({ jdSection: mockJdSection, language: "en" });
     expect(result).toContain("Work Experience");
     expect(result).toContain("technical_skills");
-    expect(result).not.toContain("relevant_score");
+    for (const field of ["relevant_score", "key_match_highlights", "missing_keywords"]) expect(result).not.toContain(field);
     expect(result).toContain("MM/YYYY");
   });
 
@@ -108,12 +108,15 @@ describe("prompts — buildParseCvPrompt", () => {
     expect(result).toContain("Trích xuất");
   });
 
-  // Stage 3.8B: matchScore (/api/analyze) is the single CV↔JD score authority.
-  it("parse schema neither requires nor exposes relevant_score", () => {
+  // Stage 3.8B/3.9B: canonical analyze is the only CV↔JD judge; parse-cv
+  // generates no score, highlights or missing items.
+  it("parse schema neither requires nor exposes CV↔JD judgment fields", () => {
     const ats = PARSED_CV_SCHEMA.properties.ats_evaluation;
-    expect(ats.required).not.toContain("relevant_score");
-    expect(ats.properties).not.toHaveProperty("relevant_score");
-    expect(ats.required).toEqual(expect.arrayContaining(["key_match_highlights", "missing_keywords"]));
+    for (const field of ["relevant_score", "key_match_highlights", "missing_keywords"]) {
+      expect(ats.required).not.toContain(field);
+      expect(ats.properties).not.toHaveProperty(field);
+    }
+    expect(ats.required).toEqual(["years_of_experience"]);
   });
 });
 describe("prompts — analyze evidence guardrails", () => {

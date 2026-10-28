@@ -8,7 +8,7 @@ import {
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
 import { useAnalysis } from '../../../context/AnalysisContext';
-import { AnalysisResult } from '../../../services/ai';
+import { AnalysisResult, deriveParsedCvInsights } from '../../../services/ai';
 
 interface ParsedCVTabProps {
   selectedResult: AnalysisResult;
@@ -40,6 +40,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
   }
 
   const { personal_information, education, work_experience, skills, projects, certifications, ats_evaluation } = parsedCV;
+  const insights = deriveParsedCvInsights(selectedResult.detailedComparison, ats_evaluation);
 
   return (
     <div id="parsed-cv-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
@@ -64,7 +65,7 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
               <span className="text-[10px] font-black uppercase tracking-widest">{t.parsedHighlights}</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {ats_evaluation.key_match_highlights.slice(0, 3).map((h, i) => (
+              {insights.highlights.map((h, i) => (
                 <span key={i} className="px-3 py-1 rounded-full bg-accent-light text-accent text-[10px] font-bold border border-accent/20">
                   {h}
                 </span>
@@ -77,10 +78,10 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
           <div className="flex-1 space-y-3">
             <div className="flex items-center gap-2 text-warning">
               <Search className="w-4 h-4" />
-              <span className="text-[10px] font-black uppercase tracking-widest">{t.parsedMissingKeywords}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">{insights.source === 'canonical' ? t.parsedMissingRequirements : t.parsedMissingKeywords}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {ats_evaluation.missing_keywords.map((k, i) => (
+              {insights.missingRequirements.map((k, i) => (
                 <span key={i} className="px-2 py-0.5 rounded-lg bg-warning-light text-warning text-[10px] font-medium border border-warning/20">
                   {k}
                 </span>

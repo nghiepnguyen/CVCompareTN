@@ -81,14 +81,38 @@ no longer shows it or a discrepancy badge. `relevant_score` survives only in
 legacy `history.parsed_cv` JSON (optional field, read safely by
 `normalizeParsedCV`, never displayed, never rewritten). No new score version.
 
+## Single semantic authority (Stage 3.9B)
+
+Canonical analyze is also the only authority on *what* matches or is missing.
+Stage 3.9A found the parse model's `key_match_highlights` / `missing_keywords`
+re-judged the same facts, drifted with UI language, and listed literal
+keywords as missing even when canonical analyze had matched the requirement
+through an alternative ("BigQuery, Snowflake or Redshift" met via Snowflake).
+
+Stage 3.9B removed both fields from the parse prompts and `PARSED_CV_SCHEMA`.
+The Parsed CV quick-scan blocks are derived by `deriveParsedCvInsights()`
+(`src/services/ai/resultPayloadNormalize.ts`) from the canonical
+`detailedComparison`:
+
+- highlights: `status === "matched"`, required first, canonical order, max 3;
+- missing requirements ("Yêu cầu còn thiếu" / "Missing requirements"):
+  `status === "missing"` only (never `partial`), required first, canonical order.
+
+Chips use the canonical `requirement` text as-is (JD language; not part of the
+Stage 3.7 localization allowlist) — no extra Gemini call. When a result has no
+usable `detailedComparison` (old history), the stored legacy
+`key_match_highlights` / `missing_keywords` from `history.parsed_cv` are shown
+under the old "Missing Keywords" label; canonical and legacy values are never
+mixed. No migration.
+
 ## Known debt
 
 - Recruiter campaigns can mix legacy and canonical `match_score` until
   candidates are re-analyzed; they are identifiable by `score_version` but the
   UI does not show or filter it yet.
-- `/api/parse-cv` `ats_evaluation.key_match_highlights` / `missing_keywords`
-  are still judged by the parse model with the UI-language prompt
-  (presentation lists, not a score authority).
+- `/api/parse-cv` still receives `jd` and its prompt still branches VI/EN,
+  though it no longer generates any CV↔JD judgment; whether it needs the JD at
+  all is a separate audit.
 - Document language (VI vs EN CV/JD) still shifts calibration by ~3.5 points
   under the fixed judge, plus normal Gemini variance (sd 1–3).
 - `rewriteSuggestions[].section` stays as the model wrote it (often English).

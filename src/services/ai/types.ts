@@ -52,8 +52,10 @@ export interface ATSEvaluation {
   years_of_experience: number;
   /** Legacy only: present in history.parsed_cv rows written before Stage 3.8B; no longer generated or displayed. */
   relevant_score?: number;
-  key_match_highlights: string[];
-  missing_keywords: string[];
+  /** Legacy only (pre Stage 3.9B parse output); current UI derives these from canonical detailedComparison. */
+  key_match_highlights?: string[];
+  /** Legacy only (pre Stage 3.9B): literal JD keywords judged by the parse model. */
+  missing_keywords?: string[];
 }
 
 export interface ParsedCV {

@@ -165,6 +165,47 @@ export function detailedComparisonHasRows(dc: DetailedComparison | null | undefi
   });
 }
 
+export interface ParsedCvInsights {
+  highlights: string[];
+  missingRequirements: string[];
+  source: "canonical" | "legacy";
+}
+
+const MAX_HIGHLIGHTS = 3;
+
+/**
+ * Parsed CV quick-scan chips. Canonical analyze is the only authority on what
+ * matches or is missing (Stage 3.9B): when detailedComparison has rows, both
+ * lists come from it alone — `partial` is neither, and a requirement met via
+ * an alternative ("BigQuery or Snowflake") is never reported missing. Legacy
+ * parse-generated arrays are used only for old results without that table.
+ */
+export function deriveParsedCvInsights(
+  dc: DetailedComparison | null | undefined,
+  legacy?: { key_match_highlights?: string[]; missing_keywords?: string[] }
+): ParsedCvInsights {
+  if (!detailedComparisonHasRows(dc)) {
+    return {
+      highlights: (legacy?.key_match_highlights ?? []).slice(0, MAX_HIGHLIGHTS),
+      missingRequirements: legacy?.missing_keywords ?? [],
+      source: "legacy",
+    };
+  }
+  const keys = ["skills", "experience", "tools", "education", "keywords"] as const;
+  const items = keys.flatMap((k) => (Array.isArray(dc![k]) ? dc![k] : []));
+  // Stable: required first, everything else after, canonical order kept within each group.
+  const pick = (status: ComparisonItem["status"]) => {
+    const rows = items.filter((it) => it?.status === status && typeof it.requirement === "string" && it.requirement.trim());
+    return [...rows.filter((it) => it.priority === "required"), ...rows.filter((it) => it.priority !== "required")]
+      .map((it) => it.requirement.trim());
+  };
+  return {
+    highlights: pick("matched").slice(0, MAX_HIGHLIGHTS),
+    missingRequirements: pick("missing"),
+    source: "canonical",
+  };
+}
+
 /** Normalize partial Analysis-shaped payloads (DB rows, Gemini) into safe AnalysisResult fields */
 export function normalizeAnalysisPayload(row: Record<string, unknown>): Pick<
   AnalysisResult,
