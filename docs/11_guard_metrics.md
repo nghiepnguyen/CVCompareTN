@@ -62,6 +62,8 @@ the row (no extra DB write). Values are counts, booleans and one enum only.
 
 - `validationSkipped: true` (no trustworthy CV text) → `firstPassValid: null`,
   never `true`.
+- Violation counts are **distinct** unsupported numbers / raw-JD concepts
+  (the validator dedupes them), not occurrences.
 - `firstPassViolations` only when the first pass failed; `retryViolations`
   only when the retry produced output that failed (`invalid`).
 - `retryOutcome`: `not_needed` (first pass valid or validation skipped),

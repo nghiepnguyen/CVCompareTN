@@ -199,6 +199,7 @@ describe('privacy of persisted guard_metrics', () => {
   });
 
   it('production console omits concept, matchedForm and numbers', async () => {
+    vi.stubEnv('SUGGESTION_GUARD_DEBUG', '');
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     generateContent
       .mockResolvedValueOnce(analyzeReply([sug('Experience', 'Built self-serve dashboards')]))
@@ -211,6 +212,22 @@ describe('privacy of persisted guard_metrics', () => {
     expect(out).toContain('[fullRewriteGuard] violation');
     // Keys appear escaped (\"concept\") inside the stringified log lines.
     for (const leak of ['self-serve', '\\"concept\\"', '\\"matchedForm\\"', '35']) expect(out).not.toContain(leak);
+    vi.unstubAllEnvs();
+  });
+
+  it('SUGGESTION_GUARD_DEBUG=1 restores concept diagnostics (local debug only)', async () => {
+    vi.stubEnv('SUGGESTION_GUARD_DEBUG', '1');
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    generateContent
+      .mockResolvedValueOnce(analyzeReply([sug('Experience', 'Built self-serve dashboards')]))
+      .mockResolvedValueOnce(rewriteReply(UNSAFE))
+      .mockResolvedValueOnce(rewriteReply(UNSAFE));
+    await analyze(CV);
+    await rewrite(CV);
+    const out = JSON.stringify(info.mock.calls);
+    expect(out).toContain('\\"concept\\"');
+    expect(out).toContain('self-serve');
+    vi.unstubAllEnvs();
   });
 });
 

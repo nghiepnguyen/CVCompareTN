@@ -166,7 +166,7 @@ export async function analyzeCV(
     const guardMetrics: SuggestionGuardMetrics = {
       suggestionsIn: suggestionsIn.length,
       droppedTotal: 0, skills: 0, numeric: 0, rawJd: 0,
-      factualChecks: cvText !== undefined,
+      factualChecks: Boolean(cvText), // same condition dropUnsupportedSuggestions uses
     };
     const rewriteSuggestions = dropUnsupportedSuggestions(
       suggestionsIn,
