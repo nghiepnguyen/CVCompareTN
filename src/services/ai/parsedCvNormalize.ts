@@ -233,17 +233,16 @@ export function normalizeParsedCV(raw: unknown): ParsedCV | undefined {
   if (computedYears !== null) {
     years_of_experience = computedYears;
   }
-  let relevant_score = 0;
-  if (typeof ats.relevant_score === "number" && Number.isFinite(ats.relevant_score)) {
-    relevant_score = ats.relevant_score;
-  } else if (typeof ats.relevant_score === "string") {
-    const r = parseFloat(ats.relevant_score);
-    relevant_score = Number.isFinite(r) ? r : 0;
-  }
+  // Legacy history.parsed_cv rows (pre Stage 3.8B) may carry relevant_score;
+  // keep it readable but never invent one for new payloads.
+  const legacyScore =
+    typeof ats.relevant_score === "number" ? ats.relevant_score
+    : typeof ats.relevant_score === "string" ? parseFloat(ats.relevant_score)
+    : NaN;
 
   const ats_evaluation: ATSEvaluation = {
     years_of_experience,
-    relevant_score,
+    ...(Number.isFinite(legacyScore) ? { relevant_score: legacyScore } : {}),
     key_match_highlights: highlights,
     missing_keywords: missingKw,
   };

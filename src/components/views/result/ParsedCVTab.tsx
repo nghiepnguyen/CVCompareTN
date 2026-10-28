@@ -1,16 +1,14 @@
-import React, { useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React from 'react';
 import {
   User, Mail, Phone, MapPin, Linkedin, Globe,
   Briefcase, GraduationCap, Code, Languages,
   Terminal, Award, Layers, Clock, TrendingUp,
-  Search, ShieldCheck, ExternalLink, Calendar, Wrench, Info
+  Search, ShieldCheck, ExternalLink, Calendar, Wrench
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
-import { formatLabel } from '../../../translations';
 import { useAnalysis } from '../../../context/AnalysisContext';
-import { AnalysisResult, computeScoreDiscrepancy } from '../../../services/ai';
+import { AnalysisResult } from '../../../services/ai';
 
 interface ParsedCVTabProps {
   selectedResult: AnalysisResult;
@@ -43,11 +41,6 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
 
   const { personal_information, education, work_experience, skills, projects, certifications, ats_evaluation } = parsedCV;
 
-  const scoreDiscrepancy = useMemo(
-    () => computeScoreDiscrepancy(selectedResult.matchScore, ats_evaluation.relevant_score),
-    [selectedResult.matchScore, ats_evaluation.relevant_score]
-  );
-
   return (
     <div id="parsed-cv-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
       
@@ -65,31 +58,11 @@ export function ParsedCVTab({ selectedResult }: ParsedCVTabProps) {
         </div>
 
         <div className="md:col-span-3 bg-surface p-6 rounded-3xl border border-border shadow-sm flex flex-col sm:flex-row gap-6">
-          <div className="flex-1 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center text-accent">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-[10px] font-black text-text-light uppercase tracking-widest">{t.parsedRelevance}</div>
-                <div className="text-lg font-black text-text-main">{ats_evaluation.relevant_score}%</div>
-              </div>
+          <div className="flex-1 space-y-3">
+            <div className="flex items-center gap-2 text-accent">
+              <ShieldCheck className="w-4 h-4" />
+              <span className="text-[10px] font-black uppercase tracking-widest">{t.parsedHighlights}</span>
             </div>
-            <div className="w-full bg-surface-secondary h-2 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${ats_evaluation.relevant_score}%` }}
-                className="h-full bg-accent rounded-full"
-              />
-            </div>
-            {scoreDiscrepancy.hasDiscrepancy && (
-              <div className="flex items-start gap-1.5 text-[10px] text-text-light">
-                <Info className="w-3 h-3 mt-0.5 shrink-0" />
-                <span>
-                  {formatLabel(t.parsedScoreDiscrepancy, { delta: Math.round(scoreDiscrepancy.deltaAbs) })}
-                </span>
-              </div>
-            )}
             <div className="flex flex-wrap gap-2">
               {ats_evaluation.key_match_highlights.slice(0, 3).map((h, i) => (
                 <span key={i} className="px-3 py-1 rounded-full bg-accent-light text-accent text-[10px] font-bold border border-accent/20">

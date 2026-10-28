@@ -155,21 +155,6 @@ export function normalizeFormatAssessment(raw: unknown): FormatAssessment {
   };
 }
 
-/**
- * `matchScore` (from /analyze) and `ats_evaluation.relevant_score` (from the
- * independent /parse-cv call) are two separate Gemini judgments of the same
- * CV-vs-JD fit and can legitimately disagree. Surface the disagreement
- * instead of silently picking one.
- */
-export function computeScoreDiscrepancy(
-  matchScore: number,
-  relevantScore: number,
-  thresholdPoints = 15
-): { hasDiscrepancy: boolean; deltaAbs: number } {
-  const deltaAbs = Math.abs(matchScore - relevantScore);
-  return { hasDiscrepancy: deltaAbs > thresholdPoints, deltaAbs };
-}
-
 /** True if detailed comparison has at least one row to render */
 export function detailedComparisonHasRows(dc: DetailedComparison | null | undefined): boolean {
   if (!dc || typeof dc !== "object") return false;

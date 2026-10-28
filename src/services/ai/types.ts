@@ -50,7 +50,8 @@ export interface ParsedProject {
 
 export interface ATSEvaluation {
   years_of_experience: number;
-  relevant_score: number;
+  /** Legacy only: present in history.parsed_cv rows written before Stage 3.8B; no longer generated or displayed. */
+  relevant_score?: number;
   key_match_highlights: string[];
   missing_keywords: string[];
 }

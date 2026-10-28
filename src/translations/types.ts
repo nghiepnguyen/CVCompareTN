@@ -364,8 +364,6 @@ export interface UiLabels {
   parsedPersonalInfo: string;
   parsedPresent: string;
   parsedProjects: string;
-  parsedRelevance: string;
-  parsedScoreDiscrepancy: string;
   parsedSkillsLang: string;
   parsedSoftSkills: string;
   parsedTechSkills: string;

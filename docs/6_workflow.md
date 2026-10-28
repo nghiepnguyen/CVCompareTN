@@ -57,7 +57,7 @@ Cả hai chạy `void` (không chặn UI, không chặn nhau), trạng thái loa
 
 **File tạm Storage (2026-07):** khi CV 2–15MB dùng `pdfStoragePath`/`dataStoragePath`, CÙNG path đó được gửi lại trong cả 3 request (`analyze` + `rewrite-cv` nền + `parse-cv` nền) — server chỉ *đọc* (không tự xoá, vì 3 request chạy độc lập/không đồng bộ, xoá sớm sẽ làm request sau tải file đã mất). Client dùng `Promise.allSettled` đợi cả `generateFullCV` + `generateParsedCVForResult` xong rồi mới gọi `cleanupTempAnalysisFiles(paths)` xoá file tạm.
 
-`/api/analyze` và `/api/parse-cv` là hai lệnh gọi Gemini **độc lập**, nên `matchScore` và `ats_evaluation.relevant_score` có thể lệch nhau — `ParsedCVTab` hiện badge nhỏ khi lệch >15 điểm (`computeScoreDiscrepancy()`, `resultPayloadNormalize.ts`) để tránh gây hiểu lầm là một số đè lên số khác. `ats_evaluation.years_of_experience` không dùng số Gemini tự tính — bị override bởi `computeYearsOfExperience()` (`parsedCvNormalize.ts`), cộng deterministic từ `work_experience[].duration`.
+`matchScore` (`/api/analyze`, `scoreVersion = canonical-en-v1`) là **điểm CV↔JD duy nhất**. Từ Stage 3.8B, `/api/parse-cv` không còn sinh `ats_evaluation.relevant_score` (trước đây là judge thứ hai, model khác, prompt theo ngôn ngữ UI); `relevant_score` chỉ còn trong `history.parsed_cv` cũ và không được hiển thị. `ats_evaluation.years_of_experience` không dùng số Gemini tự tính — bị override bởi `computeYearsOfExperience()` (`parsedCvNormalize.ts`), cộng deterministic từ `work_experience[].duration`.
 
 ## 4. Luồng thanh toán Pro (PayOS Flow)
 
