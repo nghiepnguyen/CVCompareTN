@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deniedConcepts, dropUnsupportedSuggestions } from '../../../_server-lib/ai/suggestionGuard';
+import { deniedConcepts, dropUnsupportedSuggestions, rawJdConcepts } from '../../../_server-lib/ai/suggestionGuard';
 
 const CV = `NGUYỄN VĂN AN — Backend Developer
 TÓM TẮT: 7 năm phát triển backend, chuyên Node.js và Java.
@@ -61,7 +61,7 @@ Lumen Retail Group — Data Analyst II, Jan 2022 – Present
   it('A: drops a rewrite that imports missing metric concepts', () => {
     const r = run(dc(item('Define north-star and guardrail metrics', 'missing')), 'Created Tableau dashboards to track north-star and guardrail metrics.');
     expect(r.kept).toBe(false);
-    expect(r.drops).toEqual([expect.objectContaining({ reason: 'jd-only-concept', status: 'missing', section: 'Work Experience' })]);
+    expect(r.drops).toEqual([expect.objectContaining({ reason: 'unsupported-jd-concept', source: 'analysis', status: 'missing', section: 'Work Experience' })]);
   });
 
   it('B: drops a rewrite that imports a missing specific phrase (hyphen/space variants match)', () => {
@@ -105,7 +105,7 @@ Lumen Retail Group — Data Analyst II, Jan 2022 – Present
   });
 
   it('skips the concept check without CV text (inline PDF/image)', () => {
-    const kept = dropUnsupportedSuggestions([sug('Tracked north-star metrics.')], undefined, [{ concept: 'north-star', status: 'missing' }]);
+    const kept = dropUnsupportedSuggestions([sug('Tracked north-star metrics.')], undefined, [{ concept: 'north-star', source: 'analysis', status: 'missing' }]);
     expect(kept).toHaveLength(1);
   });
 
@@ -113,5 +113,72 @@ Lumen Retail Group — Data Analyst II, Jan 2022 – Present
     const drops: { reason: string }[] = [];
     dropUnsupportedSuggestions([{ ...sug('x'), section: 'Skills' }, sug('Cut cost by 40%.')], CV_EN, [], (d) => drops.push(d));
     expect(drops.map((d) => d.reason)).toEqual(['skills-section', 'unsupported-number']);
+  });
+});
+
+describe('rawJdConcepts (raw-JD narrow lexical guard)', () => {
+  const CV = `SMOKE TESTER
+Lumen Retail Group — Data Analyst II
+• Created Tableau dashboards used in weekly business reviews.
+• Built 40+ dbt models on Snowflake for Finance and Marketing teams.`;
+  const sug = (optimized: string) => ({ section: 'Work Experience', original: 'Created Tableau dashboards used in weekly business reviews.', optimized, explanation: '' });
+  const guard = (jd: string, optimized: string, cv = CV) => {
+    const drops: Record<string, unknown>[] = [];
+    const kept = dropUnsupportedSuggestions([sug(optimized)], cv, rawJdConcepts(jd, cv), (d) => drops.push(d));
+    return { kept: kept.length === 1, drops };
+  };
+
+  it('A: catches a JD term the analysis never listed', () => {
+    // No analysis-derived concepts at all: only the raw JD knows about self-serve.
+    const r = guard('About the role: Enable self-serve dashboards for business teams.', 'Developed self-serve Tableau dashboards for weekly business reviews.');
+    expect(r.kept).toBe(false);
+    expect(r.drops).toEqual([expect.objectContaining({ reason: 'unsupported-jd-concept', concept: 'self-serve', source: 'raw-jd' })]);
+    for (const optimized of ['…support self-serve analytics for leadership.', '…provide self serve reporting for Finance.']) {
+      expect(guard('You will build self-serve dashboards.', optimized).kept).toBe(false);
+    }
+  });
+
+  it('B: hyphen and space forms are equivalent', () => {
+    expect(guard('Drive self-serve adoption.', 'Enabled self serve analytics for Finance.').kept).toBe(false);
+    expect(guard('Define north star metrics.', 'Tracked north-star metrics.').kept).toBe(true); // "north star" (no hyphen) in JD is not extracted
+  });
+
+  it('C: CV evidence overrides the JD term', () => {
+    const cv = `${CV}\n• Built self serve dashboards for Finance.`;
+    expect(rawJdConcepts('Own self-serve dashboards.', cv)).toEqual([]);
+    expect(guard('Own self-serve dashboards.', 'Built self-serve dashboards for Finance.', cv).kept).toBe(true);
+  });
+
+  it('D: generic JD vocabulary yields no deny concepts', () => {
+    const jd = 'Strong leadership and stakeholders communication. Build analytics, metrics, dashboard and reporting for business performance, data strategy, customer insights and growth. Data-driven, fast-paced, full-time, hands-on.';
+    expect(rawJdConcepts(jd, CV)).toEqual([]);
+    expect(guard(jd, 'Built data-driven Tableau dashboards and reporting for business stakeholders and leadership.').kept).toBe(true);
+  });
+
+  it('extracts acronyms with 3+ chars or a digit, and mixed-case identifiers, skipping ambiguous/place acronyms', () => {
+    const concepts = rawJdConcepts('Knowledge of PCI DSS, CQRS, GA4, ETL and BigQuery. Remote in APAC. AI and BI a plus.', CV).map((c) => c.concept);
+    expect(concepts).toEqual(expect.arrayContaining(['PCI', 'DSS', 'CQRS', 'GA4', 'ETL', 'BigQuery']));
+    expect(concepts).not.toEqual(expect.arrayContaining(['APAC']));
+    expect(concepts).not.toContain('AI');
+    expect(concepts).not.toContain('BI');
+  });
+
+  it('H: plain Capitalized words and all-caps headings are never scraped', () => {
+    const jd = 'About The Role\nMarketing\nFinance\nLeadership\nRESPONSIBILITIES\nRequirements: Strong Communication With Business Teams.';
+    expect(rawJdConcepts(jd, CV)).toEqual([]);
+  });
+
+  it('cross-functional coming only from the JD is treated as unsupported specificity (documented)', () => {
+    expect(guard('Work with cross-functional teams.', 'Collaborated with cross-functional teams on reporting.').kept).toBe(false);
+  });
+
+  it('E: analysis-derived concepts keep working alongside raw-JD ones', () => {
+    const dc = { skills: [{ requirement: 'Define north-star and guardrail metrics', status: 'missing' as const }], tools: [], experience: [], education: [], keywords: [] };
+    const denied = [...deniedConcepts(dc, [], CV), ...rawJdConcepts('Define north-star and guardrail metrics.', CV)];
+    const hit = (o: string) => dropUnsupportedSuggestions([sug(o)], CV, denied).length === 0;
+    expect(hit('Tracked guardrail metrics in Tableau.')).toBe(true);
+    expect(hit('Tracked north-star metrics in Tableau.')).toBe(true);
+    // The analysis-derived entry comes first, so provenance stays "analysis" for duplicates.
+    expect(denied.find((d) => d.concept === 'north-star')?.source).toBe('analysis');
   });
 });

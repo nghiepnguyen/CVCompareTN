@@ -13,7 +13,7 @@ import {
 import type { AnalysisResult } from '../../src/services/ai/types.js';
 import { buildAnalyzePrompt } from '../../src/services/ai/prompts.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
-import { deniedConcepts, dropUnsupportedSuggestions } from './suggestionGuard.js';
+import { deniedConcepts, dropUnsupportedSuggestions, rawJdConcepts } from './suggestionGuard.js';
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -165,9 +165,15 @@ export async function analyzeCV(
     const rewriteSuggestions = dropUnsupportedSuggestions(
       normalizeRewriteSuggestions(parsedResult.rewriteSuggestions),
       cvText,
-      cvText ? deniedConcepts(detailedComparison, missingGaps, cvText) : [],
-      // Diagnostics only: section + reason (+ the denied concept), never CV text.
-      (d) => console.info('[suggestionGuard] dropped', JSON.stringify(d))
+      // Analysis-derived concepts first: on a duplicate, they keep their status.
+      cvText ? [...deniedConcepts(detailedComparison, missingGaps, cvText), ...rawJdConcepts(jd, cvText)] : [],
+      // Diagnostics: section + reason (+ concept/source), never CV/JD text. The
+      // suggestion body is added only for local benchmark debugging.
+      (d, s) =>
+        console.info(
+          '[suggestionGuard] dropped',
+          JSON.stringify(process.env.SUGGESTION_GUARD_DEBUG === '1' ? { ...d, original: s.original, optimized: s.optimized } : d)
+        )
     );
 
     const finalResult = {

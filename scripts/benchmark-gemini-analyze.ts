@@ -18,6 +18,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } fr
 import { join } from 'node:path';
 import { extractText } from 'unpdf';
 import { analyzeCV } from '../_server-lib/ai/analysisService.js';
+import { rawJdConcepts } from '../_server-lib/ai/suggestionGuard.js';
 import { GEMINI_PRICING } from '../src/lib/geminiModels.js';
 import type { AnalysisResult } from '../src/services/ai/types.js';
 import { SAMPLES, type Sample } from './benchmark-gemini-fixtures.js';
@@ -124,7 +125,9 @@ if (process.env.UI) jobs.splice(0, jobs.length, ...jobs.filter((j) => j.uiLang =
 const cvCache = new Map<string, Awaited<ReturnType<typeof loadCv>>>();
 
 // Suggestions dropped by the server-side guard (logged by analyzeCV). Only
-// attributable to a call when calls run one at a time (CONCURRENCY=1).
+// attributable to a call when calls run one at a time (CONCURRENCY=1), and
+// then the log also carries original/optimized for manual review (local only).
+if (CONCURRENCY === 1) process.env.SUGGESTION_GUARD_DEBUG = '1';
 let guardDrops: unknown[] = [];
 const origInfo = console.info;
 console.info = (...args: unknown[]) => {
@@ -147,6 +150,10 @@ async function runJob({ sample, uiLang, run }: Job) {
       costUsd: Number(((usage.inputTokens * price.inputPer1M + usage.outputTokens * price.outputPer1M) / 1e6).toFixed(6)),
       quality: score(result, sample, cv.sourceText, uiLang),
       guardDrops: CONCURRENCY === 1 ? guardDrops : null,
+      // Deterministic: which fixture concepts the raw-JD extractor denies for this CV.
+      rawJdDetects: (sample.jdOnlyConcepts ?? []).filter((k) =>
+        rawJdConcepts(sample.jd, cv.sourceText).some((c) => norm(c.concept).replace(/-/g, ' ') === norm(k).replace(/-/g, ' '))
+      ),
     };
     writeFileSync(join(outDir, 'raw', `${sample.id}.${uiLang}.r${run}.json`), JSON.stringify(result, null, 2));
   } catch (e) {

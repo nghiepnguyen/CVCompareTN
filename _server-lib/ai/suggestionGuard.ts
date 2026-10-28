@@ -21,7 +21,12 @@ function metricNumbers(text: string): string[] {
 // legitimate suggestion).
 // ---------------------------------------------------------------------------
 
-export type DeniedConcept = { concept: string; status: 'missing' | 'partial' };
+export type DeniedConcept = {
+  concept: string;
+  source: 'analysis' | 'raw-jd';
+  // Only for analysis-derived concepts: the status of the requirement it came from.
+  status?: 'missing' | 'partial';
+};
 
 // Words that never form a concept on their own: generic business vocabulary,
 // requirement framing ("experience with", "strong"), and the action verbs JD
@@ -146,7 +151,7 @@ export function deniedConcepts(
     if (containsPhrase(cv, concept)) return;
     if (words.length > 1 && words.some((w) => !isGeneric(w) && !isStop(w) && containsPhrase(cv, w))) return;
     const key = normalizeText(concept).trim();
-    if (!found.has(key) || status === 'missing') found.set(key, { concept, status });
+    if (!found.has(key) || status === 'missing') found.set(key, { concept, source: 'analysis', status });
   };
   const items: ComparisonItem[] = detailedComparison
     ? [...detailedComparison.skills, ...detailedComparison.tools, ...detailedComparison.experience, ...detailedComparison.education, ...detailedComparison.keywords]
@@ -164,10 +169,73 @@ export function deniedConcepts(
   return [...found.values()];
 }
 
+// ---------------------------------------------------------------------------
+// Distinctive terms taken straight from the raw JD.
+//
+// The analysis sometimes folds a JD concept into a broader row ("self-serve
+// dashboards" into "Looker"), leaving the guard above nothing to deny. The raw
+// JD is used here only to answer "did this distinctive term originate in the
+// JD?"; the CV answers "did the candidate state it?". A term that is in the JD
+// but not the CV and that a rewrite introduces is unsafe as candidate history.
+// This never implies the candidate lacks the capability.
+//
+// Only high-confidence lexical markers are taken — never generic words,
+// arbitrary phrases, or plain Capitalized words (headings, sentence starts,
+// company names):
+//   1. hyphenated compounds (self-serve, north-star, cross-functional)
+//   2. acronyms / identifiers with 3+ characters or a digit (GA4, PCI, CQRS, ETL)
+//   3. mixed-case identifiers (BigQuery, OpenTelemetry, NestJS)
+// ---------------------------------------------------------------------------
+
+// Hyphenated style/employment words a grounded rewrite may use as a plain
+// paraphrase of the CV ("data-driven" for "turning data into decisions"), or
+// that describe the job rather than the candidate's history.
+const STYLE_HYPHENATED = new Set([
+  'data-driven', 'results-driven', 'detail-oriented', 'self-motivated', 'fast-paced', 'high-quality',
+  'well-known', 'world-class', 'full-time', 'part-time', 'long-term', 'short-term', 'day-to-day',
+  'up-to-date', 'hands-on', 'follow-up', 'one-on-one', 'on-site', 'in-house', 'well-being', 'e-mail',
+]);
+
+// Acronyms that name a place, role or document rather than a skill/practice.
+const NON_CONCEPT_ACRONYMS = new Set([
+  'APAC', 'EMEA', 'USA', 'HCM', 'CEO', 'CTO', 'CFO', 'COO', 'EEO', 'FAQ', 'ASAP', 'JD', 'CV', 'NB',
+]);
+
+export function rawJdConcepts(jd: string, cvText: string): DeniedConcept[] {
+  const cv = normalizeText(cvText);
+  const out = new Map<string, DeniedConcept>();
+  const add = (term: string) => {
+    if (containsPhrase(cv, term)) return; // CV evidence wins
+    const key = normalizeText(term).trim();
+    if (key && !out.has(key)) out.set(key, { concept: term, source: 'raw-jd' });
+  };
+  for (const line of jd.split(/\n/)) {
+    // All-caps lines are headings ("REQUIREMENTS"), not content.
+    const letters = line.replace(/[^\p{L}]/gu, '');
+    if (letters.length > 3 && letters === letters.toUpperCase()) continue;
+    for (const m of line.matchAll(/\p{L}+(?:-\p{L}+)+/gu)) {
+      const term = m[0];
+      const parts = term.toLowerCase().split('-');
+      if (STYLE_HYPHENATED.has(term.toLowerCase())) continue;
+      if (parts.every((p) => isGeneric(p) || isStop(p))) continue;
+      add(term);
+    }
+    for (const m of line.matchAll(/\b[A-Z][A-Z0-9]{1,5}\b/g)) {
+      const term = m[0];
+      if (NON_CONCEPT_ACRONYMS.has(term)) continue;
+      if (term.length < 3 && !/\d/.test(term)) continue; // AI, BI, UX… too ambiguous
+      add(term);
+    }
+    for (const m of line.matchAll(/\b[A-Za-z]*[a-z][A-Z][A-Za-z0-9]*\b/g)) add(m[0]);
+  }
+  return [...out.values()];
+}
+
 export type DroppedSuggestion = {
   section: string;
-  reason: 'skills-section' | 'unsupported-number' | 'jd-only-concept';
+  reason: 'skills-section' | 'unsupported-number' | 'unsupported-jd-concept';
   concept?: string;
+  source?: 'analysis' | 'raw-jd';
   status?: 'missing' | 'partial';
 };
 
@@ -188,23 +256,23 @@ export function dropUnsupportedSuggestions(
   suggestions: RewriteSuggestion[],
   cvText: string | undefined,
   denied: DeniedConcept[] = [],
-  onDrop?: (d: DroppedSuggestion) => void
+  onDrop?: (d: DroppedSuggestion, suggestion: RewriteSuggestion) => void
 ): RewriteSuggestion[] {
   const cvNumbers = cvText ? new Set(metricNumbers(cvText)) : null;
   return suggestions.filter((s) => {
     if (/skill|kỹ năng/i.test(s.section)) {
-      onDrop?.({ section: s.section, reason: 'skills-section' });
+      onDrop?.({ section: s.section, reason: 'skills-section' }, s);
       return false;
     }
     if (!cvNumbers) return true;
     if (!metricNumbers(s.optimized).every((n) => cvNumbers.has(n))) {
-      onDrop?.({ section: s.section, reason: 'unsupported-number' });
+      onDrop?.({ section: s.section, reason: 'unsupported-number' }, s);
       return false;
     }
     const optimized = normalizeText(s.optimized);
     const hit = denied.find((d) => containsPhrase(optimized, d.concept));
     if (hit) {
-      onDrop?.({ section: s.section, reason: 'jd-only-concept', concept: hit.concept, status: hit.status });
+      onDrop?.({ section: s.section, reason: 'unsupported-jd-concept', concept: hit.concept, source: hit.source, status: hit.status }, s);
       return false;
     }
     return true;
