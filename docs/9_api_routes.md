@@ -28,6 +28,8 @@ Rewrites are defined in [`vercel.json`](../vercel.json).
 
 **Recruiter save-analysis:** `POST /api/recruiter/save-analysis` yêu cầu `Authorization: Bearer <supabase_access_token>`. Dùng service role để ghi kết quả phân tích vào bảng recruiter campaigns.
 
+**Chấm điểm canonical (Stage 3.7):** `/api/analyze` luôn chấm bằng prompt EN (độc lập ngôn ngữ UI, `scoreVersion = canonical-en-v1`); UI tiếng Việt thêm một bước dịch riêng chỉ cho văn bản trình bày. Chi tiết: [12_canonical_scoring.md](./12_canonical_scoring.md).
+
 **Deadline (Stage 3.5):** `/api/analyze`, `/api/rewrite-cv`, `/api/parse-cv` dùng chung một request deadline 65s (`_server-lib/deadline.ts`) tính từ đầu handler. Storage (≤15s/ref, hủy thật qua AbortSignal), Gemini (deadline AI = 65s − 6s dự phòng, hủy thật), quota và `analysis_log` đều bị giới hạn bởi phần còn lại, nên server trả JSON trước khi client (75s) bỏ cuộc. `maxDuration: 300` (Hobby + Fluid Compute đã xác minh) chỉ là trần an toàn, không phải ngân sách request. Chi tiết: [5_api.md](./5_api.md).
 
 ## Request flow (high level)

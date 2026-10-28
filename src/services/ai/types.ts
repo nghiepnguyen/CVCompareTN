@@ -148,4 +148,8 @@ export interface AnalysisResult {
   feedback?: string;
   language?: 'vi' | 'en';
   parsedCV?: ParsedCV;
+  /** MatchScore scoring version; absent = legacy UI-language-coupled scoring. */
+  scoreVersion?: string;
+  /** Language the analysis prose was actually delivered in (may be 'en' when VI localization fell back). */
+  presentationLanguage?: 'vi' | 'en';
 }

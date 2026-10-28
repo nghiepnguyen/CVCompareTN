@@ -13,7 +13,10 @@ interface AnalysisDetailsTabProps {
 }
 
 export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selectedResult }: AnalysisDetailsTabProps) {
-  const { t } = useUI();
+  const { t, reportLanguage } = useUI();
+  // Canonical analyses whose Vietnamese localization fell back to English.
+  const showsEnglishFallback =
+    !!selectedResult.scoreVersion && selectedResult.presentationLanguage === 'en' && reportLanguage === 'vi';
   const [openSections, setOpenSections] = React.useState<string[]>(['matching']);
 
   // Single source of truth for both charts: AI's own categoryScores, so the bar
@@ -49,6 +52,11 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
 
   return (
     <div id="analysis-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
+      {showsEnglishFallback && (
+        <p className="rounded-2xl border border-border bg-surface-secondary px-4 py-3 text-sm text-text-muted">
+          {t.analysisShownInEnglish}
+        </p>
+      )}
       {/* ATS Score Card */}
       <div className="bg-surface p-5 sm:p-8 rounded-3xl shadow-sm border border-border flex flex-col md:flex-row items-center gap-8">
         <div className="relative shrink-0">

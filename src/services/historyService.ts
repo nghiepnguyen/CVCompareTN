@@ -42,6 +42,10 @@ function mapHistory(data: Record<string, unknown>): AnalysisResult {
     feedback: data.feedback != null ? String(data.feedback) : undefined,
     language: data.language === "en" ? "en" : "vi",
     parsedCV: normalizeParsedCV(data.parsed_cv),
+    // Legacy rows (no score_version) keep their old meaning: language = UI language.
+    ...(typeof data.score_version === "string" && data.score_version
+      ? { scoreVersion: data.score_version, presentationLanguage: data.language === "en" ? "en" as const : "vi" as const }
+      : {}),
   };
 }
 
@@ -104,8 +108,10 @@ export async function saveToHistory(results: AnalysisResult | AnalysisResult[], 
     detailed_comparison: h.detailedComparison,
     rating: h.rating,
     feedback: h.feedback,
-    language: h.language || 'vi',
-    parsed_cv: h.parsedCV
+    // Canonical analyses store the language the prose was delivered in.
+    language: h.presentationLanguage || h.language || 'vi',
+    parsed_cv: h.parsedCV,
+    ...(h.scoreVersion ? { score_version: h.scoreVersion } : {}),
   }));
 
   try {
