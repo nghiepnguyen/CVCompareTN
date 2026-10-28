@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canonicalToken, deniedConcepts, dropUnsupportedSuggestions, rawJdConcepts } from '../../../_server-lib/ai/suggestionGuard';
+import { canonicalToken, dropUnsupportedSuggestions, rawJdConcepts } from '../../../_server-lib/ai/suggestionGuard';
 
 const CV = `NGUYỄN VĂN AN — Backend Developer
 TÓM TẮT: 7 năm phát triển backend, chuyên Node.js và Java.
@@ -41,78 +41,6 @@ describe('dropUnsupportedSuggestions', () => {
   it('without CV text (inline PDF/image) only applies the Skills rule', () => {
     const out = dropUnsupportedSuggestions([s('Work Experience', 'Giảm 50% chi phí.'), s('Skills', 'Java')], undefined);
     expect(out).toEqual([s('Work Experience', 'Giảm 50% chi phí.')]);
-  });
-});
-
-describe('deniedConcepts + concept guard', () => {
-  const CV_EN = `SMOKE TESTER
-Lumen Retail Group — Data Analyst II, Jan 2022 – Present
-• Created Tableau dashboards used in weekly business reviews.
-• Wrote SQL reports on delivery SLAs for 12 regional hubs.`;
-  const item = (requirement: string, status: 'matched' | 'partial' | 'missing') => ({ requirement, status });
-  const dc = (...items: ReturnType<typeof item>[]) => ({ skills: items, tools: [], experience: [], education: [], keywords: [] });
-  const sug = (optimized: string) => ({ section: 'Work Experience', original: 'Created Tableau dashboards used in weekly business reviews.', optimized, explanation: '' });
-  const run = (comparison: ReturnType<typeof dc>, optimized: string, cv = CV_EN) => {
-    const drops: unknown[] = [];
-    const kept = dropUnsupportedSuggestions([sug(optimized)], cv, deniedConcepts(comparison, [], cv), (d) => drops.push(d));
-    return { kept: kept.length === 1, drops };
-  };
-
-  it('A: drops a rewrite that imports missing metric concepts', () => {
-    const r = run(dc(item('Define north-star and guardrail metrics', 'missing')), 'Created Tableau dashboards to track north-star and guardrail metrics.');
-    expect(r.kept).toBe(false);
-    expect(r.drops).toEqual([expect.objectContaining({ reason: 'unsupported-jd-concept', source: 'analysis', status: 'missing', section: 'Work Experience' })]);
-  });
-
-  it('B: drops a rewrite that imports a missing specific phrase (hyphen/space variants match)', () => {
-    expect(run(dc(item('Enable self-serve analytics', 'missing')), 'Built dashboards enabling self-serve analytics for leadership.').kept).toBe(false);
-    expect(run(dc(item('Enable self-serve analytics', 'missing')), 'Built dashboards enabling self serve analytics.').kept).toBe(false);
-  });
-
-  it('C: generic words in a missing requirement never become deny tokens', () => {
-    const comparison = dc(item('Strong stakeholder communication', 'missing'), item('Leadership', 'missing'), item('Analytics and metrics reporting', 'missing'));
-    expect(deniedConcepts(comparison, [], CV_EN)).toEqual([]);
-    expect(run(comparison, 'Presented weekly Tableau dashboards to stakeholders and leadership in business reviews.').kept).toBe(true);
-  });
-
-  it('D: partial mixed requirement denies only the unsupported named part', () => {
-    const comparison = dc(item('SQL and BigQuery', 'partial'));
-    expect(deniedConcepts(comparison, [], CV_EN).map((d) => d.concept)).toEqual(['BigQuery']);
-    expect(run(comparison, 'Wrote SQL reports on delivery SLAs for 12 regional hubs.').kept).toBe(true);
-    expect(run(comparison, 'Wrote SQL and BigQuery reports on delivery SLAs for 12 regional hubs.').kept).toBe(false);
-  });
-
-  it('partial requirements do not yield multi-word phrases', () => {
-    expect(deniedConcepts(dc(item('Solid statistics including causal inference', 'partial')), [], CV_EN)).toEqual([]);
-    expect(deniedConcepts(dc(item('Solid statistics including causal inference', 'missing')), [], CV_EN).map((d) => d.concept)).toContain('causal inference');
-  });
-
-  it('E: CV evidence overrides the model classification', () => {
-    const cv = `${CV_EN}\n• Rolled out self-serve analytics in Looker.`;
-    const comparison = dc(item('Enable self-serve analytics', 'missing'), item('Looker', 'partial'));
-    expect(deniedConcepts(comparison, [], cv)).toEqual([]);
-    expect(run(comparison, 'Rolled out self-serve analytics in Looker for weekly business reviews.', cv).kept).toBe(true);
-  });
-
-  it('extracts named tools from lists and quoted gap terms, never matched items', () => {
-    const comparison = dc(item('Python (pandas, statsmodels)', 'partial'), item('Create Looker dashboards', 'missing'), item('Tableau', 'matched'));
-    const concepts = deniedConcepts(comparison, [{ category: 'Tools', content: "CV chưa ghi rõ chuỗi 'Airflow'.", impact: 'Low' }], CV_EN).map((d) => d.concept);
-    expect(concepts).toEqual(expect.arrayContaining(['statsmodels', 'Looker', 'Airflow']));
-    expect(concepts).not.toContain('Tableau');
-    // With Python and pandas in the CV only statsmodels stays denied from that requirement.
-    const withPython = deniedConcepts(dc(item('Python (pandas, statsmodels)', 'partial')), [], `${CV_EN}\nAutomated reporting with Python (pandas).`);
-    expect(withPython.map((d) => d.concept)).toEqual(['statsmodels']);
-  });
-
-  it('skips the concept check without CV text (inline PDF/image)', () => {
-    const kept = dropUnsupportedSuggestions([sug('Tracked north-star metrics.')], undefined, [{ concept: 'north-star', source: 'analysis', status: 'missing' }]);
-    expect(kept).toHaveLength(1);
-  });
-
-  it('F/G: numeric and Skills rules still run first', () => {
-    const drops: { reason: string }[] = [];
-    dropUnsupportedSuggestions([{ ...sug('x'), section: 'Skills' }, sug('Cut cost by 40%.')], CV_EN, [], (d) => drops.push(d));
-    expect(drops.map((d) => d.reason)).toEqual(['skills-section', 'unsupported-number']);
   });
 });
 
@@ -172,80 +100,60 @@ Lumen Retail Group — Data Analyst II
     expect(guard('Work with cross-functional teams.', 'Collaborated with cross-functional teams on reporting.').kept).toBe(false);
   });
 
-  it('E: analysis-derived concepts keep working alongside raw-JD ones', () => {
-    const dc = { skills: [{ requirement: 'Define north-star and guardrail metrics', status: 'missing' as const }], tools: [], experience: [], education: [], keywords: [] };
-    const denied = [...deniedConcepts(dc, [], CV), ...rawJdConcepts('Define north-star and guardrail metrics.', CV)];
-    const hit = (o: string) => dropUnsupportedSuggestions([sug(o)], CV, denied).length === 0;
-    expect(hit('Tracked guardrail metrics in Tableau.')).toBe(true);
-    expect(hit('Tracked north-star metrics in Tableau.')).toBe(true);
-    // The analysis-derived entry comes first, so provenance stays "analysis" for duplicates.
-    expect(denied.find((d) => d.concept === 'north-star')?.source).toBe('analysis');
-  });
 });
 
-describe('analysis concept variants (single distinctive token + regular plurals)', () => {
-  const CV = `SMOKE TESTER
-Lumen Retail Group — Data Analyst II
-• Created Tableau dashboards used in weekly business reviews.
-• Analyzed 25 pricing experiments; one change lifted conversion 3.1%.`;
-  const dc = (requirement: string, status: 'missing' | 'partial') => ({ skills: [{ requirement, status }], tools: [], experience: [], education: [], keywords: [] });
-  const sug = (optimized: string) => ({ section: 'Work Experience', original: 'Created Tableau dashboards used in weekly business reviews.', optimized, explanation: '' });
-  const guard = (requirement: string, status: 'missing' | 'partial', optimized: string, cv = CV) => {
+describe('ship-safe guard: the analysis never filters suggestions', () => {
+  const sug = (original: string, optimized: string, section = 'Work Experience') => ({ section, original, optimized, explanation: '' });
+  const run = (jd: string, cv: string, optimized: string, original = 'x') => {
     const drops: Record<string, unknown>[] = [];
-    const kept = dropUnsupportedSuggestions([sug(optimized)], cv, deniedConcepts(dc(requirement, status), [], cv), (d) => drops.push(d));
+    const kept = dropUnsupportedSuggestions([sug(original, optimized)], cv, rawJdConcepts(jd, cv), (d) => drops.push(d));
     return { kept: kept.length === 1, drops };
   };
 
-  // Regression (Stage 3.2d focused benchmark, en-jd-concept / UI vi r2).
-  it('A: "guardrail metrics" missing blocks "operational guardrails", with analysis provenance', () => {
-    const r = guard('North-star and guardrail metrics', 'missing', 'Created Tableau dashboards used in weekly business reviews to track performance and operational guardrails.');
+  // Regression (Stage 3.2e full benchmark): an analysis token "Nội" from
+  // "Làm việc tại Hà Nội" deleted truthful "nội dung" rewrites.
+  it('keeps "nội dung" when the JD names Hà Nội', () => {
+    const jd = 'Vị trí: Chuyên viên Marketing Digital. Yêu cầu: 2+ năm chạy quảng cáo Facebook Ads. Làm việc tại Hà Nội.';
+    const cv = 'Viết bài fanpage, tăng lượt tương tác 40% trong 6 tháng. Hỗ trợ chụp ảnh sản phẩm và đăng bài.';
+    expect(rawJdConcepts(jd, cv).map((c) => c.concept)).not.toEqual(expect.arrayContaining(['Nội', 'Hà']));
+    expect(run(jd, cv, 'Xây dựng kế hoạch nội dung và viết bài cho Fanpage, tăng tương tác 40% trong 6 tháng.').kept).toBe(true);
+  });
+
+  // Regression (Stage 3.2e full benchmark): "Observability" from a partial
+  // requirement deleted a paraphrase of real Prometheus/Grafana monitoring.
+  it('keeps an observability paraphrase backed by Prometheus/Grafana in the CV', () => {
+    const jd = 'Yêu cầu: hiểu observability (Prometheus, Grafana, OpenTelemetry).';
+    const cv = '- Giám sát hệ thống bằng Prometheus và Grafana; giảm 35% số sự cố P1 trong năm 2024.';
+    expect(run(jd, cv, '- Thiết lập observability bằng Prometheus và Grafana, giảm 35% số sự cố P1 trong năm 2024.').kept).toBe(true);
+    // The distinctive JD identifier the CV lacks is still guarded.
+    expect(run(jd, cv, '- Thiết lập OpenTelemetry cùng Prometheus và Grafana.').kept).toBe(false);
+  });
+
+  it('a lowercase JD concept alone does not cause a drop (accepted false-negative debt)', () => {
+    const jd = 'Define north star and guardrail metrics. Solid statistics including causal inference.';
+    const cv = 'Created Tableau dashboards used in weekly business reviews.';
+    expect(rawJdConcepts(jd, cv)).toEqual([]);
+    expect(run(jd, cv, 'Created Tableau dashboards to track operational guardrails and causal inference.').kept).toBe(true);
+  });
+
+  it('raw-JD self-serve stays protected, with provenance', () => {
+    const jd = 'About the role: build self-serve dashboards.';
+    const cv = 'Created Tableau dashboards used in weekly business reviews.';
+    const r = run(jd, cv, 'Developed self-serve Tableau dashboards for weekly business reviews.');
     expect(r.kept).toBe(false);
-    expect(r.drops).toEqual([
-      expect.objectContaining({ concept: 'guardrail', derivedFrom: 'guardrail metrics', source: 'analysis', status: 'missing', matchedForm: 'guardrails' }),
-    ]);
+    expect(r.drops).toEqual([expect.objectContaining({ reason: 'unsupported-jd-concept', concept: 'self-serve', source: 'raw-jd' })]);
+    expect(run(jd, `${cv}\nBuilt self serve dashboards for Finance.`, 'Built self-serve dashboards for Finance.').kept).toBe(true);
   });
+});
 
-  it('B: the exact singular is blocked too', () => {
-    expect(guard('North-star and guardrail metrics', 'missing', 'Tracked a guardrail for conversion in Tableau.').kept).toBe(false);
-  });
-
-  it('C: a plural in the CV overrides the model classification', () => {
-    const cv = `${CV}\n• Defined operational guardrails for reporting.`;
-    expect(deniedConcepts(dc('North-star and guardrail metrics', 'missing'), [], cv).map((d) => d.concept)).not.toEqual(
-      expect.arrayContaining(['guardrail', 'guardrail metrics'])
-    );
-    expect(guard('North-star and guardrail metrics', 'missing', 'Defined operational guardrail metrics for reporting.', cv).kept).toBe(true);
-  });
-
-  it('D: singular/plural count as the same lexical evidence', () => {
+describe('canonicalToken (lexical equivalence for CV override and matching)', () => {
+  it('folds regular plurals', () => {
     expect(canonicalToken('analysts')).toBe(canonicalToken('analyst'));
     expect(canonicalToken('dashboards')).toBe('dashboard');
-    expect(canonicalToken('metrics')).toBe('metric');
-    expect(canonicalToken('guardrails')).toBe('guardrail');
     expect(canonicalToken('policies')).toBe('policy');
-    // "junior analysts" is missing, but the CV says "Analyst": no deny from "analysts".
-    const concepts = deniedConcepts(dc('Mentor junior analysts', 'missing'), [], CV).map((d) => d.concept);
-    expect(concepts).not.toContain('analysts');
   });
 
-  it('E: words ending in -ss/-us/-is and short or non-letter tokens are never stripped', () => {
+  it('never strips -ss/-us/-is endings, short or non-letter tokens', () => {
     for (const w of ['analysis', 'business', 'process', 'status', 'aws', 'gas', 'node.js']) expect(canonicalToken(w)).toBe(w);
-  });
-
-  it('F: a phrase with two distinctive words stays whole', () => {
-    const concepts = deniedConcepts(dc('Solid statistics including causal inference', 'missing'), [], CV).map((d) => d.concept);
-    expect(concepts).toContain('causal inference');
-    expect(concepts).not.toContain('causal');
-    expect(concepts).not.toContain('inference');
-    expect(guard('Solid statistics including causal inference', 'missing', 'Used statistical inference to read pricing experiments.').kept).toBe(true);
-  });
-
-  it('G: partial requirements get no single-token expansion', () => {
-    expect(deniedConcepts(dc('Guardrail metrics and SQL', 'partial'), [], CV).map((d) => d.concept)).not.toContain('guardrail');
-    expect(deniedConcepts(dc('SQL and BigQuery', 'partial'), [], `${CV}\nSQL`).map((d) => d.concept)).toEqual(['BigQuery']);
-  });
-
-  it('a generic-only phrase still yields nothing', () => {
-    expect(deniedConcepts(dc('Strong stakeholder communication and leadership', 'missing'), [], CV)).toEqual([]);
   });
 });

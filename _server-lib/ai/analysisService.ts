@@ -13,7 +13,7 @@ import {
 import type { AnalysisResult } from '../../src/services/ai/types.js';
 import { buildAnalyzePrompt } from '../../src/services/ai/prompts.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
-import { deniedConcepts, dropUnsupportedSuggestions, rawJdConcepts } from './suggestionGuard.js';
+import { dropUnsupportedSuggestions, rawJdConcepts } from './suggestionGuard.js';
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -165,8 +165,9 @@ export async function analyzeCV(
     const rewriteSuggestions = dropUnsupportedSuggestions(
       normalizeRewriteSuggestions(parsedResult.rewriteSuggestions),
       cvText,
-      // Analysis-derived concepts first: on a duplicate, they keep their status.
-      cvText ? [...deniedConcepts(detailedComparison, missingGaps, cvText), ...rawJdConcepts(jd, cvText)] : [],
+      // Distinctive JD terms absent from the CV. The analysis (detailedComparison,
+      // missingGaps) is deliberately not used to filter suggestions.
+      cvText ? rawJdConcepts(jd, cvText) : [],
       // Diagnostics: section + reason (+ concept/source), never CV/JD text. The
       // suggestion body is added only for local benchmark debugging.
       (d, s) =>

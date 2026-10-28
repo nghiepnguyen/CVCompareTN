@@ -1,4 +1,4 @@
-import type { ComparisonItem, DetailedComparison, MissingGap, RewriteSuggestion } from '../../src/services/ai/types.js';
+import type { RewriteSuggestion } from '../../src/services/ai/types.js';
 
 // Numbers as a CV would state them ("7", "1,2", "35%"), separators dropped so
 // "1,2 triệu" and "1.2M" compare equal. MM/YYYY dates and bare years are
@@ -10,31 +10,15 @@ function metricNumbers(text: string): string[] {
   return (stripped.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/[.,]/g, ''));
 }
 
-// ---------------------------------------------------------------------------
-// JD-only concepts the analysis itself classified as unsupported.
-//
-// The deny list is derived per call from the model's own structured output
-// (detailedComparison items with status missing/partial, and quoted terms in
-// missingGaps) and the CV text — never from a static vocabulary. Extraction
-// is deliberately conservative: when a concept cannot be isolated with
-// confidence it is not denied (a missed leak is preferable to dropping a
-// legitimate suggestion).
-// ---------------------------------------------------------------------------
+// A JD term that must not enter "optimized" unless the CV states it. Only
+// the raw-JD extractor below produces these. (Concepts derived from the
+// analysis — detailedComparison / missingGaps — were tried and dropped
+// truthful suggestions in benchmarks, e.g. "Nội" from "Hà Nội" blocking
+// "nội dung"; the analysis never decides what is filtered.)
+export type DeniedConcept = { concept: string; source: 'raw-jd' };
 
-export type DeniedConcept = {
-  concept: string;
-  source: 'analysis' | 'raw-jd';
-  // Only for analysis-derived concepts: the status of the requirement it came from.
-  status?: 'missing' | 'partial';
-  // Set when the concept is the single distinctive word of a longer phrase.
-  derivedFrom?: string;
-};
-
-// Words that never form a concept on their own: generic business vocabulary,
-// requirement framing ("experience with", "strong"), and the action verbs JD
-// requirements start with. A multi-word phrase made only of these is not a
-// concept either ("stakeholder communication", "data analysis"). Kept small
-// on purpose; it only prevents broad single-word blocking.
+// Generic vocabulary: a hyphenated JD compound made only of these words (and
+// stopwords) is not a distinctive term. Kept small on purpose.
 const GENERIC = new Set([
   // business vocabulary
   'leadership', 'leader', 'leaders', 'stakeholder', 'stakeholders', 'analytics', 'analysis', 'analyses',
@@ -50,10 +34,6 @@ const GENERIC = new Set([
   'mentor', 'own', 'drive', 'support', 'use', 'using', 'apply', 'analyze', 'deliver', 'improve',
   'collaborate', 'partner', 'present', 'track', 'monitor',
 ]);
-// Vietnamese needs no entries: its syllables are separate words, so a phrase
-// is overridden as soon as any syllable appears in a Vietnamese CV (see
-// deniedConcepts). In practice only named tokens (PCI DSS, Kafka) are denied
-// for Vietnamese requirements — a conservative outcome.
 
 const STOPWORDS = new Set([
   'and', 'or', 'with', 'of', 'in', 'on', 'for', 'the', 'a', 'an', 'to', 'at', 'as', 'by', 'from', 'including',
@@ -105,124 +85,15 @@ function matchedForm(text: string, phrase: string): string | undefined {
   return undefined;
 }
 
-// A token that names a specific thing on its own: internal capital or
-// all-caps acronym (BigQuery, CQRS, PCI), hyphenated compound (north-star,
-// self-serve), or digits/dots (GA4, Node.js).
-function isNamedToken(raw: string, isFirstWord: boolean): boolean {
-  if (/^[A-Za-z][a-z]+[A-Z]/.test(raw) || /[a-z][A-Z]/.test(raw)) return true;
-  if (/^[A-Z0-9]{2,}$/.test(raw) && /[A-Z]/.test(raw)) return true;
-  if (/\p{L}-\p{L}/u.test(raw)) return true;
-  if (/\d/.test(raw) && /\p{L}/u.test(raw)) return true;
-  if (/\p{L}\.\p{L}/u.test(raw)) return true;
-  // Capitalized mid-sentence word (Looker, Airflow). Sentence-initial words
-  // are skipped: "Define …", "Strong …".
-  return !isFirstWord && /^\p{Lu}\p{Ll}+$/u.test(raw);
-}
-
 const isGeneric = (w: string) => GENERIC.has(w.toLowerCase());
 const isStop = (w: string) => STOPWORDS.has(w.toLowerCase().replace(/\.$/, ''));
-
-// Segments of a requirement: list separators and parentheses split it, so
-// "SQL and BigQuery" → ["SQL", "BigQuery"] and "Python (pandas, statsmodels)"
-// → ["Python", "pandas", "statsmodels"].
-function segments(requirement: string): string[] {
-  return requirement
-    .split(/[,;/()\[\]|]|\s+(?:and|or|&|và|hoặc)\s+/i)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-type ExtractedConcept = { concept: string; derivedFrom?: string };
-
-function conceptsFromRequirement(requirement: string, status: 'missing' | 'partial'): ExtractedConcept[] {
-  const out: ExtractedConcept[] = [];
-  const firstWordOfRequirement = requirement.trim().split(/\s+/)[0];
-  for (const seg of segments(requirement)) {
-    const words = seg.split(/\s+/).map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}+#]+$/gu, '')).filter(Boolean);
-    if (words.length === 0) continue;
-    // Named tokens are specific on their own, for missing and partial alike.
-    words.forEach((w, i) => {
-      const firstWord = i === 0 && (w === firstWordOfRequirement || words.length > 2);
-      if (!isStop(w) && !isGeneric(w) && isNamedToken(w, firstWord)) out.push({ concept: w });
-    });
-    // A one-word list item (e.g. "statsmodels" from "Python (pandas, statsmodels)").
-    if (words.length === 1 && !isStop(words[0]) && !isGeneric(words[0]) && words[0].length >= 3) out.push({ concept: words[0] });
-    // Missing only: 2–3 word phrases of content words with at least one
-    // non-generic word ("guardrail metrics", "causal inference", "core banking").
-    // Partial requirements mix supported and unsupported parts, so phrases
-    // are not isolated from them.
-    if (status !== 'missing') continue;
-    for (let n = 3; n >= 2; n--) {
-      for (let i = 0; i + n <= words.length; i++) {
-        const gram = words.slice(i, i + n);
-        if (gram.some(isStop)) continue;
-        if (gram.every(isGeneric)) continue;
-        if (isGeneric(gram[0]) && GENERIC_VERB.has(gram[0].toLowerCase())) continue;
-        out.push({ concept: gram.join(' ') });
-        // Exactly one distinctive word among generic ones ("guardrail metrics")
-        // carries the concept alone, so it is denied too ("…operational
-        // guardrails"). Phrases with 2+ distinctive words ("causal inference")
-        // stay whole — splitting them would turn the guard into a bag of words.
-        const distinctive = gram.filter((w) => !isGeneric(w) && !isStop(w));
-        if (distinctive.length === 1 && distinctive[0].length >= 4) {
-          out.push({ concept: distinctive[0], derivedFrom: gram.join(' ') });
-        }
-      }
-    }
-  }
-  return out;
-}
-
-const GENERIC_VERB = new Set([
-  'build', 'create', 'define', 'design', 'develop', 'enable', 'ensure', 'lead', 'maintain', 'manage', 'mentor',
-  'own', 'drive', 'support', 'use', 'using', 'apply', 'analyze', 'deliver', 'improve', 'collaborate', 'partner',
-  'present', 'track', 'monitor',
-]);
-
-/**
- * Concepts the analysis marked missing/partial that the CV never mentions.
- * A concept is dropped from the list when the CV contains it, or (for
- * phrases) any of its non-generic words — the CV evidence wins over the
- * model's classification.
- */
-export function deniedConcepts(
-  detailedComparison: DetailedComparison | undefined,
-  missingGaps: MissingGap[],
-  cvText: string
-): DeniedConcept[] {
-  const cv = canonicalText(cvText);
-  const found = new Map<string, DeniedConcept>();
-  const add = ({ concept, derivedFrom }: ExtractedConcept, status: 'missing' | 'partial') => {
-    const words = normalizeText(concept).trim().split(' ');
-    if (containsPhrase(cv, concept)) return;
-    if (words.length > 1 && words.some((w) => !isGeneric(w) && !isStop(w) && containsPhrase(cv, w))) return;
-    const key = normalizeText(concept).trim();
-    if (!found.has(key) || status === 'missing') {
-      found.set(key, { concept, source: 'analysis', status, ...(derivedFrom ? { derivedFrom } : {}) });
-    }
-  };
-  const items: ComparisonItem[] = detailedComparison
-    ? [...detailedComparison.skills, ...detailedComparison.tools, ...detailedComparison.experience, ...detailedComparison.education, ...detailedComparison.keywords]
-    : [];
-  for (const item of items) {
-    if (item.status === 'matched') continue;
-    for (const c of conceptsFromRequirement(item.requirement, item.status)) add(c, item.status);
-  }
-  // Gap prose is too loose to mine; only explicitly quoted terms count.
-  for (const gap of missingGaps) {
-    for (const m of gap.content.matchAll(/['"‘“]([^'"’”]{2,40})['"’”]/g)) {
-      for (const c of conceptsFromRequirement(m[1], 'missing')) add(c, 'missing');
-    }
-  }
-  return [...found.values()];
-}
 
 // ---------------------------------------------------------------------------
 // Distinctive terms taken straight from the raw JD.
 //
-// The analysis sometimes folds a JD concept into a broader row ("self-serve
-// dashboards" into "Looker"), leaving the guard above nothing to deny. The raw
-// JD is used here only to answer "did this distinctive term originate in the
+// The model sometimes writes a JD term into "optimized" ("…self-serve Tableau
+// dashboards") even when its own analysis never listed it. The raw JD is used
+// here only to answer "did this distinctive term originate in the
 // JD?"; the CV answers "did the candidate state it?". A term that is in the JD
 // but not the CV and that a rewrite introduces is unsafe as candidate history.
 // This never implies the candidate lacks the capability.
@@ -283,9 +154,7 @@ export type DroppedSuggestion = {
   section: string;
   reason: 'skills-section' | 'unsupported-number' | 'unsupported-jd-concept';
   concept?: string;
-  source?: 'analysis' | 'raw-jd';
-  status?: 'missing' | 'partial';
-  derivedFrom?: string;
+  source?: 'raw-jd';
   matchedForm?: string;
 };
 
@@ -296,10 +165,11 @@ export type DroppedSuggestion = {
  * text with a number the CV never states (e.g. "9 năm" for a CV saying
  * "7 năm"). Such a suggestion is dropped rather than repaired — showing
  * fewer suggestions is better than showing a fabricated candidate fact.
- * A suggestion whose "optimized" text contains a concept from
- * deniedConcepts() — something the analysis itself marked missing/partial
- * and the CV never mentions — is dropped too.
- * The number and concept checks need the CV text, so they are skipped for
+ * A suggestion whose "optimized" text contains a distinctive JD term from
+ * rawJdConcepts() that the CV never states is dropped too. Lowercase JD
+ * concepts ("guardrail metrics") are deliberately not caught: a missed
+ * leak is preferred over deleting truthful CV content.
+ * The number and JD-term checks need the CV text, so they are skipped for
  * inline PDF/image input; the Skills rule always applies.
  */
 export function dropUnsupportedSuggestions(
@@ -328,8 +198,6 @@ export function dropUnsupportedSuggestions(
           reason: 'unsupported-jd-concept',
           concept: hit.concept,
           source: hit.source,
-          status: hit.status,
-          ...(hit.derivedFrom ? { derivedFrom: hit.derivedFrom } : {}),
           matchedForm: matchedForm(s.optimized, hit.concept),
         },
         s
