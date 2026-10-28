@@ -26,6 +26,8 @@ export type DeniedConcept = {
   source: 'analysis' | 'raw-jd';
   // Only for analysis-derived concepts: the status of the requirement it came from.
   status?: 'missing' | 'partial';
+  // Set when the concept is the single distinctive word of a longer phrase.
+  derivedFrom?: string;
 };
 
 // Words that never form a concept on their own: generic business vocabulary,
@@ -65,8 +67,42 @@ function normalizeText(text: string): string {
   return ` ${text.normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}+#.]+/gu, ' ').replace(/\.(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim()} `;
 }
 
-function containsPhrase(normalizedHay: string, phrase: string): boolean {
-  return normalizedHay.includes(` ${normalizeText(phrase).trim()} `);
+// Regular English plural → singular, for lexical evidence matching only (no
+// stemming, lemmatization or fuzzy matching). Applied identically to the CV,
+// the concept and the rewrite, so blocking is never looser than CV override.
+// Conservative by design — when unsure the token is left as is:
+//   - only pure-letter tokens of 4+ characters ("aws", "node.js" untouched)
+//   - "-ies" → "-y"                         (policies → policy)
+//   - "-sses/-shes/-ches/-xes/-zes" → drop "es" (boxes → box)
+//   - other "-s" → drop "s", except "-ss", "-us", "-is"
+//     (guardrails → guardrail, analysts → analyst; but business, process,
+//      status, analysis stay intact)
+// A missed irregular form is only a false negative.
+export function canonicalToken(token: string): string {
+  if (token.length < 4 || !/^\p{L}+$/u.test(token)) return token;
+  if (token.endsWith('ies') && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (/(?:sses|shes|ches|xes|zes)$/.test(token)) return token.slice(0, -2);
+  if (token.endsWith('s') && !/(?:ss|us|is)$/.test(token)) return token.slice(0, -1);
+  return token;
+}
+
+// normalizeText with each token in canonical (singular) form.
+function canonicalText(text: string): string {
+  return ` ${normalizeText(text).trim().split(' ').map(canonicalToken).join(' ')} `;
+}
+
+function containsPhrase(canonicalHay: string, phrase: string): boolean {
+  return canonicalHay.includes(canonicalText(phrase));
+}
+
+// The surface form in `text` that matched `phrase` (debug provenance only).
+function matchedForm(text: string, phrase: string): string | undefined {
+  const tokens = normalizeText(text).trim().split(' ');
+  const target = canonicalText(phrase).trim().split(' ');
+  for (let i = 0; i + target.length <= tokens.length; i++) {
+    if (target.every((t, j) => canonicalToken(tokens[i + j]) === t)) return tokens.slice(i, i + target.length).join(' ');
+  }
+  return undefined;
 }
 
 // A token that names a specific thing on its own: internal capital or
@@ -96,8 +132,10 @@ function segments(requirement: string): string[] {
     .filter(Boolean);
 }
 
-function conceptsFromRequirement(requirement: string, status: 'missing' | 'partial'): string[] {
-  const out: string[] = [];
+type ExtractedConcept = { concept: string; derivedFrom?: string };
+
+function conceptsFromRequirement(requirement: string, status: 'missing' | 'partial'): ExtractedConcept[] {
+  const out: ExtractedConcept[] = [];
   const firstWordOfRequirement = requirement.trim().split(/\s+/)[0];
   for (const seg of segments(requirement)) {
     const words = seg.split(/\s+/).map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}+#]+$/gu, '')).filter(Boolean);
@@ -105,10 +143,10 @@ function conceptsFromRequirement(requirement: string, status: 'missing' | 'parti
     // Named tokens are specific on their own, for missing and partial alike.
     words.forEach((w, i) => {
       const firstWord = i === 0 && (w === firstWordOfRequirement || words.length > 2);
-      if (!isStop(w) && !isGeneric(w) && isNamedToken(w, firstWord)) out.push(w);
+      if (!isStop(w) && !isGeneric(w) && isNamedToken(w, firstWord)) out.push({ concept: w });
     });
     // A one-word list item (e.g. "statsmodels" from "Python (pandas, statsmodels)").
-    if (words.length === 1 && !isStop(words[0]) && !isGeneric(words[0]) && words[0].length >= 3) out.push(words[0]);
+    if (words.length === 1 && !isStop(words[0]) && !isGeneric(words[0]) && words[0].length >= 3) out.push({ concept: words[0] });
     // Missing only: 2–3 word phrases of content words with at least one
     // non-generic word ("guardrail metrics", "causal inference", "core banking").
     // Partial requirements mix supported and unsupported parts, so phrases
@@ -120,7 +158,15 @@ function conceptsFromRequirement(requirement: string, status: 'missing' | 'parti
         if (gram.some(isStop)) continue;
         if (gram.every(isGeneric)) continue;
         if (isGeneric(gram[0]) && GENERIC_VERB.has(gram[0].toLowerCase())) continue;
-        out.push(gram.join(' '));
+        out.push({ concept: gram.join(' ') });
+        // Exactly one distinctive word among generic ones ("guardrail metrics")
+        // carries the concept alone, so it is denied too ("…operational
+        // guardrails"). Phrases with 2+ distinctive words ("causal inference")
+        // stay whole — splitting them would turn the guard into a bag of words.
+        const distinctive = gram.filter((w) => !isGeneric(w) && !isStop(w));
+        if (distinctive.length === 1 && distinctive[0].length >= 4) {
+          out.push({ concept: distinctive[0], derivedFrom: gram.join(' ') });
+        }
       }
     }
   }
@@ -144,14 +190,16 @@ export function deniedConcepts(
   missingGaps: MissingGap[],
   cvText: string
 ): DeniedConcept[] {
-  const cv = normalizeText(cvText);
+  const cv = canonicalText(cvText);
   const found = new Map<string, DeniedConcept>();
-  const add = (concept: string, status: 'missing' | 'partial') => {
+  const add = ({ concept, derivedFrom }: ExtractedConcept, status: 'missing' | 'partial') => {
     const words = normalizeText(concept).trim().split(' ');
     if (containsPhrase(cv, concept)) return;
     if (words.length > 1 && words.some((w) => !isGeneric(w) && !isStop(w) && containsPhrase(cv, w))) return;
     const key = normalizeText(concept).trim();
-    if (!found.has(key) || status === 'missing') found.set(key, { concept, source: 'analysis', status });
+    if (!found.has(key) || status === 'missing') {
+      found.set(key, { concept, source: 'analysis', status, ...(derivedFrom ? { derivedFrom } : {}) });
+    }
   };
   const items: ComparisonItem[] = detailedComparison
     ? [...detailedComparison.skills, ...detailedComparison.tools, ...detailedComparison.experience, ...detailedComparison.education, ...detailedComparison.keywords]
@@ -202,7 +250,7 @@ const NON_CONCEPT_ACRONYMS = new Set([
 ]);
 
 export function rawJdConcepts(jd: string, cvText: string): DeniedConcept[] {
-  const cv = normalizeText(cvText);
+  const cv = canonicalText(cvText);
   const out = new Map<string, DeniedConcept>();
   const add = (term: string) => {
     if (containsPhrase(cv, term)) return; // CV evidence wins
@@ -237,6 +285,8 @@ export type DroppedSuggestion = {
   concept?: string;
   source?: 'analysis' | 'raw-jd';
   status?: 'missing' | 'partial';
+  derivedFrom?: string;
+  matchedForm?: string;
 };
 
 /**
@@ -269,10 +319,21 @@ export function dropUnsupportedSuggestions(
       onDrop?.({ section: s.section, reason: 'unsupported-number' }, s);
       return false;
     }
-    const optimized = normalizeText(s.optimized);
+    const optimized = canonicalText(s.optimized);
     const hit = denied.find((d) => containsPhrase(optimized, d.concept));
     if (hit) {
-      onDrop?.({ section: s.section, reason: 'unsupported-jd-concept', concept: hit.concept, source: hit.source, status: hit.status }, s);
+      onDrop?.(
+        {
+          section: s.section,
+          reason: 'unsupported-jd-concept',
+          concept: hit.concept,
+          source: hit.source,
+          status: hit.status,
+          ...(hit.derivedFrom ? { derivedFrom: hit.derivedFrom } : {}),
+          matchedForm: matchedForm(s.optimized, hit.concept),
+        },
+        s
+      );
       return false;
     }
     return true;

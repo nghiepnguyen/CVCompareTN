@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deniedConcepts, dropUnsupportedSuggestions, rawJdConcepts } from '../../../_server-lib/ai/suggestionGuard';
+import { canonicalToken, deniedConcepts, dropUnsupportedSuggestions, rawJdConcepts } from '../../../_server-lib/ai/suggestionGuard';
 
 const CV = `NGUYỄN VĂN AN — Backend Developer
 TÓM TẮT: 7 năm phát triển backend, chuyên Node.js và Java.
@@ -180,5 +180,72 @@ Lumen Retail Group — Data Analyst II
     expect(hit('Tracked north-star metrics in Tableau.')).toBe(true);
     // The analysis-derived entry comes first, so provenance stays "analysis" for duplicates.
     expect(denied.find((d) => d.concept === 'north-star')?.source).toBe('analysis');
+  });
+});
+
+describe('analysis concept variants (single distinctive token + regular plurals)', () => {
+  const CV = `SMOKE TESTER
+Lumen Retail Group — Data Analyst II
+• Created Tableau dashboards used in weekly business reviews.
+• Analyzed 25 pricing experiments; one change lifted conversion 3.1%.`;
+  const dc = (requirement: string, status: 'missing' | 'partial') => ({ skills: [{ requirement, status }], tools: [], experience: [], education: [], keywords: [] });
+  const sug = (optimized: string) => ({ section: 'Work Experience', original: 'Created Tableau dashboards used in weekly business reviews.', optimized, explanation: '' });
+  const guard = (requirement: string, status: 'missing' | 'partial', optimized: string, cv = CV) => {
+    const drops: Record<string, unknown>[] = [];
+    const kept = dropUnsupportedSuggestions([sug(optimized)], cv, deniedConcepts(dc(requirement, status), [], cv), (d) => drops.push(d));
+    return { kept: kept.length === 1, drops };
+  };
+
+  // Regression (Stage 3.2d focused benchmark, en-jd-concept / UI vi r2).
+  it('A: "guardrail metrics" missing blocks "operational guardrails", with analysis provenance', () => {
+    const r = guard('North-star and guardrail metrics', 'missing', 'Created Tableau dashboards used in weekly business reviews to track performance and operational guardrails.');
+    expect(r.kept).toBe(false);
+    expect(r.drops).toEqual([
+      expect.objectContaining({ concept: 'guardrail', derivedFrom: 'guardrail metrics', source: 'analysis', status: 'missing', matchedForm: 'guardrails' }),
+    ]);
+  });
+
+  it('B: the exact singular is blocked too', () => {
+    expect(guard('North-star and guardrail metrics', 'missing', 'Tracked a guardrail for conversion in Tableau.').kept).toBe(false);
+  });
+
+  it('C: a plural in the CV overrides the model classification', () => {
+    const cv = `${CV}\n• Defined operational guardrails for reporting.`;
+    expect(deniedConcepts(dc('North-star and guardrail metrics', 'missing'), [], cv).map((d) => d.concept)).not.toEqual(
+      expect.arrayContaining(['guardrail', 'guardrail metrics'])
+    );
+    expect(guard('North-star and guardrail metrics', 'missing', 'Defined operational guardrail metrics for reporting.', cv).kept).toBe(true);
+  });
+
+  it('D: singular/plural count as the same lexical evidence', () => {
+    expect(canonicalToken('analysts')).toBe(canonicalToken('analyst'));
+    expect(canonicalToken('dashboards')).toBe('dashboard');
+    expect(canonicalToken('metrics')).toBe('metric');
+    expect(canonicalToken('guardrails')).toBe('guardrail');
+    expect(canonicalToken('policies')).toBe('policy');
+    // "junior analysts" is missing, but the CV says "Analyst": no deny from "analysts".
+    const concepts = deniedConcepts(dc('Mentor junior analysts', 'missing'), [], CV).map((d) => d.concept);
+    expect(concepts).not.toContain('analysts');
+  });
+
+  it('E: words ending in -ss/-us/-is and short or non-letter tokens are never stripped', () => {
+    for (const w of ['analysis', 'business', 'process', 'status', 'aws', 'gas', 'node.js']) expect(canonicalToken(w)).toBe(w);
+  });
+
+  it('F: a phrase with two distinctive words stays whole', () => {
+    const concepts = deniedConcepts(dc('Solid statistics including causal inference', 'missing'), [], CV).map((d) => d.concept);
+    expect(concepts).toContain('causal inference');
+    expect(concepts).not.toContain('causal');
+    expect(concepts).not.toContain('inference');
+    expect(guard('Solid statistics including causal inference', 'missing', 'Used statistical inference to read pricing experiments.').kept).toBe(true);
+  });
+
+  it('G: partial requirements get no single-token expansion', () => {
+    expect(deniedConcepts(dc('Guardrail metrics and SQL', 'partial'), [], CV).map((d) => d.concept)).not.toContain('guardrail');
+    expect(deniedConcepts(dc('SQL and BigQuery', 'partial'), [], `${CV}\nSQL`).map((d) => d.concept)).toEqual(['BigQuery']);
+  });
+
+  it('a generic-only phrase still yields nothing', () => {
+    expect(deniedConcepts(dc('Strong stakeholder communication and leadership', 'missing'), [], CV)).toEqual([]);
   });
 });
