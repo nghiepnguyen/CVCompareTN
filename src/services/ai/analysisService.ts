@@ -15,7 +15,9 @@ export async function rewriteFullCV(
     method: 'POST',
     headers,
     body: JSON.stringify({ jd, cvData, cvMimeType, language, cvDataStoragePath }),
-    signal: AbortSignal.timeout(60_000),
+    // Server answers within its 65s request deadline (_server-lib/deadline.ts);
+    // 75s here leaves room for the response to arrive.
+    signal: AbortSignal.timeout(75_000),
   });
 
   if (!res.ok) {
@@ -46,9 +48,9 @@ export async function parseCV(
     body: JSON.stringify({
       jd, cvData, cvMimeType, language, cvPdfInlineData, cvPdfStoragePath, cvDataStoragePath,
     }),
-    // Server enforces a 50s wall-clock budget (see api/parse-cv.ts); 55s here
-    // leaves room for the response to arrive before we give up client-side.
-    signal: AbortSignal.timeout(55_000),
+    // Server answers within its 65s request deadline (_server-lib/deadline.ts);
+    // 75s here leaves room for the response to arrive before we give up client-side.
+    signal: AbortSignal.timeout(75_000),
   });
 
   if (!res.ok) {
@@ -86,9 +88,9 @@ export async function analyzeCV(
       jd, cvData, cvMimeType, cvName, language, cvPdfInlineData, batchTotal,
       cvPdfStoragePath, cvDataStoragePath,
     }),
-    // Server enforces a 50s wall-clock budget (see _server-lib/analyze/handler.ts);
-    // 55s here leaves room for the response to arrive before we give up client-side.
-    signal: AbortSignal.timeout(55_000),
+    // Server answers within its 65s request deadline (_server-lib/deadline.ts);
+    // 75s here leaves room for the response to arrive before we give up client-side.
+    signal: AbortSignal.timeout(75_000),
   });
 
   if (!res.ok) {
