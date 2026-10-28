@@ -9,7 +9,7 @@ const PARSE_CV_TIMEOUT_MS = 45_000;
 // See analysisService.ts's identical constant for rationale.
 const MAX_INLINE_PDF_BYTES = 15 * 1024 * 1024;
 
-const PARSED_CV_SCHEMA = {
+export const PARSED_CV_SCHEMA = {
   type: 'OBJECT',
   properties: {
     personal_information: {
@@ -106,11 +106,10 @@ const PARSED_CV_SCHEMA = {
       type: 'OBJECT',
       properties: {
         years_of_experience: { type: 'NUMBER' },
-        relevant_score: { type: 'NUMBER' },
         key_match_highlights: { type: 'ARRAY', items: { type: 'STRING' } },
         missing_keywords: { type: 'ARRAY', items: { type: 'STRING' } },
       },
-      required: ['years_of_experience', 'relevant_score', 'key_match_highlights', 'missing_keywords'],
+      required: ['years_of_experience', 'key_match_highlights', 'missing_keywords'],
     },
   },
   required: ['personal_information', 'education', 'work_experience', 'skills', 'projects', 'certifications', 'ats_evaluation'],

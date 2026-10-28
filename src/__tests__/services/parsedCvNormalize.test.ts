@@ -188,7 +188,7 @@ describe("parsedCvNormalize — normalizeParsedCV", () => {
     expect(result!.ats_evaluation.relevant_score).toBe(92);
   });
 
-  it("defaults invalid ats_evaluation numbers to 0", () => {
+  it("defaults invalid years_of_experience to 0 and drops an invalid legacy relevant_score", () => {
     const result = normalizeParsedCV({
       ats_evaluation: {
         years_of_experience: "not-a-number",
@@ -196,7 +196,15 @@ describe("parsedCvNormalize — normalizeParsedCV", () => {
       },
     });
     expect(result!.ats_evaluation.years_of_experience).toBe(0);
-    expect(result!.ats_evaluation.relevant_score).toBe(0);
+    expect(result!.ats_evaluation).not.toHaveProperty("relevant_score");
+  });
+
+  it("does not invent relevant_score for new (post Stage 3.8B) payloads", () => {
+    const result = normalizeParsedCV({
+      ats_evaluation: { years_of_experience: 3, key_match_highlights: ["SQL"], missing_keywords: [] },
+    });
+    expect(result!.ats_evaluation).not.toHaveProperty("relevant_score");
+    expect(result!.ats_evaluation.key_match_highlights).toEqual(["SQL"]);
   });
 
   it("overrides the LLM's years_of_experience with a deterministic sum from work_experience dates", () => {

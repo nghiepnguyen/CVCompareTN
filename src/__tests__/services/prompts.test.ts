@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildAnalyzePrompt, buildAnalyzePromptVi, buildAnalyzePromptEn, buildParseCvPrompt } from "../../services/ai/prompts";
+import { PARSED_CV_SCHEMA } from "../../../_server-lib/ai/parseCvService";
 
 const mockJdSection = "<!-- JD: Senior Frontend Developer -->";
 
@@ -90,7 +91,7 @@ describe("prompts — buildParseCvPrompt", () => {
     const result = buildParseCvPrompt({ jdSection: mockJdSection, language: "vi" });
     expect(result).toContain("Kinh nghiệm làm việc");
     expect(result).toContain("technical_skills");
-    expect(result).toContain("relevant_score");
+    expect(result).not.toContain("relevant_score");
     expect(result).toContain("MM/YYYY");
   });
 
@@ -98,13 +99,21 @@ describe("prompts — buildParseCvPrompt", () => {
     const result = buildParseCvPrompt({ jdSection: mockJdSection, language: "en" });
     expect(result).toContain("Work Experience");
     expect(result).toContain("technical_skills");
-    expect(result).toContain("relevant_score");
+    expect(result).not.toContain("relevant_score");
     expect(result).toContain("MM/YYYY");
   });
 
   it("defaults to Vietnamese when language is omitted", () => {
     const result = buildParseCvPrompt({ jdSection: mockJdSection });
     expect(result).toContain("Trích xuất");
+  });
+
+  // Stage 3.8B: matchScore (/api/analyze) is the single CV↔JD score authority.
+  it("parse schema neither requires nor exposes relevant_score", () => {
+    const ats = PARSED_CV_SCHEMA.properties.ats_evaluation;
+    expect(ats.required).not.toContain("relevant_score");
+    expect(ats.properties).not.toHaveProperty("relevant_score");
+    expect(ats.required).toEqual(expect.arrayContaining(["key_match_highlights", "missing_keywords"]));
   });
 });
 describe("prompts — analyze evidence guardrails", () => {

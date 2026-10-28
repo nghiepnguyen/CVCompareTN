@@ -448,14 +448,6 @@ export const result = {
     vi: "Tổng năm kinh nghiệm",
     en: "Total Experience",
   },
-  parsedRelevance: {
-    vi: "Độ liên quan chuyên môn",
-    en: "Professional Relevance",
-  },
-  parsedScoreDiscrepancy: {
-    vi: "Đây là đánh giá độc lập, có thể khác Match Score chính khoảng {delta} điểm",
-    en: "Independent estimate — may differ from the main Match Score by about {delta} points",
-  },
   parsedHighlights: {
     vi: "Điểm mạnh nổi bật",
     en: "Key Highlights",

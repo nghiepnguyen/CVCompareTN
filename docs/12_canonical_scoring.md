@@ -71,14 +71,24 @@ Telemetry: still one `analysis_log` row; tokens of both calls are summed under
 the scoring model (`gemini-3-flash-preview`). Localization uses the same model
 on purpose — a different model would make per-row pricing ambiguous.
 
+## Single score authority (Stage 3.8B)
+
+`matchScore` is the only CV↔JD score. `/api/parse-cv` used to ask its own
+model (`gemini-3.5-flash-lite`, UI-language prompt) for
+`ats_evaluation.relevant_score`, a second judgment of the same fit; Stage 3.8B
+removed it from the parse prompts and `PARSED_CV_SCHEMA`, and the Parsed CV tab
+no longer shows it or a discrepancy badge. `relevant_score` survives only in
+legacy `history.parsed_cv` JSON (optional field, read safely by
+`normalizeParsedCV`, never displayed, never rewritten). No new score version.
+
 ## Known debt
 
 - Recruiter campaigns can mix legacy and canonical `match_score` until
   candidates are re-analyzed; they are identifiable by `score_version` but the
   UI does not show or filter it yet.
-- `/api/parse-cv` `ats_evaluation.relevant_score` is still produced with the
-  UI-language prompt, so `computeScoreDiscrepancy(matchScore, relevant_score)`
-  in the Parsed CV tab compares a canonical score with a UI-language one.
+- `/api/parse-cv` `ats_evaluation.key_match_highlights` / `missing_keywords`
+  are still judged by the parse model with the UI-language prompt
+  (presentation lists, not a score authority).
 - Document language (VI vs EN CV/JD) still shifts calibration by ~3.5 points
   under the fixed judge, plus normal Gemini variance (sd 1–3).
 - `rewriteSuggestions[].section` stays as the model wrote it (often English).
