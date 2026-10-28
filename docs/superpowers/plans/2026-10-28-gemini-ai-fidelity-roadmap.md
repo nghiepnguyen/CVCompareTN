@@ -1,7 +1,7 @@
 # Gemini AI fidelity — roadmap
 
-Ngày lập: 2026-10-28. Cập nhật: 2026-10-29 (sau PR #13).
-Production hiện tại: `main` @ `e7ac781` (PR #13 đã merge + deploy; PR #12 + migration `20261030000000_score_version.sql` đã apply trước đó, production smoke PASS).
+Ngày lập: 2026-10-28. Cập nhật: 2026-10-29 (sau PR #14).
+Production hiện tại: `main` @ `24a1a0a` (PR #14 đã merge + deploy; PR #13 trước đó; PR #12 + migration `20261030000000_score_version.sql` đã apply trước đó, production smoke PASS).
 
 ## Trạng thái đã ship
 
@@ -15,6 +15,7 @@ Production hiện tại: `main` @ `e7ac781` (PR #13 đã merge + deploy; PR #12 
 | — | 3.6 / 3.6b — CLOSED (audit) | MatchScore do Gemini sinh trực tiếp; ngôn ngữ UI đổi cả prompt chấm → lệch 4–10 điểm trên cùng CV/JD; cả ngôn ngữ instruction lẫn ngôn ngữ output đều đổi calibration (bằng chứng/phân loại gần như giữ nguyên). Replay tất định 360/360. Không đổi code |
 | #12 | 3.7 — CLOSED (production verified) | Chấm điểm canonical: luôn prompt EN + prose EN cho mọi UI → `scoreVersion = canonical-en-v1`; UI tiếng Việt thêm 1 lượt dịch hẹp (chỉ chuỗi trình bày, theo id, kiểm số liệu, cùng model, dùng chung deadline AI ≥15s / cap 20s, fallback EN `presentationLanguage = en`). `history.score_version`, `candidate_cvs.score_version`; history cũ NULL = legacy |
 | #13 | 3.8 — CLOSED (deployed) | 3.8A audit: parse-cv `relevant_score` = judge CV↔JD thứ hai (model `gemini-3.5-flash-lite`, prompt theo ngôn ngữ UI), chỉ dùng hiển thị → Option A. 3.8B: bỏ `relevant_score` khỏi prompt/`PARSED_CV_SCHEMA` + UI `ParsedCVTab` (%, thanh, badge lệch điểm, `computeScoreDiscrepancy`); field chỉ còn optional cho `history.parsed_cv` legacy, không migration, không score version mới. Pattern `useMemo` sau early return đã gỡ (crash hooks nghi ngờ không tái hiện trên React 19) |
+| #14 | 3.9 — CLOSED (deployed) | 3.9A audit (20 call live, ~$0.07): `key_match_highlights`/`missing_keywords` của parse-cv là judge CV↔JD thứ hai — membership lệch theo UI, output không thật sự localize, mâu thuẫn canonical (BigQuery/Redshift "thiếu" dù yêu cầu OR đã khớp qua Snowflake) → Option C. 3.9B: bỏ 2 field khỏi prompt/`PARSED_CV_SCHEMA`; `ParsedCVTab` suy ra qua `deriveParsedCvInsights()` từ `detailedComparison` canonical (matched → điểm khớp, required trước, tối đa 3; chỉ `missing` → "Yêu cầu còn thiếu / Missing requirements", `partial` không tính); canonical không bao giờ trộn legacy; history cũ fallback mảng legacy. Không thêm call Gemini, không migration |
 | #11 | 3.5 — CLOSED | Request deadline 65s dùng chung (AI 59s + 6s dự phòng), storage hủy thật ≤15s/ref, Gemini abort thật, quota/telemetry bị giới hạn, error row phân loại cho analyze/rewrite/parse, client 75s, `maxDuration` 300s (chỉ là trần an toàn) |
 
 Guard production:
@@ -40,9 +41,15 @@ VI presentation: narrow localization (presentation strings only), fallback EN
 scoreVersion: canonical-en-v1 (NULL = legacy, never rescored)
 score authority: matchScore là điểm CV↔JD duy nhất (Stage 3.8);
   parse-cv relevant_score: không generate/hiển thị/so sánh — chỉ còn trong history.parsed_cv legacy
-semantic authority (Stage 3.9B, local): điểm khớp / yêu cầu còn thiếu ở Parsed CV suy ra từ
-  detailedComparison canonical (matched / missing, không tính partial); parse-cv không còn
-  sinh key_match_highlights / missing_keywords — chỉ còn trong history.parsed_cv legacy
+```
+
+Boundary production (Stage 3.9):
+
+```
+Canonical analyze  → toàn bộ semantic judgment CV↔JD (matchScore, categoryScores, detailedComparison)
+Parsed CV          → extraction + presentation tất định từ canonical data
+                     (deriveParsedCvInsights: matched → điểm khớp; chỉ missing → yêu cầu còn thiếu; partial không tính)
+Legacy parsed_cv   → fallback tương thích (relevant_score, key_match_highlights, missing_keywords), không còn là authority
 ```
 
 Timing production:
@@ -103,8 +110,15 @@ Telemetry: `docs/11_guard_metrics.md` (SQL mẫu). Deadline: `_server-lib/deadli
 
 ### Debt từ Stage 3.8
 
-26. ~~`ats_evaluation.key_match_highlights` / `missing_keywords` (parse-cv) vẫn do `gemini-3.5-flash-lite` chấm với prompt theo ngôn ngữ UI.~~ **Stage 3.9 (3.9A audit → Option C; 3.9B local, chờ review):** benchmark 20 call (~$0.07) cho thấy membership lệch theo UI (en-medium: "Redshift", "causal inference" 2/2 VI, 0/2 EN), output không thật sự localize, và mâu thuẫn canonical (BigQuery/Redshift "thiếu" dù yêu cầu OR đã khớp qua Snowflake). 3.9B: bỏ 2 field khỏi prompt/schema parse; `ParsedCVTab` suy ra từ `detailedComparison` canonical qua `deriveParsedCvInsights()` (matched → điểm khớp tối đa 3; chỉ `missing` → "Yêu cầu còn thiếu"; required trước); legacy fallback, không migration. Còn lại: parse-cv vẫn nhận `jd` và prompt vẫn rẽ nhánh VI/EN — cần audit riêng xem còn cần JD không.
+26. ~~`key_match_highlights` / `missing_keywords` do parse-cv tự chấm theo ngôn ngữ UI.~~ CLOSED ở PR #14 (xem bảng trên).
+
+### Debt từ Stage 3.9
+
+27. **(Ứng viên Stage 3.10)** `/api/parse-cv` vẫn nhận `jd`, prompt vẫn ghi "đối chiếu với JD" và vẫn rẽ nhánh VI/EN dù không còn sinh judgment CV↔JD nào — audit xem parse còn cần JD không (bỏ JD = prompt nhỏ hơn, hết coupling).
+28. Chip điểm khớp / yêu cầu còn thiếu dùng nguyên `detailedComparison.requirement` (ngôn ngữ JD, không nằm trong allowlist localization 3.7) → UI VI với JD tiếng Anh hiện chip tiếng Anh. Có chủ đích; không mở allowlist chỉ để dịch chip.
+29. Chip yêu cầu dài (cụm từ requirement) trong `rounded-full` chưa kiểm tra trên trình duyệt thật.
+30. History cũ không có `detailedComparison` vẫn hiện mảng legacy (do parse model chấm) dưới nhãn cũ "Từ khóa còn thiếu"; kết quả mới có bảng canonical rỗng (hiếm) cũng rơi vào nhãn này.
 
 ### Ngoài code
 
-27. Vercel Hobby chỉ cho dùng phi thương mại; app thu tiền qua PayOS → rủi ro điều khoản, cân nhắc gói Pro.
+31. Vercel Hobby chỉ cho dùng phi thương mại; app thu tiền qua PayOS → rủi ro điều khoản, cân nhắc gói Pro.
