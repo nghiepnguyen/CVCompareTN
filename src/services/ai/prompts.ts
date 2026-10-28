@@ -108,17 +108,19 @@ ${currentMonth ? `\n    Thời điểm hiện tại: ${currentMonth}. Chỉ dùn
  * call's output stays small enough to finish well within the shared request
  * deadline (_server-lib/deadline.ts).
  */
-export function buildParseCvPrompt({ jdSection, language = 'vi' }: PromptParams): string {
-  if (language === 'en') return buildParseCvPromptEn({ jdSection });
-  return buildParseCvPromptVi({ jdSection });
+export interface ParseCvPromptParams {
+  language?: 'vi' | 'en';
 }
 
-function buildParseCvPromptVi({ jdSection }: PromptParams): string {
+export function buildParseCvPrompt({ language = 'vi' }: ParseCvPromptParams): string {
+  if (language === 'en') return buildParseCvPromptEn();
+  return buildParseCvPromptVi();
+}
+
+function buildParseCvPromptVi(): string {
   return `
     Bạn là chuyên gia phân tích CV và hệ thống ATS (Applicant Tracking System).
-    Nhiệm vụ: Trích xuất và chuẩn hóa toàn bộ thông tin từ CV được cung cấp thành định dạng JSON chi tiết, đối chiếu sơ bộ với JD dưới đây.
-
-    ${jdSection}
+    Nhiệm vụ: Trích xuất và chuẩn hóa toàn bộ thông tin từ CV được cung cấp thành định dạng JSON chi tiết.
 
     - Trích xuất thông tin cá nhân: Họ tên, Email, Số điện thoại, LinkedIn, Portfolio.
     - Học vấn: Trích xuất đầy đủ bằng cấp, trường, chuyên ngành, năm tốt nghiệp, GPA.
@@ -130,16 +132,14 @@ function buildParseCvPromptVi({ jdSection }: PromptParams): string {
     YÊU CẦU QUAN TRỌNG:
     - Toàn bộ dữ liệu trích xuất (trừ phần ATS Evaluation) phải dùng ĐÚNG NGÔN NGỮ GỐC của CV (không dịch).
     - Mốc thời gian phải chuẩn hóa về MM/YYYY.
-    - Chỉ trích xuất dữ kiện có trong CV, không suy đoán. Trường thông tin liên hệ nào (email, số điện thoại, địa điểm, LinkedIn, website) CV không có thì để chuỗi rỗng "" — không tạo giá trị giả hay placeholder, không lấy địa điểm từ JD.
+    - Chỉ trích xuất dữ kiện có trong CV, không suy đoán. Trường thông tin liên hệ nào (email, số điện thoại, địa điểm, LinkedIn, website) CV không có thì để chuỗi rỗng "" — không tạo giá trị giả hay placeholder.
   `;
 }
 
-function buildParseCvPromptEn({ jdSection }: PromptParams): string {
+function buildParseCvPromptEn(): string {
   return `
     You are a CV analysis and ATS (Applicant Tracking System) expert.
-    Task: Extract and standardize all information from the provided CV into a detailed JSON format, cross-referenced against the JD below.
-
-    ${jdSection}
+    Task: Extract and standardize all information from the provided CV into a detailed JSON format.
 
     - Personal Info: Full name, Email, Phone, LinkedIn, Portfolio.
     - Education: ALL degrees, institutions, majors, graduation years, GPA.
@@ -151,7 +151,7 @@ function buildParseCvPromptEn({ jdSection }: PromptParams): string {
     IMPORTANT REQUIREMENTS:
     - All extracted data (except the ATS Evaluation) must use the EXACT ORIGINAL LANGUAGE of the CV (do not translate).
     - Standardize dates to MM/YYYY format.
-    - Extract only facts present in the CV; never guess. Any contact field (email, phone, location, LinkedIn, website) the CV lacks must be an empty string "" — no made-up values or placeholders, and never take a location from the JD.
+    - Extract only facts present in the CV; never guess. Any contact field (email, phone, location, LinkedIn, website) the CV lacks must be an empty string "" — no made-up values or placeholders.
   `;
 }
 

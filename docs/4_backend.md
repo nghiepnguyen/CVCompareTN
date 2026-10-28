@@ -27,7 +27,7 @@ Vercel handler  → _server-lib/module/handler.ts → _server-lib/services
 | Payment | `_server-lib/payment/handlers.ts` | `handlePaymentCreate/Webhook/Confirm()` |
 | reCAPTCHA | `_server-lib/recaptcha.ts` | `verifyRecaptcha(token, threshold?)` — shared utility |
 | CV rewrite (nền) | `_server-lib/rewriteCv/handler.ts` | `handleRewriteCv()` — auth, reCAPTCHA, wall-clock budget, gọi `_server-lib/ai/rewriteService.ts` |
-| CV parse (nền) | `_server-lib/parseCv/handler.ts` | `handleParseCv()` — auth, reCAPTCHA, wall-clock budget, gọi `_server-lib/ai/parseCvService.ts` |
+| CV parse (nền) | `_server-lib/parseCv/handler.ts` | `handleParseCv()` — auth, wall-clock budget, CV-only extraction (Stage 3.10B, không dùng JD), gọi `_server-lib/ai/parseCvService.ts` |
 | Timeout | `_server-lib/withTimeout.ts` | `withTimeout(promise, ms, label)` — race một promise với `setTimeout`, dùng bởi analyze/rewriteCv/parseCv handler để bound từng bước (auth, reCAPTCHA, quota) |
 
 ## Các chức năng chính (Routes)
@@ -51,7 +51,7 @@ Gemini được gọi qua **3 endpoint** thay vì một call gộp hết (từ 2
 
 -   **`POST /api/analyze`** (chính, đồng bộ) — Express: `server/routes/analyze.ts`; Vercel: `api/analyze.ts` (maxDuration 300s). Shared handler: `_server-lib/analyze/handler.ts` → `_server-lib/ai/analysisService.ts` (dùng `_server-lib/ai/geminiClient.ts` với `process.env.GEMINI_API_KEY`). Trả điểm số/so sánh/gợi ý viết lại — **không** trả `fullRewrittenCV`/`parsedCV` đầy đủ (luôn `''`/`undefined`).
 -   **`POST /api/rewrite-cv`** (nền, tạo `fullRewrittenCV`) — Express: `server/routes/rewriteCv.ts`; Vercel: `api/rewrite-cv.ts` (maxDuration 300s). Shared handler: `_server-lib/rewriteCv/handler.ts` → `_server-lib/ai/rewriteService.ts`.
--   **`POST /api/parse-cv`** (nền, tạo `parsedCV`) — Express: `server/routes/parseCv.ts`; Vercel: `api/parse-cv.ts` (maxDuration 300s). Shared handler: `_server-lib/parseCv/handler.ts` → `_server-lib/ai/parseCvService.ts`.
+-   **`POST /api/parse-cv`** (nền, tạo `parsedCV`) — Express: `server/routes/parseCv.ts`; Vercel: `api/parse-cv.ts` (maxDuration 300s). Shared handler: `_server-lib/parseCv/handler.ts` → `_server-lib/ai/parseCvService.ts`. Stage 3.10B: chỉ trích xuất/cấu trúc CV, không nhận JD từ ứng dụng; extra `jd` của caller cũ bị bỏ qua. Model/schema/deadline giữ nguyên; không thực hiện ATS matching.
 
 **Flow server-side (`/api/analyze`):**
 

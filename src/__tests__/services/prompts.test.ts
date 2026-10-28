@@ -78,17 +78,23 @@ describe("prompts — buildAnalyzePromptEn", () => {
 
 describe("prompts — buildParseCvPrompt", () => {
   it("returns a non-empty string for both languages", () => {
-    expect(buildParseCvPrompt({ jdSection: mockJdSection, language: "vi" })).toBeTruthy();
-    expect(buildParseCvPrompt({ jdSection: mockJdSection, language: "en" })).toBeTruthy();
+    expect(buildParseCvPrompt({ language: "vi" })).toBeTruthy();
+    expect(buildParseCvPrompt({ language: "en" })).toBeTruthy();
   });
 
-  it("contains the JD section text", () => {
-    const result = buildParseCvPrompt({ jdSection: mockJdSection, language: "vi" });
-    expect(result).toContain(mockJdSection);
+  it.each(['vi', 'en'] as const)("isolates the %s parse prompt from job descriptions", (language) => {
+    // Extra properties from old JavaScript callers must not enter the prompt.
+    const legacyParams = { language, jdSection: mockJdSection };
+    const result = buildParseCvPrompt(legacyParams);
+    expect(result).not.toContain(mockJdSection);
+    expect(result).not.toMatch(/\bJD\b|job description|cross-referenc|đối chiếu/i);
+    expect(result).toContain(language === 'vi' ? 'Chỉ trích xuất dữ kiện có trong CV' : 'Extract only facts present in the CV');
+    expect(result).toContain(language === 'vi' ? 'TẤT CẢ các công việc' : 'ALL work experiences');
+    expect(result).toContain(language === 'vi' ? 'ĐÚNG NGÔN NGỮ GỐC' : 'EXACT ORIGINAL LANGUAGE');
   });
 
   it("contains CV extraction instructions in Vietnamese", () => {
-    const result = buildParseCvPrompt({ jdSection: mockJdSection, language: "vi" });
+    const result = buildParseCvPrompt({ language: "vi" });
     expect(result).toContain("Kinh nghiệm làm việc");
     expect(result).toContain("technical_skills");
     for (const field of ["relevant_score", "key_match_highlights", "missing_keywords"]) expect(result).not.toContain(field);
@@ -96,7 +102,7 @@ describe("prompts — buildParseCvPrompt", () => {
   });
 
   it("contains CV extraction instructions in English", () => {
-    const result = buildParseCvPrompt({ jdSection: mockJdSection, language: "en" });
+    const result = buildParseCvPrompt({ language: "en" });
     expect(result).toContain("Work Experience");
     expect(result).toContain("technical_skills");
     for (const field of ["relevant_score", "key_match_highlights", "missing_keywords"]) expect(result).not.toContain(field);
@@ -104,7 +110,7 @@ describe("prompts — buildParseCvPrompt", () => {
   });
 
   it("defaults to Vietnamese when language is omitted", () => {
-    const result = buildParseCvPrompt({ jdSection: mockJdSection });
+    const result = buildParseCvPrompt({});
     expect(result).toContain("Trích xuất");
   });
 
@@ -117,6 +123,10 @@ describe("prompts — buildParseCvPrompt", () => {
       expect(ats.properties).not.toHaveProperty(field);
     }
     expect(ats.required).toEqual(["years_of_experience"]);
+    expect(ats.properties).toEqual({ years_of_experience: { type: 'NUMBER' } });
+    expect(PARSED_CV_SCHEMA.required).toEqual([
+      'personal_information', 'education', 'work_experience', 'skills', 'projects', 'certifications', 'ats_evaluation',
+    ]);
   });
 });
 describe("prompts — analyze evidence guardrails", () => {

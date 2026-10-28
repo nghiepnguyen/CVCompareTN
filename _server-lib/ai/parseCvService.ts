@@ -114,7 +114,6 @@ export const PARSED_CV_SCHEMA = {
 };
 
 export async function generateParsedCV(
-  jd: string,
   cvData: string,
   cvMimeType: string,
   language: 'vi' | 'en' = 'vi',
@@ -123,9 +122,7 @@ export async function generateParsedCV(
 ): Promise<{ parsedCV: ParsedCV | undefined; usage: AiCallUsage }> {
   const client = getGeminiClient();
 
-  const jdSection =
-    language === 'vi' ? `Mô tả công việc (JD):\n${jd}` : `Job Description (JD):\n${jd}`;
-  const prompt = buildParseCvPrompt({ jdSection, language });
+  const prompt = buildParseCvPrompt({ language });
 
   type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
   const parts: GeminiPart[] = [{ text: prompt }];
