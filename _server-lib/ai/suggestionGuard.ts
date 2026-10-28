@@ -15,6 +15,18 @@ function metricNumbers(text: string, stripLeadingZeros = false): string[] {
   );
 }
 
+// Translation check: both texts state the same numeric facts (same Stage 3.3
+// normalization, leading zeros ignored) and the same years. Stricter than the
+// rewrite guard, which ignores years — a translation must not change them.
+export function sameNumericFacts(source: string, translated: string): boolean {
+  const years = (t: string) => new Set(t.match(/\b(?:19|20)\d{2}\b/g) ?? []);
+  const same = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((x) => b.has(x));
+  return (
+    same(new Set(metricNumbers(source, true)), new Set(metricNumbers(translated, true))) &&
+    same(years(source), years(translated))
+  );
+}
+
 // A JD term that must not enter "optimized" unless the CV states it. Only
 // the raw-JD extractor below produces these. (Concepts derived from the
 // analysis — detailedComparison / missingGaps — were tried and dropped

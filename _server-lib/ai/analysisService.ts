@@ -12,9 +12,10 @@ import {
   normalizeStringArray,
 } from '../../src/services/ai/resultPayloadNormalize.js';
 import type { AnalysisResult } from '../../src/services/ai/types.js';
-import { buildAnalyzePrompt } from '../../src/services/ai/prompts.js';
+import { buildAnalyzePromptEn } from '../../src/services/ai/prompts.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
 import { dropUnsupportedSuggestions, rawJdConcepts, type SuggestionGuardMetrics } from './suggestionGuard.js';
+import { localizeAnalysis, SCORE_VERSION } from './localizeAnalysis.js';
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -51,14 +52,16 @@ export async function analyzeCV(
 ): Promise<{ result: AnalysisResult; usage: AiCallUsage; guardMetrics: SuggestionGuardMetrics }> {
   const client = getGeminiClient();
 
-  const jdSection =
-    language === 'vi'
-      ? `Mô tả công việc (JD):\n${jd}`
-      : `Job Description (JD):\n${jd}`;
+  // Canonical scoring (Stage 3.7): the same English prompt, JD header and
+  // English prose for every UI language, so `language` cannot shift the score
+  // (Stage 3.6: the VI prompt / VI output moved MatchScore 4–10 points).
+  // `language` is only the requested presentation language, applied afterwards
+  // by localizeAnalysis on presentation strings.
+  const jdSection = `Job Description (JD):\n${jd}`;
 
   const { y, m } = vnDateParts(new Date());
   const currentMonth = `${String(m + 1).padStart(2, '0')}/${y}`;
-  const finalPrompt = buildAnalyzePrompt({ jdSection, language, currentMonth });
+  const finalPrompt = buildAnalyzePromptEn({ jdSection, currentMonth });
 
   type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
   const parts: GeminiPart[] = [{ text: finalPrompt }];
@@ -225,10 +228,25 @@ export async function analyzeCV(
       timestamp: Date.now(),
       cvName: cvName || 'Unnamed CV',
       jdTitle: jd.substring(0, 100) + '...',
-      language,
+      scoreVersion: SCORE_VERSION,
+      language: 'en' as const,
+      presentationLanguage: 'en' as const,
     };
 
-    return { result: finalResult as AnalysisResult, usage, guardMetrics };
+    const canonical = finalResult as AnalysisResult;
+    if (language === 'en') return { result: canonical, usage, guardMetrics };
+    // Presentation only, after the guard, on the same AI deadline; never throws.
+    const localized = await localizeAnalysis(canonical, deadline);
+    const lang = localized.presentationLanguage;
+    const totalUsage: AiCallUsage = localized.usage
+      ? {
+          ...usage,
+          inputTokens: usage.inputTokens + localized.usage.inputTokens,
+          outputTokens: usage.outputTokens + localized.usage.outputTokens,
+          latencyMs: usage.latencyMs + localized.usage.latencyMs,
+        }
+      : usage;
+    return { result: { ...localized.result, language: lang, presentationLanguage: lang }, usage: totalUsage, guardMetrics };
   } catch (error: unknown) {
     if (error instanceof ControlledError) throw error;
     console.error('Gemini Analysis Error:', error);
