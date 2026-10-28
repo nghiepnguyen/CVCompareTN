@@ -144,6 +144,10 @@ export const result = {
     vi: "Bản thảo CV mới dựa trên thông tin của bạn và yêu cầu của JD",
     en: "A new CV draft based on your information and JD requirements",
   },
+  analysisShownInEnglish: {
+    vi: "Phần phân tích đang hiển thị bằng tiếng Anh do bản dịch chưa hoàn tất. Điểm số không bị ảnh hưởng.",
+    en: "The analysis is shown in English because the translation did not complete. Scores are not affected.",
+  },
   copyMarkdown: {
     vi: "Sao chép Markdown",
     en: "Copy Markdown",

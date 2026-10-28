@@ -260,6 +260,7 @@ export interface UiLabels {
   fullCvSpecimenEyebrow: string;
   fullRewrittenCV: string;
   fullRewrittenCVDesc: string;
+  analysisShownInEnglish: string;
   heroDesc: string;
   heroSub: string;
   heroTitle: string;
