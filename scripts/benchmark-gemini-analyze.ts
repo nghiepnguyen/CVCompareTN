@@ -8,6 +8,7 @@
  *   node --env-file=.env --env-file=.env.local node_modules/.bin/tsx \
  *     scripts/benchmark-gemini-analyze.ts <outDir>
  * Env: RUNS (default 2), CONCURRENCY (default 3), ONLY (comma-separated sample ids),
+ *      UI=vi|en (only that report language),
  *      RESCORE=1 (no API calls: re-score <outDir>/raw/*.json into metrics-rescored.jsonl).
  *
  * Writes metrics.jsonl + raw JSON results to <outDir> (keep it outside the repo).
@@ -117,11 +118,25 @@ for (let run = 1; run <= RUNS; run++)
     if (sample.id === 'en-medium' || sample.id === 'en-jd-concept') jobs.push({ sample, uiLang: 'vi', run });
   }
 
+// UI=vi|en keeps only jobs for that report language (stress runs).
+if (process.env.UI) jobs.splice(0, jobs.length, ...jobs.filter((j) => j.uiLang === process.env.UI));
+
 const cvCache = new Map<string, Awaited<ReturnType<typeof loadCv>>>();
+
+// Suggestions dropped by the server-side guard (logged by analyzeCV). Only
+// attributable to a call when calls run one at a time (CONCURRENCY=1).
+let guardDrops: unknown[] = [];
+const origInfo = console.info;
+console.info = (...args: unknown[]) => {
+  if (args[0] === '[suggestionGuard] dropped') guardDrops.push(JSON.parse(String(args[1])));
+  else origInfo(...args);
+};
+
 async function runJob({ sample, uiLang, run }: Job) {
   if (!cvCache.has(sample.id)) cvCache.set(sample.id, await loadCv(sample));
   const cv = cvCache.get(sample.id)!;
   const t = Date.now();
+  guardDrops = [];
   let row: Record<string, unknown>;
   try {
     const { result, usage } = await analyzeCV(sample.jd, cv.cvData, cv.mimeType, sample.id, uiLang);
@@ -131,6 +146,7 @@ async function runJob({ sample, uiLang, run }: Job) {
       inTok: usage.inputTokens, outTok: usage.outputTokens,
       costUsd: Number(((usage.inputTokens * price.inputPer1M + usage.outputTokens * price.outputPer1M) / 1e6).toFixed(6)),
       quality: score(result, sample, cv.sourceText, uiLang),
+      guardDrops: CONCURRENCY === 1 ? guardDrops : null,
     };
     writeFileSync(join(outDir, 'raw', `${sample.id}.${uiLang}.r${run}.json`), JSON.stringify(result, null, 2));
   } catch (e) {

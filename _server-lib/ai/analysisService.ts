@@ -13,7 +13,7 @@ import {
 import type { AnalysisResult } from '../../src/services/ai/types.js';
 import { buildAnalyzePrompt } from '../../src/services/ai/prompts.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
-import { dropUnsupportedSuggestions } from './suggestionGuard.js';
+import { deniedConcepts, dropUnsupportedSuggestions } from './suggestionGuard.js';
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -160,20 +160,30 @@ export async function analyzeCV(
           ? parseFloat(matchScoreRaw) || 0
           : Number(matchScoreRaw) || 0;
 
+    const missingGaps = normalizeMissingGaps(parsedResult.missingGaps);
+    const detailedComparison = normalizeDetailedComparison(parsedResult.detailedComparison);
+    const rewriteSuggestions = dropUnsupportedSuggestions(
+      normalizeRewriteSuggestions(parsedResult.rewriteSuggestions),
+      cvText,
+      cvText ? deniedConcepts(detailedComparison, missingGaps, cvText) : [],
+      // Diagnostics only: section + reason (+ the denied concept), never CV text.
+      (d) => console.info('[suggestionGuard] dropped', JSON.stringify(d))
+    );
+
     const finalResult = {
       jobTitle: parsedResult.jobTitle || 'Job Position',
       matchScore,
       categoryScores: normalizeCategoryScores(parsedResult.categoryScores),
       matchingPoints: normalizeMatchingPoints(parsedResult.matchingPoints),
-      missingGaps: normalizeMissingGaps(parsedResult.missingGaps),
+      missingGaps,
       successProbability: parsedResult.successProbability || 'Medium',
       passProbability: parsedResult.passProbability || 'Medium',
       passExplanation: parsedResult.passExplanation || '',
       mainFactor: parsedResult.mainFactor || '',
       atsKeywords: normalizeStringArray(parsedResult.atsKeywords),
-      rewriteSuggestions: dropUnsupportedSuggestions(normalizeRewriteSuggestions(parsedResult.rewriteSuggestions), cvText),
+      rewriteSuggestions,
       fullRewrittenCV: '',
-      detailedComparison: normalizeDetailedComparison(parsedResult.detailedComparison),
+      detailedComparison,
       formatAssessment: normalizeFormatAssessment(parsedResult.formatAssessment),
       // parsedCV is generated separately via /api/parse-cv in the background — see
       // _server-lib/ai/parseCvService.ts — to keep this call's output small.

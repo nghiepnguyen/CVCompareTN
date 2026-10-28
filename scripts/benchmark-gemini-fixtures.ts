@@ -316,7 +316,7 @@ SAMPLES.push(
     truth: { ...byId('en-medium').truth, name: 'Smoke Tester', email: 'smoke.tester@example.com', phone: '+6580001234' },
     jdKeywords: ['A/B test', 'dbt', 'BigQuery', 'Looker', 'SQL', 'Python', 'north-star', 'causal inference'],
     jdOnlySkills: ['BigQuery', 'Looker', 'causal inference', 'statsmodels', 'Airflow', 'attribution'],
-    jdOnlyConcepts: ['north-star', 'guardrail', 'mentor'],
+    jdOnlyConcepts: ['north-star', 'guardrail', 'self-serve'],
   },
   {
     id: 'en-no-contact',
