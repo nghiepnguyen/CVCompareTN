@@ -13,7 +13,7 @@ import {
 import type { AnalysisResult } from '../../src/services/ai/types.js';
 import { buildAnalyzePrompt } from '../../src/services/ai/prompts.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
-import { dropUnsupportedSuggestions, rawJdConcepts } from './suggestionGuard.js';
+import { dropUnsupportedSuggestions, rawJdConcepts, type SuggestionGuardMetrics } from './suggestionGuard.js';
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -47,7 +47,7 @@ export async function analyzeCV(
   language: 'vi' | 'en' = 'vi',
   timeoutMs = 45_000,
   cvPdfInlineData?: string
-): Promise<{ result: AnalysisResult; usage: AiCallUsage }> {
+): Promise<{ result: AnalysisResult; usage: AiCallUsage; guardMetrics: SuggestionGuardMetrics }> {
   const client = getGeminiClient();
 
   const jdSection =
@@ -162,19 +162,35 @@ export async function analyzeCV(
 
     const missingGaps = normalizeMissingGaps(parsedResult.missingGaps);
     const detailedComparison = normalizeDetailedComparison(parsedResult.detailedComparison);
+    const suggestionsIn = normalizeRewriteSuggestions(parsedResult.rewriteSuggestions);
+    const guardMetrics: SuggestionGuardMetrics = {
+      suggestionsIn: suggestionsIn.length,
+      droppedTotal: 0, skills: 0, numeric: 0, rawJd: 0,
+      factualChecks: Boolean(cvText), // same condition dropUnsupportedSuggestions uses
+    };
     const rewriteSuggestions = dropUnsupportedSuggestions(
-      normalizeRewriteSuggestions(parsedResult.rewriteSuggestions),
+      suggestionsIn,
       cvText,
       // Distinctive JD terms absent from the CV. The analysis (detailedComparison,
       // missingGaps) is deliberately not used to filter suggestions.
       cvText ? rawJdConcepts(jd, cvText) : [],
-      // Diagnostics: section + reason (+ concept/source), never CV/JD text. The
-      // suggestion body is added only for local benchmark debugging.
-      (d, s) =>
+      // Counted for analysis_log.guard_metrics. Console: reason only — section
+      // is model free text (may name an employer); section, concept,
+      // matchedForm and the suggestion body only for local debugging.
+      (d, s) => {
+        guardMetrics.droppedTotal++;
+        if (d.reason === 'skills-section') guardMetrics.skills++;
+        else if (d.reason === 'unsupported-number') guardMetrics.numeric++;
+        else guardMetrics.rawJd++;
         console.info(
           '[suggestionGuard] dropped',
-          JSON.stringify(process.env.SUGGESTION_GUARD_DEBUG === '1' ? { ...d, original: s.original, optimized: s.optimized } : d)
-        )
+          JSON.stringify(
+            process.env.SUGGESTION_GUARD_DEBUG === '1'
+              ? { ...d, original: s.original, optimized: s.optimized }
+              : { reason: d.reason }
+          )
+        );
+      }
     );
 
     const finalResult = {
@@ -201,7 +217,7 @@ export async function analyzeCV(
       language,
     };
 
-    return { result: finalResult as AnalysisResult, usage };
+    return { result: finalResult as AnalysisResult, usage, guardMetrics };
   } catch (error: unknown) {
     console.error('Gemini Analysis Error:', error);
 

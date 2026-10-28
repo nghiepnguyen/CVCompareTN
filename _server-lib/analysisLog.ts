@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from './payment/supabaseAdmin.js';
 import { withTimeout } from './withTimeout.js';
 import type { AiCallUsage } from './ai/geminiClient.js';
+import type { GuardMetrics } from './ai/suggestionGuard.js';
 
 export type AnalysisLogKind = 'analyze' | 'parse_cv' | 'rewrite';
 
@@ -18,7 +19,10 @@ export async function logAnalysisAttempt(
   errorMessage?: string,
   // Full usage on success; only `model` when the Gemini call itself failed;
   // omitted for preflight failures (no model ran).
-  usage?: Partial<AiCallUsage>
+  usage?: Partial<AiCallUsage>,
+  // Aggregate guard telemetry (successful analyze/rewrite only). The column is
+  // named only when set, so other rows never depend on it.
+  guardMetrics?: GuardMetrics
 ): Promise<void> {
   try {
     const { error } = await withTimeout(
@@ -31,6 +35,7 @@ export async function logAnalysisAttempt(
         output_tokens: usage?.outputTokens ?? 0,
         model: usage?.model ?? null,
         latency_ms: usage?.latencyMs ?? null,
+        ...(guardMetrics && { guard_metrics: guardMetrics }),
       }) as unknown as Promise<{ error: unknown }>,
       LOG_TIMEOUT_MS,
       'analysis_log insert'
