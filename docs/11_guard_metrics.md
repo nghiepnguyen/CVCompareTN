@@ -96,7 +96,8 @@ Never stored: CV/JD/suggestion/rewrite text, guard concepts, unsupported
 number values, candidate name/email/phone/address/companies, prompts, Gemini
 responses. Read access follows the table's admin-only RLS.
 
-Production console logs carry reason/section/counts only. Concepts,
+Production console logs carry the drop reason and violation counts only.
+Suggestion `section` (model free text that may name an employer), concepts,
 `matchedForm`, numbers and suggestion bodies are printed only with
 `SUGGESTION_GUARD_DEBUG=1` (local benchmark/debug).
 

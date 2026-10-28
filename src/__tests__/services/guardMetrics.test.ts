@@ -198,11 +198,11 @@ describe('privacy of persisted guard_metrics', () => {
     }
   });
 
-  it('production console omits concept, matchedForm and numbers', async () => {
+  it('production console carries categorical data only (no section, concept, matchedForm, text, numbers)', async () => {
     vi.stubEnv('SUGGESTION_GUARD_DEBUG', '');
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     generateContent
-      .mockResolvedValueOnce(analyzeReply([sug('Experience', 'Built self-serve dashboards')]))
+      .mockResolvedValueOnce(analyzeReply([sug('Work Experience — Acme Corp', 'Built self-serve dashboards')]))
       .mockResolvedValueOnce(rewriteReply(UNSAFE))
       .mockResolvedValueOnce(rewriteReply(UNSAFE));
     await analyze(CV);
@@ -210,6 +210,9 @@ describe('privacy of persisted guard_metrics', () => {
     const out = JSON.stringify(info.mock.calls);
     expect(out).toContain('[suggestionGuard] dropped');
     expect(out).toContain('[fullRewriteGuard] violation');
+    const lines = info.mock.calls.map(([tag, json]) => [tag, JSON.parse(String(json))]);
+    expect(lines).toContainEqual(['[suggestionGuard] dropped', { reason: 'unsupported-jd-concept' }]);
+    for (const leak of ['section', 'Acme', 'Built', 'Data Analyst', 'Need']) expect(out).not.toContain(leak);
     // Keys appear escaped (\"concept\") inside the stringified log lines.
     for (const leak of ['self-serve', '\\"concept\\"', '\\"matchedForm\\"', '35']) expect(out).not.toContain(leak);
     vi.unstubAllEnvs();
@@ -226,6 +229,8 @@ describe('privacy of persisted guard_metrics', () => {
     await rewrite(CV);
     const out = JSON.stringify(info.mock.calls);
     expect(out).toContain('\\"concept\\"');
+    expect(out).toContain('\\"matchedForm\\"');
+    expect(out).toContain('\\"section\\"');
     expect(out).toContain('self-serve');
     vi.unstubAllEnvs();
   });

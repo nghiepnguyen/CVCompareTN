@@ -174,8 +174,9 @@ export async function analyzeCV(
       // Distinctive JD terms absent from the CV. The analysis (detailedComparison,
       // missingGaps) is deliberately not used to filter suggestions.
       cvText ? rawJdConcepts(jd, cvText) : [],
-      // Counted for analysis_log.guard_metrics. Console: section + reason only;
-      // concept/matchedForm and the suggestion body only for local debugging.
+      // Counted for analysis_log.guard_metrics. Console: reason only — section
+      // is model free text (may name an employer); section, concept,
+      // matchedForm and the suggestion body only for local debugging.
       (d, s) => {
         guardMetrics.droppedTotal++;
         if (d.reason === 'skills-section') guardMetrics.skills++;
@@ -186,7 +187,7 @@ export async function analyzeCV(
           JSON.stringify(
             process.env.SUGGESTION_GUARD_DEBUG === '1'
               ? { ...d, original: s.original, optimized: s.optimized }
-              : { section: d.section, reason: d.reason }
+              : { reason: d.reason }
           )
         );
       }
