@@ -30,7 +30,6 @@ export async function rewriteFullCV(
 }
 
 export async function parseCV(
-  jd: string,
   cvData: string,
   cvMimeType: string,
   language: 'vi' | 'en' = 'vi',
@@ -46,7 +45,7 @@ export async function parseCV(
     method: 'POST',
     headers,
     body: JSON.stringify({
-      jd, cvData, cvMimeType, language, cvPdfInlineData, cvPdfStoragePath, cvDataStoragePath,
+      cvData, cvMimeType, language, cvPdfInlineData, cvPdfStoragePath, cvDataStoragePath,
     }),
     // Server answers within its 65s request deadline (_server-lib/deadline.ts);
     // 75s here leaves room for the response to arrive before we give up client-side.

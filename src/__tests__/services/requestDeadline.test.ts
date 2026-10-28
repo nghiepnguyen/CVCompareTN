@@ -356,8 +356,29 @@ describe('/api/rewrite-cv deadline', () => {
 });
 
 describe('/api/parse-cv deadline', () => {
+  it.each(['vi', 'en'] as const)('ignores legacy JD input in the %s Gemini request', async (language) => {
+    generateContent.mockResolvedValue(reply({ ats_evaluation: { years_of_experience: 5 } }));
+    const requests: unknown[] = [];
+    for (const extra of [{}, { jd: JD }, { jd: 'Unrelated nursing job. JD-UNRELATED-MARKER' }]) {
+      const { res } = await run(() => handleParseCv('Bearer t', {
+        cvData: CV_TEXT, cvMimeType: 'text/plain', language, ...extra,
+      }));
+      expect(res.status).toBe(200);
+      expect(res.body.parsedCV).toMatchObject({ ats_evaluation: { years_of_experience: 5 } });
+      const request = generateContent.mock.calls.at(-1)![0];
+      // AbortSignal identity changes per request; all model inputs/config must be identical.
+      const { abortSignal, ...config } = request.config;
+      expect(abortSignal).toBeInstanceOf(AbortSignal);
+      requests.push({ ...request, config });
+    }
+    expect(generateContent).toHaveBeenCalledTimes(3);
+    expect(requests[1]).toEqual(requests[0]);
+    expect(requests[2]).toEqual(requests[0]);
+    expect(JSON.stringify(requests)).not.toMatch(/JD-SECRET-MARKER|JD-UNRELATED-MARKER/);
+  });
+
   const parse = (body: Record<string, unknown> = {}) =>
-    handleParseCv('Bearer t', { jd: JD, cvData: CV_TEXT, cvMimeType: 'text/plain', language: 'en', ...body });
+    handleParseCv('Bearer t', { cvData: CV_TEXT, cvMimeType: 'text/plain', language: 'en', ...body });
 
   it('storage is bounded → [storage_timeout] row', async () => {
     db.download = hang;

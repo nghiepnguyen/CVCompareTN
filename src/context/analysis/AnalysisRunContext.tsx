@@ -145,7 +145,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const generateParsedCVForResult = useCallback(
     async (
       resultId: string,
-      jd: string,
       cvData: string,
       cvMimeType: string,
       language: 'vi' | 'en',
@@ -158,7 +157,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       setParsedCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
         const parsedCV = await parseCV(
-          jd, cvData, cvMimeType, language, authToken, cvPdfInlineData, cvPdfStoragePath, cvDataStoragePath
+          cvData, cvMimeType, language, authToken, cvPdfInlineData, cvPdfStoragePath, cvDataStoragePath
         );
         const patcher = (r: AnalysisResult) =>
           r.id === resultId ? { ...r, parsedCV } : r;
@@ -482,7 +481,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         const bgWork = Promise.allSettled([
           generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, dataStoragePath, user?.id),
           generateParsedCVForResult(
-            resultId, jd, data, mimeType, reportLanguage, authToken, pdfInlineData, pdfStoragePath, dataStoragePath, user?.id
+            resultId, data, mimeType, reportLanguage, authToken, pdfInlineData, pdfStoragePath, dataStoragePath, user?.id
           ),
         ]);
         // The uploaded temp file is only needed by analyze (already done above)

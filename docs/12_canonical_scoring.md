@@ -105,14 +105,27 @@ usable `detailedComparison` (old history), the stored legacy
 under the old "Missing Keywords" label; canonical and legacy values are never
 mixed. No migration.
 
+## CV-only extraction (Stage 3.10B)
+
+`/api/parse-cv` receives CV content/file references and language, without JD
+in new application calls. The shared Vercel/Express handler ignores an extra
+legacy `jd` property; it never reaches the Gemini extraction request. Parse
+prompts have their own language-only parameters and no JD/cross-reference
+instructions. Analyze remains the only CV↔JD semantic authority.
+
+The response schema and legacy history readers are unchanged.
+`ats_evaluation.years_of_experience` retains Gemini's fallback when no usable
+work-date range exists; deterministic merged-range calculation overrides it
+when ranges are available. ATS wrapper cleanup is deferred. No migration,
+score-version change, or additional Gemini call.
+
 ## Known debt
 
 - Recruiter campaigns can mix legacy and canonical `match_score` until
   candidates are re-analyzed; they are identifiable by `score_version` but the
   UI does not show or filter it yet.
-- `/api/parse-cv` still receives `jd` and its prompt still branches VI/EN,
-  though it no longer generates any CV↔JD judgment; whether it needs the JD at
-  all is a separate audit.
+- The parsed-CV ATS wrapper naming and model experience fallback remain; any
+  cleanup must preserve undated-CV behavior and legacy history compatibility.
 - Document language (VI vs EN CV/JD) still shifts calibration by ~3.5 points
   under the fixed judge, plus normal Gemini variance (sd 1–3).
 - `rewriteSuggestions[].section` stays as the model wrote it (often English).

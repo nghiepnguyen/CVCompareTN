@@ -26,7 +26,6 @@ export async function handleParseCv(
   const deadline = createDeadline(TOTAL_BUDGET_MS);
   const aiDeadline = deadline.reserve(POST_RESERVE_MS);
   const b = (body ?? {}) as {
-    jd?: string;
     cvData?: string;
     cvMimeType?: string;
     language?: string;
@@ -35,7 +34,6 @@ export async function handleParseCv(
     cvDataStoragePath?: string;
   };
 
-  const jd = b.jd?.trim();
   let cvData = b.cvData?.trim();
   const cvMimeType = b.cvMimeType?.trim() || 'text/plain';
   const language: 'vi' | 'en' = b.language === 'en' ? 'en' : 'vi';
@@ -43,7 +41,6 @@ export async function handleParseCv(
   const cvPdfStoragePath = b.cvPdfStoragePath?.trim() || undefined;
   const cvDataStoragePath = b.cvDataStoragePath?.trim() || undefined;
 
-  if (!jd) return { status: 400, body: { error: 'Missing jd' } };
   if (!cvData && !cvDataStoragePath) return { status: 400, body: { error: 'Missing cvData' } };
 
   const user = await withTimeout(
@@ -90,7 +87,7 @@ export async function handleParseCv(
 
   try {
     const { parsedCV, usage } = await generateParsedCV(
-      jd, cvData as string, cvMimeType, language, aiDeadline.remainingMs(), cvPdfInlineData
+      cvData as string, cvMimeType, language, aiDeadline.remainingMs(), cvPdfInlineData
     );
     await logAnalysisAttempt(user.id, 'success', 'parse_cv', undefined, usage, undefined, deadline);
     return { status: 200, body: { parsedCV } };

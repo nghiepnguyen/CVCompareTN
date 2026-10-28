@@ -200,7 +200,7 @@ async function runJob({ sample, workload, model, run }: Job) {
   try {
     output = await ctx.run({ model, capture }, () =>
       workload === 'parse_cv'
-        ? generateParsedCV(sample.jd, cv.cvData, cv.mimeType, sample.language)
+        ? generateParsedCV(cv.cvData, cv.mimeType, sample.language)
         : generateFullRewrite(sample.jd, cv.cvData, cv.mimeType, sample.language)
     );
   } catch (e) {

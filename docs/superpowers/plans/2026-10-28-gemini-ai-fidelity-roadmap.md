@@ -1,7 +1,7 @@
 # Gemini AI fidelity — roadmap
 
-Ngày lập: 2026-10-28. Cập nhật: 2026-10-29 (sau PR #14).
-Production hiện tại: `main` @ `24a1a0a` (PR #14 đã merge + deploy; PR #13 trước đó; PR #12 + migration `20261030000000_score_version.sql` đã apply trước đó, production smoke PASS).
+Ngày lập: 2026-10-28. Cập nhật: 2026-10-29 (Stage 3.10B local, chưa deploy).
+Remote `main` đã kiểm tra: `1b4bb00` (PR #15 chỉ merge roadmap); production runtime gần nhất đã xác nhận: `24a1a0a` (PR #14 đã merge + deploy; PR #13 trước đó; PR #12 + migration `20261030000000_score_version.sql` đã apply trước đó, production smoke PASS).
 
 ## Trạng thái đã ship
 
@@ -64,6 +64,12 @@ Vercel maxDuration    300s (safety ceiling, không phải ngân sách request)
 Benchmark: `scripts/benchmark-gemini-analyze.ts`, `scripts/benchmark-gemini-parse-rewrite.ts` (fixtures tổng hợp, không PII; rewrite benchmark có số liệu Full CV guard).
 Telemetry: `docs/11_guard_metrics.md` (SQL mẫu). Deadline: `_server-lib/deadline.ts`, `docs/5_api.md`. Canonical scoring: `docs/12_canonical_scoring.md`.
 
+## Stage 3.10 — local, chưa ship
+
+- **3.10A — audit hoàn tất, đã duyệt:** mọi output parse hiện tại đều tạo được từ CV, không cần JD → Option B. 18 call live trên fixture tổng hợp VI/EN/VI đầy đủ, ~$0.044 theo pricing trong repo; không quan sát thấy JD-only contamination, còn dao động taxonomy/wording và một lần hỏng extraction. Không sửa production.
+- **3.10B — sẵn sàng review local:** bỏ JD khỏi `generateParsedCVForResult` → `parseCV` → shared handler → `generateParsedCV` → prompt VI/EN. Prompt có contract riêng chỉ nhận language; extra `jd` từ caller cũ được bỏ qua. Giữ Gemini, schema, model, deadline, telemetry và Stage 3.8/3.9 canonical authority. Test mocked Gemini request chứng minh absent/real/unrelated JD không đổi input. Chưa commit/push/PR/deploy.
+- **Deferred:** giữ `ats_evaluation.years_of_experience` nguyên vị trí/semantics: Gemini fallback khi không có khoảng thời gian hợp lệ; deterministic merged-range override khi có. Không migration; chưa sửa taxonomy, extraction variability/corruption hay redesign parser.
+
 ## Hướng tiếp theo
 
 ### Ưu tiên cao
@@ -114,7 +120,7 @@ Telemetry: `docs/11_guard_metrics.md` (SQL mẫu). Deadline: `_server-lib/deadli
 
 ### Debt từ Stage 3.9
 
-27. **(Ứng viên Stage 3.10)** `/api/parse-cv` vẫn nhận `jd`, prompt vẫn ghi "đối chiếu với JD" và vẫn rẽ nhánh VI/EN dù không còn sinh judgment CV↔JD nào — audit xem parse còn cần JD không (bỏ JD = prompt nhỏ hơn, hết coupling).
+27. **Stage 3.10A đã duyệt → 3.10B local (chưa deploy):** JD không cần cho extraction; bản local đã bỏ JD khỏi parse request/prompt, giữ schema và years fallback. Production chỉ đổi sau review/merge/deploy riêng.
 28. Chip điểm khớp / yêu cầu còn thiếu dùng nguyên `detailedComparison.requirement` (ngôn ngữ JD, không nằm trong allowlist localization 3.7) → UI VI với JD tiếng Anh hiện chip tiếng Anh. Có chủ đích; không mở allowlist chỉ để dịch chip.
 29. Chip yêu cầu dài (cụm từ requirement) trong `rounded-full` chưa kiểm tra trên trình duyệt thật.
 30. History cũ không có `detailedComparison` vẫn hiện mảng legacy (do parse model chấm) dưới nhãn cũ "Từ khóa còn thiếu"; kết quả mới có bảng canonical rỗng (hiếm) cũng rơi vào nhãn này.
