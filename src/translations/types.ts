@@ -372,6 +372,11 @@ export interface UiLabels {
   parsedYearsExp: string;
   parsedYearsUnit: string;
   partial: string;
+  partialRequirements: string;
+  partialRequirementsCount: string;
+  partialRequirementsDesc: string;
+  preferredRequirement: string;
+  requiredRequirement: string;
   progressDone: string;
   progressEstLeft: string;
   progressEstLeftApprox: string;

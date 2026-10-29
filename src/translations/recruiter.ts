@@ -362,12 +362,12 @@ export const recruiter = {
     en: "Analysis Results",
   },
   panelStrengths: {
-    vi: "Điểm mạnh",
-    en: "Strengths",
+    vi: "Yêu cầu đã đáp ứng",
+    en: "Matched requirements",
   },
   panelWeaknesses: {
-    vi: "Điểm yếu",
-    en: "Weaknesses",
+    vi: "Yêu cầu còn thiếu",
+    en: "Missing requirements",
   },
   panelCategoryScores: {
     vi: "Điểm theo hạng mục",

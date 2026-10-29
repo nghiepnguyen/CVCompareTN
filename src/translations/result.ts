@@ -96,6 +96,26 @@ export const result = {
     vi: "điểm",
     en: "points",
   },
+  partialRequirements: {
+    vi: "Yêu cầu đáp ứng một phần",
+    en: "Partial Requirements",
+  },
+  partialRequirementsDesc: {
+    vi: "Các yêu cầu mới được đáp ứng một phần — không tính là đạt hay thiếu",
+    en: "Requirements only partly satisfied — not counted as matched or missing",
+  },
+  partialRequirementsCount: {
+    vi: "yêu cầu",
+    en: "requirements",
+  },
+  requiredRequirement: {
+    vi: "Bắt buộc",
+    en: "Required",
+  },
+  preferredRequirement: {
+    vi: "Ưu tiên",
+    en: "Preferred",
+  },
   missingGaps: {
     vi: "Điểm cần cải thiện",
     en: "Missing Gaps",

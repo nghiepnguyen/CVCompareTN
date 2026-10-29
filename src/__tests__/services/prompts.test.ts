@@ -224,3 +224,25 @@ describe("prompts — analyze evidence guardrails", () => {
     expect(buildAnalyzePrompt({ jdSection: mockJdSection, language: "en", currentMonth: "10/2026" })).toContain("never to change a fact the CV states");
   });
 });
+
+describe("prompts — logical requirement grouping (Stage 3.12B)", () => {
+  const prompt = buildAnalyzePromptEn({ jdSection: mockJdSection });
+
+  it("treats OR alternatives as one logical requirement", () => {
+    expect(prompt).toContain("Logical requirement grouping");
+    expect(prompt).toContain("BigQuery or Snowflake");
+    expect(prompt).toContain("ONE logical requirement");
+    expect(prompt).toContain("Preserve the JD's original wording in a single row");
+    expect(prompt).toContain("Never emit an unsatisfied alternative as a separate required row");
+  });
+
+  it("keeps AND requirements separate", () => {
+    expect(prompt).toContain('Requirements joined by "and"');
+    expect(prompt).toContain("do not let evidence for one satisfy the other");
+  });
+
+  it("does not alter the scoring rubric", () => {
+    expect(prompt).toContain("Calculate an overall match score (0-100)");
+    expect(prompt).toContain("90-100: FULLY meets all REQUIRED items");
+  });
+});

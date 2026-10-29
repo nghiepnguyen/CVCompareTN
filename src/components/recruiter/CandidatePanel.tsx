@@ -21,6 +21,8 @@ import { cn } from '../../lib/utils';
 import { useUI } from '../../context/UIContext';
 import type { UiLabels } from '../../translations';
 import type { CandidateCV, HrStatus } from '../../context/recruiter';
+import { deriveRequirementInsights } from '../../services/ai';
+import type { DetailedComparison } from '../../services/ai/types';
 
 type CandidateAnalysisData = {
   successProbability?: string;
@@ -28,9 +30,8 @@ type CandidateAnalysisData = {
   mainFactor?: string;
   matchingPoints?: Array<{ content?: string } | string>;
   missingGaps?: Array<{ content?: string; impact?: string } | string>;
-  matched?: string[];
-  missing?: string[];
   categoryScores?: Record<string, number>;
+  detailedComparison?: DetailedComparison;
 };
 
 interface CandidatePanelProps {
@@ -290,8 +291,13 @@ function CandidateDetail({
   const result = candidate.analysisResult as CandidateAnalysisData | null;
   const isDone = candidate.status === 'done';
 
-  const matchedSkills: string[] = Array.isArray(result?.matched) ? result.matched : [];
-  const missingSkills: string[] = Array.isArray(result?.missing) ? result.missing : [];
+  // Stage 3.12B: requirement status comes from canonical detailedComparison;
+  // free-text matchingPoints/missingGaps are only a legacy fallback for rows
+  // saved before the canonical table existed.
+  const insights = deriveRequirementInsights(result?.detailedComparison, {
+    matchingPoints: result?.matchingPoints,
+    missingGaps: result?.missingGaps,
+  });
 
   return (
     <div className="divide-y divide-border">
@@ -474,51 +480,52 @@ function CandidateDetail({
             {t.panelAnalysisResult}
           </p>
 
-          {/* Strengths */}
-          {Array.isArray(result?.matchingPoints) && result.matchingPoints.length > 0 && (
+          {/* Matched requirements */}
+          {insights.matched.length > 0 && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <TrendingUp className="w-3.5 h-3.5 text-success" />
                 <span className="text-xs font-semibold text-text-main">
-                  {t.panelStrengths} ({result.matchingPoints.length})
+                  {t.panelStrengths} ({insights.matched.length})
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
-                {result.matchingPoints.slice(0, 4).map((pt, i: number) => (
+                {insights.matched.slice(0, 4).map((item, i: number) => (
                   <span
                     key={i}
                     className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-success/10 text-success border border-success/20"
                   >
-                    {typeof pt === 'string' ? pt : pt.content}
+                    {item.requirement}
                   </span>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Weaknesses */}
-          {Array.isArray(result?.missingGaps) && result.missingGaps.length > 0 && (
+          {/* Missing requirements (partial is intentionally omitted from this
+              two-concept surface rather than being shown as missing) */}
+          {insights.missing.length > 0 && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <TrendingDown className="w-3.5 h-3.5 text-error" />
                 <span className="text-xs font-semibold text-text-main">
-                  {t.panelWeaknesses} ({result.missingGaps.length})
+                  {t.panelWeaknesses} ({insights.missing.length})
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
-                {result.missingGaps.slice(0, 4).map((gap, i: number) => (
+                {insights.missing.slice(0, 4).map((item, i: number) => (
                   <span
                     key={i}
                     className={cn(
                       'px-2 py-0.5 rounded-md text-[10px] font-bold border',
-                      typeof gap !== 'string' && gap.impact === 'High'
+                      item.priority === 'required' || item.impact === 'High'
                         ? 'bg-error/10 text-error border-error/20'
-                        : typeof gap !== 'string' && gap.impact === 'Medium'
+                        : item.priority === 'nice-to-have' || item.impact === 'Medium'
                           ? 'bg-amber-400/10 text-amber-600 border-amber-400/20'
                           : 'bg-surface-secondary text-text-muted border-border',
                     )}
                   >
-                    {typeof gap === 'string' ? gap : gap.content}
+                    {item.requirement}
                   </span>
                 ))}
               </div>
@@ -576,50 +583,6 @@ function CandidateDetail({
                     </div>
                   );
                 })}
-              </div>
-            </div>
-          )}
-
-          {/* Matched Skills */}
-          {matchedSkills.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-success" />
-                <span className="text-xs font-semibold text-text-main">
-                  {t.panelMatchedSkills} ({matchedSkills.length})
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {matchedSkills.map((skill: string, i: number) => (
-                  <span
-                    key={i}
-                    className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-success/10 text-success border border-success/20"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Missing Skills */}
-          {missingSkills.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-error" />
-                <span className="text-xs font-semibold text-text-main">
-                  {t.panelMissingSkills} ({missingSkills.length})
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {missingSkills.map((skill: string, i: number) => (
-                  <span
-                    key={i}
-                    className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-error/10 text-error border border-error/20"
-                  >
-                    {skill}
-                  </span>
-                ))}
               </div>
             </div>
           )}
