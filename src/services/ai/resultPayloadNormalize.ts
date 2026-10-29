@@ -165,6 +165,25 @@ export function detailedComparisonHasRows(dc: DetailedComparison | null | undefi
   });
 }
 
+export interface RequirementInsight {
+  requirement: string;
+  status: ComparisonItem["status"];
+  priority?: ComparisonItem["priority"];
+  cvEvidence?: string;
+  improvement?: string;
+  /** Display category derived from the detailedComparison bucket. */
+  category: string;
+  /** Legacy missingGaps only; canonical surfaces use `priority` instead. */
+  impact?: MissingGap["impact"];
+}
+
+export interface RequirementInsights {
+  matched: RequirementInsight[];
+  partial: RequirementInsight[];
+  missing: RequirementInsight[];
+  source: "canonical" | "legacy";
+}
+
 export interface ParsedCvInsights {
   highlights: string[];
   missingRequirements: string[];
@@ -172,6 +191,83 @@ export interface ParsedCvInsights {
 }
 
 const MAX_HIGHLIGHTS = 3;
+const DETAILED_COMPARISON_KEYS = ["skills", "experience", "tools", "education", "keywords"] as const;
+
+type LegacyRequirementPoint =
+  | string
+  | { content?: unknown; category?: unknown; impact?: unknown };
+
+const legacyText = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
+const categoryForBucket = (key: (typeof DETAILED_COMPARISON_KEYS)[number]): string =>
+  key.charAt(0).toUpperCase() + key.slice(1);
+const priorityRank = (priority: ComparisonItem["priority"]): number =>
+  priority === "required" ? 0 : priority === "nice-to-have" ? 1 : 2;
+
+/**
+ * Single deterministic derivation of requirement status for every active
+ * surface (Analysis tab, recruiter panel/export, Parsed CV). Canonical
+ * detailedComparison is the only authority when it has rows; the free-text
+ * matchingPoints/missingGaps arrays are read only for genuinely legacy results
+ * that have no usable canonical table. `partial` is kept separate and is never
+ * promoted to missing. Ordering: required → nice-to-have → unknown, preserving
+ * canonical order inside each priority group.
+ */
+export function deriveRequirementInsights(
+  dc: DetailedComparison | null | undefined,
+  legacy?: {
+    matchingPoints?: readonly LegacyRequirementPoint[];
+    missingGaps?: readonly LegacyRequirementPoint[];
+  }
+): RequirementInsights {
+  if (!detailedComparisonHasRows(dc)) {
+    const matched: RequirementInsight[] = (legacy?.matchingPoints ?? []).flatMap((point) => {
+      const requirement = typeof point === "string" ? point.trim() : legacyText(point?.content);
+      if (!requirement) return [];
+      const category =
+        typeof point === "object" && point && typeof point.category === "string" && point.category
+          ? point.category
+          : "Skills";
+      return [{ requirement, status: "matched" as const, category }];
+    });
+    const missing: RequirementInsight[] = (legacy?.missingGaps ?? []).flatMap((gap) => {
+      const requirement = typeof gap === "string" ? gap.trim() : legacyText(gap?.content);
+      if (!requirement) return [];
+      const impact = typeof gap === "object" && gap && typeof gap.impact === "string" && IMPACTS.has(gap.impact as MissingGap["impact"])
+        ? (gap.impact as MissingGap["impact"])
+        : undefined;
+      const category =
+        typeof gap === "object" && gap && typeof gap.category === "string" && gap.category
+          ? gap.category
+          : "Skills";
+      return [{ requirement, status: "missing" as const, category, ...(impact ? { impact } : {}) }];
+    });
+    return { matched, partial: [], missing, source: "legacy" };
+  }
+
+  const items: RequirementInsight[] = DETAILED_COMPARISON_KEYS.flatMap((key) =>
+    (dc![key] ?? []).flatMap((item) => {
+      const requirement = typeof item?.requirement === "string" ? item.requirement.trim() : "";
+      if (!requirement) return [];
+      return [{
+        requirement,
+        status: item.status,
+        priority: item.priority,
+        cvEvidence: legacyText(item.cvEvidence) || undefined,
+        improvement: legacyText(item.improvement) || undefined,
+        category: categoryForBucket(key),
+      }];
+    })
+  );
+  // Array#sort is stable: canonical order is preserved within each priority.
+  const ordered = items.sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
+  const byStatus = (status: ComparisonItem["status"]) => ordered.filter((item) => item.status === status);
+  return {
+    matched: byStatus("matched"),
+    partial: byStatus("partial"),
+    missing: byStatus("missing"),
+    source: "canonical",
+  };
+}
 
 /**
  * Parsed CV quick-scan chips. Canonical analyze is the only authority on what
@@ -184,25 +280,18 @@ export function deriveParsedCvInsights(
   dc: DetailedComparison | null | undefined,
   legacy?: { key_match_highlights?: string[]; missing_keywords?: string[] }
 ): ParsedCvInsights {
-  if (!detailedComparisonHasRows(dc)) {
+  const canonical = deriveRequirementInsights(dc);
+  if (canonical.source === "canonical") {
     return {
-      highlights: (legacy?.key_match_highlights ?? []).slice(0, MAX_HIGHLIGHTS),
-      missingRequirements: legacy?.missing_keywords ?? [],
-      source: "legacy",
+      highlights: canonical.matched.slice(0, MAX_HIGHLIGHTS).map((item) => item.requirement),
+      missingRequirements: canonical.missing.map((item) => item.requirement),
+      source: "canonical",
     };
   }
-  const keys = ["skills", "experience", "tools", "education", "keywords"] as const;
-  const items = keys.flatMap((k) => (Array.isArray(dc![k]) ? dc![k] : []));
-  // Stable: required first, everything else after, canonical order kept within each group.
-  const pick = (status: ComparisonItem["status"]) => {
-    const rows = items.filter((it) => it?.status === status && typeof it.requirement === "string" && it.requirement.trim());
-    return [...rows.filter((it) => it.priority === "required"), ...rows.filter((it) => it.priority !== "required")]
-      .map((it) => it.requirement.trim());
-  };
   return {
-    highlights: pick("matched").slice(0, MAX_HIGHLIGHTS),
-    missingRequirements: pick("missing"),
-    source: "canonical",
+    highlights: (legacy?.key_match_highlights ?? []).slice(0, MAX_HIGHLIGHTS),
+    missingRequirements: legacy?.missing_keywords ?? [],
+    source: "legacy",
   };
 }
 

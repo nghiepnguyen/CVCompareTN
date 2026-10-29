@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
-import { analyzeCV, type AnalysisResult } from '../../services/ai';
+import { analyzeCV, deriveRequirementInsights, type AnalysisResult } from '../../services/ai';
+import type { DetailedComparison } from '../../services/ai/types';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { processFile as processFileUtil } from '../../hooks/useFileProcessor';
 import { cleanText } from '../../hooks/useFileProcessor';
@@ -386,15 +387,20 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             successProbability?: string;
             passProbability?: string;
             mainFactor?: string;
+            detailedComparison?: DetailedComparison;
           };
           const r = c.analysisResult as ExportData | null;
           const catScores = r?.categoryScores;
-          const strengths = Array.isArray(r?.matchingPoints)
-            ? r.matchingPoints.map((p) => (typeof p === 'string' ? p : p.content)).join('; ')
-            : '';
-          const weaknesses = Array.isArray(r?.missingGaps)
-            ? r.missingGaps.map((g) => (typeof g === 'string' ? g : g.content)).join('; ')
-            : '';
+          // Stage 3.12B: requirement columns are derived from canonical
+          // detailedComparison. Existing column names are kept for export
+          // compatibility; partial requirements are omitted (never reported
+          // as missing) because this sheet has no partial column.
+          const insights = deriveRequirementInsights(r?.detailedComparison, {
+            matchingPoints: r?.matchingPoints,
+            missingGaps: r?.missingGaps,
+          });
+          const strengths = insights.matched.map((item) => item.requirement).join('; ');
+          const weaknesses = insights.missing.map((item) => item.requirement).join('; ');
           return {
             STT: idx + 1,
             'Tên ứng viên': c.candidateName,

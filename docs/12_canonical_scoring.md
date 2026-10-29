@@ -149,6 +149,40 @@ rows, or reconstructs discarded model estimates. Invalid saved values become
 zero. New parses default `asOf` to current time in ICT; tests inject it.
 No schema/migration/score-version change. ATS wrapper cleanup remains deferred.
 
+## Requirement-status authority (Stage 3.12B)
+
+`detailedComparison` is the single requirement-status authority for new
+canonical results. The canonical prompt now treats alternatives joined by
+"or"/"/" (e.g. "BigQuery or Snowflake", "AWS/Azure/GCP", "Vietnamese or
+Bahasa") as ONE logical requirement: one row with the JD's wording, `matched`
+when any alternative has CV evidence, `partial` when the evidence only partly
+satisfies it, `missing` when none is supported. An unsatisfied alternative is
+not emitted as a separate required row. Requirements joined by "and" stay
+separate rows, and evidence for one must not satisfy the other. This is a
+one-line instruction in step 9 of the EN analyze prompt; the scoring rubric,
+schema and call count are unchanged.
+
+All active matched/partial/missing surfaces use
+`deriveRequirementInsights(detailedComparison, legacy?)`
+(`src/services/ai/resultPayloadNormalize.ts`):
+
+- Analysis tab accordions (matched, partial, missing);
+- Parsed CV chips via `deriveParsedCvInsights()` (same derivation, max 3
+  highlights);
+- recruiter CandidatePanel matched/missing lists;
+- recruiter Excel "Điểm mạnh"/"Điểm yếu" columns.
+
+The helper only groups/filters/sorts: required → nice-to-have → unknown
+priority, canonical bucket/order preserved inside each group; `partial` stays
+separate and is never promoted to missing. It does not reinterpret requirement
+meaning. `matchingPoints` / `missingGaps` remain in the schema, persistence,
+localization allow-list and history readers for compatibility, but are no
+longer an authority for canonical requirement lists; they are read only as the
+legacy fallback when a stored result has no usable `detailedComparison`. A
+`missingGaps` invention with no canonical row cannot appear as a missing
+requirement. No schema change, migration, new AI call, score/rubric,
+probability, category-score, rewrite or parse/experience change.
+
 ## Known debt
 
 - Recruiter campaigns can mix legacy and canonical `match_score` until
@@ -160,3 +194,8 @@ No schema/migration/score-version change. ATS wrapper cleanup remains deferred.
   under the fixed judge, plus normal Gemini variance (sd 1–3).
 - `rewriteSuggestions[].section` stays as the model wrote it (often English).
 - `/api/rewrite-cv` (Full CV) is unchanged and keeps its own language-keyed prompts.
+- `matchingPoints` / `missingGaps` are still generated, persisted and localized
+  but are non-authoritative for canonical requirement lists; their prose can
+  disagree with `detailedComparison` (and may invent gaps that are not in the
+  JD). They remain for history compatibility and possible future "AI notes"
+  use; removing them is a separate cleanup.

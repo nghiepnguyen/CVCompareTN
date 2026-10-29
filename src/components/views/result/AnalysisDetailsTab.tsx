@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Check, CheckCircle2, AlertCircle, Target, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Sparkles, Check, CheckCircle2, AlertCircle, Activity, Target, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
-import { AnalysisResult } from '../../../services/ai';
+import { AnalysisResult, deriveRequirementInsights } from '../../../services/ai';
 import { getMatchingCategoryLabel } from './matchingCategoryLabels';
 import { FormatAssessmentCard } from './FormatAssessmentCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
@@ -18,6 +18,17 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
   const showsEnglishFallback =
     !!selectedResult.scoreVersion && selectedResult.presentationLanguage === 'en' && reportLanguage === 'vi';
   const [openSections, setOpenSections] = React.useState<string[]>(['matching']);
+
+  // Stage 3.12B: requirement lists come from canonical detailedComparison.
+  // matchingPoints/missingGaps are read only for genuinely legacy results with
+  // no usable canonical table (history compatibility).
+  const requirementInsights = React.useMemo(
+    () => deriveRequirementInsights(selectedResult.detailedComparison, {
+      matchingPoints: selectedResult.matchingPoints,
+      missingGaps: selectedResult.missingGaps,
+    }),
+    [selectedResult.detailedComparison, selectedResult.matchingPoints, selectedResult.missingGaps]
+  );
 
   // Single source of truth for both charts: AI's own categoryScores, so the bar
   // and radar always agree and share the same category set/order.
@@ -34,8 +45,8 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
     ];
 
     const hasEvidence = new Set<string>();
-    (selectedResult.matchingPoints || []).forEach((p) => p?.category && hasEvidence.add(p.category));
-    (selectedResult.missingGaps || []).forEach((g) => g?.category && hasEvidence.add(g.category));
+    [...requirementInsights.matched, ...requirementInsights.partial, ...requirementInsights.missing]
+      .forEach((item) => item.category && hasEvidence.add(item.category));
 
     return CATEGORY_KEYS.map(({ key, category }) => {
       const score = selectedResult.categoryScores?.[key];
@@ -48,7 +59,7 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
         evaluated,
       };
     }).filter((d) => d.evaluated);
-  }, [selectedResult.categoryScores, selectedResult.matchingPoints, selectedResult.missingGaps, t]);
+  }, [selectedResult.categoryScores, requirementInsights, t]);
 
   return (
     <div id="analysis-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
@@ -200,139 +211,131 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
         </div>
       </div>
 
-      {(selectedResult.matchingPoints || []).length === 0 &&
-        (selectedResult.missingGaps || []).length === 0 && (
+      {requirementInsights.matched.length === 0 &&
+        requirementInsights.partial.length === 0 &&
+        requirementInsights.missing.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border bg-surface-secondary/80 px-4 py-3 text-center text-sm text-text-muted">
           {t.noMatchingGapsData}
         </div>
       )}
 
       <div className="space-y-4">
-        {/* Matching Points Accordion */}
-        <div className="bg-surface rounded-3xl shadow-sm border border-border overflow-hidden transition-all duration-300">
-          <button 
-            onClick={() => setOpenSections(prev => prev.includes('matching') ? prev.filter(s => s !== 'matching') : [...prev, 'matching'])}
-            className="w-full px-6 py-5 flex items-center justify-between hover:bg-surface-secondary transition-colors text-left"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-success-light flex items-center justify-center text-success">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-bold text-text-main">{t.matchingPoints}</h4>
-                <p className="text-xs text-text-light font-medium">{t.matchingPointsDesc}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="px-2.5 py-1 rounded-full bg-success-light text-success text-[10px] font-black uppercase tracking-wider border border-success-light shadow-sm">
-                {(selectedResult.matchingPoints || []).length} {t.matchingPointsCount}
-              </span>
-              {openSections.includes('matching') ? <ChevronUp className="w-5 h-5 text-text-light" /> : <ChevronDown className="w-5 h-5 text-text-light" />}
-            </div>
-          </button>
-          
-          <AnimatePresence>
-            {openSections.includes('matching') && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
+        {[
+          {
+            id: 'matching', items: requirementInsights.matched,
+            title: t.matchingPoints, desc: t.matchingPointsDesc, countLabel: t.matchingPointsCount,
+            icon: CheckCircle2, bulletIcon: Check,
+            iconWrap: 'bg-success-light text-success',
+            pill: 'bg-success-light text-success border-success-light',
+            dot: 'bg-success shadow-[0_0_8px_rgba(16,185,129,0.5)]',
+            item: 'bg-success-light/10 border-success-light/30 hover:border-success-light',
+            bullet: 'text-success',
+          },
+          {
+            id: 'partial', items: requirementInsights.partial,
+            title: t.partialRequirements, desc: t.partialRequirementsDesc, countLabel: t.partialRequirementsCount,
+            icon: Activity, bulletIcon: Activity,
+            iconWrap: 'bg-accent-light text-accent',
+            pill: 'bg-accent-light text-accent border-accent/20',
+            dot: 'bg-accent shadow-[0_0_8px_rgba(var(--color-accent-rgb),0.5)]',
+            item: 'bg-accent-light/10 border-accent/20 hover:border-accent/40',
+            bullet: 'text-accent',
+          },
+          {
+            id: 'missing', items: requirementInsights.missing,
+            title: t.missingGaps, desc: t.missingGapsDesc, countLabel: t.missingGapsCount,
+            icon: AlertCircle, bulletIcon: X,
+            iconWrap: 'bg-warning-light text-warning',
+            pill: 'bg-warning-light text-warning border-warning-light',
+            dot: 'bg-warning shadow-[0_0_8px_rgba(245,158,11,0.5)]',
+            item: 'bg-warning-light/10 border-warning-light/30 hover:border-warning-light',
+            bullet: 'text-warning',
+          },
+        ].filter((section) => section.id !== 'partial' || section.items.length > 0).map((section) => {
+          const Icon = section.icon;
+          const BulletIcon = section.bulletIcon;
+          const isOpen = openSections.includes(section.id);
+          return (
+            <div key={section.id} className="bg-surface rounded-3xl shadow-sm border border-border overflow-hidden transition-all duration-300">
+              <button
+                onClick={() => setOpenSections(prev => prev.includes(section.id) ? prev.filter(s => s !== section.id) : [...prev, section.id])}
+                className="w-full px-6 py-5 flex items-center justify-between hover:bg-surface-secondary transition-colors text-left"
               >
-                <div className="px-6 pb-8 pt-2 border-t border-border">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
-                    {Array.from(new Set((selectedResult.matchingPoints || []).map(p => p.category))).map(cat => {
-                      const points = (selectedResult.matchingPoints || []).filter(p => p.category === cat);
-                      if (points.length === 0) return null;
-                      
-                      const catLabel = getMatchingCategoryLabel(cat, t);
-
-                      return (
-                        <div key={cat} className="space-y-4">
-                          <div className="text-[11px] font-black text-text-main uppercase tracking-widest flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                            {catLabel}
-                          </div>
-                          <ul className="space-y-3">
-                            {points.map((p, i) => (
-                              <li key={i} className="text-sm text-text-main font-medium flex items-start gap-3 p-4 bg-success-light/10 rounded-2xl border border-success-light/30 hover:border-success-light transition-all group">
-                                <Check className="w-4 h-4 text-success shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                                <span className="leading-relaxed">{p.content}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })}
+                <div className="flex items-center gap-4">
+                  <div className={cn('w-10 h-10 rounded-2xl flex items-center justify-center', section.iconWrap)}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-text-main">{section.title}</h4>
+                    <p className="text-xs text-text-light font-medium">{section.desc}</p>
                   </div>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Missing Gaps Accordion */}
-        <div className="bg-surface rounded-3xl shadow-sm border border-border overflow-hidden transition-all duration-300">
-          <button 
-            onClick={() => setOpenSections(prev => prev.includes('missing') ? prev.filter(s => s !== 'missing') : [...prev, 'missing'])}
-            className="w-full px-6 py-5 flex items-center justify-between hover:bg-surface-secondary transition-colors text-left"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-2xl bg-warning-light flex items-center justify-center text-warning">
-                <AlertCircle className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-bold text-text-main">{t.missingGaps}</h4>
-                <p className="text-xs text-text-light font-medium">{t.missingGapsDesc}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="px-2.5 py-1 rounded-full bg-warning-light text-warning text-[10px] font-black uppercase tracking-wider border border-warning-light shadow-sm">
-                {(selectedResult.missingGaps || []).length} {t.missingGapsCount}
-              </span>
-              {openSections.includes('missing') ? <ChevronUp className="w-5 h-5 text-text-light" /> : <ChevronDown className="w-5 h-5 text-text-light" />}
-            </div>
-          </button>
-          
-          <AnimatePresence>
-            {openSections.includes('missing') && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
-              >
-                <div className="px-6 pb-8 pt-2 border-t border-border">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
-                    {Array.from(new Set((selectedResult.missingGaps || []).map(g => g.category))).map(cat => {
-                      const gaps = (selectedResult.missingGaps || []).filter(g => g.category === cat);
-                      if (gaps.length === 0) return null;
-                      
-                      const catLabel = getMatchingCategoryLabel(cat, t);
-
-                      return (
-                        <div key={cat} className="space-y-4">
-                          <div className="text-[11px] font-black text-text-main uppercase tracking-widest flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-warning shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                            {catLabel}
-                          </div>
-                          <ul className="space-y-3">
-                            {gaps.map((g, i) => (
-                              <li key={i} className="text-sm text-text-main font-medium flex items-start gap-3 p-4 bg-warning-light/10 rounded-2xl border border-warning-light/30 hover:border-warning-light transition-all group">
-                                <X className="w-4 h-4 text-warning shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                                <span className="leading-relaxed">{g.content}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div className="flex items-center gap-3">
+                  <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-sm', section.pill)}>
+                    {section.items.length} {section.countLabel}
+                  </span>
+                  {isOpen ? <ChevronUp className="w-5 h-5 text-text-light" /> : <ChevronDown className="w-5 h-5 text-text-light" />}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+              </button>
+
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  >
+                    <div className="px-6 pb-8 pt-2 border-t border-border">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
+                        {Array.from(new Set(section.items.map((item) => item.category))).map((category) => {
+                          const items = section.items.filter((item) => item.category === category);
+                          if (items.length === 0) return null;
+                          return (
+                            <div key={category} className="space-y-4">
+                              <div className="text-[11px] font-black text-text-main uppercase tracking-widest flex items-center gap-2">
+                                <div className={cn('w-2 h-2 rounded-full', section.dot)} />
+                                {getMatchingCategoryLabel(category, t)}
+                              </div>
+                              <ul className="space-y-3">
+                                {items.map((item, i) => (
+                                  <li key={i} className={cn('text-sm text-text-main font-medium flex items-start gap-3 p-4 rounded-2xl border transition-all group', section.item)}>
+                                    <BulletIcon className={cn('w-4 h-4 shrink-0 mt-0.5 group-hover:scale-110 transition-transform', section.bullet)} />
+                                    <span className="leading-relaxed">
+                                      <span className="block">
+                                        {item.requirement}
+                                        {item.priority && (
+                                          <span className={cn(
+                                            'ml-2 inline-block align-middle rounded border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider',
+                                            item.priority === 'required'
+                                              ? 'border-border bg-surface-secondary text-text-main'
+                                              : 'border-border bg-surface text-text-light',
+                                          )}>
+                                            {item.priority === 'required' ? t.requiredRequirement : t.preferredRequirement}
+                                          </span>
+                                        )}
+                                      </span>
+                                      {item.cvEvidence && (
+                                        <span className="mt-1 block text-[11px] font-normal italic text-text-muted">{item.cvEvidence}</span>
+                                      )}
+                                      {!item.cvEvidence && item.improvement && (
+                                        <span className="mt-1 block text-[11px] font-normal italic text-text-muted">{item.improvement}</span>
+                                      )}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
