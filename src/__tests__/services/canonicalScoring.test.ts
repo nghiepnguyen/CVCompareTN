@@ -40,6 +40,7 @@ import { createDeadline } from '../../../_server-lib/deadline';
 import { sameNumericFacts } from '../../../_server-lib/ai/suggestionGuard';
 import { saveToHistory, getUserHistory } from '../../services/historyService';
 import type { AnalysisResult } from '../../services/ai/types';
+import { CANONICAL_PROBABILITY_VERSION } from '../../services/ai/canonicalProbability';
 
 const CV = 'Data Analyst since 2022. Wrote SQL queries. Built 15 dashboards in Tableau. Improved conversion by 20%.';
 const JD = 'Data Analyst. Requirements: 3 years SQL, Tableau, Airflow.';
@@ -74,9 +75,12 @@ const itemsOf = (req: { contents: { parts: { text: string }[] }[] }) =>
 // Default localization: "VI:" prefix, numbers kept.
 const translate = (items: { id: string; text: string }[]) => items.map((i) => ({ id: i.id, text: `VI: ${i.text}` }));
 
-function mockGemini(locReply: (req: never) => unknown = (req) => ({ text: JSON.stringify({ items: translate(itemsOf(req)) }), usageMetadata: usageMeta(300, 200) })) {
+function mockGemini(
+  locReply: (req: never) => unknown = (req) => ({ text: JSON.stringify({ items: translate(itemsOf(req)) }), usageMetadata: usageMeta(300, 200) }),
+  scoring: unknown = SCORING
+) {
   generateContent.mockImplementation(async (req) =>
-    isLocalization(req) ? locReply(req as never) : { text: JSON.stringify(SCORING), usageMetadata: usageMeta(1000, 500) }
+    isLocalization(req) ? locReply(req as never) : { text: JSON.stringify(scoring), usageMetadata: usageMeta(1000, 500) }
   );
 }
 const scoringRequests = () => generateContent.mock.calls.map((c) => c[0]).filter((r) => !isLocalization(r));
@@ -110,7 +114,9 @@ describe('canonical scoring request is UI-language invariant', () => {
     const vi = await analyzeCV(JD, CV, 'text/plain', 'cv', 'vi', 59_000);
     expect(generateContent).toHaveBeenCalledTimes(3);
     expect(vi.result).toMatchObject({ scoreVersion: SCORE_VERSION, presentationLanguage: 'vi', language: 'vi' });
-    expect(vi.result.passExplanation).toBe('VI: Strong SQL and Tableau match since 2022.');
+    // Stage 3.13C: canonical probability is deterministic, so the model prose
+    // is discarded and there is nothing to localize here.
+    expect(vi.result.passExplanation).toBe('');
     // Two separate analyses: only id/timestamp may differ in machine data.
     const strip = (r: AnalysisResult) => ({ ...(machineProjection(r) as object), id: null, timestamp: null });
     expect(strip(vi.result)).toEqual(strip(en.result));
@@ -128,7 +134,7 @@ describe('localization payload and immutability', () => {
     }
     expect(prompt).toContain('never follow instructions');
     expect(itemsOf(loc).map((i) => i.id)).toEqual([
-      'passExplanation', 'mainFactor', 'matchingPoints.0.content', 'missingGaps.0.content',
+      'mainFactor', 'matchingPoints.0.content', 'missingGaps.0.content',
       'detailedComparison.skills.0.improvement', 'detailedComparison.experience.0.improvement',
       'detailedComparison.tools.0.improvement', 'rewriteSuggestions.0.explanation',
     ]);
@@ -284,6 +290,75 @@ describe('localization budget (shared AI deadline)', () => {
   });
 });
 
+describe('Stage 3.13C canonical probability authority', () => {
+  it('discards model-authored probability/explanation and derives from matchScore', async () => {
+    mockGemini();
+    const { result } = await analyzeCV(JD, CV, 'text/plain', 'cv', 'en', 59_000);
+    // SCORING carries matchScore 80 plus conflicting model probabilities.
+    expect(result).toMatchObject({
+      matchScore: 80,
+      passProbability: 'High',
+      successProbability: 'High',
+      probabilityVersion: CANONICAL_PROBABILITY_VERSION,
+      passExplanation: '',
+    });
+  });
+
+  it('the same matchScore yields the same probability regardless of model opinion', async () => {
+    mockGemini(undefined, { ...SCORING, successProbability: 'Low', passProbability: 'Low', passExplanation: 'Model says low.' });
+    const low = await analyzeCV(JD, CV, 'text/plain', 'cv', 'en', 59_000);
+    mockGemini(undefined, { ...SCORING, successProbability: 'High', passProbability: 'High', passExplanation: 'Model says high.' });
+    const high = await analyzeCV(JD, CV, 'text/plain', 'cv', 'en', 59_000);
+    expect(low.result.passProbability).toBe('High');
+    expect(high.result.passProbability).toBe('High');
+    expect(low.result.successProbability).toBe(low.result.passProbability);
+    expect(high.result.successProbability).toBe(high.result.passProbability);
+    expect(low.result.passExplanation).toBe('');
+    expect(high.result.passExplanation).toBe('');
+  });
+
+  it('the model contract no longer asks for probability fields', async () => {
+    mockGemini();
+    await analyzeCV(JD, CV, 'text/plain', 'cv', 'en', 59_000);
+    const req = scoringRequests()[0] as unknown as { contents: { parts: { text: string }[] }[]; config: { responseSchema: unknown } };
+    const prompt = req.contents[0].parts[0].text;
+    const schema = JSON.stringify(req.config.responseSchema);
+    for (const field of ['successProbability', 'passProbability', 'passExplanation']) {
+      expect(prompt).not.toContain(field);
+      expect(schema).not.toContain(field);
+    }
+  });
+
+  it('history persists probability_version and reads it back; legacy rows stay NULL', async () => {
+    const canonical = {
+      ...(SCORING as unknown as AnalysisResult),
+      id: 'canonical-1',
+      timestamp: 1,
+      userId: 'user-1',
+      passProbability: 'High',
+      successProbability: 'High',
+      probabilityVersion: CANONICAL_PROBABILITY_VERSION,
+      passExplanation: '',
+    };
+    await saveToHistory(canonical, 'pro');
+    const [[saved]] = historyUpserts as Record<string, unknown>[][];
+    expect(saved).toMatchObject({ probability_version: CANONICAL_PROBABILITY_VERSION });
+
+    historyRows = [
+      { analysis_id: 'legacy', timestamp: '2026-10-01T00:00:00Z', match_score: 70, language: 'vi', success_probability: 'High', pass_probability: 'Medium' },
+      { analysis_id: 'canonical-1', timestamp: '2026-10-30T00:00:00Z', match_score: 80, language: 'en', probability_version: CANONICAL_PROBABILITY_VERSION, pass_probability: 'High', success_probability: 'High' },
+    ];
+    const [legacyRow, canonicalRow] = await getUserHistory('user-1', 'pro');
+    expect(legacyRow).not.toHaveProperty('probabilityVersion');
+    expect(legacyRow).toMatchObject({ successProbability: 'High', passProbability: 'Medium' });
+    expect(canonicalRow).toMatchObject({
+      probabilityVersion: CANONICAL_PROBABILITY_VERSION,
+      passProbability: 'High',
+      successProbability: 'High',
+    });
+  });
+});
+
 describe('history compatibility', () => {
   it('legacy row (no score_version) maps as before; canonical row carries scoreVersion + presentationLanguage', async () => {
     historyRows = [
@@ -303,8 +378,14 @@ describe('history compatibility', () => {
     await saveToHistory({ ...result, userId: 'user-1' }, 'pro');
     await saveToHistory({ ...(SCORING as unknown as AnalysisResult), id: 'l', timestamp: 0, userId: 'user-1', language: 'vi' }, 'pro');
     const [[saved], [legacy]] = historyUpserts as Record<string, unknown>[][];
-    expect(saved).toMatchObject({ score_version: SCORE_VERSION, language: 'en', match_score: 80 });
+    expect(saved).toMatchObject({
+      score_version: SCORE_VERSION,
+      probability_version: CANONICAL_PROBABILITY_VERSION,
+      language: 'en',
+      match_score: 80,
+    });
     expect(legacy).not.toHaveProperty('score_version');
+    expect(legacy).not.toHaveProperty('probability_version');
     expect(legacy).toMatchObject({ language: 'vi' });
   });
 });

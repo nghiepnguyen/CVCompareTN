@@ -76,6 +76,10 @@ export const result = {
     vi: "Khả năng pass vòng CV",
     en: "CV Pass Probability",
   },
+  probabilityHistoryLabel: {
+    vi: "Khả năng vượt vòng lọc",
+    en: "Screening probability",
+  },
   explanation: {
     vi: "Giải thích ngắn gọn",
     en: "Brief Explanation",
@@ -361,8 +365,8 @@ export const result = {
     en: "Score",
   },
   comparisonColProbability: {
-    vi: "Xác suất",
-    en: "Probability",
+    vi: "Khả năng vượt vòng lọc",
+    en: "Screening probability",
   },
   comparisonColAction: {
     vi: "Hành động",

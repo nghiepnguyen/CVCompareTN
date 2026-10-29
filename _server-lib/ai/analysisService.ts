@@ -13,6 +13,7 @@ import {
 } from '../../src/services/ai/resultPayloadNormalize.js';
 import type { AnalysisResult } from '../../src/services/ai/types.js';
 import { buildAnalyzePromptEn } from '../../src/services/ai/prompts.js';
+import { CANONICAL_PROBABILITY_VERSION, derivePassProbability } from '../../src/services/ai/canonicalProbability.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
 import { dropUnsupportedSuggestions, rawJdConcepts, type SuggestionGuardMetrics } from './suggestionGuard.js';
 import { localizeAnalysis, SCORE_VERSION } from './localizeAnalysis.js';
@@ -207,15 +208,23 @@ export async function analyzeCV(
       }
     );
 
+    // Stage 3.13B contract A: probability is a deterministic representation of
+    // the canonical matchScore. Any model-authored probability/explanation is
+    // discarded before the canonical result exists (the model contract no longer
+    // requests these fields at all — responseSchema.ts).
+    const passProbability = derivePassProbability(matchScore);
+
     const finalResult = {
       jobTitle: parsedResult.jobTitle || 'Job Position',
       matchScore,
       categoryScores: normalizeCategoryScores(parsedResult.categoryScores),
       matchingPoints: normalizeMatchingPoints(parsedResult.matchingPoints),
       missingGaps,
-      successProbability: parsedResult.successProbability || 'Medium',
-      passProbability: parsedResult.passProbability || 'Medium',
-      passExplanation: parsedResult.passExplanation || '',
+      // Compatibility mirror only; never an independent authority.
+      successProbability: passProbability,
+      passProbability,
+      probabilityVersion: CANONICAL_PROBABILITY_VERSION,
+      passExplanation: '',
       mainFactor: parsedResult.mainFactor || '',
       atsKeywords: normalizeStringArray(parsedResult.atsKeywords),
       rewriteSuggestions,

@@ -31,6 +31,9 @@ function mapHistory(data: Record<string, unknown>): AnalysisResult {
     passProbability: data.pass_probability != null ? String(data.pass_probability) : "",
     passExplanation: data.pass_explanation != null ? String(data.pass_explanation) : "",
     mainFactor: data.main_factor != null ? String(data.main_factor) : "",
+    ...(typeof data.probability_version === "string" && data.probability_version
+      ? { probabilityVersion: data.probability_version }
+      : {}),
     atsKeywords: normalized.atsKeywords,
     rewriteSuggestions: normalized.rewriteSuggestions,
     fullRewrittenCV:
@@ -101,6 +104,7 @@ export async function saveToHistory(results: AnalysisResult | AnalysisResult[], 
     pass_probability: h.passProbability,
     pass_explanation: h.passExplanation,
     main_factor: h.mainFactor,
+    ...(h.probabilityVersion ? { probability_version: h.probabilityVersion } : {}),
     ats_keywords: h.atsKeywords,
     rewrite_suggestions: h.rewriteSuggestions,
     full_rewritten_cv: h.fullRewrittenCV,

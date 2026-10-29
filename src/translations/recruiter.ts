@@ -302,8 +302,8 @@ export const recruiter = {
     en: "Error",
   },
   panelProbability: {
-    vi: "Xác suất",
-    en: "Probability",
+    vi: "Khả năng vượt sàng lọc",
+    en: "Screening probability",
   },
   panelMainFactor: {
     vi: "Yếu tố chính",

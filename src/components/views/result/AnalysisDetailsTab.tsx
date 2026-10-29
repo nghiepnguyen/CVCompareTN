@@ -3,7 +3,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Check, CheckCircle2, AlertCircle, Activity, Target, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
-import { AnalysisResult, deriveRequirementInsights } from '../../../services/ai';
+import {
+  AnalysisResult,
+  deriveRequirementInsights,
+  formatProbability,
+  probabilityTone,
+  resolveProbability,
+  SCORE_HIGH_MIN,
+  SCORE_MEDIUM_MIN,
+} from '../../../services/ai';
 import { getMatchingCategoryLabel } from './matchingCategoryLabels';
 import { FormatAssessmentCard } from './FormatAssessmentCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
@@ -22,6 +30,11 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
   // Stage 3.12B: requirement lists come from canonical detailedComparison.
   // matchingPoints/missingGaps are read only for genuinely legacy results with
   // no usable canonical table (history compatibility).
+  // Stage 3.13C: one resolver decides canonical vs legacy vs unknown version.
+  const probability = resolveProbability(selectedResult, 'analysis');
+  const probabilityValue = formatProbability(probability);
+  const showPassExplanation = probability.source === 'legacy' && !!selectedResult.passExplanation;
+
   const requirementInsights = React.useMemo(
     () => deriveRequirementInsights(selectedResult.detailedComparison, {
       matchingPoints: selectedResult.matchingPoints,
@@ -93,8 +106,8 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
               animate={{ strokeDashoffset: 364.4 - (364.4 * selectedResult.matchScore) / 100 }}
               strokeLinecap="round"
               className={cn(
-                selectedResult.matchScore > 80 ? "text-success" : 
-                selectedResult.matchScore > 60 ? "text-accent" : "text-warning"
+                selectedResult.matchScore >= SCORE_HIGH_MIN ? "text-success" :
+                selectedResult.matchScore >= SCORE_MEDIUM_MIN ? "text-accent" : "text-warning"
               )}
             />
           </svg>
@@ -114,9 +127,9 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
           </p>
           <div className="bg-surface-secondary p-4 rounded-2xl border border-border">
             <p className="text-sm font-medium text-text-main leading-relaxed">
-              {selectedResult.matchScore >= 80
+              {selectedResult.matchScore >= SCORE_HIGH_MIN
                 ? t.matchVerdictHigh
-                : selectedResult.matchScore >= 60
+                : selectedResult.matchScore >= SCORE_MEDIUM_MIN
                 ? t.matchVerdictMid
                 : t.matchVerdictLow}
             </p>
@@ -186,20 +199,22 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
             <div className="text-[10px] font-black text-text-light uppercase tracking-widest mb-2 text-center">{t.passProb}</div>
             <div className={cn(
               "text-3xl font-black px-6 py-2 rounded-xl",
-              (selectedResult.passProbability === t.high || selectedResult.passProbability === 'High' || selectedResult.passProbability === 'Cao') ? "bg-success-light text-success" :
-              (selectedResult.passProbability === t.medium || selectedResult.passProbability === 'Medium' || selectedResult.passProbability === 'Trung bình') ? "bg-accent-light text-accent" : "bg-warning-light text-warning"
+              probabilityTone(probability.value) === 'high' ? "bg-success-light text-success" :
+              probabilityTone(probability.value) === 'medium' ? "bg-accent-light text-accent" : "bg-warning-light text-warning"
             )}>
-              {selectedResult.passProbability}
+              {probabilityValue}
             </div>
           </div>
           <div className="flex-1 space-y-4">
-            <div>
-              <h4 className="text-sm font-bold text-text-main flex items-center gap-2 mb-1">
-                <AlertCircle className="w-4 h-4 text-accent" />
-                {t.explanation}
-              </h4>
-              <p className="text-sm text-text-muted leading-relaxed">{selectedResult.passExplanation}</p>
-            </div>
+            {showPassExplanation && (
+              <div>
+                <h4 className="text-sm font-bold text-text-main flex items-center gap-2 mb-1">
+                  <AlertCircle className="w-4 h-4 text-accent" />
+                  {t.explanation}
+                </h4>
+                <p className="text-sm text-text-muted leading-relaxed">{selectedResult.passExplanation}</p>
+              </div>
+            )}
             <div>
               <h4 className="text-sm font-bold text-text-main flex items-center gap-2 mb-1">
                 <Target className="w-4 h-4 text-accent" />

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
-import { analyzeCV, deriveRequirementInsights, type AnalysisResult } from '../../services/ai';
+import { analyzeCV, deriveRequirementInsights, displayProbability, type AnalysisResult } from '../../services/ai';
 import type { DetailedComparison } from '../../services/ai/types';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { processFile as processFileUtil } from '../../hooks/useFileProcessor';
@@ -386,6 +386,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             missingGaps?: Array<{ content?: string } | string>;
             successProbability?: string;
             passProbability?: string;
+            probabilityVersion?: string;
             mainFactor?: string;
             detailedComparison?: DetailedComparison;
           };
@@ -409,7 +410,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             'Kinh nghiệm': catScores?.experience ?? '',
             'Công cụ': catScores?.tools ?? '',
             'Học vấn': catScores?.education ?? '',
-            'Xác suất': r?.successProbability || r?.passProbability || '',
+            'Khả năng vượt sàng lọc': displayProbability(r ?? {}, 'recruiter'),
             'Yếu tố chính': r?.mainFactor || '',
             'Điểm mạnh': strengths,
             'Điểm yếu': weaknesses,

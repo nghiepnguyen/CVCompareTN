@@ -382,6 +382,7 @@ export interface UiLabels {
   progressEstLeftApprox: string;
   progressStart: string;
   passProb: string;
+  probabilityHistoryLabel: string;
   placeholderCV: string;
   placeholderJD: string;
   premiumOptimizedBadge: string;

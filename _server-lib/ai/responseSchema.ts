@@ -60,9 +60,8 @@ export const ANALYSIS_RESPONSE_SCHEMA = {
         required: ['category', 'content', 'impact'],
       },
     },
-    successProbability: { type: 'STRING', enum: ['High', 'Medium', 'Low'] },
-    passProbability: { type: 'STRING', enum: ['High', 'Medium', 'Low'] },
-    passExplanation: { type: 'STRING' },
+    // Stage 3.13C: probability is derived from matchScore in code
+    // (canonical-score-v1), so the model no longer authors it.
     mainFactor: { type: 'STRING' },
     atsKeywords: { type: 'ARRAY', items: { type: 'STRING' } },
     rewriteSuggestions: {
@@ -112,7 +111,6 @@ export const ANALYSIS_RESPONSE_SCHEMA = {
   },
   required: [
     'jobTitle', 'matchScore', 'categoryScores', 'matchingPoints', 'missingGaps',
-    'successProbability', 'passProbability', 'passExplanation', 'mainFactor',
-    'atsKeywords', 'rewriteSuggestions', 'detailedComparison', 'formatAssessment',
+    'mainFactor', 'atsKeywords', 'rewriteSuggestions', 'detailedComparison', 'formatAssessment',
   ],
 };

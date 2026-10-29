@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../../lib/utils';
+import { SCORE_HIGH_MIN, SCORE_MEDIUM_MIN } from '../../../services/ai';
 import { AnalysisResult } from '../../../services/ai';
 
 interface ResultSwitcherStripProps {
@@ -28,8 +29,8 @@ export function ResultSwitcherStrip({ results, selectedResult, setSelectedResult
           >
             <span className={cn(
               "w-7 h-7 rounded-lg flex items-center justify-center font-black text-[10px] shrink-0",
-              res.matchScore > 80 ? "bg-success-light text-success" :
-              res.matchScore > 60 ? "bg-accent-light text-accent" : "bg-warning-light text-warning"
+              res.matchScore >= SCORE_HIGH_MIN ? "bg-success-light text-success" :
+              res.matchScore >= SCORE_MEDIUM_MIN ? "bg-accent-light text-accent" : "bg-warning-light text-warning"
             )}>
               {res.matchScore}
             </span>

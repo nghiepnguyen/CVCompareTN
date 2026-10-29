@@ -21,12 +21,13 @@ import { cn } from '../../lib/utils';
 import { useUI } from '../../context/UIContext';
 import type { UiLabels } from '../../translations';
 import type { CandidateCV, HrStatus } from '../../context/recruiter';
-import { deriveRequirementInsights } from '../../services/ai';
+import { deriveRequirementInsights, displayProbability, SCORE_HIGH_MIN, SCORE_MEDIUM_MIN } from '../../services/ai';
 import type { DetailedComparison } from '../../services/ai/types';
 
 type CandidateAnalysisData = {
   successProbability?: string;
   passProbability?: string;
+  probabilityVersion?: string;
   mainFactor?: string;
   matchingPoints?: Array<{ content?: string } | string>;
   missingGaps?: Array<{ content?: string; impact?: string } | string>;
@@ -52,17 +53,17 @@ function ScoreGauge({
   const color =
     score == null
       ? 'text-text-muted'
-      : score >= 80
+      : score >= SCORE_HIGH_MIN
         ? 'text-success'
-        : score >= 60
+        : score >= SCORE_MEDIUM_MIN
           ? 'text-amber-500'
           : 'text-error';
   const bg =
     score == null
       ? 'bg-text-muted'
-      : score >= 80
+      : score >= SCORE_HIGH_MIN
         ? 'bg-success'
-        : score >= 60
+        : score >= SCORE_MEDIUM_MIN
           ? 'bg-amber-500'
           : 'bg-error';
 
@@ -336,7 +337,7 @@ function CandidateDetail({
               <div className="min-w-0">
                 <p className="text-[9px] text-text-muted uppercase tracking-wide">{t.panelProbability}</p>
                 <p className="text-[11px] font-extrabold text-text-main truncate">
-                  {result?.successProbability || result?.passProbability || '—'}
+                  {displayProbability(result, 'recruiter') || '—'}
                 </p>
               </div>
             </div>
@@ -363,9 +364,9 @@ function CandidateDetail({
                   <span className="text-text-muted">{t.panelMatchScore}</span>
                   <span
                     className={
-                      candidate.matchScore >= 80
+                      candidate.matchScore >= SCORE_HIGH_MIN
                         ? 'text-success'
-                        : candidate.matchScore >= 60
+                        : candidate.matchScore >= SCORE_MEDIUM_MIN
                           ? 'text-amber-500'
                           : 'text-error'
                     }
@@ -377,9 +378,9 @@ function CandidateDetail({
                   <div
                     className={cn(
                       'h-full rounded-full transition-all duration-500',
-                      candidate.matchScore >= 80
+                      candidate.matchScore >= SCORE_HIGH_MIN
                         ? 'bg-success'
-                        : candidate.matchScore >= 60
+                        : candidate.matchScore >= SCORE_MEDIUM_MIN
                           ? 'bg-amber-500'
                           : 'bg-error',
                     )}
@@ -391,11 +392,11 @@ function CandidateDetail({
             <div className="flex gap-1.5">
               {candidate.status === 'done' && (
                 <>
-                  {candidate.matchScore != null && candidate.matchScore >= 80 ? (
+                  {candidate.matchScore != null && candidate.matchScore >= SCORE_HIGH_MIN ? (
                     <span className="text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-md">
                       {t.panelVerdictPotential}
                     </span>
-                  ) : candidate.matchScore != null && candidate.matchScore >= 60 ? (
+                  ) : candidate.matchScore != null && candidate.matchScore >= SCORE_MEDIUM_MIN ? (
                     <span className="text-[10px] font-bold text-amber-600 bg-amber-400/10 px-2 py-0.5 rounded-md">
                       {t.panelVerdictConsider}
                     </span>
@@ -557,9 +558,9 @@ function CandidateDetail({
                         <span
                           className={cn(
                             'text-xs font-extrabold tabular-nums',
-                            valNum >= 80
+                            valNum >= SCORE_HIGH_MIN
                               ? 'text-success'
-                              : valNum >= 60
+                              : valNum >= SCORE_MEDIUM_MIN
                                 ? 'text-amber-500'
                                 : 'text-error',
                           )}
@@ -571,9 +572,9 @@ function CandidateDetail({
                         <div
                           className={cn(
                             'h-full rounded-full transition-all duration-500',
-                            valNum >= 80
+                            valNum >= SCORE_HIGH_MIN
                               ? 'bg-success'
-                              : valNum >= 60
+                              : valNum >= SCORE_MEDIUM_MIN
                                 ? 'bg-amber-500'
                                 : 'bg-error',
                           )}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildAnalyzePrompt, buildAnalyzePromptVi, buildAnalyzePromptEn, buildParseCvPrompt } from "../../services/ai/prompts";
 import { PARSED_CV_SCHEMA } from "../../../_server-lib/ai/parseCvService";
+import { ANALYSIS_RESPONSE_SCHEMA } from "../../../_server-lib/ai/responseSchema";
 
 const mockJdSection = "<!-- JD: Senior Frontend Developer -->";
 
@@ -244,5 +245,29 @@ describe("prompts — logical requirement grouping (Stage 3.12B)", () => {
   it("does not alter the scoring rubric", () => {
     expect(prompt).toContain("Calculate an overall match score (0-100)");
     expect(prompt).toContain("90-100: FULLY meets all REQUIRED items");
+  });
+});
+
+
+describe("prompts — Stage 3.13C canonical probability", () => {
+  const PROBABILITY_FIELDS = ["successProbability", "passProbability", "passExplanation"];
+
+  it.each([
+    ["vi", buildAnalyzePromptVi],
+    ["en", buildAnalyzePromptEn],
+  ] as const)("%s prompt no longer asks the model to author probability", (_lang, build) => {
+    const prompt = build({ jdSection: mockJdSection });
+    for (const field of PROBABILITY_FIELDS) expect(prompt).not.toContain(field);
+    expect(prompt.toLowerCase()).not.toContain("probability");
+    expect(prompt.toLowerCase()).not.toContain("xác suất");
+  });
+
+  it("analysis response schema neither exposes nor requires probability fields", () => {
+    for (const field of PROBABILITY_FIELDS) {
+      expect(ANALYSIS_RESPONSE_SCHEMA.properties).not.toHaveProperty(field);
+      expect(ANALYSIS_RESPONSE_SCHEMA.required).not.toContain(field);
+    }
+    expect(ANALYSIS_RESPONSE_SCHEMA.required).toContain("matchScore");
+    expect(ANALYSIS_RESPONSE_SCHEMA.required).toContain("mainFactor");
   });
 });
