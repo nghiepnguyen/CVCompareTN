@@ -1,7 +1,7 @@
 # Gemini AI fidelity — roadmap
 
-Ngày lập: 2026-10-28. Cập nhật: 2026-10-29 (Stage 3.10B local, chưa deploy).
-Remote `main` đã kiểm tra: `1b4bb00` (PR #15 chỉ merge roadmap); production runtime gần nhất đã xác nhận: `24a1a0a` (PR #14 đã merge + deploy; PR #13 trước đó; PR #12 + migration `20261030000000_score_version.sql` đã apply trước đó, production smoke PASS).
+Ngày lập: 2026-10-28. Cập nhật: 2026-10-29 (Stage 3.10B — MERGED & DEPLOYED).
+Production hiện tại: `main` @ `b974e92` (PR #16 đã merge; deploy được xác nhận ngày 2026-10-29). Commit Stage 3.10B: `2a54cc1`; merge commit: `b974e92ab01a14f9105c243601f5b232b1e704ea`. PR #12 + migration `20261030000000_score_version.sql` đã apply trước đó, production smoke PASS.
 
 ## Trạng thái đã ship
 
@@ -16,6 +16,7 @@ Remote `main` đã kiểm tra: `1b4bb00` (PR #15 chỉ merge roadmap); productio
 | #12 | 3.7 — CLOSED (production verified) | Chấm điểm canonical: luôn prompt EN + prose EN cho mọi UI → `scoreVersion = canonical-en-v1`; UI tiếng Việt thêm 1 lượt dịch hẹp (chỉ chuỗi trình bày, theo id, kiểm số liệu, cùng model, dùng chung deadline AI ≥15s / cap 20s, fallback EN `presentationLanguage = en`). `history.score_version`, `candidate_cvs.score_version`; history cũ NULL = legacy |
 | #13 | 3.8 — CLOSED (deployed) | 3.8A audit: parse-cv `relevant_score` = judge CV↔JD thứ hai (model `gemini-3.5-flash-lite`, prompt theo ngôn ngữ UI), chỉ dùng hiển thị → Option A. 3.8B: bỏ `relevant_score` khỏi prompt/`PARSED_CV_SCHEMA` + UI `ParsedCVTab` (%, thanh, badge lệch điểm, `computeScoreDiscrepancy`); field chỉ còn optional cho `history.parsed_cv` legacy, không migration, không score version mới. Pattern `useMemo` sau early return đã gỡ (crash hooks nghi ngờ không tái hiện trên React 19) |
 | #14 | 3.9 — CLOSED (deployed) | 3.9A audit (20 call live, ~$0.07): `key_match_highlights`/`missing_keywords` của parse-cv là judge CV↔JD thứ hai — membership lệch theo UI, output không thật sự localize, mâu thuẫn canonical (BigQuery/Redshift "thiếu" dù yêu cầu OR đã khớp qua Snowflake) → Option C. 3.9B: bỏ 2 field khỏi prompt/`PARSED_CV_SCHEMA`; `ParsedCVTab` suy ra qua `deriveParsedCvInsights()` từ `detailedComparison` canonical (matched → điểm khớp, required trước, tối đa 3; chỉ `missing` → "Yêu cầu còn thiếu / Missing requirements", `partial` không tính); canonical không bao giờ trộn legacy; history cũ fallback mảng legacy. Không thêm call Gemini, không migration |
+| [#16](https://github.com/nghiepnguyen/CVCompareTN/pull/16) | 3.10B — CLOSED (merged & deployed) | Option B: `/api/parse-cv` chỉ nhận CV để Gemini trích xuất/cấu trúc; bỏ JD khỏi application payload, handler, service và prompt VI/EN. Extra `jd` từ caller cũ bị bỏ qua, không thể đi vào Gemini parse request. Giữ nguyên response schema, `ats_evaluation.years_of_experience` fallback/override và canonical authority Stage 3.8/3.9. Không migration, không thêm call Gemini |
 | #11 | 3.5 — CLOSED | Request deadline 65s dùng chung (AI 59s + 6s dự phòng), storage hủy thật ≤15s/ref, Gemini abort thật, quota/telemetry bị giới hạn, error row phân loại cho analyze/rewrite/parse, client 75s, `maxDuration` 300s (chỉ là trần an toàn) |
 
 Guard production:
@@ -43,13 +44,16 @@ score authority: matchScore là điểm CV↔JD duy nhất (Stage 3.8);
   parse-cv relevant_score: không generate/hiển thị/so sánh — chỉ còn trong history.parsed_cv legacy
 ```
 
-Boundary production (Stage 3.9):
+Boundary production (Stage 3.10B):
 
 ```
-Canonical analyze  → toàn bộ semantic judgment CV↔JD (matchScore, categoryScores, detailedComparison)
-Parsed CV          → extraction + presentation tất định từ canonical data
-                     (deriveParsedCvInsights: matched → điểm khớp; chỉ missing → yêu cầu còn thiếu; partial không tính)
-Legacy parsed_cv   → fallback tương thích (relevant_score, key_match_highlights, missing_keywords), không còn là authority
+CV                 → parse-cv → Gemini CV-only extraction / structuring / presentation data
+CV + JD            → canonical analyze → matching / semantic judgment (matchScore, categoryScores, detailedComparison)
+Parsed CV UI       → canonical detailedComparison cho match / missing qua deriveParsedCvInsights
+                     (matched → điểm khớp; chỉ missing → yêu cầu còn thiếu; partial không tính)
+Legacy fields      → compatibility only (relevant_score, key_match_highlights, missing_keywords)
+                     fallback history cũ khi không có detailedComparison; không trộn với canonical
+JD                 → không đi vào Gemini parse request (extra jd từ caller cũ bị bỏ qua)
 ```
 
 Timing production:
@@ -64,11 +68,19 @@ Vercel maxDuration    300s (safety ceiling, không phải ngân sách request)
 Benchmark: `scripts/benchmark-gemini-analyze.ts`, `scripts/benchmark-gemini-parse-rewrite.ts` (fixtures tổng hợp, không PII; rewrite benchmark có số liệu Full CV guard).
 Telemetry: `docs/11_guard_metrics.md` (SQL mẫu). Deadline: `_server-lib/deadline.ts`, `docs/5_api.md`. Canonical scoring: `docs/12_canonical_scoring.md`.
 
-## Stage 3.10 — local, chưa ship
+## Stage 3.10 — CLOSED (merged & deployed)
 
 - **3.10A — audit hoàn tất, đã duyệt:** mọi output parse hiện tại đều tạo được từ CV, không cần JD → Option B. 18 call live trên fixture tổng hợp VI/EN/VI đầy đủ, ~$0.044 theo pricing trong repo; không quan sát thấy JD-only contamination, còn dao động taxonomy/wording và một lần hỏng extraction. Không sửa production.
-- **3.10B — sẵn sàng review local:** bỏ JD khỏi `generateParsedCVForResult` → `parseCV` → shared handler → `generateParsedCV` → prompt VI/EN. Prompt có contract riêng chỉ nhận language; extra `jd` từ caller cũ được bỏ qua. Giữ Gemini, schema, model, deadline, telemetry và Stage 3.8/3.9 canonical authority. Test mocked Gemini request chứng minh absent/real/unrelated JD không đổi input. Chưa commit/push/PR/deploy.
+- **3.10B — MERGED & DEPLOYED ✅:** [PR #16](https://github.com/nghiepnguyen/CVCompareTN/pull/16), commit `2a54cc1` → merge `b974e92`, chốt ngày 2026-10-29. Bỏ JD khỏi `generateParsedCVForResult` → `parseCV` → shared handler → `generateParsedCV` → prompt VI/EN. Prompt có contract riêng chỉ nhận language; extra `jd` từ caller cũ được bỏ qua. Giữ Gemini cho structured extraction, schema, model, deadline, telemetry và Stage 3.8/3.9 canonical authority. Test mocked Gemini request chứng minh absent/real/unrelated JD không đổi input; loại bỏ nguồn coupling/contamination từ JD trong parse.
+- **Verification trước commit:** targeted 162 PASS; lint PASS; lint:api PASS; full Vitest 430 PASS / 33 files; production build PASS; `git diff --check` PASS. Không gọi thêm Gemini ở 3.10B.
+- **Scope commit:** đúng 15 file implementation/docs/tests; `scripts/verify-r2-flow.ts`, R2/Graphify/Graft/local tooling debt nằm ngoài commit.
 - **Deferred:** giữ `ats_evaluation.years_of_experience` nguyên vị trí/semantics: Gemini fallback khi không có khoảng thời gian hợp lệ; deterministic merged-range override khi có. Không migration; chưa sửa taxonomy, extraction variability/corruption hay redesign parser.
+
+## Stage 3.11 — authority kinh nghiệm (local, chưa ship)
+
+- **3.11A — audit hoàn tất, đã duyệt:** Option E — evidence-aware hybrid. 36 fixture tất định + 10 call live (~$0.0075 theo pricing repo) chứng minh subtotal 4 năm ghi đè model 9 năm trên timeline partial; model cũng có thể sinh calendar dates không có trong CV. History current-role 6.8 → 7.3 khi mở lại từ 10/2026 sang 04/2027. Field chỉ display/persistence, không chấm điểm.
+- **3.11B — triển khai local để review:** inspection raw entries → source-backed union → explicit selector; COMPLETE + source-supported mới override model, PARTIAL/UNAVAILABLE giữ estimate hợp lệ, invalid → trusted subtotal → 0; xử lý model-zero conflict. Evidence check bảo thủ trên một dòng có company/title ngay trước date pair; multiline/scan/image không xác minh được → unknown. Future-only bỏ, future end cap tại ICT `asOf`, year-only không đủ precision COMPLETE, `is_current` chỉ nhận boolean true. History mode giữ selected snapshot. Giữ schema/ATS wrapper/CV-only/canonical authority; không migration hay thêm AI call. Chưa commit/push/PR/deploy.
+- **Deferred:** ATS wrapper naming; role-local provenance cho layout nhiều dòng/OCR; conflict summary/timeline; taxonomy và general Gemini extraction variability. Không sửa history cũ hay phục hồi estimate Gemini đã bị mất.
 
 ## Hướng tiếp theo
 
@@ -120,7 +132,7 @@ Telemetry: `docs/11_guard_metrics.md` (SQL mẫu). Deadline: `_server-lib/deadli
 
 ### Debt từ Stage 3.9
 
-27. **Stage 3.10A đã duyệt → 3.10B local (chưa deploy):** JD không cần cho extraction; bản local đã bỏ JD khỏi parse request/prompt, giữ schema và years fallback. Production chỉ đổi sau review/merge/deploy riêng.
+27. ~~**parse-cv còn phụ thuộc JD dù không còn judgment CV↔JD.**~~ CLOSED ở PR #16 (Stage 3.10B, merged & deployed): CV-only extraction, JD không đi vào Gemini parse; giữ schema và years fallback.
 28. Chip điểm khớp / yêu cầu còn thiếu dùng nguyên `detailedComparison.requirement` (ngôn ngữ JD, không nằm trong allowlist localization 3.7) → UI VI với JD tiếng Anh hiện chip tiếng Anh. Có chủ đích; không mở allowlist chỉ để dịch chip.
 29. Chip yêu cầu dài (cụm từ requirement) trong `rounded-full` chưa kiểm tra trên trình duyệt thật.
 30. History cũ không có `detailedComparison` vẫn hiện mảng legacy (do parse model chấm) dưới nhãn cũ "Từ khóa còn thiếu"; kết quả mới có bảng canonical rỗng (hiếm) cũng rơi vào nhãn này.

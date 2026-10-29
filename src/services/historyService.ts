@@ -41,7 +41,7 @@ function mapHistory(data: Record<string, unknown>): AnalysisResult {
     rating: typeof data.rating === "number" ? data.rating : undefined,
     feedback: data.feedback != null ? String(data.feedback) : undefined,
     language: data.language === "en" ? "en" : "vi",
-    parsedCV: normalizeParsedCV(data.parsed_cv),
+    parsedCV: normalizeParsedCV(data.parsed_cv, { mode: "history" }),
     // Legacy rows (no score_version) keep their old meaning: language = UI language.
     ...(typeof data.score_version === "string" && data.score_version
       ? { scoreVersion: data.score_version, presentationLanguage: data.language === "en" ? "en" as const : "vi" as const }

@@ -119,6 +119,36 @@ work-date range exists; deterministic merged-range calculation overrides it
 when ranges are available. ATS wrapper cleanup is deferred. No migration,
 score-version change, or additional Gemini call.
 
+## Experience authority (Stage 3.11B)
+
+`ats_evaluation.years_of_experience` is total elapsed professional work
+experience represented by the CV, not JD relevance, role-years or FTE-years.
+It remains display/persistence data and never feeds canonical scores.
+
+New parse normalization inspects raw entries before structural filtering.
+Only a COMPLETE, source-backed timeline may override the valid model estimate.
+Partial/unavailable evidence preserves the model value; invalid models use a
+trusted subtotal or zero. A source-backed positive subtotal overrides a
+conflicting model zero. Validation accepts finite nonnegative numbers and
+strict decimal legacy strings, not numeric prefixes, negatives or nonfinite
+values. Inclusive-month union still handles overlap, duplicates, adjacency and
+gaps; future-only roles are excluded, future ends capped at ICT `asOf`, and
+year-only precision cannot establish COMPLETE authority.
+
+Source verification is intentionally narrow: a simple company/title header immediately followed by one matching
+date pair on the same CV text line. Existing English month/numeric date
+normalization is accepted; inferred calendar dates without source support are
+not. Multiline layouts, absent text, scan/image input, ambiguous associations
+and unsupported formats remain unknown. PDF text already available to the
+parse service is reused; no OCR or AI call is added. This is literal evidence
+support, not proof that every real job was extracted or that CV facts are true.
+
+History uses explicit `mode: "history"` to preserve a valid saved selected
+value, including zero. It never recomputes experience at today's date, rewrites
+rows, or reconstructs discarded model estimates. Invalid saved values become
+zero. New parses default `asOf` to current time in ICT; tests inject it.
+No schema/migration/score-version change. ATS wrapper cleanup remains deferred.
+
 ## Known debt
 
 - Recruiter campaigns can mix legacy and canonical `match_score` until

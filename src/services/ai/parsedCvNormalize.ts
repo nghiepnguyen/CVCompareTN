@@ -7,77 +7,12 @@ import type {
   ParsedSkills,
   ParsedWorkExperience,
 } from "./types.js";
-import { vnDateParts } from "../../lib/vnTime.js";
+import { inspectWorkTimeline, selectExperience, validExperience, type ExperienceContext } from "./experienceAuthority.js";
+export { computeYearsOfExperience } from "./experienceAuthority.js";
 import { normalizeTextualMonthYear } from "../../lib/cvDates.js";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v != null && typeof v === "object" && !Array.isArray(v);
-}
-
-type MonthYear = { year: number; month: number };
-
-function parseMonthYear(s: string | undefined): MonthYear | null {
-  if (typeof s !== "string") return null;
-  const trimmed = normalizeTextualMonthYear(s.trim());
-  let m = trimmed.match(/^(\d{1,2})\/(\d{4})$/);
-  if (m) {
-    const month = parseInt(m[1], 10);
-    const year = parseInt(m[2], 10);
-    if (month >= 1 && month <= 12) return { year, month };
-  }
-  m = trimmed.match(/^(\d{4})-(\d{1,2})$/);
-  if (m) {
-    const year = parseInt(m[1], 10);
-    const month = parseInt(m[2], 10);
-    if (month >= 1 && month <= 12) return { year, month };
-  }
-  m = trimmed.match(/^(\d{4})$/);
-  if (m) return { year: parseInt(m[1], 10), month: 1 };
-  return null;
-}
-
-const toMonthIndex = (d: MonthYear): number => d.year * 12 + (d.month - 1);
-
-/**
- * Deterministically sums total work experience from date ranges instead of
- * trusting the LLM's own arithmetic. Merges overlapping/concurrent roles so
- * two simultaneous jobs aren't double-counted. Returns null when no range in
- * `work_experience` has parseable MM/YYYY (or YYYY) start/end dates.
- */
-export function computeYearsOfExperience(
-  work_experience: ParsedWorkExperience[],
-  now: Date = new Date()
-): number | null {
-  const ranges: [number, number][] = [];
-  for (const w of work_experience) {
-    const start = parseMonthYear(w.duration?.start);
-    if (!start) continue;
-    const end = w.duration?.is_current
-      ? { year: vnDateParts(now).y, month: vnDateParts(now).m + 1 }
-      : parseMonthYear(w.duration?.end);
-    if (!end) continue;
-    const startIdx = toMonthIndex(start);
-    const endIdx = toMonthIndex(end);
-    if (endIdx < startIdx) continue;
-    ranges.push([startIdx, endIdx]);
-  }
-  if (ranges.length === 0) return null;
-
-  ranges.sort((a, b) => a[0] - b[0]);
-  let totalMonths = 0;
-  let [curStart, curEnd] = ranges[0];
-  for (let i = 1; i < ranges.length; i++) {
-    const [s, e] = ranges[i];
-    if (s <= curEnd + 1) {
-      curEnd = Math.max(curEnd, e);
-    } else {
-      totalMonths += curEnd - curStart + 1;
-      [curStart, curEnd] = [s, e];
-    }
-  }
-  totalMonths += curEnd - curStart + 1;
-
-  return Math.round((totalMonths / 12) * 10) / 10;
 }
 
 // Whole-value placeholders models write into required contact fields when the
@@ -115,7 +50,11 @@ function contactValue(v: unknown): string {
  * Coerces Gemini / DB JSON into a full ParsedCV shape so UI never reads undefined nested fields.
  * Returns undefined only when there is no usable object (null, non-object, or empty {}).
  */
-export function normalizeParsedCV(raw: unknown): ParsedCV | undefined {
+export interface ParsedCvNormalizationContext extends ExperienceContext {
+  mode?: 'new' | 'history';
+}
+
+export function normalizeParsedCV(raw: unknown, context: ParsedCvNormalizationContext = {}): ParsedCV | undefined {
   if (!isRecord(raw)) return undefined;
   if (Object.keys(raw).length === 0) return undefined;
 
@@ -164,7 +103,7 @@ export function normalizeParsedCV(raw: unknown): ParsedCV | undefined {
           duration: {
             start: typeof dur.start === "string" ? normalizeTextualMonthYear(dur.start) : "",
             end: typeof dur.end === "string" ? normalizeTextualMonthYear(dur.end) : "",
-            is_current: Boolean(dur.is_current),
+            is_current: dur.is_current === true,
           },
           responsibilities: Array.isArray(w.responsibilities)
             ? w.responsibilities.filter((x): x is string => typeof x === "string")
@@ -218,20 +157,10 @@ export function normalizeParsedCV(raw: unknown): ParsedCV | undefined {
   const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : undefined);
   const highlights = strings(ats.key_match_highlights);
   const missingKw = strings(ats.missing_keywords);
-  let years_of_experience = 0;
-  if (typeof ats.years_of_experience === "number" && Number.isFinite(ats.years_of_experience)) {
-    years_of_experience = ats.years_of_experience;
-  } else if (typeof ats.years_of_experience === "string") {
-    const y = parseFloat(ats.years_of_experience);
-    years_of_experience = Number.isFinite(y) ? y : 0;
-  }
-  // Prefer a deterministic sum over the work-history date ranges — LLM date
-  // arithmetic is unreliable; only fall back to the model's own number when
-  // no entry has a parseable start/end date.
-  const computedYears = computeYearsOfExperience(work_experience);
-  if (computedYears !== null) {
-    years_of_experience = computedYears;
-  }
+  // History contains the selected snapshot, not the original model estimate; never recalculate it at today's date.
+  const years_of_experience = context.mode === 'history'
+    ? validExperience(ats.years_of_experience) ?? 0
+    : selectExperience(ats.years_of_experience, inspectWorkTimeline(raw.work_experience, context));
   // Legacy history.parsed_cv rows (pre Stage 3.8B) may carry relevant_score;
   // keep it readable but never invent one for new payloads.
   const legacyScore =
