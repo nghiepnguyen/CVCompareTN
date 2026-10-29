@@ -356,6 +356,23 @@ describe('/api/rewrite-cv deadline', () => {
 });
 
 describe('/api/parse-cv deadline', () => {
+  it.each(['text', 'pdf-text', 'image', 'pdf-scan'])('uses only available CV text evidence for %s', async kind => {
+    const source = 'Acme | Engineer | 01/2018 - 12/2021. Built APIs. '.padEnd(110, '.');
+    generateContent.mockResolvedValue(reply({
+      work_experience: [{ company: 'Acme', job_title: 'Engineer', duration: { start: '01/2018', end: '12/2021', is_current: false } }],
+      ats_evaluation: { years_of_experience: 9 },
+    }));
+    extractText.mockResolvedValue({ text: kind === 'pdf-text' ? source : '' });
+    const { res } = await run(() => handleParseCv('Bearer t', {
+      cvData: kind === 'text' ? source : Buffer.from('synthetic file').toString('base64'),
+      cvMimeType: kind === 'text' ? 'text/plain' : kind === 'image' ? 'image/png' : 'application/pdf',
+      language: 'en',
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.parsedCV).toMatchObject({ ats_evaluation: { years_of_experience: kind === 'text' || kind === 'pdf-text' ? 4 : 9 } });
+    expect(generateContent).toHaveBeenCalledTimes(1);
+  });
+
   it.each(['vi', 'en'] as const)('ignores legacy JD input in the %s Gemini request', async (language) => {
     generateContent.mockResolvedValue(reply({ ats_evaluation: { years_of_experience: 5 } }));
     const requests: unknown[] = [];

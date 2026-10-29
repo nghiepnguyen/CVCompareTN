@@ -126,6 +126,7 @@ export async function generateParsedCV(
 
   type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
   const parts: GeminiPart[] = [{ text: prompt }];
+  let sourceText: string | undefined;
 
   let timer: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -152,6 +153,7 @@ export async function generateParsedCV(
         ]);
         if (text && text.trim().length >= 100) {
           parts.push({ text: `CV Content:\n${text}` });
+          sourceText = text;
           usedText = true;
         }
       } catch (e) {
@@ -168,6 +170,7 @@ export async function generateParsedCV(
       });
     } else {
       parts.push({ text: `CV Content:\n${cvData}` });
+      sourceText = cvData;
       if (cvPdfInlineData) {
         const base64Data = cvPdfInlineData.split(',')[1] || cvPdfInlineData;
         if (Buffer.byteLength(base64Data, 'base64') <= MAX_INLINE_PDF_BYTES) {
@@ -201,10 +204,10 @@ export async function generateParsedCV(
     const resultText = response.text || '';
 
     try {
-      return { parsedCV: normalizeParsedCV(JSON.parse(resultText)), usage };
+      return { parsedCV: normalizeParsedCV(JSON.parse(resultText), { sourceText }), usage };
     } catch {
       const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) return { parsedCV: normalizeParsedCV(JSON.parse(jsonMatch[0])), usage };
+      if (jsonMatch) return { parsedCV: normalizeParsedCV(JSON.parse(jsonMatch[0]), { sourceText }), usage };
       throw new SyntaxError('No JSON object found in Gemini response');
     }
   } catch (error: unknown) {

@@ -221,13 +221,13 @@ describe("parsedCvNormalize — normalizeParsedCV", () => {
     expect(result!.ats_evaluation).not.toHaveProperty("missing_keywords");
   });
 
-  it("overrides the LLM's years_of_experience with a deterministic sum from work_experience dates", () => {
+  it("overrides the LLM's years_of_experience only with complete source-backed work dates", () => {
     const result = normalizeParsedCV({
       work_experience: [
-        { duration: { start: "01/2020", end: "12/2022", is_current: false } },
+        { company: "Acme", job_title: "Engineer", duration: { start: "01/2020", end: "12/2022", is_current: false } },
       ],
       ats_evaluation: { years_of_experience: 99 },
-    });
+    }, { sourceText: "Acme | Engineer | 01/2020 - 12/2022" });
     expect(result!.ats_evaluation.years_of_experience).toBe(3);
   });
 
@@ -414,5 +414,18 @@ describe("computeYearsOfExperience — ongoing roles", () => {
     const job = { company: "C", job_title: "T", duration: { start: "Jan 2022", end: "Present", is_current: true }, responsibilities: [], achievements: [] };
     // 01/2022 through 10/2026 inclusive = 58 months
     expect(computeYearsOfExperience([job] as never, new Date("2026-10-15T00:00:00.000Z"))).toBe(4.8);
+  });
+});
+
+describe('Stage 3.11B partial-timeline regression', () => {
+  it('preserves 9 years instead of a 4-year parseable subtotal', () => {
+    const result = normalizeParsedCV({
+      work_experience: [
+        { company: 'Acme', job_title: 'Engineer', duration: { start: '01/2018', end: '12/2021', is_current: false } },
+        { company: 'Earlier', job_title: 'Engineer', duration: { start: '', end: '', is_current: false }, responsibilities: ['5 years before Acme'] },
+      ],
+      ats_evaluation: { years_of_experience: 9 },
+    });
+    expect(result!.ats_evaluation.years_of_experience).toBe(9);
   });
 });
