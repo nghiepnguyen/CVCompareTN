@@ -131,16 +131,93 @@ Telemetry: `docs/11_guard_metrics.md` (SQL mẫu). Deadline: `_server-lib/deadli
 
 ## Hướng tiếp theo
 
-### Ưu tiên cao
+### Next-action queue — cập nhật sau production verification 3.14A
 
-0. ~~**Stage 3.8 — parse-cv `relevant_score` UI-language-coupled.**~~ CLOSED ở PR #13 (xem bảng trên).
-0b. ~~**Requirement-status authority bị duplicate (`detailedComparison` vs `matchingPoints`/`missingGaps`, OR split).**~~ CLOSED ở PR #18 (Stage 3.12B, merged & deployed).
-0c. ~~**Probability authority duplicate (`successProbability` vs `passProbability`).**~~ CLOSED ở PR #19 (Stage 3.13C, merged & deployed): canonical `passProbability` từ `matchScore`, legacy boundary `probability_version`.
-0d. ~~**Parsed CV chờ analysis (request waterfall).**~~ CLOSED ở PR #20 (Stage 3.14A, deployed): parse chạy song song analyze, limiter 5, persistence race fixed.
-0e. **Đo baseline Parsed CV sau 3.14A** (first-open, overlap, parse p50/p95, tỷ lệ parse fail/429) trên production trước khi làm 3.14B. Chỉ sau đó mới quyết định parser/model, PDF payload hay R2 second read — giữ attribution cho scheduling change.
-1. **Đọc telemetry production (Stage 3.4 data).** Sau 1–2 tuần, chạy SQL trong `docs/11_guard_metrics.md`: tỷ lệ guard drop, first-pass failure, retry recovery, fallback, skip; cùng tỷ lệ error row theo category (`[storage_timeout]`, `[gemini_timeout]`…). Dữ liệu này quyết định mục 2 và 4.
-   - Lưu ý: rawJd thấp ≠ leakage lowercase thấp — guard không nhìn thấy loại này.
-2. **Rủi ro model preview.** `gemini-3-flash-preview` có thể bị khai tử với 2 tuần báo trước. Chuẩn bị `gemini-3.6-flash` (chậm ~1.7×, giá ×2 từ 01/2027). Deadline 65s / AI 59s giờ là một hằng số chung (`_server-lib/deadline.ts`) + client 75s + `maxDuration` 300s đã có headroom — cần benchmark lại latency để chỉnh `TOTAL_BUDGET_MS`/client cùng lúc.
+Roadmap này là **master plan** cho AI fidelity, authority, performance, technical debt và operational risk. Danh sách dưới đây là **next-action queue**: thứ tự thực thi thực tế sau khi Stage 3.14A đã được production-verify. Không mở optimization mới chỉ vì debt tồn tại; chỉ triển khai khi có trigger/evidence rõ ràng.
+
+#### P0 — Reconcile migration-history drift trước lần `db push` tiếp theo
+
+- Production schema đã có thay đổi tương ứng `20261029` / `20261030`, nhưng migration history còn thiếu record; `20261031000000_probability_version.sql` đã apply + record.
+- Reconcile riêng migration history trước lần `supabase db push` tiếp theo để tránh migration state không phản ánh schema thật.
+- Đây không phải regression của 3.13C/3.14A, nhưng có trigger rõ ràng nên không để trôi trong backlog.
+
+#### P1 — Hoàn tất Recruiter production verification
+
+- Stage 3.13C đã verify Candidate/History/RPC; canonical contract vẫn là `passProbability = band(matchScore)`, `successProbability` chỉ compatibility mirror.
+- Cần smoke Recruiter thật: tạo/analyze khoảng **5–10 recruiter analyses** khi thuận tiện, kiểm tra CandidatePanel, persistence `candidate_cvs.probability_version`, `successProbability === passProbability`, và click/export Excel ít nhất một lần.
+- Canonical rows phải có `probabilityVersion = canonical-score-v1`, `passProbability` không rỗng, mirror mismatch = 0.
+
+#### P1 — Recruiter/batch concurrency audit
+
+- 3.14A production single-CV đã PASS, nhưng production chưa chạy batch 3–5 CV vì smoke account Free (`MAX_BATCH_BY_PLAN.free = 1`). Automated tests đã chứng minh parse per-CV start trước khi analysis resolve và parse cap = 5.
+- Audit/smoke batch Recruiter để quan sát thực tế analyze ≤5 + parse ≤5 và rewrite post-analysis. Trọng tâm là debt rewrite concurrency có thể lên tới plan max 50 Recruiter, 429/timeout/retry behavior và burst Gemini.
+- Không hạ concurrency hay thêm global limiter nếu chưa có evidence 429/latency/cost bất thường.
+
+#### P1 — Đọc telemetry production Stage 3.4 sau 1–2 tuần
+
+- Chạy SQL trong `docs/11_guard_metrics.md`: guard drop, first-pass failure, retry recovery, fallback, skip; error rows theo category (`[storage_timeout]`, `[gemini_timeout]`…).
+- Raw-JD guard thấp không chứng minh lowercase leakage thấp vì guard hiện không nhìn thấy nhóm đó.
+- Telemetry là căn cứ quyết định có mở lại fidelity/latency optimization hay không.
+
+#### P2 — Legacy / failed `parsed_cv` recovery
+
+- History legacy hoặc parse-fail row không có `parsed_cv` hiện vẫn empty vĩnh viễn.
+- Thiết kế recovery/lazy regeneration là stage riêng; không trộn vào scheduler 3.14A.
+- Cần giữ nguyên nguyên tắc dedup: tab không tự tạo duplicate parse trong cùng run và history đã có `parsed_cv` không parse lại.
+
+#### WAIT — Stage 3.13D probability compatibility cleanup
+
+Không cleanup `successProbability`, `passExplanation`, legacy resolver/DB compatibility ngay. Exit criteria đề xuất:
+
+- production window tối thiểu **7 ngày**;
+- khoảng **≥50 Candidate canonical analyses**; traffic thấp có thể xem xét từ 30 nhưng 50 là mốc mục tiêu;
+- khoảng **5–10 Recruiter canonical analyses**;
+- canonical `successProbability === passProbability` 100%;
+- không canonical row thiếu `passProbability` / `probabilityVersion`;
+- Candidate + History + Recruiter + Excel không còn consumer thực tế phụ thuộc `successProbability`;
+- không regression/error liên quan probability trong compatibility window.
+
+Khi đủ các điều kiện trên mới mở 3.13D để remove compatibility fields/branches theo scope riêng, có rollback rõ ràng.
+
+#### BACKLOG — Parsed CV latency/cost optimization
+
+Stage 3.14A đã production-verify scheduling fix:
+
+```text
+parse start:       111266.1ms
+analyze start:     111266.3ms
+parse finish:      114789.6ms  (~3.52s)
+analyze finish:    119303.8ms  (~8.04s)
+first open:        51.5ms
+second open:       0.3ms
+reload/history:    101.6ms, 0 parse request
+429 observed:      NO
+runtime errors:    0 trong smoke window
+```
+
+Vì parse hoàn tất trước analysis trong production sample và Parsed tab gần như instant, **không mở 3.14B chỉ để giảm parser latency**. Các debt sau giữ backlog và chỉ kích hoạt khi telemetry/user impact chứng minh cần thiết:
+
+- parser/model latency nền (~5.5s p50 baseline audit);
+- PDF có text vẫn gửi kèm PDF → token/payload duplication;
+- PDF >2MB có thể R2 HEAD+GET lần hai;
+- CV-hash cache để tránh parse lại cùng CV;
+- telemetry `logAnalysisAttempt` vẫn nằm trước parse response;
+- analyze fail sau khi parse start → parse bị discard, tốn một call.
+
+Trigger để mở optimization: large PDF chậm đáng kể, `/parse-cv` thường xuyên >10s, R2 chiếm latency/cost đáng kể, parse cost tăng rõ, repeated-CV parse phổ biến, hoặc batch xuất hiện 429.
+
+#### Operational risk — model preview
+
+- `gemini-3-flash-preview` vẫn là operational risk độc lập với 3.14A. Nếu model có lịch retire/deprecation, benchmark model kế nhiệm trước khi đổi production.
+- Khi benchmark model mới phải kiểm tra lại latency/cost/fidelity và cùng lúc đánh giá `TOTAL_BUDGET_MS`, AI deadline 59s, server 65s, client 75s; `maxDuration` 300s chỉ là safety ceiling.
+
+### Các mục đã đóng khỏi next-action queue
+
+- Stage 3.8 `relevant_score`: CLOSED.
+- Requirement-status duplicate authority: CLOSED ở 3.12B.
+- Probability duplicate authority: CLOSED ở 3.13C; chỉ còn compatibility cleanup 3.13D sau window.
+- Parsed CV request waterfall: CLOSED ở 3.14A.
+- Mục “đo baseline Parsed CV sau 3.14A” được coi là **DONE cho quyết định scheduling** vì production smoke đã có overlap, first-open, reload, persistence, 429/error evidence. Có thể tiếp tục thu telemetry thụ động nhưng không phải blocker cho task kế tiếp.
 
 ### Semantic debt còn lại (sau 3.14A)
 
