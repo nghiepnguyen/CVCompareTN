@@ -136,9 +136,21 @@ export interface AnalysisResult {
   categoryScores: CategorizedScore;
   matchingPoints: CategorizedPoint[];
   missingGaps: MissingGap[];
+  /**
+   * @deprecated Compatibility mirror of `passProbability` on canonical rows.
+   * Legacy rows keep their historical model-authored value; never an independent
+   * authority. Do not read directly — use `resolveProbability()`.
+   */
   successProbability: string;
+  /** Canonical probability (Stage 3.13B contract A) or a legacy stored value. */
   passProbability: string;
+  /**
+   * @deprecated Empty on canonical rows (probability is deterministic); kept for
+   * legacy history display only.
+   */
   passExplanation: string;
+  /** Canonical probability contract version. Absent = legacy model-authored probability. */
+  probabilityVersion?: string;
   mainFactor: string;
   atsKeywords: string[];
   rewriteSuggestions: RewriteSuggestion[];

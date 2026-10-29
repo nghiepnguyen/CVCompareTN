@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { UI_LABELS } from '../../translations';
+import { CANONICAL_PROBABILITY_VERSION } from '../../services/ai/canonicalProbability';
 import type { AnalysisResult } from '../../services/ai';
 
 vi.mock('../../context/UIContext', () => ({
@@ -74,5 +75,63 @@ describe('AnalysisDetailsTab — Stage 3.12B requirement authority', () => {
 
     expect(screen.queryByText('Legacy gap')).toBeNull();
     expect(screen.queryByText('communication / problem solving')).toBeNull();
+  });
+});
+
+
+describe('AnalysisDetailsTab — Stage 3.13C probability authority', () => {
+  afterEach(cleanup);
+
+  it('canonical row renders canonical passProbability and hides model explanation', () => {
+    render(<AnalysisDetailsTab selectedResult={{
+      ...result,
+      probabilityVersion: CANONICAL_PROBABILITY_VERSION,
+      passProbability: 'Medium',
+      successProbability: 'High',
+      passExplanation: 'Model prose that must not render.',
+    } as AnalysisResult} />);
+
+    expect(screen.getByText('Medium')).toBeTruthy();
+    expect(screen.queryByText('High')).toBeNull();
+    expect(screen.queryByText('Model prose that must not render.')).toBeNull();
+  });
+
+  it('canonical row with missing passProbability renders an em dash, never successProbability', () => {
+    render(<AnalysisDetailsTab selectedResult={{
+      ...result,
+      probabilityVersion: CANONICAL_PROBABILITY_VERSION,
+      passProbability: '',
+      successProbability: 'High',
+      passExplanation: 'Model prose.',
+    } as AnalysisResult} />);
+
+    expect(screen.getByText('—')).toBeTruthy();
+    expect(screen.queryByText('High')).toBeNull();
+  });
+
+  it('legacy row keeps the stored passProbability and its explanation', () => {
+    render(<AnalysisDetailsTab selectedResult={{
+      ...result,
+      passProbability: 'Medium',
+      successProbability: 'High',
+      passExplanation: 'Legacy evidence.',
+    } as AnalysisResult} />);
+
+    expect(screen.getByText('Medium')).toBeTruthy();
+    expect(screen.getByText('Legacy evidence.')).toBeTruthy();
+  });
+
+  it('unknown version preserves stored value and never keeps model prose', () => {
+    render(<AnalysisDetailsTab selectedResult={{
+      ...result,
+      probabilityVersion: 'canonical-score-v2',
+      passProbability: 'Low',
+      successProbability: 'High',
+      passExplanation: 'Future prose.',
+    } as AnalysisResult} />);
+
+    expect(screen.getByText('Low')).toBeTruthy();
+    expect(screen.queryByText('High')).toBeNull();
+    expect(screen.queryByText('Future prose.')).toBeNull();
   });
 });

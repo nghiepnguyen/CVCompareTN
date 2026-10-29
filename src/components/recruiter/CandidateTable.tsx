@@ -4,6 +4,7 @@ import { Star, TrendingUp, TrendingDown, Minus, Loader2, AlertCircle, Trash2, Cl
 import { cn } from '../../lib/utils';
 import { useUI } from '../../context/UIContext';
 import type { CandidateCV } from '../../context/recruiter';
+import { SCORE_HIGH_MIN, SCORE_MEDIUM_MIN } from '../../services/ai';
 
 interface CandidateTableProps {
   candidates: CandidateCV[];
@@ -15,8 +16,8 @@ interface CandidateTableProps {
 
 function getScoreClass(score: number | null): string {
   if (score == null) return 'text-text-muted';
-  if (score >= 80) return 'text-success';
-  if (score >= 60) return 'text-amber-500';
+  if (score >= SCORE_HIGH_MIN) return 'text-success';
+  if (score >= SCORE_MEDIUM_MIN) return 'text-amber-500';
   return 'text-error';
 }
 

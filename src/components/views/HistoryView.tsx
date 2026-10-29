@@ -8,6 +8,7 @@ import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell, Tooltip } from 'recharts';
 import { VN_TIME_ZONE, vnStartOfDay } from '../../lib/vnTime';
+import { displayProbability, SCORE_HIGH_MIN, SCORE_MEDIUM_MIN } from '../../services/ai';
 
 export function HistoryView() {
     const { 
@@ -40,9 +41,9 @@ export function HistoryView() {
         
       // Score filter
       let matchesScore = true;
-      if (historyScoreFilter === 'high') matchesScore = item.matchScore > 80;
-      if (historyScoreFilter === 'medium') matchesScore = item.matchScore >= 60 && item.matchScore <= 80;
-      if (historyScoreFilter === 'low') matchesScore = item.matchScore < 60;
+      if (historyScoreFilter === 'high') matchesScore = item.matchScore >= SCORE_HIGH_MIN;
+      if (historyScoreFilter === 'medium') matchesScore = item.matchScore >= SCORE_MEDIUM_MIN && item.matchScore < SCORE_HIGH_MIN;
+      if (historyScoreFilter === 'low') matchesScore = item.matchScore < SCORE_MEDIUM_MIN;
       
       // Date filter
       let matchesDate = true;
@@ -179,9 +180,9 @@ export function HistoryView() {
                       <div className="h-48 min-h-[192px] w-full min-w-0 shrink-0">
                         <ResponsiveContainer width="100%" height={192} debounce={32}>
                           <BarChart data={[
-                            { name: t.historyChartLow, count: history.filter(h => h.matchScore < 60).length, color: 'var(--color-warning)' },
-                            { name: t.historyChartMedium, count: history.filter(h => h.matchScore >= 60 && h.matchScore <= 80).length, color: 'var(--color-accent)' },
-                            { name: t.historyChartHigh, count: history.filter(h => h.matchScore > 80).length, color: 'var(--color-success)' }
+                            { name: t.historyChartLow, count: history.filter(h => h.matchScore < SCORE_MEDIUM_MIN).length, color: 'var(--color-warning)' },
+                            { name: t.historyChartMedium, count: history.filter(h => h.matchScore >= SCORE_MEDIUM_MIN && h.matchScore < SCORE_HIGH_MIN).length, color: 'var(--color-accent)' },
+                            { name: t.historyChartHigh, count: history.filter(h => h.matchScore >= SCORE_HIGH_MIN).length, color: 'var(--color-success)' }
                           ]}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--color-text-light)' }} />
@@ -293,15 +294,15 @@ export function HistoryView() {
                         {/* Visual Indicator on the side */}
                         <div className={cn(
                           "absolute left-0 top-0 bottom-0 w-1.5",
-                          item.matchScore > 80 ? "bg-success" : 
-                          item.matchScore > 60 ? "bg-accent" : "bg-warning"
+                          item.matchScore >= SCORE_HIGH_MIN ? "bg-success" :
+                          item.matchScore >= SCORE_MEDIUM_MIN ? "bg-accent" : "bg-warning"
                         )} />
 
                         <div className="flex items-center gap-5 flex-1 min-w-0">
                           <div className={cn(
                             "w-16 h-16 rounded-2xl flex flex-col items-center justify-center font-black text-xl border-2 shrink-0",
-                            item.matchScore > 80 ? "bg-success-light border-success/10 text-success" : 
-                            item.matchScore > 60 ? "bg-accent-light border-accent/10 text-accent" : "bg-warning-light border-warning/10 text-warning"
+                            item.matchScore >= SCORE_HIGH_MIN ? "bg-success-light border-success/10 text-success" :
+                            item.matchScore >= SCORE_MEDIUM_MIN ? "bg-accent-light border-accent/10 text-accent" : "bg-warning-light border-warning/10 text-warning"
                           )}>
                             <span className="leading-none">{item.matchScore}</span>
                             <span className="text-[9px] uppercase tracking-tighter opacity-60">ATS</span>
@@ -327,7 +328,8 @@ export function HistoryView() {
                               </div>
                               <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-light uppercase tracking-wider">
                                 <Target className="w-3 h-3" />
-                                {item.successProbability}
+                                <span>{t.probabilityHistoryLabel}</span>
+                                <span className="text-text-main">{displayProbability(item, 'history')}</span>
                               </div>
                             </div>
                           </div>

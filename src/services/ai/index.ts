@@ -1,4 +1,5 @@
 export * from "./types.js";
+export * from "./canonicalProbability.js";
 export { normalizeParsedCV } from "./parsedCvNormalize.js";
 export * from "./resultPayloadNormalize.js";
 export * from "./analysisService.js";

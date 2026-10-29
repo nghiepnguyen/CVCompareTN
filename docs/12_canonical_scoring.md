@@ -24,7 +24,8 @@ Code: `_server-lib/ai/analysisService.ts`, `_server-lib/ai/localizeAnalysis.ts`.
 
 ## Immutable vs localized fields
 
-Localization can replace **only**: `passExplanation`, `mainFactor`,
+Localization can replace **only**: `passExplanation` (legacy results only; empty
+on canonical rows since Stage 3.13C), `mainFactor`,
 `matchingPoints[].content`, `missingGaps[].content`,
 `detailedComparison.*[].improvement`, `rewriteSuggestions[].explanation`,
 `formatAssessment.formatIssues[]`.
@@ -33,6 +34,19 @@ Everything else is never sent to or taken from the localization call: scores,
 category scores, every enum, `jobTitle`, `atsKeywords`, `requirement`,
 `cvEvidence`, `rewriteSuggestions[].section/original/optimized`, array order and
 length. `machineProjection()` is the test helper for this boundary.
+
+## Canonical probability (Stage 3.13C)
+
+`passProbability` is no longer authored by the model. After `matchScore` is
+finalized, the server derives it with `derivePassProbability()`
+(`src/services/ai/canonicalProbability.ts`): `>= 80` High, `>= 60` Medium,
+otherwise Low; `probabilityVersion = 'canonical-score-v1'`.
+`successProbability` is only a compatibility mirror and `passExplanation` is
+empty on canonical rows. `probabilityVersion` (`history.probability_version`,
+`candidate_cvs.probability_version`) is the canonical/legacy boundary: NULL rows
+keep their stored values and are never recomputed. Displays go through
+`resolveProbability(result, surface)`. Contract:
+`docs/audits/stage-3.13b-canonical-probability-contract.md`.
 
 The localization prompt receives only `[{id, text}]` presentation strings (no
 CV, JD, evidence or scores), treats them as untrusted data, and must keep

@@ -3,9 +3,10 @@
  *
  * Compares candidate mappings for the canonical `passProbability` against a
  * corpus of AnalysisResult JSON files (e.g. the raw output of
- * scripts/benchmark-gemini-analyze.ts). It imports no production code, makes no
- * network calls and writes nothing: the mapping functions below are the
- * *reference specification* for Stage 3.13C, not a runtime implementation.
+ * scripts/benchmark-gemini-analyze.ts). It makes no network calls and writes
+ * nothing. Contract A is imported from the production derivation so the
+ * simulation cannot drift from the shipped mapping; candidates B/C stay local
+ * (they are evaluated alternatives, not runtime code).
  *
  * Usage:
  *   node node_modules/.bin/tsx scripts/audit-canonical-probability.ts <rawDir> [<rawDir> ...]
@@ -20,32 +21,34 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import {
+  CANONICAL_PROBABILITY_VERSION,
+  SCORE_HIGH_MIN,
+  SCORE_MEDIUM_MIN,
+  derivePassProbability,
+  type ProbabilityLevel,
+} from '../src/services/ai/canonicalProbability.js';
 
-export type Level = 'High' | 'Medium' | 'Low';
+export type Level = ProbabilityLevel;
 export type RequiredGaps = { requiredTotal: number; requiredMissing: number; requiredPartial: number };
 
 // Contract thresholds. Evidence: the product already renders matchScore with a
 // High verdict at >= 80 and Medium at >= 60 (AnalysisDetailsTab verdict copy);
 // the contract reuses those existing product boundaries instead of inventing
-// new ones. `prob` is the downstream representation, never an input to score.
-export const HIGH_MIN = 80;
-export const MEDIUM_MIN = 60;
-export const CONTRACT_VERSION = 'canonical-score-v1';
-
-const clamp = (score: number) => Math.min(100, Math.max(0, score));
+// new ones. Contract A itself is imported from production so this simulator
+// cannot drift from the shipped derivation; B/C stay local candidates.
+export const HIGH_MIN = SCORE_HIGH_MIN;
+export const MEDIUM_MIN = SCORE_MEDIUM_MIN;
+export const CONTRACT_VERSION = CANONICAL_PROBABILITY_VERSION;
 
 export function levelForScore(score: number): Level {
-  if (!Number.isFinite(score)) return 'Low'; // mirrors the 0-coercion at analyze time
-  const s = clamp(score);
-  if (s >= HIGH_MIN) return 'High';
-  if (s >= MEDIUM_MIN) return 'Medium';
-  return 'Low';
+  return derivePassProbability(score);
 }
 
 // CONTRACT A — representation only: the canonical score already carries the
 // required-gap judgment (see docs), so probability reads nothing else.
 export function contractA(score: number): Level {
-  return levelForScore(score);
+  return derivePassProbability(score);
 }
 
 // CONTRACT B — score bands + "any missing required caps High at Medium".
