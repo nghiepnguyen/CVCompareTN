@@ -5,7 +5,7 @@ import { useUI } from '../UIContext';
 import { formatLabel } from '../../translations';
 import { trackEvent } from '../../lib/ga4';
 import { supabase } from '../../lib/supabase';
-import { AnalysisResult, analyzeCV, rewriteFullCV, parseCV } from '../../services/ai';
+import { AnalysisResult, type ParsedCV, analyzeCV, rewriteFullCV, parseCV } from '../../services/ai';
 import {
   saveToHistory,
   deleteFromHistory,
@@ -23,8 +23,57 @@ import {
   type StoredCVRef, type SavedCV,
 } from '../../services/cvService';
 import { createProgressSimulator } from '../../hooks/useProgressSimulator';
+import { createConcurrencyLimiter } from '../../lib/concurrencyLimiter';
 
 const AnalysisRunContext = createContext<AnalysisRunContextType | undefined>(undefined);
+
+// Parse is CV-only (Stage 3.10B), so it starts as soon as the CV source is
+// ready and runs concurrently with analyze. Bound it to the same width as the
+// analyze worker pool so a large batch cannot double unbounded Gemini load.
+export const PARSE_CONCURRENCY = 5;
+const limitParseCV = createConcurrencyLimiter(PARSE_CONCURRENCY);
+
+type ParsedCVJob = {
+  promise: Promise<ParsedCV | undefined>;
+  done: boolean;
+  value?: ParsedCV;
+};
+
+function startParsedCVJob(
+  cvData: string,
+  cvMimeType: string,
+  language: 'vi' | 'en',
+  authToken: string | undefined,
+  cvPdfInlineData: string | undefined,
+  cvPdfStoragePath: string | undefined,
+  cvDataStoragePath: string | undefined
+): ParsedCVJob {
+  const job: ParsedCVJob = { done: false, promise: Promise.resolve(undefined) };
+  job.promise = limitParseCV(() =>
+    parseCV(cvData, cvMimeType, language, authToken, cvPdfInlineData, cvPdfStoragePath, cvDataStoragePath)
+  )
+    .catch((err) => {
+      // Parse is an enrichment: it must never reject the analysis flow or leave
+      // an unhandled rejection behind. Do not log the CV filename (PII).
+      console.error('Parsed CV generation failed:', err instanceof Error ? err.name : 'error');
+      return undefined;
+    })
+    .then((value) => {
+      job.value = value;
+      job.done = true;
+      return value;
+    });
+  return job;
+}
+
+type CVWork = {
+  result: AnalysisResult;
+  parseJob: ParsedCVJob;
+  data: string;
+  mimeType: string;
+  dataStoragePath?: string;
+  tempPaths: string[];
+};
 
 export function AnalysisRunProvider({ children }: { children: React.ReactNode }) {
   const { user, userProfile, effectivePlan, setError, refreshUserProfile } = useAuth();
@@ -133,46 +182,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         console.error('generateFullCV failed for', resultId, err);
       } finally {
         setFullCVGeneratingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(resultId);
-          return next;
-        });
-      }
-    },
-    []
-  );
-
-  const generateParsedCVForResult = useCallback(
-    async (
-      resultId: string,
-      cvData: string,
-      cvMimeType: string,
-      language: 'vi' | 'en',
-      authToken?: string,
-      cvPdfInlineData?: string,
-      cvPdfStoragePath?: string,
-      cvDataStoragePath?: string,
-      userId?: string
-    ) => {
-      setParsedCVGeneratingIds((prev) => new Set([...prev, resultId]));
-      try {
-        const parsedCV = await parseCV(
-          cvData, cvMimeType, language, authToken, cvPdfInlineData, cvPdfStoragePath, cvDataStoragePath
-        );
-        const patcher = (r: AnalysisResult) =>
-          r.id === resultId ? { ...r, parsedCV } : r;
-        setResults((prev) => prev.map(patcher));
-        setSelectedResult((prev) => (prev?.id === resultId ? { ...prev, parsedCV } : prev));
-        setHistory((prev) => prev.map(patcher));
-        if (userId) {
-          updateHistoryField(userId, resultId, { parsed_cv: parsedCV }).catch((err) =>
-            console.error('Failed to persist parsedCV to history', err)
-          );
-        }
-      } catch (err) {
-        console.error('generateParsedCVForResult failed for', resultId, err);
-      } finally {
-        setParsedCVGeneratingIds((prev) => {
           const next = new Set(prev);
           next.delete(resultId);
           return next;
@@ -306,13 +315,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
     try {
       const newResults: AnalysisResult[] = [];
-      const cvDataMap = new Map<string, {
-        data: string;
-        mimeType: string;
-        pdfInlineData?: string;
-        pdfStoragePath?: string;
-        dataStoragePath?: string;
-      }>();
+      const workByResultId = new Map<string, CVWork>();
       setAnalysisStatus(reportLanguage === 'vi' ? 'Đang đọc CV...' : 'Reading CV...');
       setProgress(15);
 
@@ -347,6 +350,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             const fileOrRef = files[i];
             let succeeded = false;
             let tempPaths: string[] = [];
+            let parsedJob: ParsedCVJob | undefined;
 
             setBatchFiles((prev) =>
               prev.map((f, idx) => (idx === i ? { ...f, status: 'processing' } : f))
@@ -366,6 +370,11 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
               }
 
               tempPaths = [pdfStoragePath, dataStoragePath].filter((p): p is string => Boolean(p));
+              // Parse is CV-only: start it as soon as the source is ready, in
+              // parallel with analyze, not after the analysis result exists.
+              parsedJob = startParsedCVJob(
+                data, mimeType, reportLanguage, authToken, pdfInlineData, pdfStoragePath, dataStoragePath
+              );
               const analysis = await analyzeCV(
                 jd,
                 data,
@@ -378,8 +387,12 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
                 pdfStoragePath,
                 dataStoragePath
               );
-              newResultsSlots[i] = { ...analysis, userId: user?.id };
-              cvDataMap.set(analysis.id, { data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath });
+              const result: AnalysisResult = { ...analysis, userId: user?.id };
+              if (parsedJob.done && parsedJob.value) result.parsedCV = parsedJob.value;
+              newResultsSlots[i] = result;
+              workByResultId.set(result.id, {
+                result, parseJob: parsedJob, data, mimeType, dataStoragePath, tempPaths,
+              });
               succeeded = true;
 
               trackEvent('analysis_success', {
@@ -387,7 +400,12 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
                 input_mode: 'file',
               });
             } catch (fileErr) {
-              if (tempPaths.length) void cleanupTempAnalysisFiles(tempPaths);
+              // Analysis failed; parse may still be running. Never delete the
+              // temp object it is reading until that request settles.
+              if (tempPaths.length) {
+                const settle = parsedJob ? parsedJob.promise : Promise.resolve();
+                void settle.then(() => cleanupTempAnalysisFiles(tempPaths));
+              }
               console.error(`Analysis failed for ${fileOrRef.name}:`, fileErr);
               Sentry.captureException(fileErr, {
                 tags: { feature: 'analyze_cv_batch_item' },
@@ -437,6 +455,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         setProgress(45);
 
         const stopFake = startFakeProgress(45, 75, 15000);
+        const parsedJob = startParsedCVJob(
+          cvText, 'text/plain', reportLanguage, authToken, undefined, undefined, undefined
+        );
         const analysis = await analyzeCV(
           jd,
           cvText,
@@ -447,8 +468,12 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         );
         stopFake();
         setProgress(75);
-        newResults.push({ ...analysis, userId: user?.id });
-        cvDataMap.set(analysis.id, { data: cvText, mimeType: 'text/plain' });
+        const result: AnalysisResult = { ...analysis, userId: user?.id };
+        if (parsedJob.done && parsedJob.value) result.parsedCV = parsedJob.value;
+        newResults.push(result);
+        workByResultId.set(result.id, {
+          result, parseJob: parsedJob, data: cvText, mimeType: 'text/plain', tempPaths: [],
+        });
 
         trackEvent('analysis_success', {
           match_score: analysis.matchScore,
@@ -475,26 +500,71 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       const historyLimit = effectivePlan === 'free' ? 50 : 500;
       setHistory((prev) => [...newResults, ...prev].slice(0, historyLimit));
 
-      // Background: generate fullRewrittenCV and parsedCV for each result via separate
-      // calls so the main analyze stays fast (neither is in the main Gemini prompt).
-      for (const [resultId, { data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath }] of cvDataMap) {
+      // Start persistence before attaching background results. Parse persistence
+      // waits for this promise, so an UPDATE can never race a missing history row.
+      const historySave: Promise<boolean> = user?.id
+        ? saveToHistory(newResults, effectivePlan)
+            .then(() => true)
+            .catch((err) => {
+              console.error('Error saving analysis history:', err);
+              return false;
+            })
+        : Promise.resolve(false);
+
+      for (const [resultId, work] of workByResultId) {
+        const { result, parseJob } = work;
+        const parsedInSnapshot = Boolean(result.parsedCV);
+
+        const persistParsedCV = (parsedCV: ParsedCV) => {
+          // If parse already finished before the history upsert, parsed_cv was
+          // included in that upsert; do not write it twice.
+          if (!user?.id || parsedInSnapshot) return;
+          void historySave
+            .then((saved) => (saved ? updateHistoryField(user.id, resultId, { parsed_cv: parsedCV }) : undefined))
+            .catch((err) => console.error('Failed to persist parsedCV to history', err));
+        };
+
+        const applyParsedCV = (parsedCV: ParsedCV | undefined) => {
+          if (parsedCV) {
+            const patcher = (r: AnalysisResult) => (r.id === resultId ? { ...r, parsedCV } : r);
+            setResults((prev) => prev.map(patcher));
+            setSelectedResult((prev) => (prev?.id === resultId ? { ...prev, parsedCV } : prev));
+            setHistory((prev) => prev.map(patcher));
+            persistParsedCV(parsedCV);
+          }
+          setParsedCVGeneratingIds((prev) => {
+            if (!prev.has(resultId)) return prev;
+            const next = new Set(prev);
+            next.delete(resultId);
+            return next;
+          });
+        };
+
+        if (parseJob.done) {
+          // Parse won the race: attach now; parsed_cv is already in the upsert.
+          if (!parsedInSnapshot && parseJob.value) applyParsedCV(parseJob.value);
+        } else {
+          // Analysis wins: show it immediately, then patch the exact result id
+          // when parse settles. Opening the tab never starts another request.
+          setParsedCVGeneratingIds((prev) => new Set([...prev, resultId]));
+          void parseJob.promise.then(applyParsedCV);
+        }
+      }
+
+      // Rewrite remains post-analysis (unchanged scheduling). Parse was already
+      // started at CV-ready time; temp storage is deleted only after both settle.
+      for (const [resultId, work] of workByResultId) {
+        const { parseJob, data, mimeType, dataStoragePath, tempPaths } = work;
         const bgWork = Promise.allSettled([
           generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, dataStoragePath, user?.id),
-          generateParsedCVForResult(
-            resultId, data, mimeType, reportLanguage, authToken, pdfInlineData, pdfStoragePath, dataStoragePath, user?.id
-          ),
+          parseJob.promise,
         ]);
-        // The uploaded temp file is only needed by analyze (already done above)
-        // and these two background calls — safe to delete once both settle.
-        const tempPaths = [pdfStoragePath, dataStoragePath].filter((p): p is string => Boolean(p));
         if (tempPaths.length > 0) {
           void bgWork.then(() => cleanupTempAnalysisFiles(tempPaths));
         }
       }
 
-      if (user?.id) saveToHistory(newResults, effectivePlan).catch(console.error);
       if (newResults.length === 1) setSelectedResult(newResults[0]);
-
       if (failures.length > 0) {
         const names = failures.map((f) => f.name).join(', ');
         setError(
