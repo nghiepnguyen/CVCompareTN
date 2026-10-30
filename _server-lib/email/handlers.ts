@@ -146,7 +146,6 @@ export async function handleSendWelcomeEmail(
 
   const resend = new Resend(apiKey);
   const safeName = escapeHtml(b.userName ?? '');
-  
   const { error } = await resend.emails.send({
     from: `cvFit <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
     to: [user.email],

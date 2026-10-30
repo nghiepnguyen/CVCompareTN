@@ -1,6 +1,6 @@
 -- P1-1: save_candidate_analysis was callable for any candidate id (service_role handlers
 -- only checked authentication). Add p_user_id and enforce campaign ownership.
--- DEPLOY ORDER: this migration -> deploy app (passes p_user_id) -> 20261101020000 (drops 4-arg v1).
+-- DEPLOY ORDER: this migration -> deploy app (passes p_user_id) -> follow-up migration (new timestamp, created after the app is deployed) drops the 4-arg v1.
 -- The 4-arg version is intentionally kept here so the currently deployed app keeps working.
 -- auth.uid() is NULL under service_role, so ownership is checked against p_user_id.
 CREATE OR REPLACE FUNCTION public.save_candidate_analysis(

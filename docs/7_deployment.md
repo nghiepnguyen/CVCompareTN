@@ -190,3 +190,25 @@ Sau `supabase link`, thư mục `supabase/.temp/` được tạo tự động �
 ## Cập nhật storage R2 (2026-10-18)
 
 Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới giữ Supabase làm nơi upload mặc định và đọc theo metadata; có thể bật R2 riêng cho `temp`, `saved`, `candidate` qua cấu hình server. File tạm R2 dùng reference `r2:{uploadId}`, file lâu dài giữ `file_path` cùng `storage_provider`. Tải file cá nhân/recruiter qua `POST /api/storage` với JWT, không dùng public URL. Cleanup có queue bền vững và scheduler, kể cả khi xoá campaign/user. Xem [10_storage_r2.md](10_storage_r2.md) cho migration bắt buộc, API, CORS/lifecycle, kiểm thử và rollback.
+
+## Thứ tự deploy — security fixes 2026-10-30
+
+Làm đúng thứ tự sau (chi tiết fix: `docs/superpowers/plans/2026-10-30-security-audit-fixes.md`):
+
+1. **Owner pre-check (production):** `SELECT action, count(*) FROM public.admin_audit_log GROUP BY 1;` — chỉ được có 6 giá trị `update_role`, `update_plan`, `delete_user`, `update_permission`, `update_analytics_limit`, `reset_analytics_limit`; nếu có giá trị khác, migration `20261101030000` sẽ fail.
+2. **Owner pre-check:** `SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='profiles' ORDER BY ordinal_position;` — cột nào client có ghi mà chưa nằm trong GRANT thì phải thêm vào GRANT trong `20261101000000`.
+3. `supabase db push` (áp dụng `20261101000000`, `20261101010000`, `20261101030000`).
+4. Merge / deploy app lên Vercel.
+5. PR follow-up: migration mới (timestamp mới, tạo sau khi app đã deploy) xoá bản v1 4 tham số:
+   ```sql
+   DROP FUNCTION public.save_candidate_analysis(uuid, jsonb, integer, text);
+   ```
+6. Verify sau deploy — kỳ vọng `f | f | t`:
+   ```sql
+   SELECT has_table_privilege('authenticated','public.profiles','UPDATE'),
+          has_table_privilege('authenticated','public.profiles','DELETE'),
+          EXISTS(SELECT 1 FROM pg_trigger WHERE tgname='profiles_guard_privileged_columns');
+   ```
+7. Owner kiểm tra dấu hiệu bị xâm phạm ngay sau đó: xem mục "Owner checklist" trong `docs/superpowers/plans/2026-10-30-security-audit-fixes.md`.
+
+**Cửa sổ rủi ro:** giữa bước 3 và 4, audit log admin phía client ghi thất bại âm thầm (bundle cũ insert trực tiếp); bundle cũ còn cache sẽ nhận 401 khi gửi welcome email.
