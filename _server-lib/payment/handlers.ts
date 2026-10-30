@@ -25,12 +25,9 @@ function normalizeOrderCode(value: unknown): number | null {
   return null;
 }
 
-function isWebhookPaymentSuccess(payload: {
-  code?: string;
-  success?: boolean;
-}): boolean {
-  if (payload.success === true) return true;
-  return payload.code === '00';
+/** Only the signed `data` decides success; top-level `code`/`success` are not covered by the signature. */
+function isWebhookPaymentSuccess(payload: { data?: Record<string, unknown> }): boolean {
+  return payload.data?.code === '00';
 }
 
 /**
@@ -232,7 +229,7 @@ export async function handlePaymentWebhook(
 
   const { data: payment, error: fetchError } = await supabase
     .from('payments')
-    .select('user_id, status, duration_days, plan')
+    .select('user_id, status, duration_days, plan, amount')
     .eq('order_code', orderCode)
     .maybeSingle();
 
@@ -242,6 +239,11 @@ export async function handlePaymentWebhook(
 
   if (payment.status === 'paid') {
     return { status: 200, body: { success: true, alreadyPaid: true } };
+  }
+
+  if (Number(payload.data.amount) !== Number(payment.amount)) {
+    console.error('PayOS webhook amount mismatch for order', orderCode);
+    return { status: 400, body: { error: 'Số tiền không khớp đơn hàng' } };
   }
 
   const durationDays =

@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export const PRO_PRICE_VND = 69000;
 export const PRO_DURATION_DAYS = 30;
@@ -144,8 +144,9 @@ export function verifyWebhookPayload(body: {
   signature?: string;
 }): boolean {
   if (!body.data || !body.signature) return false;
-  const expected = createSignatureFromObject(body.data);
-  return expected === body.signature;
+  const expected = Buffer.from(createSignatureFromObject(body.data));
+  const actual = Buffer.from(body.signature);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 /** Replay-attack protection: max age of a valid webhook from PayOS. */
