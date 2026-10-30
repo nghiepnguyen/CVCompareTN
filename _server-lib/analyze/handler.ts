@@ -1,5 +1,5 @@
 import { getUserFromBearerToken, getSupabaseAdmin } from '../payment/supabaseAdmin.js';
-import { isLockedProfile } from '../accountLock.js';
+import { getEffectivePlan, isLockedProfile } from '../accountLock.js';
 import { analyzeCV } from '../ai/analysisService.js';
 import { GEMINI_ANALYZE_MODEL } from '../ai/geminiClient.js';
 import { withTimeout } from '../withTimeout.js';
@@ -14,24 +14,6 @@ import {
   POST_RESERVE_MS,
   TOTAL_BUDGET_MS,
 } from '../deadline.js';
-
-// Inlined instead of importing src/services/userService.ts — that module
-// transitively imports src/lib/supabase.ts via an extensionless specifier,
-// which Node's ESM loader can't resolve in the Vercel serverless runtime
-// (unlike Vite's bundler, which tolerates it client-side). Keep in sync with
-// getDisplayEffectivePlan() in src/services/userService.ts.
-function getEffectivePlan(profile: {
-  plan: string;
-  planExpiresAt: string | null;
-  role: string;
-}): 'free' | 'pro' | 'recruiter' {
-  if (profile.role === 'admin') return 'pro';
-  if (profile.plan !== 'pro' && profile.plan !== 'recruiter') return 'free';
-  if (!profile.planExpiresAt) return profile.plan as 'pro' | 'recruiter';
-  return new Date(profile.planExpiresAt) > new Date()
-    ? (profile.plan as 'pro' | 'recruiter')
-    : 'free';
-}
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
