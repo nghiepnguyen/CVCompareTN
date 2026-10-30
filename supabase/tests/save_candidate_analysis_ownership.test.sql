@@ -14,7 +14,9 @@ BEGIN
  INSERT INTO public.candidate_cvs(id,campaign_id,analysis_result,match_score,status)
   VALUES(cand,camp,'{"summary":"genuine"}',82,'done');
 
- -- grants: only service_role may execute
+  ASSERT to_regprocedure('public.save_candidate_analysis(uuid,jsonb,integer,text)') IS NULL, '4-arg v1 still exists';
+
+-- grants: only service_role may execute
  ASSERT NOT has_function_privilege('authenticated','public.save_candidate_analysis(uuid,uuid,jsonb,integer,text)','EXECUTE'), 'authenticated can execute';
  ASSERT NOT has_function_privilege('anon','public.save_candidate_analysis(uuid,uuid,jsonb,integer,text)','EXECUTE'), 'anon can execute';
  ASSERT has_function_privilege('service_role','public.save_candidate_analysis(uuid,uuid,jsonb,integer,text)','EXECUTE'), 'service_role cannot execute';
