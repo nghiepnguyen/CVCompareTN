@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
@@ -10,6 +10,10 @@ export function PaymentSuccessView() {
   const { user, refreshUserProfile } = useAuth();
   const { t, setActiveTab } = useUI();
   const [activated, setActivated] = useState(false);
+  // refreshUserProfile is a new function every AuthContext render; keeping it
+  // out of the effect deps stops each profile refresh from starting another poll.
+  const refreshRef = useRef(refreshUserProfile);
+  refreshRef.current = refreshUserProfile;
 
   useEffect(() => {
     if (!user?.id) return;
@@ -33,7 +37,7 @@ export function PaymentSuccessView() {
         }
       }
 
-      await refreshUserProfile();
+      await refreshRef.current();
       const plan = await fetchEffectiveUserPlan(user.id);
       if (isProPlan(plan)) {
         setActivated(true);
@@ -48,7 +52,7 @@ export function PaymentSuccessView() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, refreshUserProfile]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!activated) return;
