@@ -138,4 +138,15 @@ describe('api/admin handler', () => {
     expect(status).toHaveBeenCalledWith(500);
     expect(auditInsert).not.toHaveBeenCalled();
   });
+
+  it('set-user-role: admin cannot demote themselves', async () => {
+    const { client, rpc } = makeAdminClient({ callerRole: 'admin' });
+    mockGetAdmin.mockReturnValue(client as never);
+    const { res, status } = makeRes();
+
+    await handler(makeReq('set-user-role', { p_user_id: 'admin-1', p_role: 'user' }), res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
 });

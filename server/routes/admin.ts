@@ -32,6 +32,9 @@ router.post('/set-user-role', async (req, res) => {
     if (p_role !== 'admin' && p_role !== 'user') {
       return res.status(400).json({ error: 'Invalid role. Must be "admin" or "user"' });
     }
+    if (p_user_id === user.id && p_role === 'user') {
+      return res.status(400).json({ error: 'Cannot demote yourself' });
+    }
 
     const supabase = getSupabaseAdmin();
 
