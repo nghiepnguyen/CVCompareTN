@@ -34,12 +34,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (message.includes('not configured')) {
           return res.status(503).json({
             error: 'Cấu hình thanh toán chưa sẵn sàng trên server',
-            detail: message,
           });
         }
         return res.status(500).json({
           error: 'Không tạo được link thanh toán',
-          detail: message,
         });
       }
     }

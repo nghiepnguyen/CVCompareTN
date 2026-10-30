@@ -6,31 +6,26 @@ Dự án **cvFit** được triển khai theo mô hình **Vercel Native**, tích
 
 Vercel phục vụ cả ứng dụng React và các hàm API trong thư mục `/api`.
 
-### Project Vercel đúng (quan trọng)
+### Project Vercel đúng (đã đối chiếu domain production)
 
 | | |
 |---|---|
-| **Project name (Dashboard)** | `cvfit` |
+| **Scope / project** | `nghiepnguyens/cv-compare-tn` |
+| **Project ID** | `prj_9ojmBXjiHRDi56zHS2uvYvJABOaI` |
 | **GitHub repo** | `nghiepnguyen/CVCompareTN` |
 | **Production domain** | `https://cvfit.pro` |
-| **Preview URL (ví dụ)** | `https://cvfit-<hash>-nghiepnguyens.vercel.app` |
 
-**Không** dùng project `cv-compare-tn` (thường tạo khi `vercel link` / import nhầm). Push lên GitHub chỉ deploy đúng khi repo được gắn vào **`cvfit`**, không phải `cv-compare-tn`.
+CLI `vercel inspect https://cvfit.pro` và `vercel project inspect cv-compare-tn --scope nghiepnguyens` đã xác nhận project trên ngày 2026-10-31. Hướng dẫn cũ trỏ tới `cvfit` không còn khớp hạ tầng đang chạy. Trước khi đổi liên kết Git hoặc deploy, đối chiếu domain bằng CLI; không tạo project mới theo tên suy đoán.
 
-#### Sửa khi push GitHub deploy nhầm project
-
-1. Mở [Vercel Dashboard](https://vercel.com/dashboard) → project **`cv-compare-tn`** (nếu có) → **Settings** → **Git** → **Disconnect** repository `CVCompareTN`.
-2. Mở project **`cvfit`** → **Settings** → **Git** → **Connect** → chọn `nghiepnguyen/CVCompareTN`, branch **`main`**.
-3. Trên **`cvfit`**: **Settings** → **Environment Variables** — copy toàn bộ biến từ project cũ (hoặc từ `.env.example`).
-4. **Deployments** → chọn deployment mới nhất trên `main` → **Redeploy** (hoặc push một commit nhỏ sau khi đã connect).
-5. Local CLI (tùy chọn): trong thư mục repo chạy `vercel link` và chọn project **`cvfit`** (cập nhật `.vercel/project.json`).
+Local CLI: `vercel link --project cv-compare-tn --scope nghiepnguyens`.
 
 ### Các bước thực hiện:
 
-1.  **Kết nối GitHub:** Đẩy mã nguồn lên `nghiepnguyen/CVCompareTN` và kết nối **project Vercel `cvfit`** (xem bảng trên).
+1.  **Kết nối GitHub:** Đẩy mã nguồn lên `nghiepnguyen/CVCompareTN` và kết nối **project Vercel `cv-compare-tn`** (xem bảng trên).
 2.  **Cấu hình Environment Variables:** Trong Dashboard của Vercel, hãy thiết lập các biến môi trường sau:
     -   `GEMINI_API_KEY`: API Key từ Google AI Studio.
     -   `RECAPTCHA_SECRET_KEY`: Secret Key cho reCAPTCHA v3.
+    -   `RECAPTCHA_ALLOWED_HOSTNAMES`: Danh sách hostname chính xác, phân cách bằng dấu phẩy; mặc định `cvfit.pro,www.cvfit.pro`. Domain preview cần thêm rõ ràng ở environment tương ứng; localhost chỉ thêm trong `.env` local. Backend luôn xác minh token, kể cả development, và yêu cầu action `feedback` hoặc `extract_pdf` khớp luồng gọi. Không dùng wildcard.
     -   `RESEND_API_KEY`: API Key từ Resend.com.
     -   `RESEND_FROM_EMAIL`: Email gửi đi (phải được verify trên Resend).
     -   `FEEDBACK_RECIPIENT_EMAIL`: Email nhận thông báo góp ý.
@@ -218,3 +213,23 @@ SELECT has_table_privilege('authenticated','public.profiles','UPDATE'),
 
 SQL test cho các migration này: `supabase/tests/*.test.sql`, chạy local bằng `supabase/tests/local/run.sh "$PWD" /repo/tests/<file>.sql` (Postgres 16 disposable, không network).
 
+### Account lock — phần API và DB guard
+
+**Trạng thái production 2026-10-30 23:13 ICT:** migration `20261101090000` đã áp và ghi migration history. Verify metadata đạt 8 trigger, 6 restrictive SELECT policies, RLS/ACL đúng. Bundle API đã deploy ngày 2026-10-31: `dpl_5pzMwXHxqqUYGSitzYT5A2z9YwUm` (Ready), `cvfit.pro` đã chuyển sang bản này. Chưa kiểm thử khóa/mở khóa bằng tài khoản test trên production.
+
+Áp migration `20261101090000_enforce_account_lock_writes.sql` rồi deploy bundle API cùng thay đổi `_server-lib/accountLock.ts`. Cần cả hai: DB guard bảo vệ ghi trực tiếp qua PostgREST và RPC chạy bằng owner; API guard bảo vệ các thao tác dùng service-role ở storage, payment create, PDF và recruiter save-analysis. Không thêm serverless function hay biến môi trường.
+
+User không phải admin có `has_permission=false` nhận 403; không đọc được profile hoặc timeout kiểm tra nhận 503. Admin vẫn mở khóa được user. Profile được đọc lại mỗi request, không dựa vào JWT metadata hoặc đợi refresh token. Guard DB dùng role thực thi và `auth.role()` để giữ danh tính caller trong `SECURITY DEFINER`, giữ ownership RLS và thêm restrictive SELECT policy để chặn đọc trực tiếp hoặc cấp signed URL mới; áp cho `history`, `saved_jds`, `saved_cvs`, `recruitment_campaigns`, `candidate_cvs` và ghi object trong hai bucket CV.
+
+Luồng PDF không có bearer vẫn là public có reCAPTCHA; bearer sai không được chuyển sang luồng này. Đây là khóa quyền theo danh tính, không phải chặn người dùng truy cập chức năng public. Payment confirm/webhook và cleanup nội bộ vẫn xử lý các giao dịch/file đã có. Signed URL phát hành trước khi khóa vẫn có hiệu lực đến TTL; không thể thu hồi bằng thay đổi profile.
+
+Kiểm tra local: `supabase/tests/account_lock.test.sql` trên DB disposable; regression gần nhất là `plan_caps.test.sql` và `save_candidate_analysis_ownership.test.sql`. Trước khi coi đã đóng trên production, owner cần áp migration và deploy app, rồi xác minh bằng account test khóa/mở khóa; không dùng dữ liệu của user thật để thử.
+
+### Bằng chứng deploy security bundle — 2026-10-31
+
+- Project: `nghiepnguyens/cv-compare-tn`; deployment `dpl_5pzMwXHxqqUYGSitzYT5A2z9YwUm`.
+- URL bất biến: `https://cv-compare-ljxi6vr0d-nghiepnguyens.vercel.app`; đã promote và đối chiếu `vercel inspect https://cvfit.pro`.
+- Trước deploy: `npm run lint`, `npm run lint:api`, 54 file / 637 test Vitest và `npm run build` đạt trong Docker offline. Test debug xác minh production vẫn chặn nội dung chi tiết khi cờ debug bật.
+- Sau deploy: curl GET `/vi/`, `/en/privacy/`, `/api/config` trên `cvfit.pro` đều 200; HTML có nội dung tĩnh và config public đủ Supabase URL/anon key.
+- Đây là deploy CLI từ snapshot khớp worktree `codex/security-sentry-scrub`; đã commit và push branch trong PR #35; chưa merge. Cần tích hợp Git trước lần deploy từ `main` tiếp theo để tránh ghi đè.
+- Chưa chạy account test khóa/mở khóa trên production, thanh toán, email hoặc AI có phí. Npm trên Vercel báo 27 cảnh báo dependency (4 moderate, 19 high, 4 critical); chưa phân loại khả năng ảnh hưởng, chưa thay lockfile trong đợt này.

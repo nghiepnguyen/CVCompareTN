@@ -128,11 +128,11 @@ describe('adminDeleteUser', () => {
     expect(profileDeleteEq).toHaveBeenCalledWith('id', TARGET);
   });
 
-  it('propagates other auth delete errors as 500', async () => {
+  it('returns a safe 500 for other auth delete errors', async () => {
     const { client } = makeSupabase({
       deleteUserError: { status: 500, message: 'db down' },
     });
     const result = await adminDeleteUser(client, CALLER, TARGET);
-    expect(result).toEqual({ ok: false, status: 500, error: 'db down' });
+    expect(result).toEqual({ ok: false, status: 500, error: 'Không thể xoá tài khoản. Vui lòng thử lại.' });
   });
 });

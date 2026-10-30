@@ -69,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (rpcError) {
           console.error('set_user_role RPC failed:', rpcError);
-          return res.status(500).json({ error: 'Failed to update user role', detail: rpcError.message });
+          return res.status(500).json({ error: 'Failed to update user role' });
         }
 
         await logAdminAudit(supabase, user.id, 'update_role', p_user_id, { role: p_role });
@@ -99,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (rpcError) {
           console.error('admin_set_user_plan RPC failed:', rpcError);
-          return res.status(500).json({ error: 'Failed to update user plan', detail: rpcError.message });
+          return res.status(500).json({ error: 'Failed to update user plan' });
         }
 
         await logAdminAudit(supabase, user.id, 'update_plan', p_user_id, {
@@ -130,7 +130,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     console.error('admin handler error:', err);
     Sentry.captureException(err);
-    const message = err instanceof Error ? err.message : 'Server error';
-    return res.status(500).json({ error: 'Server error', detail: message });
+    return res.status(500).json({ error: 'Server error' });
   }
 }

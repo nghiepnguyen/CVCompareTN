@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/node';
 
-const SCRUB_KEYS = ['cvData', 'jd', 'base64Data', 'email', 'password'];
+import { scrubTelemetry } from '../src/lib/scrubTelemetry.js';
 
 export function initSentryServer() {
   if (Sentry.getClient()) return;
@@ -12,15 +12,10 @@ export function initSentryServer() {
     environment: process.env.NODE_ENV ?? 'development',
     integrations: [Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] })],
     enableLogs: true,
+    beforeSendLog: scrubTelemetry,
     tracesSampleRate: 0.05,
     beforeSend(event) {
-      if (event.request?.data && typeof event.request.data === 'object') {
-        const body = event.request.data as Record<string, unknown>;
-        for (const key of SCRUB_KEYS) {
-          if (key in body) body[key] = '[Scrubbed]';
-        }
-      }
-      return event;
+      return scrubTelemetry(event);
     },
   });
 

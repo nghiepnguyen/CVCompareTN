@@ -24,7 +24,7 @@ export async function handleSendFeedback(body: unknown): Promise<HandlerResult> 
     return { status: 400, body: { success: false, message: 'reCAPTCHA token required' } };
   }
 
-  const captcha = await verifyRecaptcha(b.token);
+  const captcha = await verifyRecaptcha(b.token, 'feedback');
   if (!captcha.ok) {
     return { status: captcha.status ?? 400, body: { success: false, message: captcha.error } };
   }
@@ -114,7 +114,7 @@ export async function handleSendFeedback(body: unknown): Promise<HandlerResult> 
 
   if (error) {
     console.error('Resend API Error:', error);
-    return { status: 500, body: { success: false, message: `Email service error: ${error.message}` } };
+    return { status: 500, body: { success: false, message: 'Không thể gửi email. Vui lòng thử lại.' } };
   }
 
   return { status: 200, body: { success: true, message: 'Feedback sent successfully' } };

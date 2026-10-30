@@ -2,6 +2,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 let pendingCount = 0;
+let access = 'ok';
+vi.mock('../../accountLock.js', () => ({ checkAccountAccess: async () => access }));
 const insert = vi.fn();
 vi.mock('../supabaseAdmin.js', () => ({
   getUserFromBearerToken: async () => ({ id: 'u1', email: 'u1@example.test' }),
@@ -28,6 +30,7 @@ import { handlePaymentCreate } from '../handlers.js';
 
 beforeEach(() => {
   pendingCount = 0;
+  access = 'ok';
   insert.mockReset().mockResolvedValue({ error: null });
   createPayosPaymentLink.mockReset().mockResolvedValue({ checkoutUrl: 'https://pay.example/x', orderCode: 777 });
   Object.assign(process.env, {
@@ -36,10 +39,23 @@ beforeEach(() => {
 });
 
 describe('payment create', () => {
+  it.each([['locked', 403], ['unavailable', 503]] as const)('blocks %s accounts before PayOS', async (state, status) => {
+    access = state;
+    expect((await handlePaymentCreate('Bearer t', 'pro')).status).toBe(status);
+    expect(createPayosPaymentLink).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
   it('creates a PayOS link and a pending order', async () => {
     const res = await handlePaymentCreate('Bearer t', 'pro');
     expect(res).toMatchObject({ status: 200, body: { checkoutUrl: 'https://pay.example/x', orderCode: 777 } });
     expect(insert).toHaveBeenCalledOnce();
+  });
+
+  it('does not expose database insert errors', async () => {
+    insert.mockResolvedValue({ error: { code: 'XX000', message: 'upstream-secret' } });
+    const res = await handlePaymentCreate('Bearer t', 'pro');
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(res.body)).not.toContain('upstream-secret');
   });
 
   it('429 once the user has 5 pending orders in the last 15 minutes, without calling PayOS', async () => {

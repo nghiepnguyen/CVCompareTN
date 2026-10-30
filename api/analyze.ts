@@ -17,7 +17,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     Sentry.captureException(err, { tags: { route: 'analyze' } });
     console.error('analyze error:', err);
-    const message = err instanceof Error ? err.message : 'Server error';
-    return res.status(500).json({ error: message });
+    return res.status(500).json({ error: 'Không thể phân tích CV. Vui lòng thử lại.' });
   }
 }

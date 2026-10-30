@@ -9,7 +9,7 @@ vi.mock('../../../_server-lib/ai/geminiClient.js', async (importOriginal) => ({
 }));
 
 const inserts: Record<string, unknown>[] = [];
-const chain: Record<string, unknown> = { select: () => chain, eq: () => chain, abortSignal: () => chain, maybeSingle: async () => ({ data: null }) };
+const chain: Record<string, unknown> = { select: () => chain, eq: () => chain, abortSignal: () => chain, maybeSingle: async () => ({ data: { plan: 'free', role: 'user', has_permission: true } }) };
 vi.mock('../../../_server-lib/payment/supabaseAdmin.js', () => ({
   getUserFromBearerToken: async () => ({ id: 'user-1' }),
   getSupabaseAdmin: () => ({

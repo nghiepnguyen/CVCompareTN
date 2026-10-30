@@ -33,33 +33,50 @@ export function hourlyAiLimit(plan: 'free' | 'pro' | 'recruiter'): number {
 
 type ProfileRow = { has_permission: boolean; role: string; plan: string; plan_expires_at: string | null };
 
+/** Missing/error/timeout is not evidence that an account is unlocked. */
+export async function getAccountProfile(userId: string, timeoutMs = 4000, signal?: AbortSignal): Promise<ProfileRow> {
+  const { data, error } = await withTimeout(
+    Promise.resolve(getSupabaseAdmin().from('profiles').select('has_permission, role, plan, plan_expires_at')
+      .eq('id', userId).abortSignal(signal ?? AbortSignal.timeout(timeoutMs)).maybeSingle()),
+    timeoutMs,
+    'Account check'
+  );
+  if (error || !data || typeof data.has_permission !== 'boolean' || !['user', 'admin'].includes(data.role)) {
+    throw new Error('Account verification unavailable');
+  }
+  return data as ProfileRow;
+}
+
+export async function checkAccountAccess(userId: string): Promise<'ok' | 'locked' | 'unavailable'> {
+  try {
+    return isLockedProfile(await getAccountProfile(userId)) ? 'locked' : 'ok';
+  } catch {
+    return 'unavailable';
+  }
+}
+
 /**
  * Gate for /api/rewrite-cv and /api/parse-cv: account lock, then a per-user
  * hourly cap counted from analysis_log (every call writes one row).
- * Each lookup fails open on error/timeout: a DB hiccup must not take AI
- * endpoints down for everyone.
+ * Account lookup fails closed. The independent rate-count lookup retains its
+ * existing fail-open behavior.
  */
 export async function checkAiAccess(
   userId: string,
   kind: 'rewrite' | 'parse_cv',
   timeoutMs: number,
   signal?: AbortSignal
-): Promise<'ok' | 'locked' | 'rate_limited'> {
-  const supabase = getSupabaseAdmin();
+): Promise<'ok' | 'locked' | 'rate_limited' | 'unavailable'> {
   let profile: ProfileRow | null = null;
   try {
-    const query = supabase.from('profiles').select('has_permission, role, plan, plan_expires_at').eq('id', userId);
-    ({ data: profile } = await withTimeout(
-      (signal ? query.abortSignal(signal) : query).maybeSingle() as unknown as Promise<{ data: ProfileRow | null }>,
-      timeoutMs,
-      'Account check'
-    ));
-  } catch (err) {
-    console.warn('Account check skipped:', err instanceof Error ? err.message : err);
+    profile = await getAccountProfile(userId, timeoutMs, signal);
+  } catch {
+    return 'unavailable';
   }
   if (isLockedProfile(profile)) return 'locked';
 
   try {
+    const supabase = getSupabaseAdmin();
     const plan = profile
       ? getEffectivePlan({ plan: profile.plan, planExpiresAt: profile.plan_expires_at, role: profile.role })
       : 'free';

@@ -10,7 +10,7 @@ vi.mock('../../../_server-lib/ai/geminiClient.js', async (importOriginal) => ({
 
 const insert = vi.fn();
 // Builders mirror supabase-js: .abortSignal() is chained before the query runs.
-const chain: Record<string, unknown> = { select: () => chain, eq: () => chain, abortSignal: () => chain, maybeSingle: async () => ({ data: null }) };
+const chain: Record<string, unknown> = { select: () => chain, eq: () => chain, abortSignal: () => chain, maybeSingle: async () => ({ data: { plan: 'free', role: 'user', has_permission: true } }) };
 vi.mock('../../../_server-lib/payment/supabaseAdmin.js', () => ({
   getUserFromBearerToken: async () => ({ id: 'user-1' }),
   getSupabaseAdmin: () => ({
@@ -202,8 +202,9 @@ describe('privacy of persisted guard_metrics', () => {
     }
   });
 
-  it('production console carries categorical data only (no section, concept, matchedForm, text, numbers)', async () => {
-    vi.stubEnv('SUGGESTION_GUARD_DEBUG', '');
+  it('production console stays categorical even with the debug flag enabled', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('SUGGESTION_GUARD_DEBUG', '1');
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     generateContent
       .mockResolvedValueOnce(analyzeReply([sug('Work Experience — Acme Corp', 'Built self-serve dashboards')]))
@@ -223,6 +224,7 @@ describe('privacy of persisted guard_metrics', () => {
   });
 
   it('SUGGESTION_GUARD_DEBUG=1 restores concept diagnostics (local debug only)', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
     vi.stubEnv('SUGGESTION_GUARD_DEBUG', '1');
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     generateContent

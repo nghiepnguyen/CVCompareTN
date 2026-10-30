@@ -1,3 +1,4 @@
+import { checkAccountAccess } from '../accountLock.js';
 import { randomUUID } from 'node:crypto';
 import { getSupabaseAdmin, getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 import { copyObject, readObject, removeObject, signDownload, signUpload, type BucketKind } from './r2.js';
@@ -84,6 +85,9 @@ export async function handleStorage(authHeader: string | undefined, input: unkno
   try {
     const user = await getUserFromBearerToken(authHeader);
     if (!user) return { status: 401, body: { error: 'Vui lòng đăng nhập' } };
+    const access = await checkAccountAccess(user.id);
+    if (access === 'locked') return { status: 403, body: { error: 'Account locked' } };
+    if (access === 'unavailable') return { status: 503, body: { error: 'Account verification unavailable' } };
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new StorageError('Yêu cầu không hợp lệ');
     const body = input as Record<string, unknown>;
     const action = body.action;

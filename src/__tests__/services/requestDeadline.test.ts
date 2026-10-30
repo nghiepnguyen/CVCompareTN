@@ -109,7 +109,7 @@ beforeEach(() => {
   s3Send.mockReset();
   db.insert = async () => ({ error: null });
   db.rpc = async (name) => ({ data: name === 'check_analytics_quota' ? { allowed: true } : null, error: null });
-  db.profile = async () => ({ data: null });
+  db.profile = async () => ({ data: { plan: 'free', role: 'user', has_permission: true } });
   db.count = async () => ({ count: 0, error: null });
   db.upload = async () => ({ data: null, error: null });
   db.download = async () => blob(CV_TEXT);
@@ -446,10 +446,11 @@ describe('account lock (has_permission=false)', () => {
     expect(res.status).toBe(200);
   });
 
-  it.each(Object.keys(handlers))('%s: a failing lock lookup fails open', async (name) => {
+  it.each(Object.keys(handlers))('%s: a failing lock lookup fails closed', async (name) => {
     db.profile = async () => { throw new Error('db down'); };
-    await run(handlers[name as keyof typeof handlers]);
-    expect(generateContent).toHaveBeenCalled();
+    const { res } = await run(handlers[name as keyof typeof handlers]);
+    expect(res.status).toBe(503);
+    expect(generateContent).not.toHaveBeenCalled();
   });
 });
 

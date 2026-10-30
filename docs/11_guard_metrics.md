@@ -103,7 +103,10 @@ responses. Read access follows the table's admin-only RLS.
 Production console logs carry the drop reason and violation counts only.
 Suggestion `section` (model free text that may name an employer), concepts,
 `matchedForm`, numbers and suggestion bodies are printed only with
-`SUGGESTION_GUARD_DEBUG=1` (local benchmark/debug).
+`NODE_ENV=development` and `SUGGESTION_GUARD_DEBUG=1` (local benchmark/debug).
+Production ignores the debug flag. Sentry event and structured log payloads
+redact sensitive keys recursively, including arrays and serialized JSON.
+Free-form text without a sensitive key is not a general-purpose PII filter.
 
 ## Example queries
 

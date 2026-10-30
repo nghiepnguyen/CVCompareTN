@@ -58,6 +58,7 @@ export async function handleParseCv(
   }
   const access = await checkAiAccess(user.id, 'parse_cv', Math.min(AUTH_TIMEOUT_MS, deadline.remainingMs()), deadline.signal(AUTH_TIMEOUT_MS));
   if (access === 'locked') return { status: 403, body: { error: 'Account locked' } };
+  if (access === 'unavailable') return { status: 503, body: { error: 'Account verification unavailable' } };
   if (access === 'rate_limited') return { status: 429, body: { error: 'Too many requests. Please try again later.' } };
 
   // Same path is reused by the client's other calls (analyze/rewrite) for this
@@ -80,7 +81,7 @@ export async function handleParseCv(
     if (category === 'storage_timeout') return { status: 504, body: { error: TIMEOUT_MESSAGE, retryable: true } };
     return {
       status: 400,
-      body: { error: err instanceof Error ? err.message : 'Failed to load uploaded file' },
+      body: { error: 'Không thể tải file CV. Vui lòng tải lại file.' },
     };
   }
 
@@ -100,7 +101,7 @@ export async function handleParseCv(
     const category = aiFailureCategory(err);
     const isTimeout = category !== 'gemini_error';
     await logFailure(category, category !== 'request_budget_exhausted'); // model only if Gemini ran
-    const message = category === 'request_budget_exhausted' ? TIMEOUT_MESSAGE : err instanceof Error ? err.message : 'Server error';
+    const message = isTimeout ? TIMEOUT_MESSAGE : 'Không thể đọc thông tin CV. Vui lòng thử lại.';
     return { status: isTimeout ? 504 : 500, body: { error: message, retryable: isTimeout } };
   }
 }

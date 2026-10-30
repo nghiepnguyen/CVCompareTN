@@ -12,6 +12,9 @@ vi.mock('../../_server-lib/payment/supabaseAdmin.js', () => ({
   getSupabaseAdmin: vi.fn(),
 }));
 
+const accountAccess = vi.hoisted(() => vi.fn());
+vi.mock('../../_server-lib/accountLock.js', () => ({ checkAccountAccess: accountAccess }));
+
 import handler from '../recruiter/save-analysis.js';
 import * as supabaseAdmin from '../../_server-lib/payment/supabaseAdmin.js';
 
@@ -35,7 +38,15 @@ function run(rpcResult: unknown) {
 describe('POST /api/recruiter/save-analysis', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    accountAccess.mockResolvedValue('ok');
     mockGetUser.mockResolvedValue({ id: 'u1' } as never);
+  });
+
+  it.each([['locked', 403], ['unavailable', 503]] as const)('blocks %s accounts before saving', async (state, code) => {
+    accountAccess.mockResolvedValue(state);
+    const { rpc, status } = await run({ error: null });
+    expect(status).toHaveBeenCalledWith(code);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it('passes the caller id to the RPC', async () => {

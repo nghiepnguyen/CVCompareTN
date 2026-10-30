@@ -148,12 +148,14 @@ const addUsage = (a: AiCallUsage, b: AiCallUsage): AiCallUsage => ({
 });
 
 // Production logs carry counts only; the concept/number itself (JD wording,
-// or a number that may be contact data) only with SUGGESTION_GUARD_DEBUG=1.
+// or a number that may be contact data) only in development with SUGGESTION_GUARD_DEBUG=1.
 const logFidelity = (pass: 'first' | 'retry', violations: FullRewriteViolation[]) =>
   console.info(
     '[fullRewriteGuard] violation',
     JSON.stringify(
-      process.env.SUGGESTION_GUARD_DEBUG === '1' ? { pass, violations } : { pass, ...countViolations(violations) }
+      process.env.NODE_ENV === 'development' && process.env.SUGGESTION_GUARD_DEBUG === '1'
+        ? { pass, violations }
+        : { pass, ...countViolations(violations) }
     )
   );
 

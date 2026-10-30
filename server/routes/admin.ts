@@ -58,7 +58,7 @@ router.post('/set-user-role', async (req, res) => {
 
     if (rpcError) {
       console.error('set_user_role RPC failed:', rpcError);
-      return res.status(500).json({ error: 'Failed to update user role', detail: rpcError.message });
+      return res.status(500).json({ error: 'Failed to update user role' });
     }
 
     await logAdminAudit(supabase, user.id, 'update_role', p_user_id, { role: p_role });
@@ -66,8 +66,7 @@ router.post('/set-user-role', async (req, res) => {
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error('admin/set-user-role error:', err);
-    const message = err instanceof Error ? err.message : 'Server error';
-    return res.status(500).json({ error: 'Server error', detail: message });
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -123,7 +122,7 @@ router.post('/set-user-plan', async (req, res) => {
 
     if (rpcError) {
       console.error('admin_set_user_plan RPC failed:', rpcError);
-      return res.status(500).json({ error: 'Failed to update user plan', detail: rpcError.message });
+      return res.status(500).json({ error: 'Failed to update user plan' });
     }
 
     await logAdminAudit(supabase, user.id, 'update_plan', p_user_id, {
@@ -134,8 +133,7 @@ router.post('/set-user-plan', async (req, res) => {
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error('admin/set-user-plan error:', err);
-    const message = err instanceof Error ? err.message : 'Server error';
-    return res.status(500).json({ error: 'Server error', detail: message });
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -177,8 +175,7 @@ router.post('/delete-user', async (req, res) => {
     return res.status(200).json({ success: true, storageErrors: result.storageErrors });
   } catch (err) {
     console.error('admin/delete-user error:', err);
-    const message = err instanceof Error ? err.message : 'Server error';
-    return res.status(500).json({ error: 'Server error', detail: message });
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 

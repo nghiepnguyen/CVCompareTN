@@ -1,3 +1,4 @@
+import { checkAccountAccess } from '../accountLock.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   createPayosPaymentLink,
@@ -135,6 +136,9 @@ export async function handlePaymentCreate(
   if (!user) {
     return { status: 401, body: { error: 'Unauthorized' } };
   }
+  const access = await checkAccountAccess(user.id);
+  if (access === 'locked') return { status: 403, body: { error: 'Account locked' } };
+  if (access === 'unavailable') return { status: 503, body: { error: 'Account verification unavailable' } };
   if (!user.email) {
     return { status: 400, body: { error: 'Tài khoản cần email để thanh toán' } };
   }
@@ -193,7 +197,7 @@ export async function handlePaymentCreate(
     const detail =
       insertError.code === '23503'
         ? 'Tài khoản chưa có hồ sơ (profiles). Đăng xuất và đăng nhập lại.'
-        : insertError.message;
+        : 'Vui lòng thử lại sau.';
     return { status: 500, body: { error: 'Không lưu được đơn thanh toán', detail } };
   }
 
@@ -277,7 +281,7 @@ export async function handlePaymentWebhook(
   );
 
   if (activateError) {
-    return { status: 500, body: { error: 'Kích hoạt Pro thất bại', detail: activateError } };
+    return { status: 500, body: { error: 'Kích hoạt Pro thất bại' } };
   }
 
   if (!activated) {
@@ -364,7 +368,7 @@ export async function handlePaymentConfirm(
   );
 
   if (activateError) {
-    return { status: 500, body: { error: 'Kích hoạt Pro thất bại', detail: activateError } };
+    return { status: 500, body: { error: 'Kích hoạt Pro thất bại' } };
   }
 
   if (!activated) {
