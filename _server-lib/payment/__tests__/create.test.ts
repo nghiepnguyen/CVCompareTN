@@ -20,7 +20,7 @@ vi.mock('../supabaseAdmin.js', () => ({
 
 const createPayosPaymentLink = vi.fn();
 vi.mock('../payos.js', async (orig) => ({
-  ...(await orig<typeof import('../payos')>()),
+  ...(await orig<typeof import('../payos.js')>()),
   createPayosPaymentLink: (...a: unknown[]) => createPayosPaymentLink(...a),
 }));
 
