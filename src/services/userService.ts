@@ -170,20 +170,23 @@ export async function createUserProfile(user: AuthUserInput): Promise<UserProfil
 
     const profile = mapProfile(data);
 
-    // Luôn gởi welcome email sau khi tạo profile thành công.
-    fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'welcome',
-        userEmail: profile.email,
-        userName: profile.displayName,
-      }),
-    })
-      .then(async res => {
-        if (!res.ok) {
-          console.error('Gửi email chào mừng thất bại:', res.status, await res.text());
-        }
+    // Gởi welcome email (non-blocking); server chỉ gửi tới email của token.
+    void supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (!session?.access_token) return;
+        return fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ type: 'welcome', userName: profile.displayName }),
+        }).then(async res => {
+          if (!res.ok) {
+            console.error('Gửi email chào mừng thất bại:', res.status, await res.text());
+          }
+        });
       })
       .catch(emailError => {
         console.error('Lỗi khi gửi email chào mừng:', emailError);
@@ -216,17 +219,15 @@ async function logAdminAction(
   details?: Record<string, unknown>
 ): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from('admin_audit_log').insert({
-      admin_id: user.id,
-      action,
-      target_user_id: targetUserId,
-      details: details ?? null,
+    const { error } = await supabase.rpc('log_admin_action', {
+      p_action: action,
+      p_target_user_id: targetUserId,
+      p_details: details ?? null,
     });
+    if (error) throw error;
   } catch (err) {
     // Non-critical — log failure must never block the admin action
-    console.error('admin_audit_log insert failed:', err);
+    console.error('log_admin_action failed:', err);
   }
 }
 

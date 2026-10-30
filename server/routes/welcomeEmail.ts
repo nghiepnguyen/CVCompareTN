@@ -5,7 +5,7 @@ const router = Router();
 
 router.post('/', async (req, res) => {
   try {
-    const result = await handleSendWelcomeEmail(req.body);
+    const result = await handleSendWelcomeEmail(req.body, req.headers.authorization);
     return res.status(result.status).json(result.body);
   } catch (error: unknown) {
     console.error('Welcome email error:', error);

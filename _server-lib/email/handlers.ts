@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { escapeHtml } from '../escapeHtml.js';
 import { validateFeedbackInput, validateWelcomeEmailInput } from '../validate.js';
 import { verifyRecaptcha } from '../recaptcha.js';
+import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
@@ -119,12 +120,19 @@ export async function handleSendFeedback(body: unknown): Promise<HandlerResult> 
   return { status: 200, body: { success: true, message: 'Feedback sent successfully' } };
 }
 
-export async function handleSendWelcomeEmail(body: unknown): Promise<HandlerResult> {
-  const b = (body ?? {}) as {
-    token?: string;
-    userEmail?: string;
-    userName?: string;
-  };
+export async function handleSendWelcomeEmail(
+  body: unknown,
+  authHeader: string | undefined
+): Promise<HandlerResult> {
+  const user = await getUserFromBearerToken(authHeader);
+  if (!user) {
+    return { status: 401, body: { success: false, message: 'Unauthorized' } };
+  }
+  if (!user.email) {
+    return { status: 400, body: { success: false, message: 'Account has no email' } };
+  }
+
+  const b = (body ?? {}) as { userName?: string };
 
   const errors = validateWelcomeEmailInput(b as Record<string, unknown>);
   if (errors.length > 0) {
@@ -138,11 +146,9 @@ export async function handleSendWelcomeEmail(body: unknown): Promise<HandlerResu
 
   const resend = new Resend(apiKey);
   const safeName = escapeHtml(b.userName ?? '');
-  const safeEmail = escapeHtml(b.userEmail ?? '');
-
   const { error } = await resend.emails.send({
     from: `cvFit <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
-    to: [safeEmail],
+    to: [user.email],
     subject: 'Chào mừng bạn! Cùng tối ưu CV để chinh phục công việc mơ ước 🚀',
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #334155;">

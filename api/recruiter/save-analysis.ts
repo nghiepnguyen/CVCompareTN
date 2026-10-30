@@ -2,6 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getUserFromBearerToken, getSupabaseAdmin } from '../../_server-lib/payment/supabaseAdmin.js';
 import { initSentryServer, Sentry } from '../../_server-lib/sentry.js';
 
+const saveError = (res: { status: (n: number) => { json: (b: unknown) => unknown } }, code?: string) =>
+  code === '42501'
+    ? res.status(403).json({ error: 'Forbidden' })
+    : code === 'P0002'
+      ? res.status(404).json({ error: 'Candidate not found' })
+      : res.status(500).json({ error: 'Không lưu được kết quả phân tích' });
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentryServer();
 
@@ -37,6 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { error: rpcError } = await getSupabaseAdmin().rpc('save_candidate_analysis', {
+      p_user_id: user.id,
       p_candidate_id: candidateId,
       p_analysis_result: analysisResult,
       p_match_score: matchScore,
@@ -45,17 +53,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (rpcError) {
       console.error('save_candidate_analysis failed:', rpcError);
-      return res.status(500).json({
-        error: 'Không lưu được kết quả phân tích',
-        detail: rpcError.message,
-      });
+      return saveError(res, rpcError.code);
     }
 
     return res.status(200).json({ success: true });
   } catch (err) {
     Sentry.captureException(err, { tags: { route: 'recruiter/save-analysis' } });
     console.error('recruiter/save-analysis error:', err);
-    const message = err instanceof Error ? err.message : 'Server error';
-    return res.status(500).json({ error: 'Server error', detail: message });
+    return res.status(500).json({ error: 'Server error' });
   }
 }
