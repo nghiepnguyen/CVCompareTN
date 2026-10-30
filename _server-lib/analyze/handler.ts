@@ -1,5 +1,5 @@
 import { getUserFromBearerToken, getSupabaseAdmin } from '../payment/supabaseAdmin.js';
-import { getEffectivePlan, isLockedProfile } from '../accountLock.js';
+import { getAccountProfile, getEffectivePlan, isLockedProfile } from '../accountLock.js';
 import { analyzeCV } from '../ai/analysisService.js';
 import { GEMINI_ANALYZE_MODEL } from '../ai/geminiClient.js';
 import { withTimeout } from '../withTimeout.js';
@@ -86,6 +86,32 @@ export async function handleAnalyze(
     return { status: 401, body: { error: 'Authentication required' } };
   }
 
+  // Re-check batch size server-side — the UI already enforces MAX_BATCH_BY_PLAN,
+  // this is defense-in-depth against a caller hitting /api/analyze directly.
+  // The profile also carries the account lock, so this lookup must fail closed.
+  try {
+    const profile = await getAccountProfile(userId, Math.min(PLAN_CHECK_TIMEOUT_MS, deadline.remainingMs()), deadline.signal(PLAN_CHECK_TIMEOUT_MS));
+    if (isLockedProfile(profile)) {
+      await logAnalysisAttempt(userId, 'error', 'analyze', '[account_locked]', undefined, undefined, deadline);
+      return { status: 403, body: { error: 'Account locked' } };
+    }
+    if (profile) {
+      const effectivePlan = getEffectivePlan({
+        plan: profile.plan as 'free' | 'pro' | 'recruiter',
+        planExpiresAt: profile.plan_expires_at,
+        role: profile.role === 'admin' ? 'admin' : 'user',
+      });
+      const maxBatch = MAX_BATCH_BY_PLAN[effectivePlan] ?? 1;
+      if (batchTotal > maxBatch) {
+        const message = `Batch size ${batchTotal} exceeds plan limit (${maxBatch})`;
+        await logAnalysisAttempt(userId, 'error', 'analyze', message, undefined, undefined, deadline);
+        return { status: 400, body: { error: message } };
+      }
+    }
+  } catch {
+    return { status: 503, body: { error: 'Account verification unavailable' } };
+  }
+
   // Client uploaded the raw file to Storage instead of inlining base64 (large
   // files) — resolve it into the same base64 shape analyzeCV already expects.
   // Same path is reused by the client's follow-up rewrite/parse-cv calls, so
@@ -106,46 +132,8 @@ export async function handleAnalyze(
     if (category === 'storage_timeout') {
       return { status: 504, body: { error: STORAGE_TIMEOUT_MESSAGE, retryable: true } };
     }
-    const message = err instanceof Error ? err.message : 'Failed to load uploaded file';
+    const message = 'Không thể tải file CV. Vui lòng tải lại file.';
     return { status: 400, body: { error: message } };
-  }
-
-  // Re-check batch size server-side — the UI already enforces MAX_BATCH_BY_PLAN,
-  // this is defense-in-depth against a caller hitting /api/analyze directly.
-  // Fails open on lookup errors: worst case is a caller exceeding their batch
-  // limit, which the monthly quota check below still bounds.
-  try {
-    const { data: profile } = await withTimeout(
-      getSupabaseAdmin()
-        .from('profiles')
-        .select('plan, plan_expires_at, role, has_permission')
-        .eq('id', userId)
-        .abortSignal(deadline.signal(PLAN_CHECK_TIMEOUT_MS))
-        .maybeSingle() as unknown as Promise<{
-          data: { plan: string; plan_expires_at: string | null; role: string; has_permission: boolean } | null;
-        }>,
-      Math.min(PLAN_CHECK_TIMEOUT_MS, deadline.remainingMs()),
-      'Plan check'
-    );
-    if (isLockedProfile(profile)) {
-      await logAnalysisAttempt(userId, 'error', 'analyze', '[account_locked]', undefined, undefined, deadline);
-      return { status: 403, body: { error: 'Account locked' } };
-    }
-    if (profile) {
-      const effectivePlan = getEffectivePlan({
-        plan: profile.plan as 'free' | 'pro' | 'recruiter',
-        planExpiresAt: profile.plan_expires_at,
-        role: profile.role === 'admin' ? 'admin' : 'user',
-      });
-      const maxBatch = MAX_BATCH_BY_PLAN[effectivePlan] ?? 1;
-      if (batchTotal > maxBatch) {
-        const message = `Batch size ${batchTotal} exceeds plan limit (${maxBatch})`;
-        await logAnalysisAttempt(userId, 'error', 'analyze', message, undefined, undefined, deadline);
-        return { status: 400, body: { error: message } };
-      }
-    }
-  } catch (planErr) {
-    console.warn('Plan check skipped (timeout):', planErr);
   }
 
   try {
@@ -209,13 +197,13 @@ export async function handleAnalyze(
     console.error('Analysis failed:', analysisError);
     const category = aiFailureCategory(analysisError);
     const isTimeout = category !== 'gemini_error';
-    // Persist only the category; the client still gets the existing message.
+    // Keep provider details out of both telemetry and the response.
     const usage = category === 'request_budget_exhausted' ? undefined : { model: GEMINI_ANALYZE_MODEL }; // model only if Gemini ran
     await logAnalysisAttempt(userId, 'error', 'analyze', `[${category}]`, usage, undefined, deadline);
     const message =
-      category === 'request_budget_exhausted'
+      isTimeout
         ? ANALYZE_TIMEOUT_MESSAGE
-        : analysisError instanceof Error ? analysisError.message : 'Analysis failed';
+        : 'Không thể phân tích CV. Vui lòng thử lại.';
     return {
       status: isTimeout ? 504 : 500,
       body: {

@@ -56,7 +56,8 @@ export async function adminDeleteUser(
     .eq('id', targetUserId)
     .maybeSingle();
   if (targetError) {
-    return { ok: false, status: 500, error: targetError.message };
+    console.error('Target profile lookup failed:', targetError);
+    return { ok: false, status: 500, error: 'Không thể đọc hồ sơ tài khoản.' };
   }
   // Admins must be demoted first: prevents one-click removal of another admin,
   // and app_settings.updated_by references auth.users without ON DELETE, so
@@ -80,9 +81,8 @@ export async function adminDeleteUser(
         if (error) throw error;
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
       console.error(`storage cleanup failed (${bucket}):`, err);
-      storageErrors.push(`${bucket}: ${message}`);
+      storageErrors.push(`${bucket}: Không thể dọn file; cần kiểm tra lại.`);
     }
   }
 
@@ -91,10 +91,14 @@ export async function adminDeleteUser(
     // Auth user already gone but a stray profile remains (legacy data) — clean it up.
     if (deleteError.status === 404) {
       const { error: profileDeleteError } = await supabase.from('profiles').delete().eq('id', targetUserId);
-      if (profileDeleteError) return { ok: false, status: 500, error: profileDeleteError.message };
+      if (profileDeleteError) {
+        console.error('Profile deletion failed:', profileDeleteError);
+        return { ok: false, status: 500, error: 'Không thể xoá hồ sơ tài khoản.' };
+      }
       return { ok: true, storageErrors };
     }
-    return { ok: false, status: 500, error: deleteError.message };
+    console.error('Auth user deletion failed:', deleteError);
+    return { ok: false, status: 500, error: 'Không thể xoá tài khoản. Vui lòng thử lại.' };
   }
 
   return { ok: true, storageErrors };

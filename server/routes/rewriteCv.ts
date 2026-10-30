@@ -11,8 +11,7 @@ router.post('/', async (req, res) => {
     return res.status(result.status).json(result.body);
   } catch (err) {
     console.error('rewrite-cv route error:', err);
-    const message = err instanceof Error ? err.message : 'Server error';
-    return res.status(500).json({ error: message });
+    return res.status(500).json({ error: 'Không thể viết lại CV. Vui lòng thử lại.' });
   }
 });
 

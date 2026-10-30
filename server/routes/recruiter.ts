@@ -1,3 +1,4 @@
+import { checkAccountAccess } from '../../_server-lib/accountLock.js';
 import { Router } from 'express';
 import { getUserFromBearerToken, getSupabaseAdmin } from '../../_server-lib/payment/supabaseAdmin';
 
@@ -19,6 +20,9 @@ router.post('/save-analysis', async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const access = await checkAccountAccess(user.id);
+    if (access === 'locked') return res.status(403).json({ error: 'Account locked' });
+    if (access === 'unavailable') return res.status(503).json({ error: 'Account verification unavailable' });
 
     const { candidateId, analysisResult, matchScore, status } = req.body as {
       candidateId?: string;

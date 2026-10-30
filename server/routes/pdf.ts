@@ -11,8 +11,7 @@ router.post('/', async (req, res) => {
     return res.status(result.status).json(result.body);
   } catch (error: unknown) {
     console.error('PDF extraction error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return res.status(500).json({ error: `Failed to extract PDF: ${message}` });
+    return res.status(500).json({ error: 'Không thể trích xuất PDF. Vui lòng thử lại.' });
   }
 });
 

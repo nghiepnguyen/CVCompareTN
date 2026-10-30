@@ -35,7 +35,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: unknown) {
     Sentry.captureException(error, { tags: { route: 'extract-pdf' } });
     console.error('PDF extraction error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return res.status(500).json({ error: `Failed to extract PDF: ${message}` });
+    return res.status(500).json({ error: 'Không thể trích xuất PDF. Vui lòng thử lại.' });
   }
 }

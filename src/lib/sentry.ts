@@ -1,14 +1,6 @@
 import * as Sentry from '@sentry/react';
 
-const SCRUB_KEYS = ['cvData', 'cvText', 'jd', 'email', 'password', 'feedback', 'base64Data'];
-
-function scrubData(data: Record<string, unknown>): Record<string, unknown> {
-  const result = { ...data };
-  for (const key of SCRUB_KEYS) {
-    if (key in result) result[key] = '[Scrubbed]';
-  }
-  return result;
-}
+import { scrubTelemetry } from './scrubTelemetry';
 
 export function initSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
@@ -23,6 +15,7 @@ export function initSentry() {
       Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
     ],
     enableLogs: true,
+    beforeSendLog: scrubTelemetry,
     tracesSampleRate: 0.1,
     tracePropagationTargets: ['localhost', /^https:\/\/cvfit\.pro\/api/],
     replaysOnErrorSampleRate: 0,
@@ -71,16 +64,7 @@ export function initSentry() {
         return null;
       }
 
-      if (event.request?.data && typeof event.request.data === 'object') {
-        event.request.data = scrubData(event.request.data as Record<string, unknown>);
-      }
-      const breadcrumbs = event.breadcrumbs as unknown as Array<{ data?: unknown }> | undefined;
-      breadcrumbs?.forEach((b) => {
-        if (b.data && typeof b.data === 'object') {
-          b.data = scrubData(b.data as Record<string, unknown>);
-        }
-      });
-      return event;
+      return scrubTelemetry(event);
     },
   });
 }

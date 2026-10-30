@@ -1,14 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ user: vi.fn(), admin: vi.fn(), sign: vi.fn(), copy: vi.fn(), read: vi.fn(), remove: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), admin: vi.fn(), sign: vi.fn(), copy: vi.fn(), read: vi.fn(), remove: vi.fn(), access: vi.fn() }));
 vi.mock('../../payment/supabaseAdmin.js', () => ({ getUserFromBearerToken: mocks.user, getSupabaseAdmin: mocks.admin }));
 vi.mock('../r2.js', () => ({ signUpload: mocks.sign, copyObject: mocks.copy, readObject: mocks.read, removeObject: mocks.remove }));
+vi.mock('../../accountLock.js', () => ({ checkAccountAccess: mocks.access }));
 import { handleStorage } from '../handler.js';
 describe('storage authorization', () => {
-  beforeEach(() => { vi.clearAllMocks(); process.env.STORAGE_WRITE_PROVIDER = 'r2'; });
+  beforeEach(() => { vi.clearAllMocks(); mocks.access.mockResolvedValue('ok'); process.env.STORAGE_WRITE_PROVIDER = 'r2'; });
   it('rejects requests without a verified user', async () => {
     mocks.user.mockResolvedValue(null);
     expect((await handleStorage(undefined, { action: 'upload' })).status).toBe(401);
     expect(mocks.admin).not.toHaveBeenCalled();
+  });
+  it.each(['upload', 'finalize', 'download', 'delete', 'delete-temp'])('blocks locked users before %s does I/O', async action => {
+    mocks.user.mockResolvedValue({ id: 'owner' });
+    mocks.access.mockResolvedValue('locked');
+    expect((await handleStorage('Bearer token', { action })).status).toBe(403);
+    expect(mocks.admin).not.toHaveBeenCalled();
+    expect(mocks.sign).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+  it('returns 503 when the account cannot be verified', async () => {
+    mocks.user.mockResolvedValue({ id: 'owner' });
+    mocks.access.mockResolvedValue('unavailable');
+    expect((await handleStorage('Bearer token', { action: 'upload' })).status).toBe(503);
+    expect(mocks.sign).not.toHaveBeenCalled();
   });
   it('rejects unknown actions', async () => {
     mocks.user.mockResolvedValue({ id: 'owner' });
@@ -33,7 +48,7 @@ describe('storage authorization', () => {
 
 describe('finalize publication boundary', () => {
   const id = '550e8400-e29b-41d4-a716-446655440000';
-  beforeEach(() => { vi.clearAllMocks(); mocks.user.mockResolvedValue({ id: 'owner' }); });
+  beforeEach(() => { vi.clearAllMocks(); mocks.access.mockResolvedValue('ok'); mocks.user.mockResolvedValue({ id: 'owner' }); });
   function database(row: Record<string, unknown>) {
     const update = vi.fn(() => ({ eq: () => ({ eq: () => ({ eq: () => Promise.resolve({ error: null }) }) }) }));
     const rpc = vi.fn(async (name: string) => name === 'storage_claim_upload' ? { data: [{ ...row, final_key: 'owner/r2/final', lease_token: 'claim' }], error: null } : { data: { ...row, status: 'ready', final_key: 'owner/r2/final' }, error: null });

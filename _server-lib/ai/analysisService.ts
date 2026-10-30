@@ -200,7 +200,7 @@ export async function analyzeCV(
         console.info(
           '[suggestionGuard] dropped',
           JSON.stringify(
-            process.env.SUGGESTION_GUARD_DEBUG === '1'
+            process.env.NODE_ENV === 'development' && process.env.SUGGESTION_GUARD_DEBUG === '1'
               ? { ...d, original: s.original, optimized: s.optimized }
               : { reason: d.reason }
           )

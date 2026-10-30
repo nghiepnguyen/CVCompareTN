@@ -1,11 +1,13 @@
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 vi.mock('../../_server-lib/payment/supabaseAdmin.js', () => ({
   getUserFromBearerToken: vi.fn(),
 }));
 
+const accountAccess = vi.hoisted(() => vi.fn());
+vi.mock('../../_server-lib/accountLock.js', () => ({ checkAccountAccess: accountAccess }));
 vi.mock('axios');
 
 vi.mock('unpdf', () => ({
@@ -44,10 +46,31 @@ function makeRes(): { res: VercelResponse; status: ReturnType<typeof vi.fn>; jso
 }
 
 describe('extract-pdf handler — auth guard', () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
     vi.resetAllMocks();
-    process.env.RECAPTCHA_SECRET_KEY = 'test-secret-key';
-    process.env.NODE_ENV = 'production';
+    accountAccess.mockResolvedValue('ok');
+    vi.stubEnv('RECAPTCHA_SECRET_KEY', 'test-secret-key');
+    vi.stubEnv('RECAPTCHA_ALLOWED_HOSTNAMES', 'cvfit.pro,www.cvfit.pro');
+    vi.stubEnv('NODE_ENV', 'production');
+  });
+
+  it.each([['locked', 403], ['unavailable', 503]] as const)('blocks %s token users even with a valid captcha', async (state, code) => {
+    mockGetUser.mockResolvedValue({ id: 'user-abc' });
+    accountAccess.mockResolvedValue(state);
+    const { res, status } = makeRes();
+    await handler(makeReq({ headers: { authorization: 'Bearer fixture' }, body: { base64Data: VALID_PDF_BASE64, recaptchaToken: 'fixture' } }), res);
+    expect(status).toHaveBeenCalledWith(code);
+    expect(mockAxiosPost).not.toHaveBeenCalled();
+    expect(mockExtractText).not.toHaveBeenCalled();
+  });
+  it('does not downgrade an invalid bearer token to anonymous captcha access', async () => {
+    mockGetUser.mockResolvedValue(null);
+    const { res, status } = makeRes();
+    await handler(makeReq({ headers: { authorization: 'Bearer invalid' }, body: { base64Data: VALID_PDF_BASE64, recaptchaToken: 'fixture' } }), res);
+    expect(status).toHaveBeenCalledWith(401);
+    expect(mockAxiosPost).not.toHaveBeenCalled();
+    expect(mockExtractText).not.toHaveBeenCalled();
   });
 
   describe('unauthenticated request (no Bearer token)', () => {
@@ -93,7 +116,7 @@ describe('extract-pdf handler — auth guard', () => {
 
     it('proceeds to PDF extraction when reCAPTCHA passes (score >= 0.5)', async () => {
       mockGetUser.mockResolvedValue(null);
-      mockAxiosPost.mockResolvedValue({ data: { success: true, score: 0.9 } });
+      mockAxiosPost.mockResolvedValue({ data: { success: true, score: 0.9, hostname: 'cvfit.pro', action: 'extract_pdf' } });
       mockExtractText.mockResolvedValue({ text: 'job description text' } as never);
       const req = makeReq({
         headers: { host: 'cvfit.pro' },
@@ -138,6 +161,15 @@ describe('extract-pdf handler — auth guard', () => {
 
       expect(mockAxiosPost).not.toHaveBeenCalled();
     });
+  });
+
+  it('does not expose PDF parser errors to the caller', async () => {
+    mockGetUser.mockResolvedValue({ id: 'user-abc' });
+    mockExtractText.mockRejectedValue(new Error('upstream-secret private-CV-content'));
+    const { res, status, json } = makeRes();
+    await handler(makeReq({ body: { base64Data: VALID_PDF_BASE64 } }), res);
+    expect(status).toHaveBeenCalledWith(500);
+    expect(JSON.stringify(json.mock.calls)).not.toContain('upstream-secret');
   });
 
   describe('request validation (after auth)', () => {

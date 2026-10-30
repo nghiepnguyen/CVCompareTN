@@ -1,3 +1,4 @@
+import { checkAccountAccess } from '../../_server-lib/accountLock.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getUserFromBearerToken, getSupabaseAdmin } from '../../_server-lib/payment/supabaseAdmin.js';
 import { initSentryServer, Sentry } from '../../_server-lib/sentry.js';
@@ -26,6 +27,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const access = await checkAccountAccess(user.id);
+    if (access === 'locked') return res.status(403).json({ error: 'Account locked' });
+    if (access === 'unavailable') return res.status(503).json({ error: 'Account verification unavailable' });
 
     const body = req.body as {
       candidateId?: string;

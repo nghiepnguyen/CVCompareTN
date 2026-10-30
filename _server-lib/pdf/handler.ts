@@ -1,3 +1,4 @@
+import { checkAccountAccess } from '../accountLock.js';
 import { extractText } from 'unpdf';
 import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 import { verifyRecaptcha } from '../recaptcha.js';
@@ -19,12 +20,19 @@ export async function handleExtractPdf(
 
   const user = await getUserFromBearerToken(authHeader);
 
+  if (authHeader && !user) return { status: 401, body: { error: 'Authentication required' } };
+  if (user) {
+    const access = await checkAccountAccess(user.id);
+    if (access === 'locked') return { status: 403, body: { error: 'Account locked' } };
+    if (access === 'unavailable') return { status: 503, body: { error: 'Account verification unavailable' } };
+  }
+
   if (!user) {
     const { recaptchaToken } = b;
     if (!recaptchaToken) {
       return { status: 401, body: { error: 'Authentication or reCAPTCHA token required' } };
     }
-    const captcha = await verifyRecaptcha(recaptchaToken);
+    const captcha = await verifyRecaptcha(recaptchaToken, 'extract_pdf');
     if (!captcha.ok) {
       return { status: captcha.status ?? 403, body: { error: captcha.error } };
     }
