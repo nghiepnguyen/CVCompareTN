@@ -15,7 +15,7 @@ Canonical reference for **which runtime handles each capability**. Từ 2026-06,
 | Feedback email | `POST /api/send-email` (`type:'feedback'`) → `api/send-email.ts` | `POST /api/send-feedback` → `server/routes/feedback.ts` | `_server-lib/email/handlers.ts` |
 | Welcome email (cần `Authorization: Bearer`; chỉ gửi tới email của user trong token) | `POST /api/send-email` (`type:'welcome'`) → `api/send-email.ts` | `POST /api/send-welcome-email` → `server/routes/welcomeEmail.ts` | `_server-lib/email/handlers.ts` |
 | VIP upgrade email | server-side via `_server-lib/payment/vipUpgradeEmail.ts` | — | — |
-| PayOS — tạo link | `POST /api/payment/create` → `api/payment.ts` (unified) | `POST /api/payment/create` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
+| PayOS — tạo link (≤5 đơn pending/15 phút) | `POST /api/payment/create` → `api/payment.ts` (unified) | `POST /api/payment/create` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
 | PayOS — webhook | `POST /api/payment/webhook` → `api/payment.ts` | `POST /api/payment/webhook` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
 | PayOS — confirm (fallback) | `POST /api/payment/confirm` → `api/payment.ts` | `POST /api/payment/confirm` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
 | Admin — đổi role / plan | `POST /api/admin/set-user-role`, `/api/admin/set-user-plan` → `api/admin.ts` (unified, Bearer + role=admin) | `server/routes/admin.ts` | RPC `set_user_role` / `admin_set_user_plan` |

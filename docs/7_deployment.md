@@ -186,27 +186,32 @@ Sau `supabase link`, thư mục `supabase/.temp/` được tạo tự động �
 
 Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới giữ Supabase làm nơi upload mặc định và đọc theo metadata; có thể bật R2 riêng cho `temp`, `saved`, `candidate` qua cấu hình server. File tạm R2 dùng reference `r2:{uploadId}`, file lâu dài giữ `file_path` cùng `storage_provider`. Tải file cá nhân/recruiter qua `POST /api/storage` với JWT, không dùng public URL. Cleanup có queue bền vững và scheduler, kể cả khi xoá campaign/user. Xem [10_storage_r2.md](10_storage_r2.md) cho migration bắt buộc, API, CORS/lifecycle, kiểm thử và rollback.
 
-## Thứ tự deploy — security fixes 2026-10-30
+## Security fixes 2026-10-30 — đã deploy
 
-Làm đúng thứ tự sau. Bước 1–3 đã làm trên production ngày 2026-10-30 (áp từng file qua `supabase db query --linked -f`, rồi `supabase migration repair --status applied`; không dùng `db push` vì `20261029000000`/`20261030000000` chưa được ghi nhận trong lịch sử migration của remote).
+**Trạng thái:** PR #22–#33 đã merge, production `b57d2b0`. Các migration sau đã áp trên production (từng file qua `supabase db query --linked -f` trong `BEGIN/COMMIT`, rồi `supabase migration repair --linked --status applied <ts>`):
 
-1. **Owner pre-check (production):** `SELECT action, count(*) FROM public.admin_audit_log GROUP BY 1;` — chỉ được có 6 giá trị `update_role`, `update_plan`, `delete_user`, `update_permission`, `update_analytics_limit`, `reset_analytics_limit`; nếu có giá trị khác, migration `20261101030000` sẽ fail.
-2. **Owner pre-check:** `SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='profiles' ORDER BY ordinal_position;` — cột nào client có ghi mà chưa nằm trong GRANT thì phải thêm vào GRANT trong `20261101000000`.
-3. `supabase db push` (áp dụng `20261101000000`, `20261101010000`, `20261101030000`).
-4. Merge / deploy app lên Vercel.
-5. PR follow-up: migration mới (timestamp mới, tạo sau khi app đã deploy) xoá bản v1 4 tham số:
-   ```sql
-   DROP FUNCTION public.save_candidate_analysis(uuid, jsonb, integer, text);
-   ```
-6. Verify sau deploy — kỳ vọng `f | f | t`:
-   ```sql
-   SELECT has_table_privilege('authenticated','public.profiles','UPDATE'),
-          has_table_privilege('authenticated','public.profiles','DELETE'),
-          EXISTS(SELECT 1 FROM pg_trigger WHERE tgname='profiles_guard_privileged_columns');
-   ```
-7. Owner kiểm tra dấu hiệu bị xâm phạm ngay sau đó: danh sách `role='admin'`, user có `plan<>'free'` mà không có payment đã thanh toán, `monthly_analytics_limit_custom=true` không có dòng audit `update_analytics_limit` tương ứng.
+| Migration | Nội dung |
+|---|---|
+| `20261101000000` | Khoá cột quyền lực `profiles` (trigger + column grant), bỏ self-delete |
+| `20261101010000` | `save_candidate_analysis` 5 tham số, kiểm tra chủ campaign |
+| `20261101030000` | `admin_audit_log`: bỏ INSERT client, CHECK `action`, RPC `log_admin_action` |
+| `20261101040000` | Drop `save_candidate_analysis` 4 tham số |
+| `20261101050000` | `admin_set_user_plan`/`set_user_role` chạy được dưới service_role |
+| `20261101060000` | Bucket `cv-files` private |
+| `20261101070000` | Trigger `enforce_plan_caps` |
+| `20261101080000`, `20261101080001` | Retention lịch sử free 7 ngày + pg_cron `purge-free-history` |
 
-**Cửa sổ rủi ro:** giữa bước 3 và 4, audit log admin phía client ghi thất bại âm thầm (bundle cũ insert trực tiếp); bundle cũ còn cache sẽ nhận 401 khi gửi welcome email.
+Verify sau deploy (kỳ vọng `f | f | t`):
+
+```sql
+SELECT has_table_privilege('authenticated','public.profiles','UPDATE'),
+       has_table_privilege('authenticated','public.profiles','DELETE'),
+       EXISTS(SELECT 1 FROM pg_trigger WHERE tgname='profiles_guard_privileged_columns');
+```
+
+**Lưu ý cho lần push migration sau:** lịch sử migration trên remote chưa ghi nhận `20261029000000` và `20261030000000` (cột của chúng đã có trên prod). `supabase db push` sẽ báo lệch thứ tự — chạy `supabase migration repair --linked --status applied 20261029000000 20261030000000` trước, hoặc tiếp tục áp từng file như trên.
+
+SQL test cho các migration này: `supabase/tests/*.test.sql`, chạy local bằng `supabase/tests/local/run.sh "$PWD" /repo/tests/<file>.sql` (Postgres 16 disposable, không network).
 
 ### Account lock — phần API và DB guard
 
@@ -226,5 +231,5 @@ Kiểm tra local: `supabase/tests/account_lock.test.sql` trên DB disposable; re
 - URL bất biến: `https://cv-compare-ljxi6vr0d-nghiepnguyens.vercel.app`; đã promote và đối chiếu `vercel inspect https://cvfit.pro`.
 - Trước deploy: `npm run lint`, `npm run lint:api`, 54 file / 637 test Vitest và `npm run build` đạt trong Docker offline. Test debug xác minh production vẫn chặn nội dung chi tiết khi cờ debug bật.
 - Sau deploy: curl GET `/vi/`, `/en/privacy/`, `/api/config` trên `cvfit.pro` đều 200; HTML có nội dung tĩnh và config public đủ Supabase URL/anon key.
-- Đây là deploy CLI từ snapshot khớp worktree `codex/security-sentry-scrub`; chưa commit/merge/push bản sửa. Cần tích hợp Git trước lần deploy từ `main` tiếp theo để tránh ghi đè.
+- Đây là deploy CLI từ snapshot khớp worktree `codex/security-sentry-scrub`; đã commit và push branch trong PR #35; chưa merge. Cần tích hợp Git trước lần deploy từ `main` tiếp theo để tránh ghi đè.
 - Chưa chạy account test khóa/mở khóa trên production, thanh toán, email hoặc AI có phí. Npm trên Vercel báo 27 cảnh báo dependency (4 moderate, 19 high, 4 critical); chưa phân loại khả năng ảnh hưởng, chưa thay lockfile trong đợt này.
