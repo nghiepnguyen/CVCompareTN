@@ -58,6 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (p_role !== 'admin' && p_role !== 'user') {
           return res.status(400).json({ error: 'Invalid role. Must be "admin" or "user"' });
         }
+        if (p_user_id === user.id && p_role === 'user') {
+          return res.status(400).json({ error: 'Cannot demote yourself' });
+        }
 
         const { error: rpcError } = await supabase.rpc('set_user_role', {
           p_user_id,
