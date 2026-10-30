@@ -53,9 +53,6 @@ export function validateFeedbackInput(body: Record<string, unknown>): Validation
 export function validateWelcomeEmailInput(body: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  const emailErr = validateEmail(body.userEmail, 'userEmail');
-  if (emailErr) errors.push(emailErr);
-
   const nameErr = validateLength(body.userName, 'userName', NAME_MAX);
   if (nameErr) errors.push(nameErr);
 

@@ -170,20 +170,23 @@ export async function createUserProfile(user: AuthUserInput): Promise<UserProfil
 
     const profile = mapProfile(data);
 
-    // Luôn gởi welcome email sau khi tạo profile thành công.
-    fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'welcome',
-        userEmail: profile.email,
-        userName: profile.displayName,
-      }),
-    })
-      .then(async res => {
-        if (!res.ok) {
-          console.error('Gửi email chào mừng thất bại:', res.status, await res.text());
-        }
+    // Gởi welcome email (non-blocking); server chỉ gửi tới email của token.
+    void supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (!session?.access_token) return;
+        return fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ type: 'welcome', userName: profile.displayName }),
+        }).then(async res => {
+          if (!res.ok) {
+            console.error('Gửi email chào mừng thất bại:', res.status, await res.text());
+          }
+        });
       })
       .catch(emailError => {
         console.error('Lỗi khi gửi email chào mừng:', emailError);

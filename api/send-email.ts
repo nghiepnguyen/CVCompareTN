@@ -12,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(result.status).json(result.body);
     }
     if (type === 'welcome') {
-      const result = await handleSendWelcomeEmail(req.body);
+      const result = await handleSendWelcomeEmail(req.body, req.headers.authorization);
       return res.status(result.status).json(result.body);
     }
     return res.status(400).json({ success: false, message: 'Invalid type. Use "feedback" or "welcome".' });
