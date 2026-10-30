@@ -165,7 +165,7 @@ Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_
 | Phân tích / chu kỳ | `app_settings` (mặc định 10) hoặc override admin | **100** (trừ khi admin đặt unlimited) | **500** |
 | CV / lần | 1 | 5 | 50 |
 | Kho JD | 3 | Không giới hạn | Không giới hạn |
-| Lịch sử | 7 ngày | Toàn bộ | Toàn bộ |
+| Lịch sử | 7 ngày (xoá hẳn, cron hằng ngày) | Toàn bộ | Toàn bộ |
 | Chiến dịch tuyển dụng | Không | Không | 10 campaigns × 50 CV |
 | Xuất CV tối ưu | Không | Có | Có |
 
@@ -173,6 +173,9 @@ Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_
 - Migration: `supabase/migrations/20260601000000_add_plan_to_profiles.sql`, `20260601300000_add_recruiter_campaigns.sql`, `20260626110000_quota_reset_by_registration_day.sql`.
 - UI: `/upgrade`, `/payment/success`, `/payment/cancel`.
 - **Plan expiry:** Khi `plan_expires_at <= now()`, `sync_profile_usage_month` tự động downgrade về `free`, reset `usage_count = 0`. Không cần cron job.
+- **Retention lịch sử free (2026-10):** `public.purge_expired_free_history()` xoá hẳn `history` cũ hơn 7 ngày của user có effective plan free (gồm paid đã hết hạn; admin giữ nguyên). pg_cron job `purge-free-history` chạy 03:00 ICT hằng ngày (`20261101080000`, `20261101080001`). User free nâng cấp sau đó không lấy lại được lịch sử > 7 ngày.
+- **Giới hạn plan phía server (2026-10):** trigger `enforce_plan_caps` (`20261101070000`) chặn insert từ client vượt `MAX_SAVED_CV_BY_PLAN`, `MAX_SAVED_JD_BY_PLAN`, và tạo campaign/ứng viên khi không phải recruiter/admin (tối đa 50 ứng viên/campaign). Sửa số ở `src/lib/planLimits.ts` thì phải sửa cả trigger.
+- **Quyền cột `profiles` (2026-10):** client chỉ được UPDATE `display_name`, `photo_url`, `is_new`; `has_permission`, `monthly_analytics_limit(_custom)` chỉ admin; `role`, `plan*`, `usage_*`, `quota_reset_day` chỉ qua RPC/service_role (`20261101000000`).
 - **Perpetual plan (`plan_expires_at IS NULL`):** Admin có thể grant plan không hạn (NULL expiry). Khi user tự gia hạn qua PayOS, `plan_expires_at` vẫn giữ NULL (không bị convert thành finite). Nếu cần revoke, admin downgrade về free.
 - **Chặn downgrade recruiter → pro** (từ `20260703060000`, xem [5_api.md](5_api.md)): Recruiter (500/tháng) là tier cao hơn Pro (100/tháng); user/admin không thể "hạ" một recruiter đang active xuống pro. Chặn ở 3 lớp: (1) `handlePaymentCreate` trả 409 trước khi tạo link PayOS — không lấy tiền; (2) RPC `activate_pro_plan`/`admin_set_user_plan` raise `cannot_downgrade_recruiter_to_pro`; (3) modal "Chỉnh sửa" trong `AdminView` ẩn luôn option Pro khi user hiện tại là recruiter active. Muốn đổi, phải downgrade về `free` trước. Downgrade recruiter→free không bị ảnh hưởng.
 - **Frontend refresh:** `AuthContext` tự refresh `effectivePlan` mỗi 5 phút và khi tab trở lại foreground (`visibilitychange`) — plan hết hạn mid-session được phát hiện mà không cần reload trang.
