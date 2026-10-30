@@ -193,7 +193,7 @@ Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới g
 
 ## Thứ tự deploy — security fixes 2026-10-30
 
-Làm đúng thứ tự sau (chi tiết fix: `docs/superpowers/plans/2026-10-30-security-audit-fixes.md`):
+Làm đúng thứ tự sau. Bước 1–3 đã làm trên production ngày 2026-10-30 (áp từng file qua `supabase db query --linked -f`, rồi `supabase migration repair --status applied`; không dùng `db push` vì `20261029000000`/`20261030000000` chưa được ghi nhận trong lịch sử migration của remote).
 
 1. **Owner pre-check (production):** `SELECT action, count(*) FROM public.admin_audit_log GROUP BY 1;` — chỉ được có 6 giá trị `update_role`, `update_plan`, `delete_user`, `update_permission`, `update_analytics_limit`, `reset_analytics_limit`; nếu có giá trị khác, migration `20261101030000` sẽ fail.
 2. **Owner pre-check:** `SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='profiles' ORDER BY ordinal_position;` — cột nào client có ghi mà chưa nằm trong GRANT thì phải thêm vào GRANT trong `20261101000000`.
@@ -209,6 +209,6 @@ Làm đúng thứ tự sau (chi tiết fix: `docs/superpowers/plans/2026-10-30-s
           has_table_privilege('authenticated','public.profiles','DELETE'),
           EXISTS(SELECT 1 FROM pg_trigger WHERE tgname='profiles_guard_privileged_columns');
    ```
-7. Owner kiểm tra dấu hiệu bị xâm phạm ngay sau đó: xem mục "Owner checklist" trong `docs/superpowers/plans/2026-10-30-security-audit-fixes.md`.
+7. Owner kiểm tra dấu hiệu bị xâm phạm ngay sau đó: danh sách `role='admin'`, user có `plan<>'free'` mà không có payment đã thanh toán, `monthly_analytics_limit_custom=true` không có dòng audit `update_analytics_limit` tương ứng.
 
 **Cửa sổ rủi ro:** giữa bước 3 và 4, audit log admin phía client ghi thất bại âm thầm (bundle cũ insert trực tiếp); bundle cũ còn cache sẽ nhận 401 khi gửi welcome email.
