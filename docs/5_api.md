@@ -59,6 +59,7 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
 
 - **Shared handler:** `_server-lib/rewriteCv/handler.ts` — `handleRewriteCv()` (giống pattern `handleAnalyze()`, dùng chung giữa Vercel và Express).
 - **Auth:** giống `/api/analyze` — Bearer bắt buộc (timeout 4s), không còn nhánh anonymous/reCAPTCHA.
+- **Khoá tài khoản / rate limit (2026-10):** `checkAiAccess()` (`_server-lib/accountLock.ts`) ngay sau auth — `profiles.has_permission = false` (không phải admin) → **403** `Account locked`; quá `max(10, 2 × MAX_BATCH_BY_PLAN[plan])` lần/giờ cho loại đó (free/pro 10, recruiter 100, đếm từ `analysis_log`) → **429**. Lookup lỗi/timeout → cho qua (fail-open). `/api/analyze` cũng trả 403 cho tài khoản bị khoá (dùng lại profile lookup có sẵn), không bị rate limit (đã có quota tháng).
 - **Body:** `{ jd, cvData, cvMimeType, language?, cvDataStoragePath? }` (không có `cvName`). `cvDataStoragePath` (2026-07, optional) — path `cv-analyze-tmp` khi `cvData` là ảnh/PDF-scan 2–15MB, resolve qua `tempFile.ts` giống `/api/analyze`.
 - **Response:** `{ fullRewrittenCV: string }` — Markdown GFM CV đã viết lại tối ưu ATS.
 - **Timeout:** cùng request deadline 65s như `/api/analyze`; retry Full CV chỉ chạy khi deadline AI còn ≥ 20s (`_server-lib/ai/rewriteService.ts`, `generateFullRewrite(jd, cvData, cvMimeType, language, timeoutMs)`).
@@ -110,10 +111,12 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
 | **Vercel** | `POST /api/payment/{create\|webhook\|confirm}` | `api/payment.ts` (unified, dispatch theo URL segment) |
 | **Express** | `POST /api/payment/{create\|webhook\|confirm}` | `server/routes/payment.ts` → shared `_server-lib/payment/handlers.ts` |
 
-- **`POST /api/payment/create`** — Tạo link thanh toán PayOS. Auth: Bearer (Supabase JWT). Body: `{ planType?: "pro" | "recruiter" }`. Response: `{ checkoutUrl: string, orderCode: number }`. **Guard (từ `20260703060000`):** nếu `planType = "pro"` và user đang recruiter active → HTTP 409, không tạo link (chặn downgrade recruiter→pro trước khi lấy tiền — xem [8_analytics.md](8_analytics.md)).
+- **`POST /api/payment/create`** — Tạo link thanh toán PayOS. Auth: Bearer (Supabase JWT). Body: `{ planType?: "pro" | "recruiter" }`. Response: `{ checkoutUrl: string, orderCode: number }`. Tối đa 5 đơn `pending` tạo trong 15 phút / user → **429** (link PayOS tự hết hạn sau 15 phút; đơn pending cũ không bị đổi trạng thái để webhook trễ vẫn kích hoạt được). **Guard (từ `20260703060000`):** nếu `planType = "pro"` và user đang recruiter active → HTTP 409, không tạo link (chặn downgrade recruiter→pro trước khi lấy tiền — xem [8_analytics.md](8_analytics.md)).
 - **`POST /api/payment/webhook`** — PayOS callback khi có kết quả thanh toán. Xác thực hai lớp:
-  1. **HMAC-SHA256** (`verifyWebhookPayload`) — sorted-key object signing trên `data`.
+  1. **HMAC-SHA256** (`verifyWebhookPayload`) — sorted-key object signing trên `data`, so sánh bằng `timingSafeEqual`.
   2. **Timestamp freshness** (`isWebhookTimestampFresh`) — `data.transactionDateTime` phải trong cửa sổ ±30 phút. Webhook cũ bị replay → HTTP 400.
+  - Thành công chỉ xét **`data.code === '00'`** (nằm trong phần có chữ ký); `code`/`success` ở top-level không được ký nên bị bỏ qua.
+  - `data.amount` phải bằng `payments.amount` của đơn, khác → HTTP 400, không kích hoạt.
   - Gọi RPC `activate_pro_plan` nếu thành công; idempotent (đã `paid` → bỏ qua).
 - **`POST /api/payment/confirm`** — Fallback khi webhook bị delay. Auth: Bearer. Body: `{ orderCode: number }`. Tự verify trạng thái qua PayOS API, sau đó activate nếu đã thanh toán.
 - **Yêu cầu:** `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`.
@@ -129,8 +132,9 @@ Vercel dùng một handler duy nhất dispatch theo `type` field. Express dùng 
 - **reCAPTCHA:** Bắt buộc (score ≥ 0.5).
 
 **Welcome** (`type: 'welcome'`):
-- **Body:** `{ type: 'welcome', userEmail, userName }`
-- **reCAPTCHA:** Không (bỏ 2026-07 — trigger là `createUserProfile()` client-side ngay sau khi tạo `profiles` row mới, không có sẵn token ở bước này; email nội bộ cho user đã qua Supabase Auth nên không cần captcha). Fire-and-forget từ `userService.ts::createUserProfile()`, log lỗi HTTP status nếu gửi thất bại nhưng không throw/block đăng nhập.
+- **Auth (2026-10):** `Authorization: Bearer` bắt buộc (401 nếu thiếu/sai); mail chỉ gửi tới **email của user trong token**, `userEmail` trong body bị bỏ qua.
+- **Body:** `{ type: 'welcome', userName }`
+- **reCAPTCHA:** Không (trigger là `createUserProfile()` client-side ngay sau khi tạo `profiles` row mới). Fire-and-forget từ `userService.ts::createUserProfile()`, log lỗi HTTP status nếu gửi thất bại nhưng không throw/block đăng nhập.
 
 #### VIP Upgrade Email (server-side)
 
