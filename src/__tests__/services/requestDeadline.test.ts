@@ -421,3 +421,33 @@ describe('/api/parse-cv deadline', () => {
     noFixtureLeak(lastRow());
   });
 });
+
+describe('account lock (has_permission=false)', () => {
+  const body = { jd: JD, cvData: CV_TEXT, cvMimeType: 'text/plain', language: 'en' };
+  const handlers = {
+    analyze: () => handleAnalyze('Bearer t', body),
+    rewrite: () => handleRewriteCv('Bearer t', body),
+    parse: () => handleParseCv('Bearer t', body),
+  };
+  const profile = (p: Record<string, unknown>) => async () => ({ data: { plan: 'free', plan_expires_at: null, ...p } });
+
+  it.each(Object.keys(handlers))('%s: locked user gets 403 and Gemini never runs', async (name) => {
+    db.profile = profile({ has_permission: false, role: 'user' });
+    const { res } = await run(handlers[name as keyof typeof handlers]);
+    expect(res.status).toBe(403);
+    expect(generateContent).not.toHaveBeenCalled();
+  });
+
+  it('a locked admin is not blocked', async () => {
+    db.profile = profile({ has_permission: false, role: 'admin' });
+    generateContent.mockResolvedValue(reply({ fullRewrittenCV: SAFE_CV }));
+    const { res } = await run(handlers.rewrite);
+    expect(res.status).toBe(200);
+  });
+
+  it.each(Object.keys(handlers))('%s: a failing lock lookup fails open', async (name) => {
+    db.profile = async () => { throw new Error('db down'); };
+    await run(handlers[name as keyof typeof handlers]);
+    expect(generateContent).toHaveBeenCalled();
+  });
+});

@@ -1,4 +1,5 @@
 import { getUserFromBearerToken, getSupabaseAdmin } from '../payment/supabaseAdmin.js';
+import { isLockedProfile } from '../accountLock.js';
 import { analyzeCV } from '../ai/analysisService.js';
 import { GEMINI_ANALYZE_MODEL } from '../ai/geminiClient.js';
 import { withTimeout } from '../withTimeout.js';
@@ -135,15 +136,19 @@ export async function handleAnalyze(
     const { data: profile } = await withTimeout(
       getSupabaseAdmin()
         .from('profiles')
-        .select('plan, plan_expires_at, role')
+        .select('plan, plan_expires_at, role, has_permission')
         .eq('id', userId)
         .abortSignal(deadline.signal(PLAN_CHECK_TIMEOUT_MS))
         .maybeSingle() as unknown as Promise<{
-          data: { plan: string; plan_expires_at: string | null; role: string } | null;
+          data: { plan: string; plan_expires_at: string | null; role: string; has_permission: boolean } | null;
         }>,
       Math.min(PLAN_CHECK_TIMEOUT_MS, deadline.remainingMs()),
       'Plan check'
     );
+    if (isLockedProfile(profile)) {
+      await logAnalysisAttempt(userId, 'error', 'analyze', '[account_locked]', undefined, undefined, deadline);
+      return { status: 403, body: { error: 'Account locked' } };
+    }
     if (profile) {
       const effectivePlan = getEffectivePlan({
         plan: profile.plan as 'free' | 'pro' | 'recruiter',
