@@ -120,6 +120,8 @@ async function notifyVipUpgrade(
   }
 }
 
+const MAX_PENDING_ORDERS_PER_15_MIN = 5;
+
 export async function handlePaymentCreate(
   authHeader: string | undefined,
   planType: PlanType = 'pro'
@@ -154,6 +156,18 @@ export async function handlePaymentCreate(
         body: { error: 'Tài khoản đang dùng Recruiter (cao hơn Pro), không thể mua Pro để hạ cấp.' },
       };
     }
+  }
+
+  // PayOS links expire after 15 min, so more than a handful of open orders in
+  // that window is a client loop or abuse, not a buyer. Fails open on error.
+  const { count: recentPending, error: pendingError } = await supabase
+    .from('payments')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+    .gte('created_at', new Date(Date.now() - 15 * 60 * 1000).toISOString());
+  if (!pendingError && (recentPending ?? 0) >= MAX_PENDING_ORDERS_PER_15_MIN) {
+    return { status: 429, body: { error: 'Bạn đã tạo quá nhiều đơn thanh toán. Vui lòng thử lại sau ít phút.' } };
   }
 
   const orderCode = generateOrderCode();
