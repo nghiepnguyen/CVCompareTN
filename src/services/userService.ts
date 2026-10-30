@@ -216,17 +216,15 @@ async function logAdminAction(
   details?: Record<string, unknown>
 ): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from('admin_audit_log').insert({
-      admin_id: user.id,
-      action,
-      target_user_id: targetUserId,
-      details: details ?? null,
+    const { error } = await supabase.rpc('log_admin_action', {
+      p_action: action,
+      p_target_user_id: targetUserId,
+      p_details: details ?? null,
     });
+    if (error) throw error;
   } catch (err) {
     // Non-critical — log failure must never block the admin action
-    console.error('admin_audit_log insert failed:', err);
+    console.error('log_admin_action failed:', err);
   }
 }
 
