@@ -1,6 +1,7 @@
 import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 import { generateParsedCV } from '../ai/parseCvService.js';
 import { withTimeout } from '../withTimeout.js';
+import { isAccountLocked } from '../accountLock.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
 import { resolveStorageRef } from '../storage/tempFile.js';
 import { GEMINI_PARSE_MODEL } from '../ai/geminiClient.js';
@@ -54,6 +55,9 @@ export async function handleParseCv(
 
   if (!user) {
     return { status: 401, body: { error: 'Authentication required' } };
+  }
+  if (await isAccountLocked(user.id, Math.min(AUTH_TIMEOUT_MS, deadline.remainingMs()), deadline.signal(AUTH_TIMEOUT_MS))) {
+    return { status: 403, body: { error: 'Account locked' } };
   }
 
   // Same path is reused by the client's other calls (analyze/rewrite) for this
