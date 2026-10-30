@@ -222,7 +222,8 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 VALUES (
   'cv-files',
   'cv-files',
-  true,
+  false, -- private: files are served via /api/storage with JWT, never public URLs
+
   52428800,
   ARRAY[
     'application/pdf',
