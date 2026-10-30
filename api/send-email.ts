@@ -4,7 +4,13 @@ import { handleSendFeedback, handleSendWelcomeEmail } from '../_server-lib/email
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
 
-  const { type } = req.body ?? {};
+  // req.body is a lazy getter that throws on a malformed Content-Type.
+  let type: unknown;
+  try {
+    ({ type } = req.body ?? {});
+  } catch {
+    return res.status(400).json({ success: false, message: 'Invalid request body' });
+  }
 
   try {
     if (type === 'feedback') {
