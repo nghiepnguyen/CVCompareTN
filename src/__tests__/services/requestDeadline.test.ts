@@ -28,13 +28,13 @@ vi.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl: vi.fn() }));
 // Every signal handed to a mocked network call, to prove none is left running.
 const signals: AbortSignal[] = [];
 type Op = (signal?: AbortSignal) => Promise<unknown>;
-const db: { insert: Op; rpc: (name: string, s?: AbortSignal) => Promise<unknown>; upload: Op; download: Op; profile: Op } = {} as never;
+const db: { insert: Op; rpc: (name: string, s?: AbortSignal) => Promise<unknown>; upload: Op; download: Op; profile: Op; count: Op } = {} as never;
 const inserts: Record<string, unknown>[] = [];
 function builder(run: Op) {
   const b: Record<string, unknown> & { signal?: AbortSignal } = {};
   const exec = () => { if (b.signal) signals.push(b.signal); return run(b.signal); };
   Object.assign(b, {
-    select: () => b, eq: () => b,
+    select: () => b, eq: () => b, gte: () => b,
     abortSignal: (s: AbortSignal) => { b.signal = s; return b; },
     maybeSingle: () => exec(),
     then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => exec().then(res, rej),
@@ -46,7 +46,7 @@ vi.mock('../../../_server-lib/payment/supabaseAdmin.js', () => ({
   getSupabaseAdmin: () => ({
     from: (table: string) =>
       table === 'analysis_log'
-        ? { insert: (row: Record<string, unknown>) => { inserts.push(row); return builder((s) => db.insert(s)); } }
+        ? { insert: (row: Record<string, unknown>) => { inserts.push(row); return builder((s) => db.insert(s)); }, select: () => builder((s) => db.count(s)) }
         : table === 'storage_uploads' ? builder((s) => db.upload(s)) : builder((s) => db.profile(s)),
     rpc: (name: string) => builder((s) => db.rpc(name, s)),
     storage: { from: () => ({ download: (_p: string, _o: unknown, params?: { signal?: AbortSignal }) => {
@@ -110,6 +110,7 @@ beforeEach(() => {
   db.insert = async () => ({ error: null });
   db.rpc = async (name) => ({ data: name === 'check_analytics_quota' ? { allowed: true } : null, error: null });
   db.profile = async () => ({ data: null });
+  db.count = async () => ({ count: 0, error: null });
   db.upload = async () => ({ data: null, error: null });
   db.download = async () => blob(CV_TEXT);
   process.env.R2_ACCOUNT_ID = '0123456789abcdef0123456789abcdef'; process.env.R2_ACCESS_KEY_ID = 'k'; process.env.R2_SECRET_ACCESS_KEY = 's';
@@ -449,5 +450,38 @@ describe('account lock (has_permission=false)', () => {
     db.profile = async () => { throw new Error('db down'); };
     await run(handlers[name as keyof typeof handlers]);
     expect(generateContent).toHaveBeenCalled();
+  });
+});
+
+describe('per-user AI rate limit (rewrite/parse)', () => {
+  const body = { jd: JD, cvData: CV_TEXT, cvMimeType: 'text/plain', language: 'en' };
+  const handlers = {
+    rewrite: () => handleRewriteCv('Bearer t', body),
+    parse: () => handleParseCv('Bearer t', body),
+  };
+  const asPlan = (plan: string) => async () => ({ data: { plan, plan_expires_at: null, role: 'user', has_permission: true } });
+
+  it.each(Object.keys(handlers))('%s: free user at 10 calls in the last hour gets 429, Gemini never runs', async (name) => {
+    db.profile = asPlan('free');
+    db.count = async () => ({ count: 10, error: null });
+    const { res } = await run(handlers[name as keyof typeof handlers]);
+    expect(res.status).toBe(429);
+    expect(generateContent).not.toHaveBeenCalled();
+  });
+
+  it('recruiter allowance covers a full batch', async () => {
+    db.profile = asPlan('recruiter');
+    db.count = async () => ({ count: 99, error: null });
+    generateContent.mockResolvedValue(reply({ fullRewrittenCV: SAFE_CV }));
+    const { res } = await run(handlers.rewrite);
+    expect(res.status).toBe(200);
+  });
+
+  it('a failing count lookup fails open', async () => {
+    db.profile = asPlan('free');
+    db.count = async () => { throw new Error('db down'); };
+    generateContent.mockResolvedValue(reply({ fullRewrittenCV: SAFE_CV }));
+    const { res } = await run(handlers.rewrite);
+    expect(res.status).toBe(200);
   });
 });
