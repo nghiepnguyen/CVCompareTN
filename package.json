@@ -28,14 +28,14 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "@vitejs/plugin-react": "^5.0.4",
-    "axios": "^1.13.6",
+    "axios": "^1.21.0",
     "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
-    "express": "^5.2.1",
-    "express-rate-limit": "^8.5.2",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.2",
     "he": "^1.2.0",
     "lucide-react": "^0.546.0",
     "mammoth": "^1.11.0",
@@ -86,6 +86,7 @@
     },
     "tsx": {
       "esbuild": "^0.28.1"
-    }
+    },
+    "tar": "^7.5.22"
   }
 }
