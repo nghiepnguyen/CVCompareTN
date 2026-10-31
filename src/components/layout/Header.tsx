@@ -13,10 +13,11 @@ import { UserAvatar } from '../ui/UserAvatar';
 
 export function Header() {
   const { user, userProfile, effectivePlan, adminNewUsersCount, login, logout, openAuthModal } = useAuth();
-  const showProBadge =
-    user && (userProfile?.role === 'admin' || isProPlan(effectivePlan));
-  const showRecruiterBadge =
-    user && (userProfile?.role === 'admin' || isRecruiterPlan(effectivePlan));
+  // AuthContext resolves role === 'admin' to the 'pro' plan, so admin must not
+  // be treated as a recruiter here — otherwise the header shows RECRUITER while
+  // ProfileView shows PRO for the same account.
+  const showProBadge = !!user && isProPlan(effectivePlan);
+  const showRecruiterBadge = !!user && isRecruiterPlan(effectivePlan);
   const showRecruiterTab = !!user;
   const { activeTab, setActiveTab, navigateToUpgrade, reportLanguage, setReportLanguage, isUserMenuOpen, setIsUserMenuOpen, isDarkMode, toggleTheme, t } = useUI();
   const { selectedResult, setSelectedResult } = useAnalysis();

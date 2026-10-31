@@ -93,8 +93,9 @@ export function UpgradeView() {
   const [error, setError] = useState<string | null>(null);
   const planLimits = usePublicPlanLimits();
 
-  const alreadyPro = userProfile?.role === 'admin' || isProPlan(effectivePlan);
-  const alreadyRecruiter = userProfile?.role === 'admin' || isRecruiterPlan(effectivePlan);
+  // Admin is resolved to 'pro' by AuthContext; do not let it match recruiter.
+  const alreadyPro = isProPlan(effectivePlan);
+  const alreadyRecruiter = isRecruiterPlan(effectivePlan);
   const planExpiryLabel =
     (alreadyPro || alreadyRecruiter) && userProfile?.planExpiresAt
       ? formatLabel(t.planExpiresUntil, {
