@@ -1,3 +1,4 @@
+// @refresh reset — provider and hook share this module; see UIContext.tsx.
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, bootstrapSupabase } from '../lib/supabase';

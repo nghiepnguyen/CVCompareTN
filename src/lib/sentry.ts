@@ -2,6 +2,20 @@ import * as Sentry from '@sentry/react';
 
 import { scrubTelemetry } from './scrubTelemetry';
 
+/**
+ * Vite's Fast Refresh re-evaluates a module on edit. When a context module is
+ * re-evaluated while its provider stays mounted, a consumer can read the new
+ * context object while the provider still holds the old one and throws
+ * "useX must be used within XProvider". The stack always passes through
+ * `/@react-refresh` (the dev-only refresh runtime), and production ships a
+ * static bundle with no HMR, so anything carrying that frame is not actionable.
+ */
+export function isFastRefreshArtifact(event: Sentry.Event, isDev = import.meta.env.DEV): boolean {
+  if (!isDev) return false;
+  const frames = event.exception?.values?.flatMap((value) => value.stacktrace?.frames ?? []) ?? [];
+  return frames.some((frame) => (frame.filename ?? frame.abs_path ?? '').includes('/@react-refresh'));
+}
+
 export function initSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
   if (!dsn) return;
@@ -21,6 +35,9 @@ export function initSentry() {
     replaysOnErrorSampleRate: 0,
     denyUrls: [/extensions\//i, /^chrome:\/\//i, /beacon\.min\.js/i],
     beforeSend(event, hint) {
+      // Dev-only HMR artifact, never a product bug — see isFastRefreshArtifact
+      if (isFastRefreshArtifact(event)) return null;
+
       // Supabase refresh token errors are expected when sessions expire — not actionable
       const err = hint?.originalException;
       if (err instanceof Error && err.message?.includes('Refresh Token')) return null;

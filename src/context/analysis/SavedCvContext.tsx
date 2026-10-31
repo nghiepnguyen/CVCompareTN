@@ -1,3 +1,4 @@
+// @refresh reset — provider and hook share this module; see UIContext.tsx.
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
