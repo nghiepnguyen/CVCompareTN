@@ -78,6 +78,22 @@ export async function runStorageCleanup(): Promise<{ completed: number; failed: 
       console.error('Storage cleanup retry required', { jobId: job.id, attempts });
     }
   }
+  // Legacy temp uploads never registered in storage_uploads, so the job queue
+  // above cannot see them. Sweep the bucket directly so abandoned objects do
+  // not block the per-user quota forever.
+  try {
+    const expiredTemp = await db.rpc('list_expired_temp_objects', { p_limit: 100 });
+    checkDb(expiredTemp.error);
+    const names = (expiredTemp.data ?? [])
+      .map((row: { name?: unknown }) => (typeof row.name === 'string' ? row.name : null))
+      .filter((name): name is string => name !== null);
+    if (names.length > 0) {
+      const removed = await db.storage.from('cv-analyze-tmp').remove(names);
+      checkDb(removed.error);
+    }
+  } catch (err) {
+    console.error('Temp storage sweep failed:', err instanceof Error ? err.name : 'unknown');
+  }
   const retention = new Date(Date.now() - 7 * 24 * 3600000).toISOString();
   const pruned = await db.from('storage_uploads').delete().eq('status', 'deleted').lt('expires_at', retention); checkDb(pruned.error);
   const blocked = await db.from('storage_blocked_users').delete().lt('created_at', retention); checkDb(blocked.error);
