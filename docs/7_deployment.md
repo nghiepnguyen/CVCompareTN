@@ -200,6 +200,7 @@ Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới g
 | `20261101060000` | Bucket `cv-files` private |
 | `20261101070000` | Trigger `enforce_plan_caps` |
 | `20261101080000`, `20261101080001` | Retention lịch sử free 7 ngày + pg_cron `purge-free-history` |
+| `20261101100000`, `20261101100001` | Rate limit chung `api_rate_limits` + RPC `consume_api_rate_limit`, purge 2 ngày + pg_cron `purge-api-rate-limits` |
 
 Verify sau deploy (kỳ vọng `f | f | t`):
 
@@ -212,6 +213,8 @@ SELECT has_table_privilege('authenticated','public.profiles','UPDATE'),
 **Lưu ý cho lần push migration sau:** lịch sử migration trên remote chưa ghi nhận `20261029000000` và `20261030000000` (cột của chúng đã có trên prod). `supabase db push` sẽ báo lệch thứ tự — chạy `supabase migration repair --linked --status applied 20261029000000 20261030000000` trước, hoặc tiếp tục áp từng file như trên.
 
 SQL test cho các migration này: `supabase/tests/*.test.sql`, chạy local bằng `supabase/tests/local/run.sh "$PWD" /repo/tests/<file>.sql` (Postgres 16 disposable, không network).
+
+**Trạng thái production 2026-10-31 (rate limit):** `20261101100000` và `20261101100001` đã áp lên project `cvFit.pro` (`pgchcnmpuknbgyljdlyp`) bằng `supabase db query --linked -f` trong `BEGIN/COMMIT` (lock_timeout 5s, statement_timeout 30s), rồi ghi history bằng `supabase migration repair --linked --status applied`. Verify sau áp: bảng `api_rate_limits` tồn tại, RLS bật, `anon`/`authenticated` không có quyền bảng hoặc EXECUTE, `service_role` chạy được; gọi RPC 3 lần với limit 2 cho `true, true, false` và `retry_after ≥ 1`; cron `purge-api-rate-limits` active, schedule `10 20 * * *`. Fixture verify chạy trong transaction rollback, không để lại dòng nào. **Bundle API chưa deploy** nên các endpoint chưa gọi RPC cho tới lần deploy kế tiếp.
 
 ### Account lock — phần API và DB guard
 

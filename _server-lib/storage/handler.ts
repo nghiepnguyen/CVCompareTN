@@ -1,6 +1,7 @@
 import { checkAccountAccess } from '../accountLock.js';
 import { randomUUID } from 'node:crypto';
 import { getSupabaseAdmin, getUserFromBearerToken } from '../payment/supabaseAdmin.js';
+import { enforceRateLimit, rateLimitSubject } from '../rateLimit.js';
 import { copyObject, readObject, removeObject, signDownload, signUpload, type BucketKind } from './r2.js';
 import { assertOwnedKey, parseTempReference, StorageError, UUID, validateContent, validateUpload } from './validation.js';
 
@@ -92,6 +93,9 @@ export async function handleStorage(authHeader: string | undefined, input: unkno
     const body = input as Record<string, unknown>;
     const action = body.action;
     if (!['upload', 'finalize', 'download', 'delete', 'delete-temp'].includes(String(action))) throw new StorageError('Thao tác không hợp lệ');
+    if (!(await enforceRateLimit({ bucket: 'storage', subject: rateLimitSubject(user.id) }))) {
+      return { status: 429, body: { error: 'Too many requests. Please try again later.' } };
+    }
     if (action === 'upload') {
       if (storageWriteProvider() !== 'r2') throw new StorageError('R2 upload chưa được bật', 409);
       const meta = validateUpload(body); const id = randomUUID();

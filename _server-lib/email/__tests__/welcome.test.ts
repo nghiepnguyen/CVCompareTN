@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const send = vi.fn();
-const getUser = vi.fn();
+const { send, getUser, limit, subject } = vi.hoisted(() => ({
+  send: vi.fn(),
+  getUser: vi.fn(),
+  limit: vi.fn(),
+  subject: vi.fn(),
+}));
 
 vi.mock('resend', () => ({
   Resend: class {
@@ -11,6 +15,7 @@ vi.mock('resend', () => ({
 vi.mock('../../payment/supabaseAdmin.js', () => ({
   getUserFromBearerToken: (h: string | undefined) => getUser(h),
 }));
+vi.mock('../../rateLimit.js', () => ({ enforceRateLimit: limit, rateLimitSubject: subject }));
 
 import { handleSendWelcomeEmail } from '../handlers.js';
 
@@ -18,6 +23,8 @@ describe('handleSendWelcomeEmail', () => {
   beforeEach(() => {
     send.mockReset().mockResolvedValue({ error: null });
     getUser.mockReset();
+    limit.mockReset().mockResolvedValue(true);
+    subject.mockReset().mockReturnValue(null);
     process.env.RESEND_API_KEY = 'test-key';
   });
 
@@ -43,6 +50,19 @@ describe('handleSendWelcomeEmail', () => {
     getUser.mockResolvedValue({ id: 'u1' });
     const r = await handleSendWelcomeEmail({ userName: 'A' }, 'Bearer t');
     expect(r.status).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 and does not send when the shared limiter denies the user', async () => {
+    getUser.mockResolvedValue({ id: '550e8400-e29b-41d4-a716-446655440000', email: 'a@x.com' });
+    subject.mockReturnValue('u:550e8400-e29b-41d4-a716-446655440000');
+    limit.mockResolvedValue(false);
+    const r = await handleSendWelcomeEmail({ userName: 'A' }, 'Bearer t');
+    expect(r.status).toBe(429);
+    expect(limit).toHaveBeenCalledWith({
+      bucket: 'send_email_welcome',
+      subject: 'u:550e8400-e29b-41d4-a716-446655440000',
+    });
     expect(send).not.toHaveBeenCalled();
   });
 });

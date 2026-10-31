@@ -8,6 +8,11 @@ vi.mock('../../_server-lib/payment/supabaseAdmin.js', () => ({
 
 const accountAccess = vi.hoisted(() => vi.fn());
 vi.mock('../../_server-lib/accountLock.js', () => ({ checkAccountAccess: accountAccess }));
+const limiter = vi.hoisted(() => ({ enforceRateLimit: vi.fn(), rateLimitSubject: vi.fn() }));
+vi.mock('../../_server-lib/rateLimit.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../_server-lib/rateLimit.js')>();
+  return { ...actual, enforceRateLimit: limiter.enforceRateLimit, rateLimitSubject: limiter.rateLimitSubject };
+});
 vi.mock('axios');
 
 vi.mock('unpdf', () => ({
@@ -50,6 +55,8 @@ describe('extract-pdf handler — auth guard', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     accountAccess.mockResolvedValue('ok');
+    limiter.enforceRateLimit.mockResolvedValue(true);
+    limiter.rateLimitSubject.mockReturnValue(null);
     vi.stubEnv('RECAPTCHA_SECRET_KEY', 'test-secret-key');
     vi.stubEnv('RECAPTCHA_ALLOWED_HOSTNAMES', 'cvfit.pro,www.cvfit.pro');
     vi.stubEnv('NODE_ENV', 'production');
@@ -69,6 +76,21 @@ describe('extract-pdf handler — auth guard', () => {
     const { res, status } = makeRes();
     await handler(makeReq({ headers: { authorization: 'Bearer invalid' }, body: { base64Data: VALID_PDF_BASE64, recaptchaToken: 'fixture' } }), res);
     expect(status).toHaveBeenCalledWith(401);
+    expect(mockAxiosPost).not.toHaveBeenCalled();
+    expect(mockExtractText).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 before reCAPTCHA or parsing when the shared limiter denies the caller', async () => {
+    mockGetUser.mockResolvedValue(null);
+    limiter.rateLimitSubject.mockReturnValue('ip:test');
+    limiter.enforceRateLimit.mockResolvedValue(false);
+    const { res, status } = makeRes();
+    await handler(makeReq({
+      headers: { 'x-real-ip': '203.0.113.7' },
+      body: { base64Data: VALID_PDF_BASE64, recaptchaToken: 'fixture' },
+    }), res);
+    expect(status).toHaveBeenCalledWith(429);
+    expect(limiter.enforceRateLimit).toHaveBeenCalledWith({ bucket: 'extract_pdf', subject: 'ip:test' });
     expect(mockAxiosPost).not.toHaveBeenCalled();
     expect(mockExtractText).not.toHaveBeenCalled();
   });

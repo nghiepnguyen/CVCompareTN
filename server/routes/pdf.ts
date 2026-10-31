@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { handleExtractPdf } from '../../_server-lib/pdf/handler';
+import { clientIpFromHeaders } from '../../_server-lib/rateLimit';
 
 const router = Router();
 
@@ -7,7 +8,7 @@ router.post('/', async (req, res) => {
   try {
     const authHeader =
       typeof req.headers.authorization === 'string' ? req.headers.authorization : undefined;
-    const result = await handleExtractPdf(authHeader, req.body);
+    const result = await handleExtractPdf(authHeader, req.body, { ip: clientIpFromHeaders(req.headers) });
     return res.status(result.status).json(result.body);
   } catch (error: unknown) {
     console.error('PDF extraction error:', error);

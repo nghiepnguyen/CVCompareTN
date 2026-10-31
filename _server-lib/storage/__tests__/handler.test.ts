@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ user: vi.fn(), admin: vi.fn(), sign: vi.fn(), copy: vi.fn(), read: vi.fn(), remove: vi.fn(), access: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), admin: vi.fn(), sign: vi.fn(), copy: vi.fn(), read: vi.fn(), remove: vi.fn(), access: vi.fn(), limit: vi.fn(), subject: vi.fn() }));
 vi.mock('../../payment/supabaseAdmin.js', () => ({ getUserFromBearerToken: mocks.user, getSupabaseAdmin: mocks.admin }));
 vi.mock('../r2.js', () => ({ signUpload: mocks.sign, copyObject: mocks.copy, readObject: mocks.read, removeObject: mocks.remove }));
 vi.mock('../../accountLock.js', () => ({ checkAccountAccess: mocks.access }));
+vi.mock('../../rateLimit.js', () => ({ enforceRateLimit: mocks.limit, rateLimitSubject: mocks.subject }));
 import { handleStorage } from '../handler.js';
 describe('storage authorization', () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.access.mockResolvedValue('ok'); process.env.STORAGE_WRITE_PROVIDER = 'r2'; });
+  beforeEach(() => { vi.clearAllMocks(); mocks.access.mockResolvedValue('ok'); mocks.limit.mockResolvedValue(true); mocks.subject.mockReturnValue(null); process.env.STORAGE_WRITE_PROVIDER = 'r2'; });
   it('rejects requests without a verified user', async () => {
     mocks.user.mockResolvedValue(null);
     expect((await handleStorage(undefined, { action: 'upload' })).status).toBe(401);
@@ -29,6 +30,16 @@ describe('storage authorization', () => {
     mocks.user.mockResolvedValue({ id: 'owner' });
     expect((await handleStorage('Bearer token', { action: 'arbitrary' })).status).toBe(400);
   });
+  it('returns 429 when the shared limiter denies the user', async () => {
+    mocks.user.mockResolvedValue({ id: '550e8400-e29b-41d4-a716-446655440000' });
+    mocks.subject.mockReturnValue('u:550e8400-e29b-41d4-a716-446655440000');
+    mocks.limit.mockResolvedValue(false);
+    const result = await handleStorage('Bearer token', { action: 'download', filePath: 'owner/file.pdf' });
+    expect(result.status).toBe(429);
+    expect(mocks.subject).toHaveBeenCalledWith('550e8400-e29b-41d4-a716-446655440000');
+    expect(mocks.limit).toHaveBeenCalledWith({ bucket: 'storage', subject: 'u:550e8400-e29b-41d4-a716-446655440000' });
+    expect(mocks.admin).not.toHaveBeenCalled();
+  });
   it('does not allocate R2 uploads when rollout is disabled', async () => {
     process.env.STORAGE_WRITE_PROVIDER = 'supabase';
     mocks.user.mockResolvedValue({ id: 'owner' });
@@ -48,7 +59,7 @@ describe('storage authorization', () => {
 
 describe('finalize publication boundary', () => {
   const id = '550e8400-e29b-41d4-a716-446655440000';
-  beforeEach(() => { vi.clearAllMocks(); mocks.access.mockResolvedValue('ok'); mocks.user.mockResolvedValue({ id: 'owner' }); });
+  beforeEach(() => { vi.clearAllMocks(); mocks.access.mockResolvedValue('ok'); mocks.limit.mockResolvedValue(true); mocks.subject.mockReturnValue(null); mocks.user.mockResolvedValue({ id: 'owner' }); });
   function database(row: Record<string, unknown>) {
     const update = vi.fn(() => ({ eq: () => ({ eq: () => ({ eq: () => Promise.resolve({ error: null }) }) }) }));
     const rpc = vi.fn(async (name: string) => name === 'storage_claim_upload' ? { data: [{ ...row, final_key: 'owner/r2/final', lease_token: 'claim' }], error: null } : { data: { ...row, status: 'ready', final_key: 'owner/r2/final' }, error: null });
