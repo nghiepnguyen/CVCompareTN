@@ -55,6 +55,19 @@ Lifecycle bắt buộc:
 - Bucket temp: xoá cả object final sau 1 ngày; không đặt rule này trên toàn bucket lâu dài.
 - Lifecycle xử lý bất đồng bộ, không bảo đảm xoá đúng phút hết hạn. Application cleanup thực hiện trước, lifecycle là dự phòng.
 
+## Giới hạn upload trực tiếp (2026-10)
+
+Trước đây client upload thẳng vào Supabase Storage (bucket `cv-files` / `cv-analyze-tmp`) chỉ bị giới hạn dung lượng từng file và folder owner; số object mỗi user tăng không giới hạn và object tải trực tiếp không có row registry nên scheduler không quét. Từ migration `20261101120000`:
+
+- Trigger `storage_quota` trên `storage.objects` (chỉ role `authenticated`/`anon`, service_role và SECURITY DEFINER đi thẳng) đếm theo path:
+  - saved CV `${uid}/${cvId}/${file}` hoặc `${uid}/${file}`: `MAX_SAVED_CV_BY_PLAN` (1/10/50).
+  - candidate `${uid}/campaigns/${campaignId}/${file}`: 50/campaign, 500/user, chỉ recruiter/admin.
+  - temp `${uid}/${file}` trong `cv-analyze-tmp`: 6/12/60 theo plan.
+  - Path khác bị từ chối (`Invalid storage path`) để không mở được folder không đếm.
+- File quá giới hạn nhận lỗi `42501` (`Saved CV file limit reached`, `Temp upload limit reached`, …); tổng dung lượng bị chặn gián tiếp qua số object × `file_size_limit` của bucket.
+- `runStorageCleanup` gọi RPC service-only `list_expired_temp_objects` và xoá object `cv-analyze-tmp` cũ hơn 24 giờ, nên object temp bị bỏ quên không chiếm slot vĩnh viễn. Lỗi sweep chỉ log, không làm fail toàn bộ cleanup.
+- SQL test: `supabase/tests/storage_upload_quota.test.sql`.
+
 ## Scheduler
 
 ### Chính: Supabase pg_cron + pg_net
