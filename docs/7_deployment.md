@@ -203,6 +203,8 @@ Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới g
 | `20261101100000`, `20261101100001` | Rate limit chung `api_rate_limits` + RPC `consume_api_rate_limit`, purge 2 ngày + pg_cron `purge-api-rate-limits` |
 | `20261101110000` | `enforce_plan_caps`: tối đa `MAX_CAMPAIGNS` = 10 đợt/recruiter (admin miễn) |
 | `20261101120000` | `storage_quota` trigger giới hạn object trực tiếp trên `cv-files`/`cv-analyze-tmp` + RPC `list_expired_temp_objects` cho cleanup |
+| `20261101130000` | Bỏ 10 policy legacy chỉ có trên production (gồm `profiles.allow_read_all`) để khớp source |
+| `20261101140000` | Thêm `profiles_role_check`/`profiles_usage_count_check` (fresh schema có từ base migration), bỏ `profiles_email_key` legacy |
 
 Verify sau deploy (kỳ vọng `f | f | t`):
 
@@ -212,7 +214,9 @@ SELECT has_table_privilege('authenticated','public.profiles','UPDATE'),
        EXISTS(SELECT 1 FROM pg_trigger WHERE tgname='profiles_guard_privileged_columns');
 ```
 
-**Lưu ý cho lần push migration sau:** lịch sử migration trên remote chưa ghi nhận `20261029000000` và `20261030000000` (cột của chúng đã có trên prod). `supabase db push` sẽ báo lệch thứ tự — chạy `supabase migration repair --linked --status applied 20261029000000 20261030000000` trước, hoặc tiếp tục áp từng file như trên.
+**Migration drift — trạng thái 2026-10-31:** `20261029000000`/`20261030000000` đã được repair (`--status applied`) sau khi xác minh cột `analysis_log.guard_metrics`, `history.score_version`, `candidate_cvs.score_version` tồn tại. Hai stub `20260613000000_remote_applied.sql`/`20260613010000_remote_applied.sql` (no-op, không có DDL) đã bị xoá khỏi repo và revert khỏi history remote. `supabase db push --dry-run` hiện trả **"Remote database is up to date"**.
+
+Còn **3 khác biệt schema có chủ đích**, không tự động rewrite vì cần migrate dữ liệu: `history.id` và `saved_jds.id` là `bigint` trên production nhưng `uuid` trong `20260516120000`; `history.match_score` là `integer` trên production nhưng `numeric` trong source. Các bảng này tồn tại trước chuỗi migration (dashboard) nên `CREATE TABLE IF NOT EXISTS` không đổi kiểu cột. Muốn đồng bộ phải tạo bảng mới + copy dữ liệu + đổi code; chưa làm trong phạm vi audit.
 
 SQL test cho các migration này: `supabase/tests/*.test.sql`, chạy local bằng `supabase/tests/local/run.sh "$PWD" /repo/tests/<file>.sql` (Postgres 16 disposable, không network).
 
