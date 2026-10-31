@@ -45,7 +45,12 @@ export function CreateCampaignModal({
       setJdContent('');
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.createCampaignError);
+      const message = err instanceof Error ? err.message : '';
+      setError(
+        message === 'CAMPAIGN_LIMIT_REACHED'
+          ? t.createCampaignLimitError
+          : message || t.createCampaignError
+      );
     } finally {
       setIsSubmitting(false);
     }

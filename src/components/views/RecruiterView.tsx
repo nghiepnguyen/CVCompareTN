@@ -4,7 +4,7 @@ import { Briefcase, Plus, ArrowLeft, Sparkles, Check, ArrowRight, FileSpreadshee
 import { useRecruiter } from '../../context/recruiter';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
-import { isRecruiterPlan } from '../../lib/planLimits';
+import { isRecruiterPlan, MAX_CAMPAIGNS } from '../../lib/planLimits';
 import { formatLabel } from '../../translations';
 import { UpgradePrompt } from '../shared/UpgradePrompt';
 import { CampaignCard } from '../recruiter/CampaignCard';
@@ -34,6 +34,8 @@ export function RecruiterView() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const isRecruiter = isRecruiterPlan(effectivePlan);
+  const campaignLimit = MAX_CAMPAIGNS.recruiter;
+  const atCampaignLimit = campaigns.length >= campaignLimit;
 
   const handleUpgrade = async () => {
     if (!user) return;
@@ -149,13 +151,21 @@ export function RecruiterView() {
         </div>
         <button
           type="button"
+          disabled={atCampaignLimit}
+          title={atCampaignLimit ? formatLabel(t.recruiterCampaignLimitReached, { limit: String(campaignLimit) }) : undefined}
           onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-black uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95 transition-all"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-black uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100"
         >
           <Plus className="w-4 h-4" />
           {t.recruiterCreateBtn}
         </button>
       </div>
+
+      {atCampaignLimit && (
+        <p className="rounded-xl border border-border bg-surface-secondary px-4 py-3 text-xs font-semibold text-text-muted">
+          {formatLabel(t.recruiterCampaignLimitReached, { limit: String(campaignLimit) })}
+        </p>
+      )}
 
       {/* Campaign List */}
       {campaignLoading ? (
@@ -223,6 +233,9 @@ export function RecruiterView() {
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreate={async (title, jdTitle, jdContent) => {
+          if (atCampaignLimit) {
+            throw new Error(formatLabel(t.recruiterCampaignLimitReached, { limit: String(campaignLimit) }));
+          }
           await createCampaign(title, jdTitle, jdContent);
         }}
         savedJds={savedJDs.map((jd) => ({

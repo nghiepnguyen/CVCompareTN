@@ -15,6 +15,10 @@ export const recruiter = {
     vi: "{count} đợt",
     en: "{count} campaigns",
   },
+  recruiterCampaignLimitReached: {
+    vi: "Đã đạt giới hạn {limit} đợt tuyển dụng của gói Recruiter.",
+    en: "You've reached the Recruiter limit of {limit} campaigns.",
+  },
   recruiterCreateBtn: {
     vi: "Tạo mới",
     en: "New",
@@ -138,6 +142,10 @@ export const recruiter = {
   createCampaignError: {
     vi: "Không thể tạo đợt tuyển dụng",
     en: "Unable to create campaign",
+  },
+  createCampaignLimitError: {
+    vi: "Đã đạt giới hạn số đợt tuyển dụng của gói Recruiter",
+    en: "You've reached the Recruiter campaign limit",
   },
   createCampaignJdFileError: {
     vi: "Không đọc được file JD",
