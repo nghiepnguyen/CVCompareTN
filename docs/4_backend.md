@@ -32,7 +32,7 @@ Vercel handler  → _server-lib/module/handler.ts → _server-lib/services
 
 ## Các chức năng chính (Routes)
 
-> **API path đã được thống nhất (2026-05):** Express và Vercel giờ dùng cùng path gốc (e.g., `POST /api/extract-pdf`, `POST /api/verify-recaptcha`). Frontend không còn phân biệt `isLocal` để chọn path suffix khác nhau. Xem [9_api_routes.md](9_api_routes.md) để có ma trận đầy đủ.
+> **API path đã được thống nhất (2026-05):** Express và Vercel giờ dùng cùng path gốc (e.g., `POST /api/extract-pdf`, `POST /api/analyze`). Frontend không còn phân biệt `isLocal` để chọn path suffix khác nhau. Xem [9_api_routes.md](9_api_routes.md) để có ma trận đầy đủ.
 
 ### 1. Cấu hình (`/api/config`)
 -   **File:** `server/routes/config.ts`
@@ -76,7 +76,7 @@ Shared utility: **`_server-lib/recaptcha.ts`** — `verifyRecaptcha(token, thres
 -   Missing secret key → trả `{ ok: false, status: 503 }`.
 -   Score < threshold → `{ ok: false, status: 403 }`.
 
-**Standalone endpoint (`POST /api/verify-recaptcha`):** Dùng bởi `AuthContext.tsx` trước `signInWithEmail()` / `signUpWithEmail()`.
+**Standalone endpoint:** đã bỏ (2026-10-31, audit §4.10) — không còn `/api/verify-recaptcha`; verify chỉ chạy inline trong handler.
 
 **Inline verification:** `/api/extract-pdf` verify reCAPTCHA inline (cho anonymous users) qua `_server-lib/recaptcha.ts` — không gọi endpoint riêng. (`/api/analyze`, `/api/rewrite-cv`, `/api/parse-cv` không còn nhánh anonymous/reCAPTCHA từ 2026-07 — Bearer token bắt buộc.)
 

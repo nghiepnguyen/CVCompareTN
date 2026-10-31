@@ -84,7 +84,7 @@ CI/CD: **GitHub Actions** (`.github/workflows/ci.yml`) — trigger `push`/`PR` t
     -   **Google OAuth** (luôn hiển thị phía dưới dạng nút "Tiếp tục với Google")
     -   Validation client-side (email format, password ≥ 6 ký tự, tên không trống)
     -   Error mapping từ Supabase → translation key (authInvalidCredentials, authEmailInUse, …)
-    -   reCAPTCHA v3 protection: gọi `verifyCaptcha()` → `POST /api/verify-recaptcha` trước khi submit form
+    -   reCAPTCHA v3 protection: verify server-side inline ở `/api/extract-pdf` và feedback (`_server-lib/recaptcha.ts`); không còn endpoint client-side riêng
     -   Thiết kế Dark OLED phù hợp Industrial Utilitarian của dự án
 
 ### Khác

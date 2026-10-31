@@ -77,9 +77,9 @@ Local CLI: `vercel link --project cv-compare-tn --scope nghiepnguyens`.
 4.  **Storage:** Bucket **`cv-files`** — sau migration security, user **authenticated** chỉ SELECT object trong path `{user_id}/...`. Cân nhắc tắt Public bucket trên Dashboard nếu không cần URL công khai. Bucket **`cv-analyze-tmp`** (2026-07) — private, không có SELECT policy (server đọc qua service-role); INSERT/DELETE chỉ trong folder của chính user; client tự xoá file sau khi phân tích xong, không có cron/lifecycle sweep cho orphan (crash giữa chừng để lại rác — chấp nhận được, chưa cần xử lý).
 5.  **Biến môi trường:** Trên Vercel và trong `.env` local, thiết lập ít nhất `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY`. Với tác vụ server-side hoặc migration, dùng `SUPABASE_SERVICE_ROLE_KEY` (không đưa vào frontend).
 
-### Edge Functions (tùy chọn)
+### Edge Functions — không dùng
 
-Thư mục `supabase/functions/` có thể triển khai qua Supabase CLI khi bạn dùng `supabase.functions.invoke(...)` từ client — không còn phụ thuộc Firebase Functions.
+Project production không còn Edge Function nào (đã xoá `extract-pdf`, `verify-recaptcha`, `send-email` ngày 2026-10-31 theo audit §4.10); repo cũng không còn `supabase/functions/`. Không chạy `supabase functions deploy` cho các tên này nữa — nếu cần dựng lại, phải thêm auth/size cap/CORS allowlist và cấu hình `verify_jwt` trước khi deploy. Kiểm tra trạng thái: `supabase functions list` (kỳ vọng rỗng).
 
 ## 3. Chế độ Phát triển (Local Development)
 
