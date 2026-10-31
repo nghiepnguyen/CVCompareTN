@@ -5,7 +5,7 @@ vi.mock('../ai/analysisService.js', () => ({ analyzeCV: fail }));
 vi.mock('../ai/parseCvService.js', () => ({ generateParsedCV: fail }));
 vi.mock('../ai/rewriteService.js', () => ({ generateFullRewrite: fail }));
 vi.mock('../storage/tempFile.js', () => ({ resolveStorageRef: fail }));
-vi.mock('../accountLock.js', () => ({ getAccountProfile: async () => ({ plan: 'free', role: 'user', has_permission: true }), checkAiAccess: async () => 'ok', isLockedProfile: () => false, getEffectivePlan: () => 'free' }));
+vi.mock('../accountLock.js', () => ({ getAccountProfile: async () => ({ plan: 'free', role: 'user', has_permission: true }), checkAiAccess: async () => 'ok', checkHourlyAiLimit: async () => 'ok', isLockedProfile: () => false, getEffectivePlan: () => 'free' }));
 vi.mock('../analysisLog.js', () => ({ logAnalysisAttempt: async () => {} }));
 vi.mock('../payment/supabaseAdmin.js', () => ({
   getUserFromBearerToken: async () => ({ id: 'u1' }),

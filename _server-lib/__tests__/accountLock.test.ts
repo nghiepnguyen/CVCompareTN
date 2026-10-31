@@ -6,7 +6,7 @@ vi.mock('../payment/supabaseAdmin.js', () => ({
     return b;
   } }),
 }));
-import { checkAccountAccess, checkAiAccess } from '../accountLock.js';
+import { checkAccountAccess, checkAiAccess, checkHourlyAiLimit } from '../accountLock.js';
 
 beforeEach(() => {
   mocks.result.mockReset().mockResolvedValue({ data: { role: 'user', has_permission: true, plan: 'free', plan_expires_at: null }, error: null });
@@ -35,5 +35,24 @@ describe('server account lock', () => {
     const result = checkAccountAccess('u1');
     await vi.advanceTimersByTimeAsync(4000);
     expect(await result).toBe('unavailable');
+  });
+});
+
+describe('hourly AI entitlement', () => {
+  it.each([['free', 10], ['pro', 10], ['recruiter', 100]] as const)(
+    'uses the %s plan cap (%i calls) for analyze',
+    async (plan, limit) => {
+      mocks.count.mockReturnValue({ count: limit - 1, error: null });
+      expect(await checkHourlyAiLimit('u1', 'analyze', plan, 100)).toBe('ok');
+      mocks.count.mockReturnValue({ count: limit, error: null });
+      expect(await checkHourlyAiLimit('u1', 'analyze', plan, 100)).toBe('rate_limited');
+    }
+  );
+  it('treats a missing count as zero and fails open on lookup errors', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocks.count.mockReturnValue({ count: null, error: { message: 'private' } });
+    expect(await checkHourlyAiLimit('u1', 'analyze', 'free', 100)).toBe('ok');
+    mocks.count.mockImplementation(() => { throw new Error('lookup exploded'); });
+    expect(await checkHourlyAiLimit('u1', 'analyze', 'free', 100)).toBe('ok');
   });
 });
