@@ -13,6 +13,7 @@ interface MockOptions {
   storage?: Record<string, Record<string, StorageEntry[]>>;
   listError?: string;
   deleteUserError?: { status: number; message: string } | null;
+  recordError?: { message: string } | null;
 }
 
 function makeSupabase(opts: MockOptions = {}) {
@@ -20,6 +21,7 @@ function makeSupabase(opts: MockOptions = {}) {
   const profileDeleteEq = vi.fn().mockResolvedValue({ error: null });
   const storageRemove = vi.fn().mockResolvedValue({ error: null });
   const deleteUser = vi.fn().mockResolvedValue({ error: opts.deleteUserError ?? null });
+  const rpc = vi.fn().mockResolvedValue({ data: true, error: opts.recordError ?? null });
 
   const from = vi.fn((table: string) => {
     if (table === 'admin_audit_log') return { insert: auditInsert };
@@ -52,9 +54,10 @@ function makeSupabase(opts: MockOptions = {}) {
     from,
     storage: { from: storageFrom },
     auth: { admin: { deleteUser } },
+    rpc,
   } as unknown as SupabaseClient;
 
-  return { client, auditInsert, profileDeleteEq, storageRemove, deleteUser };
+  return { client, auditInsert, profileDeleteEq, storageRemove, deleteUser, rpc };
 }
 
 describe('adminDeleteUser', () => {
@@ -80,7 +83,7 @@ describe('adminDeleteUser', () => {
   });
 
   it('audits with email, removes nested storage files, then deletes the auth user', async () => {
-    const { client, auditInsert, storageRemove, deleteUser } = makeSupabase({
+    const { client, auditInsert, storageRemove, deleteUser, rpc } = makeSupabase({
       storage: {
         'cv-files': {
           [TARGET]: [
@@ -109,6 +112,28 @@ describe('adminDeleteUser', () => {
     ]);
     expect(storageRemove).toHaveBeenCalledWith('cv-analyze-tmp', [`${TARGET}/tmp.pdf`]);
     expect(deleteUser).toHaveBeenCalledWith(TARGET);
+    // Email is blocklisted only after the auth row is gone.
+    expect(rpc).toHaveBeenCalledWith('record_deleted_account', {
+      p_email: 'u@x.com',
+      p_deleted_by: CALLER,
+    });
+  });
+
+  it('does not blocklist the email when the auth deletion fails', async () => {
+    const { client, rpc } = makeSupabase({
+      deleteUserError: { status: 500, message: 'db down' },
+    });
+    const result = await adminDeleteUser(client, CALLER, TARGET);
+    expect(result.ok).toBe(false);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('keeps the deletion successful when blocklisting fails', async () => {
+    const { client, rpc } = makeSupabase({ recordError: { message: 'missing function' } });
+    const result = await adminDeleteUser(client, CALLER, TARGET);
+    expect(result).toEqual({ ok: true, storageErrors: [] });
+    expect(rpc).toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith('record_deleted_account failed:', { message: 'missing function' });
   });
 
   it('still deletes the account when storage cleanup fails', async () => {
@@ -120,12 +145,16 @@ describe('adminDeleteUser', () => {
   });
 
   it('removes a stray profile when the auth user is already gone (404)', async () => {
-    const { client, profileDeleteEq } = makeSupabase({
+    const { client, profileDeleteEq, rpc } = makeSupabase({
       deleteUserError: { status: 404, message: 'User not found' },
     });
     const result = await adminDeleteUser(client, CALLER, TARGET);
     expect(result.ok).toBe(true);
     expect(profileDeleteEq).toHaveBeenCalledWith('id', TARGET);
+    expect(rpc).toHaveBeenCalledWith('record_deleted_account', {
+      p_email: 'u@x.com',
+      p_deleted_by: CALLER,
+    });
   });
 
   it('returns a safe 500 for other auth delete errors', async () => {

@@ -589,8 +589,8 @@ export const admin = {
     en: "Default: {limit}",
   },
   adminConfirmDelete: {
-    vi: "Xóa vĩnh viễn {email}? Toàn bộ CV, lịch sử và thanh toán sẽ mất, không thể hoàn tác.",
-    en: "Permanently delete {email}? All CVs, history, and payments will be lost and cannot be restored.",
+    vi: "Xóa vĩnh viễn {email}? Toàn bộ CV, lịch sử và thanh toán sẽ mất, không thể hoàn tác. Email này sẽ không thể đăng ký lại.",
+    en: "Permanently delete {email}? All CVs, history, and payments will be lost and cannot be restored. This email will not be able to sign up again.",
   },
   adminEditUserButton: {
     vi: "Chỉnh sửa ▾",

@@ -878,6 +878,7 @@ export interface UiLabels {
   authWeakPassword: string;
   authNameRequired: string;
   authEmailInUse: string;
+  authAccountPermanentlyDeleted: string;
   authInvalidCredentials: string;
   authSignUpSuccess: string;
   authSignUpSuccessDesc: string;

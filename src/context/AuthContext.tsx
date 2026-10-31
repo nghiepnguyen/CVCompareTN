@@ -326,8 +326,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUpWithEmail = async (email: string, password: string, displayName: string): Promise<EmailAuthResult> => {
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // Permanently deleted accounts must not come back: check the blocklist
+      // before creating a new auth user (20261102100000_deleted_accounts.sql).
+      // Fail open — a missing RPC/migration must never block normal signups.
+      const { data: emailDeleted, error: blocklistError } = await supabase.rpc(
+        'email_is_deleted_account',
+        { p_email: normalizedEmail }
+      );
+      if (blocklistError) {
+        console.error('Deleted-account check failed:', blocklistError);
+      } else if (emailDeleted === true) {
+        return { success: false, error: 'authAccountPermanentlyDeleted' };
+      }
+
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         password,
         options: {
           data: { full_name: displayName.trim() },
@@ -336,6 +351,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
+        // Fallback when the pre-check above is skipped (e.g. a client calling
+        // Supabase Auth directly): the before_user_created hook forwards this
+        // message verbatim (see the same migration).
+        if (error.message?.includes('ACCOUNT_DELETED')) {
+          return { success: false, error: 'authAccountPermanentlyDeleted' };
+        }
         if (error.message?.includes('already registered') || error.message?.includes('already in use')) {
           return { success: false, error: 'authEmailInUse' };
         }
