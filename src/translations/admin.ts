@@ -20,6 +20,166 @@ export const admin = {
     vi: "Báo cáo",
     en: "Report",
   },
+  adminTabAudit: {
+    vi: "Nhật ký",
+    en: "Audit",
+  },
+  adminAuditTitle: {
+    vi: "Nhật ký quản trị",
+    en: "Admin audit log",
+  },
+  adminAuditDesc: {
+    vi: "Các thao tác thay đổi quyền, gói, hạn mức và xoá tài khoản.",
+    en: "Role, plan, limit and account-deletion actions.",
+  },
+  adminAuditFilterAction: {
+    vi: "Hành động",
+    en: "Action",
+  },
+  adminAuditAllActions: {
+    vi: "Tất cả",
+    en: "All",
+  },
+  adminAuditSearchPlaceholder: {
+    vi: "Tìm email admin / user...",
+    en: "Search admin / user email...",
+  },
+  adminAuditColTime: {
+    vi: "Thời gian",
+    en: "Time",
+  },
+  adminAuditColActor: {
+    vi: "Admin",
+    en: "Admin",
+  },
+  adminAuditColAction: {
+    vi: "Hành động",
+    en: "Action",
+  },
+  adminAuditColTarget: {
+    vi: "Đối tượng",
+    en: "Target",
+  },
+  adminAuditColDetails: {
+    vi: "Chi tiết",
+    en: "Details",
+  },
+  adminAuditEmpty: {
+    vi: "Chưa có bản ghi phù hợp.",
+    en: "No matching audit entries.",
+  },
+  adminAuditPaginationInfo: {
+    vi: "Hiển thị {start}–{end} / {total} bản ghi",
+    en: "Showing {start}–{end} of {total} entries",
+  },
+  adminAuditLoadError: {
+    vi: "Không tải được nhật ký: {message}",
+    en: "Could not load audit log: {message}",
+  },
+  adminAuditActionUpdateRole: {
+    vi: "Đổi vai trò",
+    en: "Role change",
+  },
+  adminAuditActionUpdatePlan: {
+    vi: "Đổi gói",
+    en: "Plan change",
+  },
+  adminAuditActionDeleteUser: {
+    vi: "Xoá user",
+    en: "Delete user",
+  },
+  adminAuditActionUpdatePermission: {
+    vi: "Khoá / mở khoá",
+    en: "Lock / unlock",
+  },
+  adminAuditActionUpdateAnalyticsLimit: {
+    vi: "Đổi hạn mức",
+    en: "Limit change",
+  },
+  adminAuditActionResetAnalyticsLimit: {
+    vi: "Reset hạn mức",
+    en: "Limit reset",
+  },
+  adminAuditActionUpdateAppSetting: {
+    vi: "Đổi cấu hình",
+    en: "Setting change",
+  },
+  adminAuditActionExportData: {
+    vi: "Xuất dữ liệu",
+    en: "Data export",
+  },
+  adminToastSaved: {
+    vi: "Đã lưu thay đổi.",
+    en: "Changes saved.",
+  },
+  adminToastRoleUpdated: {
+    vi: "Đã cập nhật vai trò.",
+    en: "Role updated.",
+  },
+  adminToastDeleted: {
+    vi: "Đã xoá tài khoản.",
+    en: "Account deleted.",
+  },
+  adminToastLocked: {
+    vi: "Đã khoá tài khoản.",
+    en: "Account locked.",
+  },
+  adminToastUnlocked: {
+    vi: "Đã mở khoá tài khoản.",
+    en: "Account unlocked.",
+  },
+  adminToastBulkDone: {
+    vi: "Đã cập nhật {count} tài khoản.",
+    en: "Updated {count} account(s).",
+  },
+  adminToastExported: {
+    vi: "Đã xuất CSV.",
+    en: "CSV exported.",
+  },
+  adminBulkSelected: {
+    vi: "Đã chọn {count}",
+    en: "{count} selected",
+  },
+  adminBulkMarkRead: {
+    vi: "Đánh dấu đã đọc",
+    en: "Mark read",
+  },
+  adminBulkLock: {
+    vi: "Khoá",
+    en: "Lock",
+  },
+  adminBulkUnlock: {
+    vi: "Mở khoá",
+    en: "Unlock",
+  },
+  adminBulkClear: {
+    vi: "Bỏ chọn",
+    en: "Clear",
+  },
+  adminConfirmDeleteTitle: {
+    vi: "Xoá tài khoản",
+    en: "Delete account",
+  },
+  adminConfirmRoleTitle: {
+    vi: "Đổi vai trò",
+    en: "Change role",
+  },
+  adminTypeEmailToConfirm: {
+    vi: "Gõ chính xác email {email} để xác nhận:",
+    en: "Type the exact email {email} to confirm:",
+  },
+  adminExportUsersCsv: {
+    vi: "Xuất CSV",
+    en: "Export CSV",
+  },
+  adminExportReportCsv: {
+    vi: "Xuất báo cáo CSV",
+    en: "Export report CSV",
+  },
+  adminExportTooMany: {
+    vi: "Chỉ xuất tối đa {max} dòng mỗi lần (hiện có {count}). Hãy thu hẹp bộ lọc.",
+    en: "Export is limited to {max} rows per file ({count} matching). Narrow the filters.",
+  },
   adminReportFilterToday: {
     vi: "Hôm nay",
     en: "Today",
@@ -47,6 +207,46 @@ export const admin = {
   adminReportAnalysesThisMonthTooltip: {
     vi: "Tổng lượt phân tích (thành công + lỗi) từ đầu tháng dương lịch hiện tại đến nay, không đổi theo bộ lọc Hôm nay/7 ngày/30 ngày ở trên.",
     en: "Total analyses (success + error) since the start of the current calendar month, regardless of the Today/7d/30d filter above.",
+  },
+  adminReportQuotaUsed: {
+    vi: "Quota đã dùng (chu kỳ hiện tại)",
+    en: "Quota used (current cycle)",
+  },
+  adminReportQuotaTooltip: {
+    vi: "Tổng usage_count hiện tại của user không phải admin. Mỗi user reset theo ngày đăng ký (quota_reset_day), nên số này không theo bộ lọc ngày ở trên.",
+    en: "Current usage_count total across non-admin users. Each user resets on their own quota_reset_day, so this is not scoped to the date filter above.",
+  },
+  adminReportQuotaAsOf: {
+    vi: "Tính đến {time}",
+    en: "As of {time}",
+  },
+  adminReportOpsTitle: {
+    vi: "Vận hành",
+    en: "Operations",
+  },
+  adminReportLatencyP50: {
+    vi: "Latency p50",
+    en: "Latency p50",
+  },
+  adminReportLatencyP95: {
+    vi: "Latency p95",
+    en: "Latency p95",
+  },
+  adminReportErrorCategories: {
+    vi: "Lỗi analyze theo loại",
+    en: "Analyze errors by category",
+  },
+  adminReportNoErrors: {
+    vi: "Không có lỗi trong khoảng này.",
+    en: "No errors in this range.",
+  },
+  adminReportModelMix: {
+    vi: "Model & chi phí",
+    en: "Model & cost",
+  },
+  adminReportRefresh: {
+    vi: "Làm mới",
+    en: "Refresh",
   },
   adminReportSuccessCount: {
     vi: "Thành công",
@@ -172,12 +372,52 @@ export const admin = {
     vi: "Recruiter",
     en: "Recruiter",
   },
+  adminFilterStatus: {
+    vi: "Trạng thái",
+    en: "Status",
+  },
+  adminFilterStatusAll: {
+    vi: "Tất cả",
+    en: "All",
+  },
+  adminFilterStatusActive: {
+    vi: "Hoạt động",
+    en: "Active",
+  },
+  adminFilterStatusLocked: {
+    vi: "Đã khóa",
+    en: "Locked",
+  },
+  adminSortLabel: {
+    vi: "Sắp xếp",
+    en: "Sort",
+  },
+  adminSortCreatedDesc: {
+    vi: "Mới nhất",
+    en: "Newest",
+  },
+  adminSortCreatedAsc: {
+    vi: "Cũ nhất",
+    en: "Oldest",
+  },
+  adminSortUsageDesc: {
+    vi: "Dùng nhiều nhất",
+    en: "Most used",
+  },
+  adminSortNameAsc: {
+    vi: "Tên A–Z",
+    en: "Name A–Z",
+  },
+  adminSortExpiryAsc: {
+    vi: "Sắp hết hạn",
+    en: "Expiring first",
+  },
   adminColMember: {
     vi: "Thành viên",
     en: "Member",
   },
   adminColFormat: {
-    vi: "Định dạng",
+    vi: "Vai trò",
     en: "Role",
   },
   adminColPlan: {
@@ -197,20 +437,20 @@ export const admin = {
     en: "Set Free",
   },
   adminPlanGrantPro30: {
-    vi: "Pro 30 ngày",
-    en: "Pro 30 days",
+    vi: "Pro +30 ngày",
+    en: "Pro +30 days",
   },
   adminPlanGrantPro90: {
-    vi: "Pro 90 ngày",
-    en: "Pro 90 days",
+    vi: "Pro +90 ngày",
+    en: "Pro +90 days",
   },
   adminPlanGrantPro365: {
-    vi: "Pro 1 năm",
-    en: "Pro 1 year",
+    vi: "Pro +365 ngày",
+    en: "Pro +365 days",
   },
   adminPlanGrantRecruiter30: {
-    vi: "Recruiter 30 ngày",
-    en: "Recruiter 30 days",
+    vi: "Recruiter +30 ngày",
+    en: "Recruiter +30 days",
   },
   adminPlanChangeError: {
     vi: "Không cập nhật được gói: {message}",
@@ -237,8 +477,8 @@ export const admin = {
     en: "Monthly limit",
   },
   adminAnalyticsLimitPlaceholder: {
-    vi: "Trống = không giới hạn",
-    en: "Empty = unlimited",
+    vi: "Số lượt / tháng",
+    en: "Analyses / month",
   },
   adminColStatus: {
     vi: "Tình trạng",
@@ -281,8 +521,8 @@ export const admin = {
     en: "Locked",
   },
   adminInvalidAnalyticsLimit: {
-    vi: "Giới hạn phải là số nguyên không âm hoặc để trống.",
-    en: "Limit must be a non-negative integer or empty.",
+    vi: "Giới hạn phải là số nguyên không âm.",
+    en: "Limit must be a non-negative integer.",
   },
   adminGlobalAnalyticsTitle: {
     vi: "Hạn mức phân tích mặc định / tháng",
@@ -309,8 +549,8 @@ export const admin = {
     en: "Default: {limit}",
   },
   adminConfirmDelete: {
-    vi: "Xác nhận xóa vĩnh viễn thực thể này?",
-    en: "Permanently delete this user?",
+    vi: "Xóa vĩnh viễn {email}? Toàn bộ CV, lịch sử và thanh toán sẽ mất, không thể hoàn tác.",
+    en: "Permanently delete {email}? All CVs, history, and payments will be lost and cannot be restored.",
   },
   adminEditUserButton: {
     vi: "Chỉnh sửa ▾",
@@ -375,5 +615,37 @@ export const admin = {
   adminPaginationInfo: {
     vi: "Hiển thị {start}–{end} / {total} người dùng",
     en: "Showing {start}–{end} of {total} users",
+  },
+  adminLimitModeInherit: {
+    vi: "Theo mặc định hệ thống",
+    en: "Use system default",
+  },
+  adminLimitModeCustom: {
+    vi: "Giới hạn riêng",
+    en: "Custom limit",
+  },
+  adminLegacyUnlimitedWarning: {
+    vi: "Tài khoản đang ở trạng thái không giới hạn (dữ liệu cũ). Chọn mặc định hoặc nhập giới hạn cụ thể; không thể tạo mới trạng thái này.",
+    en: "This account is currently unlimited (legacy data). Choose the system default or enter a specific limit; this state cannot be created anymore.",
+  },
+  adminPlanStackingHint: {
+    vi: "Nếu gói còn hạn, thời gian sẽ được cộng thêm.",
+    en: "If the plan is still active, the duration is added on top.",
+  },
+  adminGlobalAnalyticsLoadError: {
+    vi: "Không tải được hạn mức mặc định. Kiểm tra kết nối rồi thử lại.",
+    en: "Could not load the default limit. Check your connection and retry.",
+  },
+  adminUsersLoadError: {
+    vi: "Không tải được danh sách người dùng: {message}",
+    en: "Could not load users: {message}",
+  },
+  adminFilterLoadError: {
+    vi: "Không tải được dữ liệu tìm kiếm: {message}",
+    en: "Could not load search data: {message}",
+  },
+  adminRetry: {
+    vi: "Thử lại",
+    en: "Retry",
   },
 } as const;

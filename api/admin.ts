@@ -2,14 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, rejectOversizedBody, BODY_LIMITS } from '../_server-lib/http/guard.js';
 import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
 import { getUserFromBearerToken, getSupabaseAdmin } from '../_server-lib/payment/supabaseAdmin.js';
-import { adminDeleteUser } from '../_server-lib/admin/deleteUser.js';
-import { logAdminAudit } from '../_server-lib/admin/audit.js';
+import { handleAdminAction } from '../_server-lib/admin/handler.js';
 
 /**
  * Unified admin handler — dispatches by URL path segment.
  *
  * Vercel rewrite maps /api/admin/{action} → /api/admin.ts
- * Actions: set-user-role, set-user-plan, delete-user
+ * Actions: set-user-role, set-user-plan, update-user, delete-user
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentryServer();
@@ -28,7 +27,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (rejectOversizedBody(req, res, BODY_LIMITS.json)) return;
 
   try {
-    // Authenticate the caller
     const authHeader =
       typeof req.headers.authorization === 'string' ? req.headers.authorization : undefined;
     const user = await getUserFromBearerToken(authHeader);
@@ -36,103 +34,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const supabase = getSupabaseAdmin();
-
-    // Double-guard: verify the calling user is an admin.
-    // Don't use is_admin() RPC here — the admin client runs as service_role
-    // so auth.uid() would be NULL. Query profiles directly instead.
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (profileError || !profile || profile.role !== 'admin') {
-      return res.status(403).json({ error: 'Forbidden: admin access required' });
-    }
-
-    switch (action) {
-      case 'set-user-role': {
-        const { p_user_id, p_role } = (req.body || {}) as {
-          p_user_id?: string;
-          p_role?: string;
-        };
-
-        if (!p_user_id || !p_role) {
-          return res.status(400).json({ error: 'Missing p_user_id or p_role' });
-        }
-        if (p_role !== 'admin' && p_role !== 'user') {
-          return res.status(400).json({ error: 'Invalid role. Must be "admin" or "user"' });
-        }
-        if (p_user_id === user.id && p_role === 'user') {
-          return res.status(400).json({ error: 'Cannot demote yourself' });
-        }
-
-        const { error: rpcError } = await supabase.rpc('set_user_role', {
-          p_user_id,
-          p_role,
-        });
-
-        if (rpcError) {
-          console.error('set_user_role RPC failed:', rpcError);
-          return res.status(500).json({ error: 'Failed to update user role' });
-        }
-
-        await logAdminAudit(supabase, user.id, 'update_role', p_user_id, { role: p_role });
-
-        return res.status(200).json({ success: true });
-      }
-
-      case 'set-user-plan': {
-        const { p_user_id, p_plan, p_duration_days } = (req.body || {}) as {
-          p_user_id?: string;
-          p_plan?: string;
-          p_duration_days?: number;
-        };
-
-        if (!p_user_id || !p_plan) {
-          return res.status(400).json({ error: 'Missing p_user_id or p_plan' });
-        }
-        if (!['free', 'pro', 'recruiter'].includes(p_plan)) {
-          return res.status(400).json({ error: 'Invalid plan. Must be "free", "pro", or "recruiter"' });
-        }
-
-        const { error: rpcError } = await supabase.rpc('admin_set_user_plan', {
-          p_user_id,
-          p_plan,
-          p_duration_days: p_duration_days ?? 30,
-        });
-
-        if (rpcError) {
-          console.error('admin_set_user_plan RPC failed:', rpcError);
-          return res.status(500).json({ error: 'Failed to update user plan' });
-        }
-
-        await logAdminAudit(supabase, user.id, 'update_plan', p_user_id, {
-          plan: p_plan,
-          duration_days: p_duration_days ?? 30,
-        });
-
-        return res.status(200).json({ success: true });
-      }
-
-      case 'delete-user': {
-        const { p_user_id } = (req.body || {}) as { p_user_id?: string };
-        if (!p_user_id) {
-          return res.status(400).json({ error: 'Missing p_user_id' });
-        }
-
-        const result = await adminDeleteUser(supabase, user.id, p_user_id);
-        if (result.ok === false) {
-          return res.status(result.status).json({ error: result.error });
-        }
-        return res.status(200).json({ success: true, storageErrors: result.storageErrors });
-      }
-
-      default: {
-        return res.status(404).json({ error: `Unknown admin action: ${action}` });
-      }
-    }
+    const result = await handleAdminAction({
+      action,
+      body: req.body,
+      callerId: user.id,
+      supabase: getSupabaseAdmin(),
+    });
+    return res.status(result.status).json(result.body);
   } catch (err) {
     console.error('admin handler error:', err);
     Sentry.captureException(err);

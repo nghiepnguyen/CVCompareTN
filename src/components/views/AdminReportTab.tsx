@@ -1,9 +1,12 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign, Gauge, HelpCircle } from 'lucide-react';
+import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign, Gauge, HelpCircle, RefreshCw, Timer, ListChecks, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
 import { cn } from '../../lib/utils';
+import { VN_TIME_ZONE } from '../../lib/vnTime';
+import { csvDateStamp, downloadCsv } from '../../lib/csv';
+import { logAdminExport } from '../../services/adminExportService';
 import {
   getAdminReportStats,
   type AdminReportStats,
@@ -18,6 +21,8 @@ export function AdminReportTab() {
   const [stats, setStats] = useState<AdminReportStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   // Guard against out-of-order responses: switching range quickly must not let
   // a slower, older request overwrite the stats for the range now selected.
@@ -42,6 +47,15 @@ export function AdminReportTab() {
     void loadStats(range);
   }, [range, loadStats]);
 
+  // The report is a dashboard, not a realtime feed: refresh only while the tab
+  // is visible so a forgotten admin tab doesn't keep querying the database.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') void loadStats(range);
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [range, loadStats]);
+
   const chartData = (stats?.dailyCounts ?? []).map((d) => ({
     ...d,
     label: new Date(`${d.date}T00:00:00Z`).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', timeZone: 'UTC' }),
@@ -55,6 +69,98 @@ export function AdminReportTab() {
       minimumFractionDigits: fractionDigits,
       maximumFractionDigits: fractionDigits,
     });
+  const quotaAsOfLabel = stats?.quotaAsOf
+    ? new Date(stats.quotaAsOf).toLocaleTimeString(dateLocale, {
+        timeZone: VN_TIME_ZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
+
+  const handleExportReport = async () => {
+    if (!stats || exportBusy) return;
+    setExportBusy(true);
+    setError(null);
+    setExportMessage(null);
+    try {
+      const rows: Array<Array<string | number | null>> = [
+        ['quota_current_cycle', stats.quotaUsedCurrentCycle, stats.quotaAsOf],
+        [],
+        ['section', 'date', 'success', 'error'],
+        ...stats.dailyCounts.map((row) => ['daily', row.date, row.success, row.error]),
+        [],
+        ['section', 'email', 'display_name', 'count'],
+        ...stats.topUsers.map((row) => ['top_user', row.email, row.displayName, row.count]),
+        [],
+        ['section', 'model', 'input_tokens', 'output_tokens', 'cost_usd'],
+        ...stats.modelUsage.map((row) => [
+          'model',
+          row.model,
+          row.inputTokens,
+          row.outputTokens,
+          row.costUsd.toFixed(6),
+        ]),
+        [],
+        ['section', 'message', 'count'],
+        ...stats.errorCategories.map((row) => ['error', row.message, row.count]),
+      ];
+      await logAdminExport('report', stats.dailyCounts.length + stats.topUsers.length, { range });
+      downloadCsv(`admin-report-${range}-${csvDateStamp()}.csv`, rows);
+      setExportMessage(t.adminToastExported);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
+  const summaryCards: Array<{
+    label: string;
+    value: string | number;
+    icon: React.ComponentType<{ className?: string }>;
+    color: string;
+    bg: string;
+    tooltip?: string;
+    subtitle?: string;
+  }> = [
+    {
+      label: t.adminReportNewUsers,
+      value: stats?.newUsersCount ?? 0,
+      icon: UserPlus,
+      color: 'text-accent',
+      bg: 'bg-accent-light',
+    },
+    {
+      label: t.adminReportTotalAnalyses,
+      value: (stats?.totalSuccess ?? 0) + (stats?.totalError ?? 0),
+      icon: Activity,
+      color: 'text-text-main',
+      bg: 'bg-surface-secondary',
+    },
+    {
+      label: t.adminReportSuccessCount,
+      value: stats?.totalSuccess ?? 0,
+      icon: CheckCircle2,
+      color: 'text-success',
+      bg: 'bg-success-light',
+    },
+    {
+      label: t.adminReportErrorCount,
+      value: stats?.totalError ?? 0,
+      icon: XCircle,
+      color: 'text-error',
+      bg: 'bg-error-light',
+    },
+    {
+      label: t.adminReportQuotaUsed,
+      value: (stats?.quotaUsedCurrentCycle ?? 0).toLocaleString(dateLocale),
+      icon: Gauge,
+      color: 'text-accent',
+      bg: 'bg-accent-light',
+      tooltip: t.adminReportQuotaTooltip,
+      subtitle: formatLabel(t.adminReportQuotaAsOf, { time: quotaAsOfLabel }),
+    },
+  ];
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -82,10 +188,34 @@ export function AdminReportTab() {
           ))}
         </div>
         {isLoading && <Loader2 className="w-4 h-4 text-text-light animate-spin" />}
+        <button
+          type="button"
+          onClick={() => void loadStats(range)}
+          disabled={isLoading}
+          title={t.adminReportRefresh}
+          aria-label={t.adminReportRefresh}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-text-muted cursor-pointer hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')} />
+          {t.adminReportRefresh}
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleExportReport()}
+          disabled={!stats || exportBusy}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-text-muted cursor-pointer hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {exportBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          {t.adminExportReportCsv}
+        </button>
       </div>
 
+      {exportMessage && (
+        <p className="text-xs font-bold text-success">{exportMessage}</p>
+      )}
+
       {error && (
-        <div className="p-4 rounded-xl border bg-error-light border-error/10 text-error flex items-center gap-3">
+        <div role="alert" className="p-4 rounded-xl border bg-error-light border-error/10 text-error flex items-center gap-3">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span className="text-xs font-bold">{error}</span>
         </div>
@@ -93,13 +223,7 @@ export function AdminReportTab() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {[
-          { label: t.adminReportNewUsers, value: stats?.newUsersCount ?? 0, icon: UserPlus, color: 'text-accent', bg: 'bg-accent-light' },
-          { label: t.adminReportTotalAnalyses, value: (stats?.totalSuccess ?? 0) + (stats?.totalError ?? 0), icon: Activity, color: 'text-text-main', bg: 'bg-surface-secondary' },
-          { label: t.adminReportSuccessCount, value: stats?.totalSuccess ?? 0, icon: CheckCircle2, color: 'text-success', bg: 'bg-success-light' },
-          { label: t.adminReportErrorCount, value: stats?.totalError ?? 0, icon: XCircle, color: 'text-error', bg: 'bg-error-light' },
-          { label: t.adminReportAnalysesThisMonth, value: stats?.totalAnalysesThisMonth ?? 0, icon: Gauge, color: 'text-accent', bg: 'bg-accent-light', tooltip: t.adminReportAnalysesThisMonthTooltip },
-        ].map((card) => (
+        {summaryCards.map((card) => (
           <div key={card.label} className="bg-surface border border-border rounded-2xl p-5 shadow-sm space-y-3">
             <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', card.bg)}>
               <card.icon className={cn('w-5 h-5', card.color)} />
@@ -114,6 +238,9 @@ export function AdminReportTab() {
                   </span>
                 )}
               </div>
+              {card.subtitle && (
+                <div className="mt-1 text-[10px] font-medium text-text-light">{card.subtitle}</div>
+              )}
             </div>
           </div>
         ))}
@@ -170,6 +297,81 @@ export function AdminReportTab() {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Operations + model mix */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <h3 className="mb-4 flex items-center gap-2 font-bold text-text-main">
+            <Timer className="h-5 w-5 text-accent" />
+            {t.adminReportOpsTitle}
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: t.adminReportLatencyP50, value: stats?.latencyP50Ms ?? null },
+              { label: t.adminReportLatencyP95, value: stats?.latencyP95Ms ?? null },
+            ].map((item) => (
+              <div key={item.label} className="rounded-xl border border-border bg-surface-secondary/60 p-3">
+                <div className="text-[10px] font-black uppercase tracking-widest text-text-light">{item.label}</div>
+                <div className="mt-1 text-xl font-black text-text-main">
+                  {item.value === null ? '—' : `${item.value.toLocaleString(dateLocale)} ms`}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <h4 className="mb-2 mt-5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-text-muted">
+            <ListChecks className="h-3.5 w-3.5" />
+            {t.adminReportErrorCategories}
+          </h4>
+          {(stats?.errorCategories.length ?? 0) === 0 ? (
+            <p className="text-xs text-text-muted">{t.adminReportNoErrors}</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {stats?.errorCategories.map((row) => (
+                <li key={row.message} className="flex items-center justify-between gap-3 rounded-lg bg-error-light/50 px-2.5 py-1.5">
+                  <span className="truncate font-mono text-[10px] text-error" title={row.message}>
+                    {row.message || '—'}
+                  </span>
+                  <span className="text-xs font-black text-error">{row.count}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <h3 className="mb-4 flex items-center gap-2 font-bold text-text-main">
+            <Layers className="h-5 w-5 text-accent" />
+            {t.adminReportModelMix}
+          </h3>
+          {(stats?.modelUsage.length ?? 0) === 0 ? (
+            <p className="text-xs text-text-muted">{t.adminReportEmptyState}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border text-[9px] font-black uppercase tracking-wider text-text-light">
+                    <th scope="col" className="py-2 pr-2">Model</th>
+                    <th scope="col" className="py-2 pr-2 text-right">In</th>
+                    <th scope="col" className="py-2 pr-2 text-right">Out</th>
+                    <th scope="col" className="py-2 text-right">Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {stats?.modelUsage.map((row) => (
+                    <tr key={row.model}>
+                      <td className="py-2 pr-2 font-mono text-[10px] text-text-main">{row.model}</td>
+                      <td className="py-2 pr-2 text-right text-text-muted">{formatTokens(row.inputTokens)}</td>
+                      <td className="py-2 pr-2 text-right text-text-muted">{formatTokens(row.outputTokens)}</td>
+                      <td className="py-2 text-right font-bold text-text-main">{formatCostUsd(row.costUsd, 4)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

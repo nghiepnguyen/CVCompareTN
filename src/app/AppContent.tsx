@@ -178,6 +178,15 @@ export function AppContent() {
 
   const isAdmin = userProfile?.role === 'admin';
 
+  // A non-admin who deep-links to /admin used to fall through every tab branch
+  // and render a blank content area. Wait for auth/profile initialization so an
+  // admin's own refresh doesn't get bounced before their profile arrives.
+  useEffect(() => {
+    if (isAuthInitialized && user && activeTab === 'admin' && !isAdmin) {
+      setActiveTab('analyze');
+    }
+  }, [isAuthInitialized, user, activeTab, isAdmin, setActiveTab]);
+
   const handleLoadSavedJD = (content: string) => {
     setJd(content);
     setIsSavedJDsModalOpen(false);
@@ -272,8 +281,8 @@ export function AppContent() {
               userProfile?.hasPermission === false &&
               userProfile?.role !== 'admin' ? (
               <NoPermissionView />
-            ) : activeTab === 'admin' && isAdmin ? (
-              <AdminView />
+            ) : activeTab === 'admin' ? (
+              isAdmin ? <AdminView /> : <DashboardView />
             ) : activeTab === 'analyze' ? (
               <DashboardView />
             ) : activeTab === 'history' ? (

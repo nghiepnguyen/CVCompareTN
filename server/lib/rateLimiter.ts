@@ -10,6 +10,10 @@ export const apiLimiter = rateLimit({
   max: 100, // max 100 requests per window per IP
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Admin calls have their own Postgres-backed, per-admin bucket (120/15min
+  // shared with the Vercel surface). Applying the 100/IP browser limit here
+  // would make `npm start` throttle legitimate bulk admin edits.
+  skip: (req) => req.originalUrl.startsWith('/api/admin'),
   message: {
     error: 'Too many requests. Please try again after 15 minutes.',
   },

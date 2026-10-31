@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { mapProfile } from '../services/userService';
-import type { UserProfile } from '../services/userService';
+import { fetchAdminUsersPage } from '../services/userService';
+import type { AdminUsersQuery, UserProfile } from '../services/userService';
 
-const PAGE_SIZE = 50;
 // Every analysis bumps a profiles row, so bursts of realtime events are normal —
 // coalesce them into one re-fetch instead of one per event.
 const REALTIME_DEBOUNCE_MS = 1000;
@@ -14,63 +13,82 @@ const PERIODIC_REFRESH_MS = 5 * 60 * 1000;
 export interface AdminUsersState {
   users: UserProfile[];
   isLoading: boolean;
-  hasMore: boolean;
-  /** Total profiles in the DB (not just the loaded window); null until first fetch. */
+  /** Total profiles matching the current filters; null until first fetch. */
   totalCount: number | null;
-  loadMore: () => void;
+  /** DB-wide new non-admin users (same definition as the Header badge). */
+  newUsersCount: number;
+  /** Up to 12 new users for the banner, independent of the current page. */
+  newUsers: UserProfile[];
+  /** Last list-fetch error; cleared by a successful refresh. */
+  error: string | null;
   refresh: () => void;
+  /** Optimistic local updates used after a successful row action. */
+  applyUser: (id: string, patch: Partial<UserProfile>) => void;
+  removeUser: (id: string) => void;
 }
 
-export function useAdminUsers(): AdminUsersState {
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+export function useAdminUsers(query: AdminUsersQuery): AdminUsersState {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState<number | null>(null);
-  // Realtime handler below is subscribed once and must always see the latest
-  // loaded page count, not the value captured at subscribe time.
-  const pageRef = useRef(0);
-  useEffect(() => {
-    pageRef.current = page;
-  }, [page]);
+  const [newUsersCount, setNewUsersCount] = useState(0);
+  const [newUsers, setNewUsers] = useState<UserProfile[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const usersRef = useRef<UserProfile[]>([]);
+  usersRef.current = users;
 
-  const fetchRange = useCallback(async (from: number, to: number, replace: boolean) => {
+  // The realtime/interval listeners are subscribed once but must always read
+  // the latest filters/page.
+  const queryRef = useRef(query);
+  queryRef.current = query;
+
+  // Every fetch gets a sequence number. A response only wins if no newer query
+  // started meanwhile, so fast typing/filter changes cannot overwrite the
+  // result of the latest query.
+  const requestSeqRef = useRef(0);
+  const inflightRef = useRef(0);
+
+  const beginRequest = useCallback(() => {
+    inflightRef.current += 1;
     setIsLoading(true);
-    const { data, error, count } = await supabase
-      .from('profiles')
-      .select('*, effective_usage_count', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to);
-
-    if (error) {
-      console.error('useAdminUsers fetchRange error:', error);
-      setIsLoading(false);
-      return;
-    }
-
-    const mapped = (data ?? []).map(mapProfile);
-    setUsers(prev => (replace ? mapped : [...prev, ...mapped]));
-    setHasMore(mapped.length === to - from + 1);
-    if (count !== null) setTotalCount(count);
-    setIsLoading(false);
   }, []);
 
-  // Re-fetches every row already loaded (not just page 0), so a change to any
-  // profile doesn't silently drop pages an admin has already paged into.
-  const refresh = useCallback(() => {
-    fetchRange(0, (pageRef.current + 1) * PAGE_SIZE - 1, true);
-  }, [fetchRange]);
+  const endRequest = useCallback(() => {
+    inflightRef.current = Math.max(0, inflightRef.current - 1);
+    if (inflightRef.current === 0) setIsLoading(false);
+  }, []);
 
-  const loadMore = useCallback(() => {
-    if (isLoading || !hasMore) return;
-    const next = page + 1;
-    setPage(next);
-    fetchRange(next * PAGE_SIZE, next * PAGE_SIZE + PAGE_SIZE - 1, false);
-  }, [isLoading, hasMore, page, fetchRange]);
+  const refresh = useCallback(async () => {
+    const seq = ++requestSeqRef.current;
+    beginRequest();
+    try {
+      const result = await fetchAdminUsersPage(queryRef.current);
+      if (seq !== requestSeqRef.current) return;
+
+      setUsers(result.rows);
+      setTotalCount(result.total);
+      setNewUsersCount(result.newUsersCount);
+      setNewUsers(result.newUsers);
+      setError(null);
+    } catch (err) {
+      if (seq === requestSeqRef.current) setError(toErrorMessage(err));
+    } finally {
+      endRequest();
+    }
+  }, [beginRequest, endRequest]);
+
+  // Re-fetch whenever a server-side query parameter changes. Search is
+  // debounced by AdminView so each keystroke doesn't hit the RPC.
+  const { search, plan, role, status, sort, page, pageSize } = query;
+  useEffect(() => {
+    void refresh();
+  }, [search, plan, role, status, sort, page, pageSize, refresh]);
 
   useEffect(() => {
-    fetchRange(0, PAGE_SIZE - 1, true);
-
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     // removeChannel is async — an in-flight event can still land after cleanup.
     let disposed = false;
@@ -79,7 +97,7 @@ export function useAdminUsers(): AdminUsersState {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
-        refresh();
+        void refresh();
       }, REALTIME_DEBOUNCE_MS);
     };
 
@@ -89,10 +107,10 @@ export function useAdminUsers(): AdminUsersState {
       .subscribe();
 
     const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') refresh();
+      if (document.visibilityState === 'visible') void refresh();
     }, PERIODIC_REFRESH_MS);
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refresh();
+      if (document.visibilityState === 'visible') void refresh();
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
 
@@ -105,5 +123,30 @@ export function useAdminUsers(): AdminUsersState {
     };
   }, [refresh]);
 
-  return { users, isLoading, hasMore, totalCount, loadMore, refresh };
+  const applyUser = useCallback((id: string, patch: Partial<UserProfile>) => {
+    setUsers((prev) => prev.map((user) => (user.id === id ? { ...user, ...patch } : user)));
+    setNewUsers((prev) => prev.map((user) => (user.id === id ? { ...user, ...patch } : user)));
+  }, []);
+
+  const removeUser = useCallback((id: string) => {
+    const removed = usersRef.current.find((user) => user.id === id);
+    setUsers((prev) => prev.filter((user) => user.id !== id));
+    setNewUsers((prev) => prev.filter((user) => user.id !== id));
+    if (removed?.isNew && removed.role !== 'admin') {
+      setNewUsersCount((count) => Math.max(0, count - 1));
+    }
+    setTotalCount((count) => (count === null ? count : Math.max(0, count - 1)));
+  }, []);
+
+  return {
+    users,
+    isLoading,
+    totalCount,
+    newUsersCount,
+    newUsers,
+    error,
+    refresh,
+    applyUser,
+    removeUser,
+  };
 }

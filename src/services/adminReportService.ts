@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { vnDateParts, vnStartOfDay } from '../lib/vnTime';
+import { vnStartOfDay } from '../lib/vnTime';
 import { GEMINI_PRICING, LEGACY_LOG_MODEL, isGeminiModel } from '../lib/geminiModels';
 
 export type ReportRange = 'today' | '7d' | '30d';
@@ -17,12 +17,22 @@ export interface TopAnalysisUser {
   count: number;
 }
 
+export interface ModelUsage {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+}
+
+export interface ErrorCategory {
+  message: string;
+  count: number;
+}
+
 export interface AdminReportStats {
   newUsersCount: number;
   totalSuccess: number;
   totalError: number;
-  /** Count of 'analyze' rows (success + error) since the start of the current calendar month (VN time) — independent of `range`. */
-  totalAnalysesThisMonth: number;
   dailyCounts: DailyAnalysisCount[];
   topUsers: TopAnalysisUser[];
   avgInputTokens: number;
@@ -30,20 +40,53 @@ export interface AdminReportStats {
   avgTotalTokens: number;
   avgCostUsd: number;
   totalCostUsd: number;
-  /** Models found in successful rows with no entry in GEMINI_PRICING — their tokens are excluded from cost, never priced at a guessed rate. */
+  /** Models found in successful rows with no entry in GEMINI_PRICING — their tokens are excluded from cost. */
   unpricedModels: string[];
+  /** Current quota cycle total across non-admin users — not scoped to `range`. */
+  quotaUsedCurrentCycle: number;
+  /** Server timestamp for the quota snapshot. */
+  quotaAsOf: string;
+  latencyP50Ms: number | null;
+  latencyP95Ms: number | null;
+  errorCategories: ErrorCategory[];
+  modelUsage: ModelUsage[];
 }
 
-// Cost is priced per row from its `model` (rates in src/lib/geminiModels.ts).
-// Only raw tokens are persisted, so viewing old rows uses current rates.
-// Rows from before the model column existed (model NULL) all ran on
-// LEGACY_LOG_MODEL.
+// Cost is priced per row's model in the client from the compact model buckets
+// returned by the RPC; only raw tokens are persisted, so old rows use current
+// rates (documented in the report UI). A NULL model means a pre-model-column
+// row, all of which ran on LEGACY_LOG_MODEL.
 
-// analysis_log.input_tokens/output_tokens only exist from this migration onward
-// (supabase/migrations/20260704000000_analysis_log_token_usage.sql); older rows are
-// backfilled with 0. Averages must exclude them from the denominator or they dilute
-// avg token/cost toward 0 for any range (e.g. 30d) that still spans pre-migration rows.
-const TOKEN_TRACKING_START_ISO = '2026-07-04T00:00:00.000Z';
+interface RawModelUsage {
+  model: string | null;
+  input_tokens: number | string | null;
+  output_tokens: number | string | null;
+}
+
+interface RawOps {
+  latency_p50_ms: number | string | null;
+  latency_p95_ms: number | string | null;
+  error_categories: Array<{ message?: string; count?: number | string }> | null;
+}
+
+interface RawReport {
+  new_users_count: number | string | null;
+  total_success: number | string | null;
+  total_error: number | string | null;
+  daily_counts: DailyAnalysisCount[] | null;
+  top_users: TopAnalysisUser[] | null;
+  total_input_tokens: number | string | null;
+  total_output_tokens: number | string | null;
+  tracked_success_count: number | string | null;
+  model_usage: RawModelUsage[] | null;
+  quota_used_current_cycle: number | string | null;
+  as_of: string | null;
+}
+
+function toNumber(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
 
 // Anchor "today" to ICT, matching the quota system's day boundary
 // (current_quota_cycle) rather than the admin's browser timezone.
@@ -51,188 +94,72 @@ function getRangeStart(range: ReportRange): Date {
   return vnStartOfDay(new Date(), range === '7d' ? -6 : range === '30d' ? -29 : 0);
 }
 
-function dayKey(iso: string): string {
-  const { y, m, day } = vnDateParts(new Date(iso));
-  return `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-function getCalendarMonthStart(): Date {
-  const now = new Date();
-  return vnStartOfDay(now, 1 - vnDateParts(now).day);
-}
-
-// PostgREST caps rows per request (commonly 1000). Any query that can grow with
-// user/analysis volume must paginate via .range() or it silently truncates and
-// under-counts — page through until a short page signals the end.
-const SUPABASE_PAGE_SIZE = 1000;
-
-async function fetchAllRows<T>(
-  buildPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
-): Promise<T[]> {
-  const rows: T[] = [];
-  let from = 0;
-  for (;;) {
-    const { data, error } = await buildPage(from, from + SUPABASE_PAGE_SIZE - 1);
-    if (error) throw error;
-    const page = data ?? [];
-    rows.push(...page);
-    if (page.length < SUPABASE_PAGE_SIZE) break;
-    from += SUPABASE_PAGE_SIZE;
-  }
-  return rows;
-}
-
-interface AnalysisLogRow {
-  user_id: string | null;
-  status: string;
-  created_at: string;
-  kind: string;
-  input_tokens: number | null;
-  output_tokens: number | null;
-  model: string | null;
-}
-
 export async function getAdminReportStats(range: ReportRange): Promise<AdminReportStats> {
   const startIso = getRangeStart(range).toISOString();
-  const monthStartIso = getCalendarMonthStart().toISOString();
+  // Half-open [start, end): the RPC buckets by VN calendar day and zero-fills
+  // every day in the range.
+  const endIso = new Date().toISOString();
 
-  const [newUsersRes, logs, monthRes] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .gte('created_at', startIso),
-    fetchAllRows<AnalysisLogRow>((from, to) =>
-      supabase
-        .from('analysis_log')
-        .select('user_id, status, created_at, kind, input_tokens, output_tokens, model')
-        .gte('created_at', startIso)
-        .order('created_at', { ascending: true })
-        .range(from, to)
-    ),
-    // Calendar-month total (success + error), not scoped to `range`.
-    supabase
-      .from('analysis_log')
-      .select('id', { count: 'exact', head: true })
-      .eq('kind', 'analyze')
-      .gte('created_at', monthStartIso),
+  const [statsRes, opsRes] = await Promise.all([
+    supabase.rpc('admin_report_stats', { p_start: startIso, p_end: endIso }),
+    supabase.rpc('admin_report_ops', { p_start: startIso, p_end: endIso }),
   ]);
+  if (statsRes.error) throw statsRes.error;
+  if (opsRes.error) throw opsRes.error;
 
-  if (newUsersRes.error) throw newUsersRes.error;
-  if (monthRes.error) throw monthRes.error;
+  const raw = (statsRes.data ?? {}) as RawReport;
+  const ops = (opsRes.data ?? {}) as RawOps;
+  const modelUsageRaw = raw.model_usage ?? [];
 
-  const totalAnalysesThisMonth = monthRes.count ?? 0;
-
-  // Only 'analyze' rows are "analyses" for the existing metrics below —
-  // 'parse_cv'/'rewrite' rows are the auto-triggered follow-up Gemini calls
-  // (see AnalysisRunContext.tsx), tracked only for token/cost totals.
-  const analyzeLogs = logs.filter((l) => l.kind === 'analyze');
-
-  const dailyMap = new Map<string, { success: number; error: number }>();
-  const userCounts = new Map<string, number>();
-  let totalSuccess = 0;
-  let totalError = 0;
-
-  for (const log of analyzeLogs) {
-    const day = dayKey(log.created_at);
-    const bucket = dailyMap.get(day) ?? { success: 0, error: 0 };
-    if (log.status === 'success') {
-      bucket.success += 1;
-      totalSuccess += 1;
-    } else {
-      bucket.error += 1;
-      totalError += 1;
-    }
-    dailyMap.set(day, bucket);
-
-    if (log.user_id) {
-      userCounts.set(log.user_id, (userCounts.get(log.user_id) ?? 0) + 1);
-    }
-  }
-
-  // Emit every VN day in the range (zeros included) — skipping empty days made
-  // the 7d/30d chart silently collapse gaps, so quiet days looked like neighbours.
-  const dailyCounts: DailyAnalysisCount[] = [];
-  const rangeStart = getRangeStart(range);
-  const todayKey = dayKey(new Date().toISOString());
-  for (let d = new Date(rangeStart); ; d.setUTCDate(d.getUTCDate() + 1)) {
-    const key = dayKey(d.toISOString());
-    const v = dailyMap.get(key) ?? { success: 0, error: 0 };
-    dailyCounts.push({ date: key, success: v.success, error: v.error });
-    if (key >= todayKey) break;
-  }
-
-  const topUserIds = Array.from(userCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
-
-  let topUsers: TopAnalysisUser[] = [];
-  if (topUserIds.length > 0) {
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, email, display_name')
-      .in('id', topUserIds.map(([id]) => id));
-
-    if (profilesError) throw profilesError;
-
-    const profileMap = new Map(
-      (profilesData ?? []).map((p) => [p.id as string, p as { email: string; display_name: string | null }])
-    );
-
-    topUsers = topUserIds.map(([userId, count]) => {
-      const profile = profileMap.get(userId);
-      return {
-        userId,
-        email: profile?.email ?? '',
-        displayName: profile?.display_name ?? '',
-        count,
-      };
-    });
-  }
-
-  // Token/cost totals span all kinds (analyze + parse_cv + rewrite) — a single
-  // "analysis" fires all three Gemini calls, so cost-per-analysis needs their
-  // combined spend, averaged over the count of successful *analyze* rows.
-  let totalInputTokens = 0;
-  let totalOutputTokens = 0;
   let totalCostUsd = 0;
   const unpricedModels = new Set<string>();
-  for (const log of logs) {
-    if (log.status !== 'success') continue;
-    const input = log.input_tokens ?? 0;
-    const output = log.output_tokens ?? 0;
-    totalInputTokens += input;
-    totalOutputTokens += output;
-    const model = log.model ?? LEGACY_LOG_MODEL;
-    if (!isGeminiModel(model)) {
+  const modelUsage: ModelUsage[] = [];
+  for (const usage of modelUsageRaw) {
+    const model = usage.model ?? LEGACY_LOG_MODEL;
+    const inputTokens = toNumber(usage.input_tokens);
+    const outputTokens = toNumber(usage.output_tokens);
+    let costUsd = 0;
+    if (isGeminiModel(model)) {
+      const price = GEMINI_PRICING[model];
+      costUsd =
+        (inputTokens / 1_000_000) * price.inputPer1M +
+        (outputTokens / 1_000_000) * price.outputPer1M;
+      totalCostUsd += costUsd;
+    } else {
       unpricedModels.add(model);
-      continue;
     }
-    const price = GEMINI_PRICING[model];
-    totalCostUsd += (input / 1_000_000) * price.inputPer1M + (output / 1_000_000) * price.outputPer1M;
+    modelUsage.push({ model, inputTokens, outputTokens, costUsd });
   }
 
-  // Denominator for averages: successful 'analyze' rows created after token
-  // tracking began. Excludes pre-migration rows (input/output_tokens backfilled
-  // to 0) so a wide range like 30d doesn't drag the averages toward 0.
-  const trackedSuccessCount = analyzeLogs.filter(
-    (l) => l.status === 'success' && l.created_at >= TOKEN_TRACKING_START_ISO
-  ).length;
+  const errorCategories: ErrorCategory[] = (ops.error_categories ?? []).map((row) => ({
+    message: String(row.message ?? ''),
+    count: toNumber(row.count),
+  }));
+
+  const totalInputTokens = toNumber(raw.total_input_tokens);
+  const totalOutputTokens = toNumber(raw.total_output_tokens);
+  const trackedSuccessCount = toNumber(raw.tracked_success_count);
   const avgInputTokens = trackedSuccessCount > 0 ? totalInputTokens / trackedSuccessCount : 0;
   const avgOutputTokens = trackedSuccessCount > 0 ? totalOutputTokens / trackedSuccessCount : 0;
   const avgCostUsd = trackedSuccessCount > 0 ? totalCostUsd / trackedSuccessCount : 0;
 
   return {
-    newUsersCount: newUsersRes.count ?? 0,
-    totalSuccess,
-    totalError,
-    totalAnalysesThisMonth,
-    dailyCounts,
-    topUsers,
+    newUsersCount: toNumber(raw.new_users_count),
+    totalSuccess: toNumber(raw.total_success),
+    totalError: toNumber(raw.total_error),
+    dailyCounts: raw.daily_counts ?? [],
+    topUsers: raw.top_users ?? [],
     avgInputTokens,
     avgOutputTokens,
     avgTotalTokens: avgInputTokens + avgOutputTokens,
     avgCostUsd,
     totalCostUsd,
     unpricedModels: Array.from(unpricedModels),
+    quotaUsedCurrentCycle: toNumber(raw.quota_used_current_cycle),
+    quotaAsOf: raw.as_of ?? endIso,
+    latencyP50Ms: ops.latency_p50_ms == null ? null : toNumber(ops.latency_p50_ms),
+    latencyP95Ms: ops.latency_p95_ms == null ? null : toNumber(ops.latency_p95_ms),
+    errorCategories,
+    modelUsage,
   };
 }

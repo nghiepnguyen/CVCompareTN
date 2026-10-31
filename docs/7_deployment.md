@@ -205,6 +205,23 @@ Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới g
 | `20261101120000` | `storage_quota` trigger giới hạn object trực tiếp trên `cv-files`/`cv-analyze-tmp` + RPC `list_expired_temp_objects` cho cleanup |
 | `20261101130000` | Bỏ 10 policy legacy chỉ có trên production (gồm `profiles.allow_read_all`) để khớp source |
 | `20261101140000` | Thêm `profiles_role_check`/`profiles_usage_count_check` (fresh schema có từ base migration), bỏ `profiles_email_key` legacy |
+| `20261101150000` | CHECK `profiles_admin_only_unlimited_limit`: chỉ `role=admin` được `custom=true` + limit NULL; normal user phải inherit hoặc có limit số |
+| `20261101160000` | RPC `admin_list_profiles`: phân trang/search/filter/sort phía server + new-user count/preview; thay full-table `fetchAllProfiles` |
+| `20261101170000` | RPC `admin_report_stats`: aggregate volume/daily/top user/token buckets + quota hiện tại; không kéo raw `analysis_log` |
+| `20261101180000` | Index `profiles(created_at)`, partial `is_new`, composite `analysis_log(kind, created_at, status)` |
+| `20261101190000` | RPC `admin_update_user`: plan + limit + audit trong một transaction, service_role only |
+| `20261101200000` | RPC `admin_list_audit`: audit log phân trang/filter + actor/target email |
+| `20261101210000` | `admin_update_app_setting` (validate + audit) + action `update_app_setting` |
+| `20261101220000` | `admin_bulk_update_users`: bulk mark_read/lock/unlock (tối đa 100), audit lock/unlock |
+| `20261101230000` | `admin_report_ops`: latency p50/p95 + top analyze error categories |
+| `20261101240000` | Audit action `export_data` cho CSV export |
+| `20261101250000` | Bỏ RLS write `app_settings`; global limit chỉ ghi qua service_role RPC |
+
+**Trạng thái production 2026-10-31 (admin-only unlimited):** migration `20261101150000` đã áp; verify `pg_constraint` trả `profiles_admin_only_unlimited_limit` với `convalidated = true`. A7 audit trước đó trả 0 row non-admin `custom=true, limit=NULL`, nên không cần backfill.
+
+**Phase 1–2 (2026-10-31):** migrations `20261101160000`–`20261101250000` đã viết + test SQL local, **chưa apply production**; bundle code Admin/API cũng chưa deploy. Các RPC mới dùng `is_admin()` guard (list/report/audit/ops) hoặc service_role (update-user/app-setting/bulk/export audit); rate limit admin dùng bảng `api_rate_limits` đã có.
+
+**Thứ tự deploy Phase 2 bắt buộc:** apply `20261101160000`–`20261101240000` trước → deploy bundle Admin/API → apply `20261101250000` sau cùng. Lý do: `20261101250000` revoke quyền write trực tiếp `app_settings`; bundle cũ vẫn ghi global limit bằng upsert trực tiếp nên sẽ lỗi nếu migration này lên trước khi bundle mới được deploy.
 
 Verify sau deploy (kỳ vọng `f | f | t`):
 

@@ -33,6 +33,28 @@ export interface UserProfile {
   quotaResetDay: number;
 }
 
+export type AdminUserPlanFilter = 'all' | 'free' | 'pro' | 'recruiter';
+export type AdminUserRoleFilter = 'all' | 'user' | 'admin';
+export type AdminUserStatusFilter = 'all' | 'active' | 'locked';
+export type AdminUserSort = 'created_desc' | 'created_asc' | 'usage_desc' | 'name_asc' | 'expiry_asc';
+
+export interface AdminUsersQuery {
+  search: string;
+  plan: AdminUserPlanFilter;
+  role: AdminUserRoleFilter;
+  status: AdminUserStatusFilter;
+  sort: AdminUserSort;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminUsersPage {
+  rows: UserProfile[];
+  total: number;
+  newUsersCount: number;
+  newUsers: UserProfile[];
+}
+
 /** Effective limit for display/enforcement (pass global default from app_settings). */
 export function resolveEffectiveMonthlyAnalyticsLimit(
   profile: Pick<UserProfile, 'monthlyAnalyticsLimitCustom' | 'monthlyAnalyticsLimit' | 'plan' | 'planExpiresAt' | 'role'>,
@@ -79,28 +101,36 @@ export function mapProfile(data: Record<string, unknown>): UserProfile {
 }
 
 /**
- * Full profiles table for admin search/plan-filter. The default Admin > Users
- * browse view lazy-loads 50 at a time, which silently misses matches beyond
- * the loaded window once profiles exceeds 50 rows — this paginates through
- * PostgREST's row cap so search/filter results are always complete.
+ * Server-side Admin > Users page. One RPC returns the current page plus the
+ * DB-wide new-user count/preview, so search/filter never downloads the whole
+ * profiles table. Filters/sort are validated again inside the RPC.
  */
-export async function fetchAllProfiles(): Promise<UserProfile[]> {
-  const PAGE_SIZE = 1000;
-  const rows: Record<string, unknown>[] = [];
-  let from = 0;
-  for (;;) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, effective_usage_count')
-      .order('created_at', { ascending: false })
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) throw error;
-    const page = data ?? [];
-    rows.push(...page);
-    if (page.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
-  return rows.map(mapProfile);
+export async function fetchAdminUsersPage(query: AdminUsersQuery): Promise<AdminUsersPage> {
+  const pageSize = Math.min(Math.max(Math.trunc(query.pageSize) || 20, 1), 100);
+  const page = Math.max(Math.trunc(query.page) || 1, 1);
+  const { data, error } = await supabase.rpc('admin_list_profiles', {
+    p_search: query.search.trim() || null,
+    p_plan: query.plan,
+    p_role: query.role,
+    p_status: query.status,
+    p_sort: query.sort,
+    p_limit: pageSize,
+    p_offset: (page - 1) * pageSize,
+  });
+
+  if (error) throw error;
+  const result = (data ?? {}) as {
+    rows?: unknown[];
+    total?: number;
+    new_users_count?: number;
+    new_users?: unknown[];
+  };
+  return {
+    rows: (result.rows ?? []).map((row) => mapProfile(row as Record<string, unknown>)),
+    total: Number(result.total ?? 0),
+    newUsersCount: Number(result.new_users_count ?? 0),
+    newUsers: (result.new_users ?? []).map((row) => mapProfile(row as Record<string, unknown>)),
+  };
 }
 
 export async function fetchEffectiveUserPlan(userId: string): Promise<UserPlan> {
@@ -254,8 +284,14 @@ export async function updateUserPermission(uid: string, hasPermission: boolean):
 
 export async function updateUserMonthlyAnalyticsLimit(
   uid: string,
-  limit: number | null
+  limit: number
 ): Promise<void> {
+  // "Unlimited" is admin-only (admins already resolve to unlimited by role);
+  // a normal user always gets an explicit non-negative integer limit.
+  if (!Number.isInteger(limit) || limit < 0) {
+    throw new Error('Monthly analytics limit must be a non-negative integer');
+  }
+
   const { error } = await supabase
     .from('profiles')
     .update({
@@ -322,6 +358,71 @@ export function adminPlanSelectValue(profile: UserProfile): AdminPlanGrant {
   return 'pro_30';
 }
 
+function planGrantTarget(grant: AdminPlanGrant): {
+  plan: 'free' | 'pro' | 'recruiter';
+  durationDays: number;
+} {
+  const plan = grant === 'free' ? 'free' : grant === 'recruiter_30' ? 'recruiter' : 'pro';
+  const durationDays =
+    grant === 'pro_90' ? 90 : grant === 'pro_365' ? 365 : grant === 'pro_30' ? 30 : 30;
+  return { plan, durationDays };
+}
+
+export type AdminLimitMode = 'keep' | 'inherit' | 'custom';
+
+export interface AdminUpdateUserInput {
+  /** null = leave the plan untouched. */
+  plan: AdminPlanGrant | null;
+  limitMode: AdminLimitMode;
+  limit?: number | null;
+}
+
+/**
+ * One backend call for plan + limit. The server runs a single RPC in one
+ * transaction and writes the audit rows there, so a partial failure cannot
+ * leave the limit changed while the plan failed (or double-stack the plan on
+ * a double submit).
+ */
+export async function adminUpdateUser(
+  uid: string,
+  input: AdminUpdateUserInput
+): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Not authenticated');
+
+  const body: Record<string, unknown> = {
+    p_user_id: uid,
+    p_limit_mode: input.limitMode,
+  };
+
+  if (input.plan) {
+    const target = planGrantTarget(input.plan);
+    body.p_plan = target.plan;
+    body.p_duration_days = target.durationDays;
+  }
+
+  if (input.limitMode === 'custom') {
+    if (!Number.isInteger(input.limit) || (input.limit as number) < 0) {
+      throw new Error('Monthly analytics limit must be a non-negative integer');
+    }
+    body.p_limit = input.limit;
+  }
+
+  const res = await fetch('/api/admin/update-user', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error((errorBody as { error?: string })?.error || `Request failed: ${res.status}`);
+  }
+}
+
 export async function adminUpdateUserPlan(
   uid: string,
   grant: AdminPlanGrant
@@ -329,10 +430,7 @@ export async function adminUpdateUserPlan(
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error('Not authenticated');
 
-  const plan = grant === 'free' ? 'free' : grant === 'recruiter_30' ? 'recruiter' : 'pro';
-  const durationDays =
-    grant === 'pro_90' ? 90 : grant === 'pro_365' ? 365 : grant === 'pro_30' ? 30 : 30;
-
+  const target = planGrantTarget(grant);
   const res = await fetch('/api/admin/set-user-plan', {
     method: 'POST',
     headers: {
@@ -341,8 +439,8 @@ export async function adminUpdateUserPlan(
     },
     body: JSON.stringify({
       p_user_id: uid,
-      p_plan: plan,
-      p_duration_days: plan === 'free' ? 30 : durationDays,
+      p_plan: target.plan,
+      p_duration_days: target.durationDays,
     }),
   });
 
@@ -350,6 +448,35 @@ export async function adminUpdateUserPlan(
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string })?.error || `Request failed: ${res.status}`);
   }
+}
+
+export type AdminBulkAction = 'mark_read' | 'lock' | 'unlock';
+
+export async function adminBulkUpdateUsers(
+  userIds: string[],
+  action: AdminBulkAction
+): Promise<number> {
+  if (userIds.length < 1 || userIds.length > 100) {
+    throw new Error('Select between 1 and 100 users');
+  }
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Not authenticated');
+
+  const res = await fetch('/api/admin/bulk-users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ p_user_ids: userIds, p_action: action }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string })?.error || `Request failed: ${res.status}`);
+  }
+  const body = (await res.json().catch(() => ({}))) as { count?: unknown };
+  return Number(body.count ?? 0);
 }
 
 // Server-side hard delete (auth user + cascaded rows + storage). Deleting only

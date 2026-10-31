@@ -162,7 +162,7 @@ Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_
 
 | | Free | Pro (PayOS) | Recruiter (PayOS) |
 |---|------|-------------|-------------------|
-| Phân tích / chu kỳ | `app_settings` (mặc định 10) hoặc override admin | **100** (trừ khi admin đặt unlimited) | **500** |
+| Phân tích / chu kỳ | `app_settings` (mặc định 5) hoặc override admin | **100** | **500** |
 | CV / lần | 1 | 5 | 50 |
 | Kho JD | 3 | Không giới hạn | Không giới hạn |
 | Lịch sử | 7 ngày (xoá hẳn, cron hằng ngày) | Toàn bộ | Toàn bộ |
@@ -239,8 +239,8 @@ flowchart TD
 | Hàm | Vai trò |
 |-----|---------|
 | `get_default_monthly_analytics_limit()` | Đọc `app_settings` (fallback **5**). |
-| `effective_monthly_analytics_limit(custom, stored_limit)` | `custom = false` → global default; `custom = true` → `stored_limit` (`NULL` = unlimited). |
-| `resolve_monthly_analytics_limit(plan, custom, stored_limit)` | **Custom limit luôn thắng plan** (từ `20260703040000`): `custom = true` → `stored_limit` (`NULL` = unlimited), bất kể plan. Chỉ khi `custom = false` mới xét plan: `recruiter` = 500, `pro` = 100, `free` = `app_settings` default. |
+| `effective_monthly_analytics_limit(custom, stored_limit)` | `custom = false` → global default; `custom = true` → `stored_limit` (`NULL` = unlimited, **chỉ admin**; DB CHECK chặn non-admin). |
+| `resolve_monthly_analytics_limit(plan, custom, stored_limit)` | **Custom limit luôn thắng plan** (từ `20260703040000`): `custom = true` → `stored_limit` (`NULL` = unlimited, **chỉ admin**), bất kể plan. Chỉ khi `custom = false` mới xét plan: `recruiter` = 500, `pro` = 100, `free` = `app_settings` default. Admin luôn unlimited theo role. |
 | `check_analytics_quota(user_id, additional?)` | Trả JSON `allowed`, `used`, `limit`, `month` (chu kỳ `YYYY-MM-DD`), `plan`, `resetDay`, `reason`. Gọi **trước** khi chạy batch analyze. |
 | `increment_usage_count(user_id)` | Tăng `usage_count` sau mỗi CV thành công; chặn nếu đã đạt limit. |
 | `sync_profile_usage_month(user_id)` | Reset `usage_count` khi chu kỳ thay đổi (theo `quota_reset_day`) **HOẶC** khi plan pro/recruiter hết hạn → tự động downgrade về free + reset usage. |
@@ -299,21 +299,21 @@ User mới (`createUserProfile`): `monthly_analytics_limit_custom = false`, **kh
 |----------|---------|
 | **Hạn mức phân tích mặc định / tháng** (đầu tab Users) | Ghi `app_settings` qua `updateDefaultMonthlyAnalyticsLimit` — áp dụng cho mọi user `custom = false`. |
 | Cột « Phân tích / tháng » | Hiển thị `effectiveUsageCount / effectiveLimit` (`resolveEffectiveMonthlyAnalyticsLimit` + global default đã load). `effectiveUsageCount` đọc từ computed column `effective_usage_count`, không phải `usage_count` thô — tránh hiện số cũ (xem "Chu kỳ quota" trên). |
-| Modal "Chỉnh sửa" — chọn gói | Ẩn 3 option Pro (30/90/365 ngày) khi user hiện tại là recruiter active (xem "Chặn downgrade recruiter → pro" trên). |
-| Nhập số + blur | `updateUserMonthlyAnalyticsLimit` → `custom = true`, lưu limit. |
-| Ô trống + blur (khi đã custom) | `monthly_analytics_limit = NULL` → **không giới hạn**. |
-| **Dùng mặc định** | `resetUserToGlobalAnalyticsLimit` → `custom = false` (nhận lại giá trị từ `app_settings`). |
-| Blur ô trống khi **chưa** custom | Không gọi API (tránh vô tình set unlimited). |
+| Modal "Chỉnh sửa" — chọn gói | Ẩn 3 option Pro (30/90/365 ngày) khi user hiện tại là recruiter active (xem "Chặn downgrade recruiter → pro" trên). Preset là **cộng dồn** ("Pro +30 ngày"), không phải đặt còn đúng 30 ngày. |
+| Modal — hạn mức | User thường chỉ có **Theo mặc định hệ thống** hoặc **Giới hạn riêng** (số nguyên ≥ 0). Không còn "unlimited" cho user thường. |
+| Lưu modal | Một call `adminUpdateUser` → API `/api/admin/update-user` → RPC `admin_update_user` atomic plan + limit + audit. Không còn chuỗi 2 write riêng. |
+| **Admin** | Luôn `∞` theo `role`; không cần/không cho chỉnh custom limit. |
+| Legacy `custom=true, limit=NULL` | Cảnh báo trong modal; admin chọn mặc định hoặc số cụ thể để chuyển đổi. DB CHECK `profiles_admin_only_unlimited_limit` chặn tạo mới. |
 
 ### File mã nguồn
 
 | File | Vai trò |
 |------|---------|
 | `src/services/appSettingsService.ts` | `getDefaultMonthlyAnalyticsLimit`, `updateDefaultMonthlyAnalyticsLimit` |
-| `src/services/userService.ts` | Profile map, `resolveEffectiveMonthlyAnalyticsLimit`, `resetUserToGlobalAnalyticsLimit` |
+| `src/services/userService.ts` | Profile map, `resolveEffectiveMonthlyAnalyticsLimit`, `adminUpdateUser` (atomic plan+limit) |
 | `src/services/analyticsQuotaService.ts` | Client gọi RPC `check_analytics_quota` |
 | `src/context/analysis/AnalysisRunContext.tsx` | Kiểm tra quota trước analyze |
-| `src/components/views/AdminView.tsx` | UI cấu hình global + override từng user |
+| `src/components/views/AdminView.tsx` | UI cấu hình global + list/filter server-side + modal atomic |
 | `src/translations/admin.ts` | Nhãn VI/EN cho cấu hình global |
 
 ### Đổi hạn mức **không deploy** Vercel
@@ -343,7 +343,7 @@ Chỉ user có `monthly_analytics_limit_custom = false` nhận giá trị mới.
 1. User `custom = false`, global = 5, `usage_count = 5` → lượt 6 bị `check_analytics_quota` từ chối.
 2. `UPDATE app_settings` → 30 → cùng user được thêm quota (không redeploy frontend).
 3. User `custom = true`, `monthly_analytics_limit = 5` → vẫn 5 dù global = 30.
-4. User `custom = true`, `monthly_analytics_limit IS NULL` → unlimited.
+4. `custom = true`, `monthly_analytics_limit IS NULL` → unlimited **chỉ khi `role=admin`**; constraint `profiles_admin_only_unlimited_limit` chặn non-admin.
 5. Qua ngày reset của chu kỳ (`quota_reset_day`, tính theo giờ ICT — `current_quota_cycle`) → `usage_count` reset về 0 (giữ limit). Xem [11_timezone.md](11_timezone.md).
 
 ### Thông báo lỗi (UI)
@@ -364,7 +364,7 @@ Chỉ user có `monthly_analytics_limit_custom = false` nhận giá trị mới.
 
 ## Admin Report tab (thống kê lượt phân tích theo ngày)
 
-Tab thứ 3 trong `AdminView` (`adminSubTab = 'report'`), cạnh Users/Email. **Khác hoàn toàn** với `profiles.usage_count` (hạn mức/tháng) — tab này đếm từ bảng log riêng, không reset theo tháng, không liên quan quota.
+Tab thứ 2 trong `AdminView` (`adminSubTab = 'report'`), cạnh Users. Tab này hiển thị **volume gọi analyze** (từ bảng log riêng, không reset) **và** card **quota đã dùng** (`profiles.effective_usage_count`, chu kỳ hiện tại) — hai metric tách biệt, không cộng trừ nhau.
 
 ### Bảng `analysis_log`
 
@@ -384,9 +384,12 @@ Ghi bởi `logAnalysisAttempt()` trong `_server-lib/analyze/handler.ts` — fire
 
 | Hiển thị | Nguồn |
 |----------|-------|
-| User mới đăng ký trong khoảng lọc | `profiles.created_at >= start` (đã có RLS admin-select sẵn, không cần RPC riêng) |
+| User mới đăng ký trong khoảng lọc | `profiles.created_at` trong range, loại `role=admin`; trả trong RPC aggregate |
 | Lượt phân tích theo ngày (chart), thành công/thất bại | `analysis_log`, group theo `status` + ngày (giờ **Asia/Ho_Chi_Minh**, khớp `current_quota_cycle`) |
 | Top user phân tích nhiều nhất | `analysis_log.user_id` group + count, join `profiles` lấy email/display_name |
+| Quota đã dùng (chu kỳ hiện tại) | `SUM(public.effective_usage_count(p))` trên profile không phải admin — snapshot, không theo range |
+| Latency p50/p95, lỗi analyze theo category | RPC `admin_report_ops` (percentile + group `error_message`) |
+| Model mix & cost | RPC `admin_report_stats` trả bucket `(model,input_tokens,output_tokens)`, client tính từ `GEMINI_PRICING` |
 
 Filter: **Hôm nay / 7 ngày / 30 ngày** — tính theo GMT+7 (không theo giờ máy admin).
 
@@ -394,7 +397,9 @@ Filter: **Hôm nay / 7 ngày / 30 ngày** — tính theo GMT+7 (không theo gi�
 
 | File | Vai trò |
 |------|---------|
-| `src/services/adminReportService.ts` | `getAdminReportStats(range)` — query `analysis_log` + `profiles`, tính toán client-side |
+| `src/services/adminReportService.ts` | `getAdminReportStats(range)` — gọi RPC `admin_report_stats`, chỉ tính cost từ các bucket `model_usage` trả về |
+| `supabase/migrations/20261101170000_admin_report_stats.sql` | RPC aggregate: daily zero-fill, top user, token theo model, quota hiện tại |
+| `supabase/migrations/20261101230000_admin_report_ops.sql` | RPC latency p50/p95 + top analyze error categories |
 | `src/components/views/AdminReportTab.tsx` | UI: filter, summary cards, bar chart (Recharts), bảng top user |
 | `src/components/views/AdminView.tsx` | Tab switcher (`adminSubTab`) |
 

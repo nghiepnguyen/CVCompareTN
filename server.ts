@@ -56,7 +56,7 @@ app.use('/api/recruiter', strictLimiter, recruiterRouter); // Recruiter save-ana
 app.use('/api/analyze', strictLimiter, analyzeRouter); // Gemini analysis — 10 req / 15 min
 app.use('/api/rewrite-cv', strictLimiter, rewriteCvRouter); // Gemini CV rewrite (background) — 10 req / 15 min
 app.use('/api/parse-cv', strictLimiter, parseCvRouter); // Gemini CV parse (background) — 10 req / 15 min
-app.use('/api/admin', strictLimiter, adminRouter); // Admin operations — 10 req / 15 min
+app.use('/api/admin', adminRouter); // Admin ops — shared Postgres rate limit (per admin, 120/15 min)
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {

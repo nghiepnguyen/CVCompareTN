@@ -1,30 +1,21 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import type { AdminUsersPage, AdminUsersQuery, UserProfile } from '../../services/userService';
 
-const rangeCalls: Array<[number, number]> = [];
 let realtimeHandler: (() => void) | null = null;
-let totalInDb = 120;
+let fetchCalls: AdminUsersQuery[] = [];
+let fetchImpl: (query: AdminUsersQuery) => Promise<AdminUsersPage>;
+
+vi.mock('../../services/userService', () => ({
+  fetchAdminUsersPage: (query: AdminUsersQuery) => {
+    fetchCalls.push(query);
+    return fetchImpl(query);
+  },
+}));
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
-    from: () => ({
-      select: () => ({
-        order: () => ({
-          range: (from: number, to: number) => {
-            rangeCalls.push([from, to]);
-            const rows = Array.from({ length: to - from + 1 }, (_, i) => ({
-              id: `u${from + i}`,
-              email: `u${from + i}@x.com`,
-              created_at: '2026-09-01T00:00:00Z',
-              usage_count: 0,
-              effective_usage_count: 0,
-            }));
-            return Promise.resolve({ data: rows, error: null, count: totalInDb });
-          },
-        }),
-      }),
-    }),
     channel: () => {
       const ch = {
         on: (_evt: string, _filter: unknown, cb: () => void) => {
@@ -41,6 +32,41 @@ vi.mock('../../lib/supabase', () => ({
 
 import { useAdminUsers } from '../../hooks/useAdminUsers';
 
+const QUERY: AdminUsersQuery = {
+  search: '',
+  plan: 'all',
+  role: 'all',
+  status: 'all',
+  sort: 'created_desc',
+  page: 1,
+  pageSize: 20,
+};
+
+function profile(id: string): UserProfile {
+  return {
+    id,
+    email: `${id}@x.com`,
+    displayName: id,
+    photoURL: '',
+    role: 'user',
+    createdAt: '2026-09-01T00:00:00Z',
+    isNew: false,
+    hasPermission: true,
+    usageCount: 0,
+    effectiveUsageCount: 0,
+    monthlyAnalyticsLimit: null,
+    monthlyAnalyticsLimitCustom: false,
+    usageMonth: '2026-09-01',
+    plan: 'free',
+    planExpiresAt: null,
+    quotaResetDay: 1,
+  };
+}
+
+function page(rows: UserProfile[], total = rows.length): AdminUsersPage {
+  return { rows, total, newUsersCount: 0, newUsers: [] };
+}
+
 async function flush() {
   await act(async () => {
     await Promise.resolve();
@@ -50,72 +76,105 @@ async function flush() {
 describe('useAdminUsers', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    rangeCalls.length = 0;
+    fetchCalls = [];
     realtimeHandler = null;
-    totalInDb = 120;
+    fetchImpl = async (query) => {
+      const rows = [profile(`u${query.page}`)];
+      return page(rows, 120);
+    };
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('exposes the real DB total, not just the loaded window', async () => {
-    const { result } = renderHook(() => useAdminUsers());
+  it('passes the server query through and exposes total/new-user data', async () => {
+    fetchImpl = async () => ({
+      rows: [profile('u1'), profile('u2')],
+      total: 120,
+      newUsersCount: 3,
+      newUsers: [profile('new')],
+    });
+
+    const { result } = renderHook(() => useAdminUsers(QUERY));
     await flush();
 
-    expect(result.current.users).toHaveLength(50);
+    expect(fetchCalls).toEqual([QUERY]);
+    expect(result.current.users).toHaveLength(2);
     expect(result.current.totalCount).toBe(120);
+    expect(result.current.newUsersCount).toBe(3);
+    expect(result.current.newUsers).toHaveLength(1);
+  });
+
+  it('refetches when a filter/page changes and keeps the latest result', async () => {
+    const { result, rerender } = renderHook(({ query }) => useAdminUsers(query), {
+      initialProps: { query: QUERY },
+    });
+    await flush();
+
+    const next = { ...QUERY, page: 2, search: 'bob' };
+    rerender({ query: next });
+    await flush();
+
+    expect(fetchCalls.at(-1)).toEqual(next);
+    expect(result.current.users[0].id).toBe('u2');
   });
 
   it('coalesces a burst of realtime events into a single re-fetch', async () => {
-    renderHook(() => useAdminUsers());
+    renderHook(() => useAdminUsers(QUERY));
     await flush();
-    rangeCalls.length = 0;
+    fetchCalls = [];
 
     act(() => {
       for (let i = 0; i < 10; i++) realtimeHandler?.();
     });
-    expect(rangeCalls).toHaveLength(0);
+    expect(fetchCalls).toHaveLength(0);
 
     await act(async () => {
       vi.advanceTimersByTime(1000);
     });
-    expect(rangeCalls).toEqual([[0, 49]]);
+    expect(fetchCalls).toEqual([QUERY]);
   });
 
-  it('re-fetches periodically so time-based quota rollover shows without a row write', async () => {
-    renderHook(() => useAdminUsers());
+  it('re-fetches periodically and when the tab becomes visible again', async () => {
+    renderHook(() => useAdminUsers(QUERY));
     await flush();
-    rangeCalls.length = 0;
+    fetchCalls = [];
 
     await act(async () => {
       vi.advanceTimersByTime(5 * 60 * 1000);
     });
-    expect(rangeCalls).toEqual([[0, 49]]);
-  });
+    expect(fetchCalls).toHaveLength(1);
 
-  it('re-fetches when the tab becomes visible again', async () => {
-    renderHook(() => useAdminUsers());
-    await flush();
-    rangeCalls.length = 0;
-
+    fetchCalls = [];
     await act(async () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    expect(rangeCalls).toEqual([[0, 49]]);
+    expect(fetchCalls).toHaveLength(1);
+  });
+
+  it('exposes the fetch error', async () => {
+    fetchImpl = async () => {
+      throw new Error('rpc failed');
+    };
+
+    const { result } = renderHook(() => useAdminUsers(QUERY));
+    await flush();
+
+    expect(result.current.error).toBe('rpc failed');
   });
 
   it('stops timers and listeners on unmount', async () => {
-    const { unmount } = renderHook(() => useAdminUsers());
+    const { unmount } = renderHook(() => useAdminUsers(QUERY));
     await flush();
     unmount();
-    rangeCalls.length = 0;
+    fetchCalls = [];
 
     await act(async () => {
       realtimeHandler?.();
       document.dispatchEvent(new Event('visibilitychange'));
       vi.advanceTimersByTime(10 * 60 * 1000);
     });
-    expect(rangeCalls).toHaveLength(0);
+    expect(fetchCalls).toHaveLength(0);
   });
 });
