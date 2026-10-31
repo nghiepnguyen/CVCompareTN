@@ -126,7 +126,9 @@ Tệp `vercel.json` ở thư mục gốc đóng vai trò quan trọng trong vi�
     | `object-src` | `'none'` |
     | `frame-ancestors` | `'none'` (bổ sung cho `X-Frame-Options`) |
 
-    > `'unsafe-inline'` cho script/style là cần thiết do có inline script SEO pre-hydration, script gắn class `js` (ẩn `#seo-static`) và gtag init trong `index.html`. Nếu muốn loại bỏ, cần chuyển các script inline ra file ngoài và dùng nonce/hash.
+    > `'unsafe-inline'` cho script/style là cần thiết do có inline script SEO pre-hydration và gtag init trong `index.html`. Nếu muốn loại bỏ, cần chuyển các script inline ra file ngoài và dùng nonce/hash.
+
+Nội dung `#seo-static` phải hiển thị trong lúc tải bundle React, dùng cùng HTML cho user và crawler. Không ẩn bằng class `js`, `display:none` hoặc opacity: việc đó tạo trang trắng trước khi React chạy. React tự thay nội dung trong `#root` khi commit lần đầu; CSS cho nội dung tĩnh nằm trong `src/index.css`.
 
 ## 4b. Cloudflare edge và verify branding Google Auth Platform
 

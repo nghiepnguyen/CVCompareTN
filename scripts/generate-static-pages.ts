@@ -180,11 +180,9 @@ function buildSchemaGraph(subPath: string, lang: 'vi' | 'en', desc: string) {
   return { '@context': 'https://schema.org', '@graph': graph };
 }
 
-// Crawlable body content injected into the pre-rendered static HTML (index.html's
-// #root is empty until React hydrates client-side — bots that don't run JS, like a
-// non-JS-rendering Ahrefs crawl, would otherwise see zero content and zero outgoing
-// links). Kept as hand-written markup rather than importing the real page components,
-// which pull in Supabase/Sentry/GA4 init code that isn't safe to run outside Vite.
+// Public body content for first paint and non-JS crawlers. Keep this visible
+// until React replaces #root. Page components pull in Supabase/Sentry/GA4 init
+// code that isn't safe to run outside Vite, so render shared translations here.
 const SUPPORT_COPY: Record<Lang, { title: string; heroDesc: string; features: { title: string; desc: string }[] }> = {
   vi: {
     title: 'Hỗ Trợ Phát Triển',
@@ -414,11 +412,8 @@ function renderPage(template: string, subPath: string, lang: 'vi' | 'en'): strin
 
   $('script[type="application/ld+json"]').text(JSON.stringify(buildSchemaGraph(subPath, lang, desc), null, 2));
 
-  // Real, un-clipped content for agents that don't run JS — Google's OAuth brand
-  // verification crawler and Ahrefs both read the raw HTML. It is NOT visually
-  // hidden (clipped text reads as cloaking and gets discounted); instead index.html
-  // adds `.js` to <html> in a head script, and `.js #seo-static { display:none }`
-  // removes it before first paint for real users. React wipes #root on mount anyway.
+  // Shared first-paint content for visitors and non-JS crawlers; React replaces
+  // this subtree on its first commit. Never hide it before the app is ready.
   const bodyHtml = `<div id="seo-static">${renderNav(lang)}<main>${renderRouteContent(subPath, lang)}</main>${renderFooterLinks(lang)}</div>`;
   $('#root').html(bodyHtml);
 
