@@ -314,6 +314,7 @@ User mới (`createUserProfile`): `monthly_analytics_limit_custom = false`, **kh
 | `src/services/analyticsQuotaService.ts` | Client gọi RPC `check_analytics_quota` |
 | `src/context/analysis/AnalysisRunContext.tsx` | Kiểm tra quota trước analyze |
 | `src/components/views/AdminView.tsx` | UI cấu hình global + list/filter server-side + modal atomic |
+| `src/hooks/usePublicPlanLimits.ts` | Fetch `get_public_plan_limits` cho bảng giá landing/upgrade; refresh khi tab focus |
 | `src/translations/admin.ts` | Nhãn VI/EN cho cấu hình global |
 
 ### Đổi hạn mức **không deploy** Vercel

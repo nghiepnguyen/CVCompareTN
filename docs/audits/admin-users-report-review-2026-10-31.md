@@ -744,3 +744,17 @@ WHERE role <> 'admin'
 **Chưa triển khai production:** migrations `20261101200000`–`20261101250000` và bundle code mới chưa apply/deploy. Thứ tự: apply `160000`–`240000` trước → deploy bundle → apply `250000` (revoke direct `app_settings` write) sau cùng; nếu `250000` lên trước, bundle cũ sẽ lỗi khi lưu global limit.
 
 **Còn lại:** filter page/query trong URL; quick filter new/expiring; custom date range; focus trap; CSV theo lịch; audit export UI.
+
+---
+
+## 15. Fix: giá gói Free không theo global limit (2026-10-31)
+
+**Triệu chứng:** admin đổi `app_settings.default_monthly_analytics_limit` nhưng bảng giá trang chủ vẫn ghi `5`; trang Upgrade chỉ đọc một lần lúc mount, người chưa đăng nhập không đọc được `app_settings` do RLS `authenticated`-only.
+
+**Sửa:**
+- Migration `20261101260000_public_plan_limits.sql`: RPC `get_public_plan_limits()` — `SECURITY DEFINER`, grant `anon` + `authenticated`, trả `{free, pro, recruiter}`; free lấy từ `get_default_monthly_analytics_limit()`, pro/recruiter qua `resolve_monthly_analytics_limit`.
+- `usePublicPlanLimits` + `publicPlanLimitsService`: cache theo session, refresh khi tab focus; fallback 5/100/500 nếu RPC lỗi.
+- `PricingSection` (landing) và `UpgradeView` dùng hook thay vì hardcode `5`/`100`/`500`.
+- SQL test `public_plan_limits.test.sql`: gọi bằng role `anon`, assert free đổi theo app_settings.
+
+**Trạng thái:** code + migration local; `20261101260000` chưa apply production. Cần apply migration trước/đồng thời deploy bundle để bảng giá lấy số mới.
