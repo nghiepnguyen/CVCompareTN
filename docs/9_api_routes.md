@@ -55,6 +55,7 @@ flowchart TB
 - **Production** deployment on Vercel.
 - Same URL shape as the app (`/api/...`); `vercel.json` maps sources to handler files.
 - Use for secrets that must not ship in the client bundle (Resend, reCAPTCHA server verify, PDF parsing on server).
+- **CORS + body limit (2026-10-31):** mọi handler gọi `_server-lib/http/guard.ts` — chỉ echo `Access-Control-Allow-Origin` cho allowlist `cvfit.pro`/`www.cvfit.pro` (thêm localhost ngoài production), trả preflight `OPTIONS` 204; body khai báo vượt ngưỡng theo route (`BODY_LIMITS.ai/pdf` 16 MB, `json` 256 KB) nhận **413** trước khi parse. Express đã có allowlist + `express.json({limit:'50mb'})` từ trước.
 
 ### Express (`npm start` → `server.ts` + `server/routes/`)
 

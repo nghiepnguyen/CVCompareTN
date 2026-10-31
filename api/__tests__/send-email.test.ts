@@ -20,7 +20,7 @@ describe('api/send-email', () => {
     const status = vi.fn(() => ({ json }));
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    await handler(req, { status } as unknown as VercelResponse);
+    await handler(req, { status, setHeader: vi.fn(), end: vi.fn() } as unknown as VercelResponse);
 
     expect(status).toHaveBeenCalledWith(400);
   });

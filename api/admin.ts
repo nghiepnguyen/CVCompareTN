@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, handlePreflight, rejectOversizedBody, BODY_LIMITS } from '../_server-lib/http/guard.js';
 import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
 import { getUserFromBearerToken, getSupabaseAdmin } from '../_server-lib/payment/supabaseAdmin.js';
 import { adminDeleteUser } from '../_server-lib/admin/deleteUser.js';
@@ -13,6 +14,9 @@ import { logAdminAudit } from '../_server-lib/admin/audit.js';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentryServer();
 
+  applyCors(req, res);
+  if (handlePreflight(req, res)) return;
+
   const urlPath = new URL(req.url || '', `https://${req.headers.host}`).pathname;
   const segments = urlPath.replace(/\/$/, '').split('/');
   const action = segments[segments.length - 1] || '';
@@ -20,6 +24,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  if (rejectOversizedBody(req, res, BODY_LIMITS.json)) return;
 
   try {
     // Authenticate the caller

@@ -1,4 +1,5 @@
 import { handleStorage } from '../_server-lib/storage/handler.js';
+import { applyCors, handlePreflight, rejectOversizedBody, BODY_LIMITS } from '../_server-lib/http/guard.js';
 import { runStorageCleanup, validCleanupSecret } from '../_server-lib/storage/cleanup.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { handleExtractPdf } from '../_server-lib/pdf/handler.js';
@@ -7,6 +8,10 @@ import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentryServer();
+
+  applyCors(req, res);
+  if (handlePreflight(req, res)) return;
+  if (rejectOversizedBody(req, res, BODY_LIMITS.pdf)) return;
 
   if (req.query?.resource === 'storage') {
     res.setHeader('Cache-Control', 'private, no-store');

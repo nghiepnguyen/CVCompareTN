@@ -1,9 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, handlePreflight, rejectOversizedBody, BODY_LIMITS } from '../_server-lib/http/guard.js';
 import { handleSendFeedback, handleSendWelcomeEmail } from '../_server-lib/email/handlers.js';
 import { clientIpFromHeaders } from '../_server-lib/rateLimit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  applyCors(req, res);
+  if (handlePreflight(req, res)) return;
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
+
+  if (rejectOversizedBody(req, res, BODY_LIMITS.json)) return;
 
   // req.body is a lazy getter that throws on a malformed Content-Type.
   let type: unknown;

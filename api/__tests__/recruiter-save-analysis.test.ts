@@ -32,7 +32,7 @@ function run(rpcResult: unknown) {
   mockGetAdmin.mockReturnValue({ rpc } as never);
   const json = vi.fn();
   const status = vi.fn(() => ({ json }));
-  return handler(req, { status } as unknown as VercelResponse).then(() => ({ rpc, status, json }));
+  return handler(req, { status, setHeader: vi.fn(), end: vi.fn() } as unknown as VercelResponse).then(() => ({ rpc, status, json }));
 }
 
 describe('POST /api/recruiter/save-analysis', () => {
