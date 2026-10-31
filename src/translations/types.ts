@@ -53,6 +53,9 @@ export interface UiLabels {
   adminQuickFilterAll: string;
   adminQuickFilterNew: string;
   adminQuickFilterExpiring: string;
+  adminFiltersActive: string;
+  adminFiltersClearAll: string;
+  adminFiltersRemove: string;
   adminSortLabel: string;
   adminSortCreatedDesc: string;
   adminSortCreatedAsc: string;
