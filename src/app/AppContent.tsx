@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ChunkLoadErrorBoundary } from '../components/ChunkLoadErrorBoundary';
 import { SupabaseConfigError } from '../components/SupabaseConfigError';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertCircle, Loader2, FileSearch, X } from 'lucide-react';
+import { AlertCircle, Loader2, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
 import { useAnalysis } from '../context/AnalysisContext';
@@ -69,7 +69,7 @@ const PaymentCancelView = React.lazy(() =>
 );
 
 export function AppContent() {
-  const { user, userProfile, error, setError, isAuthInitialized, isRedirectChecked, isSupabaseConfigured } = useAuth();
+  const { user, userProfile, error, setError, isAuthInitialized, isRedirectChecked, isSupabaseConfigured, isLoadingProfile, refreshUserProfile } = useAuth();
   const {
     activeTab,
     setActiveTab,
@@ -182,10 +182,10 @@ export function AppContent() {
   // and render a blank content area. Wait for auth/profile initialization so an
   // admin's own refresh doesn't get bounced before their profile arrives.
   useEffect(() => {
-    if (isAuthInitialized && user && activeTab === 'admin' && !isAdmin) {
+    if (isAuthInitialized && user && userProfile && !isLoadingProfile && activeTab === 'admin' && !isAdmin) {
       setActiveTab('analyze');
     }
-  }, [isAuthInitialized, user, activeTab, isAdmin, setActiveTab]);
+  }, [isAuthInitialized, user, userProfile, isLoadingProfile, activeTab, isAdmin, setActiveTab]);
 
   const handleLoadSavedJD = (content: string) => {
     setJd(content);
@@ -212,19 +212,11 @@ export function AppContent() {
     return <SupabaseConfigError />;
   }
 
-  if (!isAuthInitialized || !isRedirectChecked) {
-    return (
-      <div className="min-h-screen bg-surface-secondary flex flex-col items-center justify-center p-4">
-        <div className="w-16 h-16 bg-surface rounded-3xl shadow-xl flex items-center justify-center mb-6 animate-bounce">
-          <FileSearch className="w-8 h-8 text-accent" />
-        </div>
-        <div className="flex items-center gap-3 bg-surface px-6 py-3 rounded-2xl shadow-sm border border-border">
-          <Loader2 className="w-5 h-5 text-accent animate-spin" />
-          <span className="text-sm font-bold text-text-muted tracking-tight">{t.appInitializing}</span>
-        </div>
-      </div>
-    );
-  }
+  const isPublicPage = ['privacy', 'terms', 'support', 'about'].includes(activeTab);
+  const isAuthPending = !isAuthInitialized || !isRedirectChecked;
+  const isAccountPending = !isPublicPage && (
+    (isAuthPending && activeTab !== 'analyze') || (!!user && !userProfile)
+  );
 
   return (
     <div
@@ -267,6 +259,25 @@ export function AppContent() {
               <SupportDevelopmentPage onBack={() => setActiveTab('analyze')} language={reportLanguage} />
             ) : activeTab === 'about' ? (
               <AboutPage onBack={() => setActiveTab('analyze')} />
+            ) : isAccountPending ? (
+              <div role="status" className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 pt-24 text-center">
+                {isAuthPending || isLoadingProfile ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                    <p className="text-sm font-bold text-text-muted">{t.appInitializing}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-text-muted">{t.appProfileUnavailable}</p>
+                    <button
+                      onClick={() => void refreshUserProfile()}
+                      className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition-transform cursor-pointer hover:scale-105 active:scale-95"
+                    >
+                      {t.appRetry}
+                    </button>
+                  </>
+                )}
+              </div>
             ) : activeTab === 'upgrade' && user ? (
               <UpgradeView />
             ) : activeTab === 'upgrade' && !user ? (
@@ -419,7 +430,7 @@ export function AppContent() {
           }}
         />
 
-          {!user && (
+          {!user && !isAuthPending && isSupabaseConfigured === true && (
             <ChunkLoadErrorBoundary>
               <React.Suspense fallback={null}>
                 <AuthModal />

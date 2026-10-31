@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutDashboard, History as HistoryIcon, ShieldCheck, Briefcase, LogOut, LogIn, ExternalLink, User as UserIcon, Sparkles, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, History as HistoryIcon, ShieldCheck, Briefcase, LogOut, LogIn, Loader2, ExternalLink, User as UserIcon, Sparkles, Sun, Moon } from 'lucide-react';
 import { Logo } from '../icons/Logo';
 import { useAuth } from '../../context/AuthContext';
 import { formatPlanExpiryDate, isProPlan, isRecruiterPlan } from '../../lib/planLimits';
@@ -10,14 +10,15 @@ import { useAnalysis } from '../../context/AnalysisContext';
 import { trackEvent } from '../../lib/ga4';
 import { cn } from '../../lib/utils';
 import { UserAvatar } from '../ui/UserAvatar';
+import { Skeleton } from '../ui/Skeleton';
 
 export function Header() {
-  const { user, userProfile, effectivePlan, adminNewUsersCount, login, logout, openAuthModal } = useAuth();
+  const { user, userProfile, effectivePlan, adminNewUsersCount, isAuthInitialized, isLoadingProfile, logout, openAuthModal } = useAuth();
   // AuthContext resolves role === 'admin' to the 'pro' plan, so admin must not
   // be treated as a recruiter here — otherwise the header shows RECRUITER while
   // ProfileView shows PRO for the same account.
-  const showProBadge = !!user && isProPlan(effectivePlan);
-  const showRecruiterBadge = !!user && isRecruiterPlan(effectivePlan);
+  const showProBadge = !!user && !!userProfile && isProPlan(effectivePlan);
+  const showRecruiterBadge = !!user && !!userProfile && isRecruiterPlan(effectivePlan);
   const showRecruiterTab = !!user;
   const { activeTab, setActiveTab, navigateToUpgrade, reportLanguage, setReportLanguage, isUserMenuOpen, setIsUserMenuOpen, isDarkMode, toggleTheme, t } = useUI();
   const { selectedResult, setSelectedResult } = useAnalysis();
@@ -185,7 +186,12 @@ export function Header() {
           )}
 
           {/* ---- User Section ---- */}
-          {user ? (
+          {!isAuthInitialized ? (
+            <div role="status" aria-label={t.appCheckingSession} className="flex h-9 w-9 items-center justify-center text-accent">
+              <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
+              <span className="sr-only">{t.appCheckingSession}</span>
+            </div>
+          ) : user ? (
             <div className="relative">
               <button 
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
@@ -215,6 +221,9 @@ export function Header() {
                       <div className="px-4 py-3 border-b dark:border-white/[0.06] border-border mb-1 rounded-t-2xl">
                         <div className="flex items-center gap-2">
                           <div className="text-sm font-bold text-text-main truncate">{user.user_metadata?.full_name || user.email}</div>
+                          {!userProfile && isLoadingProfile && (
+                            <Skeleton label={t.appLoadingContent} className="h-3 w-12 shrink-0" />
+                          )}
                           {showRecruiterBadge && (
                             <span className="text-[10px] font-black px-1.5 py-0.5 rounded dark:bg-purple-500/10 bg-purple-100 dark:text-purple-400 text-purple-700 border dark:border-purple-400/20 border-purple-300 shrink-0">
                               RECRUITER
@@ -245,7 +254,7 @@ export function Header() {
                         <UserIcon className="w-4 h-4" />
                         {t.profile}
                       </button>
-                      {!showProBadge && !showRecruiterBadge && (
+                      {userProfile && !showProBadge && !showRecruiterBadge && (
                         <button
                           type="button"
                           onClick={() => {
