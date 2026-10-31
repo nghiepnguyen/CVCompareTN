@@ -214,6 +214,8 @@ SELECT has_table_privilege('authenticated','public.profiles','UPDATE'),
 
 SQL test cho các migration này: `supabase/tests/*.test.sql`, chạy local bằng `supabase/tests/local/run.sh "$PWD" /repo/tests/<file>.sql` (Postgres 16 disposable, không network).
 
+**Trạng thái production 2026-10-31 (rate limit):** `20261101100000` và `20261101100001` đã áp lên project `cvFit.pro` (`pgchcnmpuknbgyljdlyp`) bằng `supabase db query --linked -f` trong `BEGIN/COMMIT` (lock_timeout 5s, statement_timeout 30s), rồi ghi history bằng `supabase migration repair --linked --status applied`. Verify sau áp: bảng `api_rate_limits` tồn tại, RLS bật, `anon`/`authenticated` không có quyền bảng hoặc EXECUTE, `service_role` chạy được; gọi RPC 3 lần với limit 2 cho `true, true, false` và `retry_after ≥ 1`; cron `purge-api-rate-limits` active, schedule `10 20 * * *`. Fixture verify chạy trong transaction rollback, không để lại dòng nào. **Bundle API chưa deploy** nên các endpoint chưa gọi RPC cho tới lần deploy kế tiếp.
+
 ### Account lock — phần API và DB guard
 
 **Trạng thái production 2026-10-30 23:13 ICT:** migration `20261101090000` đã áp và ghi migration history. Verify metadata đạt 8 trigger, 6 restrictive SELECT policies, RLS/ACL đúng. Bundle API đã deploy ngày 2026-10-31: `dpl_5pzMwXHxqqUYGSitzYT5A2z9YwUm` (Ready), `cvfit.pro` đã chuyển sang bản này. Chưa kiểm thử khóa/mở khóa bằng tài khoản test trên production.
