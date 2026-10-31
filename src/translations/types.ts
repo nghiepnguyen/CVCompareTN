@@ -193,6 +193,10 @@ export interface UiLabels {
   appErrorNotice: string;
   appErrorTitle: string;
   appInitializing: string;
+  appCheckingSession: string;
+  appProfileUnavailable: string;
+  appRetry: string;
+  appLimitsUnavailable: string;
   appLoadingContent: string;
   appRefresh: string;
   appUnknownError: string;

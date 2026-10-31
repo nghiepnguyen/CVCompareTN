@@ -1,5 +1,5 @@
 // @refresh reset — provider and hook share this module; see UIContext.tsx.
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase, bootstrapSupabase } from '../lib/supabase';
 import {
@@ -13,6 +13,7 @@ import { trackEvent } from '../lib/ga4';
 import { setSentryUser } from '../lib/sentryUser';
 
 const SESSION_INIT_TIMEOUT_MS = 6000;
+const PROFILE_LOAD_TIMEOUT_MS = 8000;
 
 /** Resolves to the promise's value, or null if it doesn't settle within `ms`. */
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
@@ -75,37 +76,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isRedirectChecked, setIsRedirectChecked] = useState(true); // OAuth redirect handled by Supabase session
   const [isSupabaseConfigured, setIsSupabaseConfigured] = useState<boolean | null>(null);
   const [authModalMode, setAuthModalMode] = useState<AuthModalMode>(null);
+  const currentUserId = useRef<string | null>(null);
+  const profileRequestId = useRef(0);
   
   const loadUserProfileData = async (currentUser: User) => {
+    if (currentUser.id !== currentUserId.current) return;
+    const requestId = ++profileRequestId.current;
     setIsLoadingProfile(true);
     try {
-      let profile = await getUserProfile(currentUser.id);
-      
-      if (!profile) {
-        try {
-          profile = await createUserProfile(currentUser);
-        } catch (createErr: unknown) {
-          // Nếu báo lỗi trùng ID (23505), nghĩa là hồ sơ vừa được tạo hoặc đã tồn tại
-          if ((createErr as { code?: string })?.code === '23505') {
-            profile = await getUserProfile(currentUser.id);
-          } else {
-            throw createErr;
+      const result = await withTimeout((async () => {
+        let profile = await getUserProfile(currentUser.id);
+        if (requestId !== profileRequestId.current) return null;
+        if (!profile) {
+          try {
+            profile = await createUserProfile(currentUser);
+          } catch (createErr: unknown) {
+            if ((createErr as { code?: string })?.code === '23505') {
+              profile = await getUserProfile(currentUser.id);
+            } else {
+              throw createErr;
+            }
           }
         }
-      }
-      setUserProfile(profile);
-      if (profile) {
-        const plan =
-          profile.role === 'admin' ? 'pro' : await fetchEffectiveUserPlan(currentUser.id);
-        setEffectivePlan(plan);
-      } else {
-        setEffectivePlan('free');
-      }
+        const plan = profile?.role === 'admin' ? 'pro' : profile
+          ? await fetchEffectiveUserPlan(currentUser.id) : 'free';
+        return { profile, plan };
+      })(), PROFILE_LOAD_TIMEOUT_MS);
+      if (requestId !== profileRequestId.current) return;
+      if (!result?.profile) throw new Error('Không tải được hồ sơ trong thời gian cho phép.');
+      setUserProfile(result.profile);
+      setEffectivePlan(result.plan);
     } catch (err: unknown) {
+      if (requestId !== profileRequestId.current) return;
+      setUserProfile(null);
+      setEffectivePlan('free');
       console.error("Lỗi khi tải thông tin người dùng:", err);
       setError("Không thể tải thông tin hồ sơ: " + (err instanceof Error ? err.message : String(err)));
     } finally {
-      setIsLoadingProfile(false);
+      if (requestId === profileRequestId.current) {
+        ++profileRequestId.current;
+        setIsLoadingProfile(false);
+      }
     }
   };
 
@@ -121,6 +132,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isMounted = true;
     let subscription: { unsubscribe: () => void } | undefined;
+    let profileTimer: ReturnType<typeof setTimeout> | undefined;
+    let authEventVersion = 0;
+
+    const applyUser = (currentUser: User | null) => {
+      if (!isMounted) return;
+      if (profileTimer) clearTimeout(profileTimer);
+      ++profileRequestId.current;
+      if (currentUserId.current !== (currentUser?.id ?? null)) {
+        setUserProfile(null);
+        setEffectivePlan('free');
+      }
+      currentUserId.current = currentUser?.id ?? null;
+      setUser(currentUser);
+      setSentryUser(currentUser?.id ?? null);
+      setIsLoadingProfile(!!currentUser);
+      if (currentUser) {
+        setAuthModalMode(null);
+        // Profile queries must run outside Supabase's auth callback/lock.
+        profileTimer = setTimeout(() => {
+          if (isMounted) void loadUserProfileData(currentUser);
+        }, 0);
+      }
+    };
 
     const run = async () => {
       const ready = await bootstrapSupabase();
@@ -157,52 +191,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // getSession() may refresh an expired token over the network (auth-js retries up
-      // to ~30s, each fetch without a timeout). On iOS Safari with a resumed tab or
-      // flaky network this held the splash screen indefinitely. Cap the wait: on
-      // timeout render as anonymous and let onAuthStateChange deliver the session.
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!isMounted) return;
+        ++authEventVersion;
+        applyUser(session?.user ?? null);
+        setIsAuthInitialized(true);
+      });
+      subscription = data.subscription;
+
+      // Keep session recovery bounded; events can still deliver a late session.
       try {
         const result = await withTimeout(supabase.auth.getSession(), SESSION_INIT_TIMEOUT_MS);
         if (!isMounted) return;
-
-        if (result) {
-          const currentUser = result.data.session?.user ?? null;
-          setUser(currentUser);
-          setSentryUser(currentUser?.id ?? null);
-
-          if (currentUser) {
-            loadUserProfileData(currentUser);
+        // A newer sign-in/sign-out event takes precedence over this snapshot.
+        if (authEventVersion === 0) {
+          if (result) {
+            if (result.error) throw result.error;
+            applyUser(result.data.session?.user ?? null);
           } else {
+            console.warn('[Auth] getSession() timed out; continuing without session');
             setIsLoadingProfile(false);
           }
-        } else {
-          console.warn('[Auth] getSession() timed out; continuing without session');
-          setIsLoadingProfile(false);
         }
       } catch (err) {
         console.error('[Auth] getSession() failed:', err);
         if (!isMounted) return;
-        setIsLoadingProfile(false);
+        if (authEventVersion === 0) setIsLoadingProfile(false);
       }
       setIsAuthInitialized(true);
-
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (!isMounted) return;
-
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        setSentryUser(currentUser?.id ?? null);
-
-        if (currentUser) {
-          loadUserProfileData(currentUser);
-        } else {
-          setUserProfile(null);
-          setEffectivePlan('free');
-          setIsLoadingProfile(false);
-        }
-        setIsAuthInitialized(true);
-      });
-      subscription = data.subscription;
     };
 
     run().catch((err) => {
@@ -216,6 +232,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
       subscription?.unsubscribe();
+      if (profileTimer) clearTimeout(profileTimer);
+      ++profileRequestId.current;
     };
   }, []); // Không phụ thuộc vào executeRecaptcha để tránh re-subscribe loop
 
@@ -251,9 +269,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user || userProfile?.role === 'admin') return;
 
+    let active = true;
     const refresh = async () => {
       const plan = await fetchEffectiveUserPlan(user.id);
-      setEffectivePlan(plan);
+      if (active && currentUserId.current === user.id) setEffectivePlan(plan);
     };
 
     const interval = setInterval(refresh, 5 * 60 * 1000);
@@ -268,6 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      active = false;
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -432,6 +452,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUserProfile = async () => {
     if (!user) return;
+    setError(null);
     await loadUserProfileData(user);
   };
 
@@ -455,6 +476,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await supabase.auth.signOut();
+      currentUserId.current = null;
+      ++profileRequestId.current;
       setUser(null);
       setUserProfile(null);
       setEffectivePlan('free');

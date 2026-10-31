@@ -8,19 +8,21 @@ import { SectionHeading, SectionBadge } from './shared';
 import { usePublicPlanLimits } from '../../../hooks/usePublicPlanLimits';
 import type { PublicPlanLimits } from '../../../services/publicPlanLimitsService';
 
+import { PlanLimitValue, PublicPlanLimitsError } from '../../shared/PublicPlanLimits';
+
 type Plan = 'free' | 'pro' | 'recruiter';
 
 type ComparisonRow = {
   key: string;
   labelKey: string;
-  free: { value: string; icon: 'check' | 'dash' | 'infinity' };
-  pro: { value: string; icon: 'check' | 'dash' | 'infinity' };
-  recruiter: { value: string; icon: 'check' | 'dash' | 'infinity' };
+  free: { value: React.ReactNode; icon: 'check' | 'dash' | 'infinity' };
+  pro: { value: React.ReactNode; icon: 'check' | 'dash' | 'infinity' };
+  recruiter: { value: React.ReactNode; icon: 'check' | 'dash' | 'infinity' };
 };
 
-function buildRows(t: LandingLabels, limits: PublicPlanLimits): ComparisonRow[] {
+function buildRows(t: LandingLabels, limits: PublicPlanLimits | null, isLoading: boolean): ComparisonRow[] {
   return [
-    { key: 'analyses', labelKey: 'pricingAnalyses', free: { value: String(limits.free), icon: 'dash' }, pro: { value: String(limits.pro), icon: 'check' }, recruiter: { value: String(limits.recruiter), icon: 'check' } },
+    { key: 'analyses', labelKey: 'pricingAnalyses', free: { value: <PlanLimitValue value={limits?.free} isLoading={isLoading} />, icon: 'dash' }, pro: { value: <PlanLimitValue value={limits?.pro} isLoading={isLoading} />, icon: 'check' }, recruiter: { value: <PlanLimitValue value={limits?.recruiter} isLoading={isLoading} />, icon: 'check' } },
     { key: 'batch', labelKey: 'pricingBatch', free: { value: '1', icon: 'dash' }, pro: { value: '5', icon: 'check' }, recruiter: { value: '50', icon: 'check' } },
     { key: 'campaignCvs', labelKey: 'pricingCampaignCvs', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '50', icon: 'check' } },
     { key: 'campaigns', labelKey: 'pricingCampaigns', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '10' + (t.pricingPerMonth || '/ tháng'), icon: 'check' } },
@@ -76,8 +78,8 @@ export function PricingSection({
   theme?: SectionTheme;
 }) {
   const isLight = theme === 'light';
-  const planLimits = usePublicPlanLimits();
-  const Rows = buildRows(t, planLimits);
+  const { limits, isLoading, error: limitsError, retry } = usePublicPlanLimits();
+  const Rows = buildRows(t, limits, isLoading);
   const featureLabel = t.pricingColFeature || 'Tính năng';
   const freeLabel = t.planFreeLabel || 'Miễn phí';
   const proLabel = t.planProLabel || 'Pro';
@@ -118,6 +120,8 @@ export function PricingSection({
         <SectionHeading goldLine theme={theme}>
           {t.pricingSectionTitle || 'Chọn gói phù hợp với bạn'}
         </SectionHeading>
+
+        {limitsError && <PublicPlanLimitsError retry={retry} />}
 
         {/* Desktop: Table */}
         <div className="hidden lg:block max-w-6xl mx-auto">

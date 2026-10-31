@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { User, ArrowLeft, Mail, Shield, Calendar, BarChart3, Loader2, Briefcase, FileSpreadsheet, FileText, StickyNote } from 'lucide-react';
+import { User, ArrowLeft, Mail, Shield, Calendar, BarChart3, Briefcase, FileSpreadsheet, FileText, StickyNote } from 'lucide-react';
 import { UserAvatar } from '../ui/UserAvatar';
+import { Skeleton } from '../ui/Skeleton';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { useRecruiter } from '../../context/recruiter';
@@ -15,24 +16,35 @@ export function ProfileView() {
 
   const [quota, setQuota] = useState<AnalyticsQuota | null>(null);
   const [isLoadingQuota, setIsLoadingQuota] = useState(true);
+  const [quotaError, setQuotaError] = useState(false);
+  const [quotaRetry, setQuotaRetry] = useState(0);
 
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
     setIsLoadingQuota(true);
+    setQuotaError(false);
+    setQuota(null);
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      setQuotaError(true);
+      setIsLoadingQuota(false);
+    }, 8000);
     checkAnalyticsQuota(user.id, 0)
       .then((q) => {
         if (!cancelled) setQuota(q);
       })
       .catch((err) => {
         console.error('Profile quota fetch failed:', err);
-        if (!cancelled) setQuota(null);
+        if (!cancelled) setQuotaError(true);
       })
       .finally(() => {
+        clearTimeout(timer);
         if (!cancelled) setIsLoadingQuota(false);
       });
-    return () => { cancelled = true; };
-  }, [user?.id]);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [user?.id, quotaRetry]);
 
   const displayName = user?.user_metadata?.full_name || userProfile?.displayName || '';
   const email = user?.email || '';
@@ -200,7 +212,15 @@ export function ProfileView() {
                   {t.profileAnalyticsLabel}
                 </p>
                 {isLoadingQuota ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                  <Skeleton label={t.appLoadingContent} className="w-24" />
+                ) : quotaError ? (
+                  <div role="alert" className="text-sm text-text-muted">
+                    <p>{t.appLimitsUnavailable}</p>
+                    <button type="button" onClick={() => setQuotaRetry((value) => value + 1)}
+                      className="mt-1 font-bold text-accent underline transition-transform cursor-pointer hover:scale-105 active:scale-95">
+                      {t.appRetry}
+                    </button>
+                  </div>
                 ) : (
                   <>
                     <p className="text-sm font-bold text-text-main tabular-nums">

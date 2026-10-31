@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import {
   fetchPublicPlanLimits,
   getCachedPublicPlanLimits,
@@ -10,18 +11,38 @@ import type { PublicPlanLimits } from '../services/publicPlanLimitsService';
  * Fetches once per session (module cache) and refreshes on tab focus so an
  * admin's global-limit change is reflected without a full reload.
  */
-export function usePublicPlanLimits(): PublicPlanLimits {
-  const [limits, setLimits] = useState<PublicPlanLimits>(getCachedPublicPlanLimits());
+export function usePublicPlanLimits() {
+  const { isSupabaseConfigured } = useAuth();
+  const [limits, setLimits] = useState<PublicPlanLimits | null>(getCachedPublicPlanLimits);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [reload, setReload] = useState(0);
+  const retry = useCallback(() => setReload((value) => value + 1), []);
 
   useEffect(() => {
+    if (isSupabaseConfigured !== true) {
+      if (isSupabaseConfigured === false) {
+        setIsLoading(false);
+        setError(true);
+      }
+      return;
+    }
     let active = true;
+    let requestId = 0;
     const load = (force: boolean) => {
+      const currentRequest = ++requestId;
+      setIsLoading(true);
+      setError(false);
       void fetchPublicPlanLimits(force)
-        .then((next) => { if (active) setLimits(next); })
+        .then((next) => {
+          if (active && currentRequest === requestId) setLimits(next);
+        })
         .catch((err: unknown) => {
-          // Keep the cached/default value; a transient RPC failure must not
-          // change the advertised quota back to a hardcoded number.
+          if (active && currentRequest === requestId) setError(true);
           console.error('Failed to load public plan limits:', err);
+        })
+        .finally(() => {
+          if (active && currentRequest === requestId) setIsLoading(false);
         });
     };
 
@@ -32,7 +53,7 @@ export function usePublicPlanLimits(): PublicPlanLimits {
       active = false;
       window.removeEventListener('focus', onFocus);
     };
-  }, []);
+  }, [isSupabaseConfigured, reload]);
 
-  return limits;
+  return { limits, isLoading, error, retry };
 }

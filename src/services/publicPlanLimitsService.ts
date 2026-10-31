@@ -1,17 +1,10 @@
 import { supabase } from '../lib/supabase';
-import { PRO_MONTHLY_ANALYTICS_LIMIT, RECRUITER_MONTHLY_ANALYTICS_LIMIT } from './userService';
 
 export interface PublicPlanLimits {
   free: number;
   pro: number;
   recruiter: number;
 }
-
-export const DEFAULT_PUBLIC_PLAN_LIMITS: PublicPlanLimits = {
-  free: 5,
-  pro: PRO_MONTHLY_ANALYTICS_LIMIT,
-  recruiter: RECRUITER_MONTHLY_ANALYTICS_LIMIT,
-};
 
 let cached: PublicPlanLimits | null = null;
 let pending: Promise<PublicPlanLimits> | null = null;
@@ -26,18 +19,22 @@ export async function fetchPublicPlanLimits(force = false): Promise<PublicPlanLi
   if (pending) return pending;
 
   pending = (async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
     try {
-      const { data, error } = await supabase.rpc('get_public_plan_limits');
+      const { data, error } = await supabase.rpc('get_public_plan_limits').abortSignal(controller.signal);
       if (error) throw error;
-      const raw = (data ?? {}) as { free?: unknown; pro?: unknown; recruiter?: unknown };
-      const limits: PublicPlanLimits = {
-        free: Number(raw.free ?? DEFAULT_PUBLIC_PLAN_LIMITS.free),
-        pro: Number(raw.pro ?? DEFAULT_PUBLIC_PLAN_LIMITS.pro),
-        recruiter: Number(raw.recruiter ?? DEFAULT_PUBLIC_PLAN_LIMITS.recruiter),
-      };
+      const raw = data as PublicPlanLimits | null;
+      if (!raw || ![raw.free, raw.pro, raw.recruiter].every(
+        (value) => Number.isSafeInteger(value) && value >= 0
+      )) {
+        throw new Error('Invalid public plan limits');
+      }
+      const limits = { free: raw.free, pro: raw.pro, recruiter: raw.recruiter };
       cached = limits;
       return limits;
     } finally {
+      clearTimeout(timer);
       pending = null;
     }
   })();
@@ -45,6 +42,6 @@ export async function fetchPublicPlanLimits(force = false): Promise<PublicPlanLi
   return pending;
 }
 
-export function getCachedPublicPlanLimits(): PublicPlanLimits {
-  return cached ?? DEFAULT_PUBLIC_PLAN_LIMITS;
+export function getCachedPublicPlanLimits(): PublicPlanLimits | null {
+  return cached;
 }

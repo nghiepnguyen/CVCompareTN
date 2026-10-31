@@ -21,6 +21,8 @@ import { formatLabel } from '../../translations';
 import { usePublicPlanLimits } from '../../hooks/usePublicPlanLimits';
 import type { PublicPlanLimits } from '../../services/publicPlanLimitsService';
 
+import { PlanLimitValue, PublicPlanLimitsError } from '../shared/PublicPlanLimits';
+
 type Plan = 'free' | 'pro' | 'recruiter';
 
 type StringLabelKey = Exclude<keyof UiLabels, 'faqItems'>;
@@ -28,19 +30,19 @@ type StringLabelKey = Exclude<keyof UiLabels, 'faqItems'>;
 type ComparisonRow = {
   key: string;
   labelKey: StringLabelKey;
-  free: { value: string; icon: 'check' | 'dash' | 'infinity' };
-  pro: { value: string; icon: 'check' | 'dash' | 'infinity' };
-  recruiter: { value: string; icon: 'check' | 'dash' | 'infinity' };
+  free: { value: React.ReactNode; icon: 'check' | 'dash' | 'infinity' };
+  pro: { value: React.ReactNode; icon: 'check' | 'dash' | 'infinity' };
+  recruiter: { value: React.ReactNode; icon: 'check' | 'dash' | 'infinity' };
 };
 
-function buildRows(t: UiLabels, limits: PublicPlanLimits): ComparisonRow[] {
+function buildRows(t: UiLabels, limits: PublicPlanLimits | null, isLoading: boolean): ComparisonRow[] {
   return [
     {
       key: 'analyses',
       labelKey: 'upgradeCompareAnalyses',
-      free: { value: String(limits.free), icon: 'dash' },
-      pro: { value: String(limits.pro), icon: 'check' },
-      recruiter: { value: String(limits.recruiter), icon: 'check' },
+      free: { value: <PlanLimitValue value={limits?.free} isLoading={isLoading} />, icon: 'dash' },
+      pro: { value: <PlanLimitValue value={limits?.pro} isLoading={isLoading} />, icon: 'check' },
+      recruiter: { value: <PlanLimitValue value={limits?.recruiter} isLoading={isLoading} />, icon: 'check' },
     },
     { key: 'batch', labelKey: 'upgradeCompareBatch', free: { value: '1', icon: 'dash' }, pro: { value: '5', icon: 'check' }, recruiter: { value: '50', icon: 'check' } },
     { key: 'campaignCvs', labelKey: 'upgradeCompareCampaignCvs', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '50 CV', icon: 'check' } },
@@ -91,11 +93,11 @@ export function UpgradeView() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutPlan, setCheckoutPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const planLimits = usePublicPlanLimits();
+  const { limits, isLoading, error: limitsError, retry } = usePublicPlanLimits();
 
   // Admin is resolved to 'pro' by AuthContext; do not let it match recruiter.
-  const alreadyPro = isProPlan(effectivePlan);
-  const alreadyRecruiter = isRecruiterPlan(effectivePlan);
+  const alreadyPro = !!userProfile && isProPlan(effectivePlan);
+  const alreadyRecruiter = !!userProfile && isRecruiterPlan(effectivePlan);
   const planExpiryLabel =
     (alreadyPro || alreadyRecruiter) && userProfile?.planExpiresAt
       ? formatLabel(t.planExpiresUntil, {
@@ -106,6 +108,10 @@ export function UpgradeView() {
   const handleCheckout = async (plan: 'pro' | 'recruiter') => {
     if (!user) {
       setError(t.login);
+      return;
+    }
+    if (!userProfile) {
+      setError(t.appProfileUnavailable);
       return;
     }
     setError(null);
@@ -123,11 +129,13 @@ export function UpgradeView() {
     }
   };
 
-  const currentPlan: Plan = alreadyRecruiter ? 'recruiter' : alreadyPro ? 'pro' : 'free';
-  const ROWS = buildRows(t, planLimits);
+  const currentPlan: Plan | null = !userProfile ? null : alreadyRecruiter ? 'recruiter' : alreadyPro ? 'pro' : 'free';
+  const ROWS = buildRows(t, limits, isLoading);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 sm:py-16 space-y-10">
+      {limitsError && <PublicPlanLimitsError retry={retry} />}
+
       {/* Hero */}
       <header className="text-center space-y-4">
         <div className="inline-flex items-center justify-center size-14 rounded-2xl bg-accent/10 border border-accent/30">
@@ -264,7 +272,7 @@ export function UpgradeView() {
                   ) : currentPlan === 'pro' ? (
                     <button
                       type="button"
-                      disabled={isCheckingOut}
+                      disabled={isCheckingOut || !userProfile}
                       onClick={() => handleCheckout('pro')}
                       className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold bg-accent/15 text-accent border border-accent/30 cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                     >
@@ -280,7 +288,7 @@ export function UpgradeView() {
                   ) : (
                     <button
                       type="button"
-                      disabled={isCheckingOut}
+                      disabled={isCheckingOut || !userProfile}
                       onClick={() => handleCheckout('pro')}
                       className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold bg-accent text-white cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-accent/20"
                     >
@@ -300,7 +308,7 @@ export function UpgradeView() {
                   {currentPlan === 'recruiter' ? (
                     <button
                       type="button"
-                      disabled={isCheckingOut}
+                      disabled={isCheckingOut || !userProfile}
                       onClick={() => handleCheckout('recruiter')}
                       className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold dark:bg-purple-500/15 bg-purple-100 dark:text-purple-400 text-purple-700 border dark:border-purple-400/30 border-purple-300 cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                     >
@@ -316,7 +324,7 @@ export function UpgradeView() {
                   ) : (
                     <button
                       type="button"
-                      disabled={isCheckingOut}
+                      disabled={isCheckingOut || !userProfile}
                       onClick={() => handleCheckout('recruiter')}
                       className="group relative inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 font-sans text-xs font-bold dark:bg-purple-500 bg-purple-700 text-white cursor-pointer hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
                     >
@@ -407,7 +415,7 @@ export function UpgradeView() {
                   currentPlan === 'recruiter' ? (
                     <button
                       type="button"
-                      disabled={isCheckingOut}
+                      disabled={isCheckingOut || !userProfile}
                       onClick={() => handleCheckout('recruiter')}
                       className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm dark:bg-purple-500/15 bg-purple-100 dark:text-purple-400 text-purple-700 border dark:border-purple-400/30 border-purple-300 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                     >
@@ -423,7 +431,7 @@ export function UpgradeView() {
                   ) : (
                     <button
                       type="button"
-                      disabled={isCheckingOut}
+                      disabled={isCheckingOut || !userProfile}
                       onClick={() => handleCheckout('recruiter')}
                       className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm dark:bg-purple-500 bg-purple-700 text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                     >
@@ -449,7 +457,7 @@ export function UpgradeView() {
                   ) : currentPlan === 'pro' ? (
                     <button
                       type="button"
-                      disabled={isCheckingOut}
+                      disabled={isCheckingOut || !userProfile}
                       onClick={() => handleCheckout('pro')}
                       className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm bg-accent/15 text-accent border border-accent/30 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                     >
@@ -465,7 +473,7 @@ export function UpgradeView() {
                   ) : (
                     <button
                       type="button"
-                      disabled={isCheckingOut}
+                      disabled={isCheckingOut || !userProfile}
                       onClick={() => handleCheckout('pro')}
                       className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-sm bg-accent text-white cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                     >

@@ -52,6 +52,22 @@ export const system = {
     vi: "Đang khởi tạo hệ thống...",
     en: "Initializing system...",
   },
+  appCheckingSession: {
+    vi: "Đang kiểm tra đăng nhập...",
+    en: "Checking sign-in...",
+  },
+  appProfileUnavailable: {
+    vi: "Chưa tải được thông tin tài khoản. Vui lòng thử lại.",
+    en: "Unable to load your account information. Please try again.",
+  },
+  appLimitsUnavailable: {
+    vi: "Chưa tải được hạn mức sử dụng. Vui lòng thử lại.",
+    en: "Unable to load usage limits. Please try again.",
+  },
+  appRetry: {
+    vi: "Thử lại",
+    en: "Try again",
+  },
   appLoadingContent: {
     vi: "Đang tải nội dung...",
     en: "Loading content...",
