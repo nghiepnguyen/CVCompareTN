@@ -12,6 +12,7 @@ const QUERY: AdminUsersQuery = {
   plan: 'pro',
   role: 'user',
   status: 'active',
+  flag: 'new',
   sort: 'usage_desc',
   page: 2,
   pageSize: 20,
@@ -50,11 +51,12 @@ describe('fetchAdminUsersPage', () => {
 
     const result = await fetchAdminUsersPage(QUERY);
 
-    expect(rpc).toHaveBeenCalledWith('admin_list_profiles', {
+    expect(rpc).toHaveBeenCalledWith('admin_list_profiles_v2', {
       p_search: 'bob',
       p_plan: 'pro',
       p_role: 'user',
       p_status: 'active',
+      p_flag: 'new',
       p_sort: 'usage_desc',
       p_limit: 20,
       p_offset: 20,

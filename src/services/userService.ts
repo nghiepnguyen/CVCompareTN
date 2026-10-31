@@ -36,6 +36,7 @@ export interface UserProfile {
 export type AdminUserPlanFilter = 'all' | 'free' | 'pro' | 'recruiter';
 export type AdminUserRoleFilter = 'all' | 'user' | 'admin';
 export type AdminUserStatusFilter = 'all' | 'active' | 'locked';
+export type AdminUserQuickFilter = 'all' | 'new' | 'expiring';
 export type AdminUserSort = 'created_desc' | 'created_asc' | 'usage_desc' | 'name_asc' | 'expiry_asc';
 
 export interface AdminUsersQuery {
@@ -43,6 +44,7 @@ export interface AdminUsersQuery {
   plan: AdminUserPlanFilter;
   role: AdminUserRoleFilter;
   status: AdminUserStatusFilter;
+  flag: AdminUserQuickFilter;
   sort: AdminUserSort;
   page: number;
   pageSize: number;
@@ -108,11 +110,12 @@ export function mapProfile(data: Record<string, unknown>): UserProfile {
 export async function fetchAdminUsersPage(query: AdminUsersQuery): Promise<AdminUsersPage> {
   const pageSize = Math.min(Math.max(Math.trunc(query.pageSize) || 20, 1), 100);
   const page = Math.max(Math.trunc(query.page) || 1, 1);
-  const { data, error } = await supabase.rpc('admin_list_profiles', {
+  const { data, error } = await supabase.rpc('admin_list_profiles_v2', {
     p_search: query.search.trim() || null,
     p_plan: query.plan,
     p_role: query.role,
     p_status: query.status,
+    p_flag: query.flag,
     p_sort: query.sort,
     p_limit: pageSize,
     p_offset: (page - 1) * pageSize,
@@ -371,6 +374,8 @@ function planGrantTarget(grant: AdminPlanGrant): {
 export type AdminLimitMode = 'keep' | 'inherit' | 'custom';
 
 export interface AdminUpdateUserInput {
+  /** Stable per modal open; makes retries idempotent server-side. */
+  requestId: string;
   /** null = leave the plan untouched. */
   plan: AdminPlanGrant | null;
   limitMode: AdminLimitMode;
@@ -390,9 +395,12 @@ export async function adminUpdateUser(
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error('Not authenticated');
 
+  if (!input.requestId) throw new Error('Missing request id');
+
   const body: Record<string, unknown> = {
     p_user_id: uid,
     p_limit_mode: input.limitMode,
+    p_request_id: input.requestId,
   };
 
   if (input.plan) {

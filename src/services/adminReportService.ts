@@ -2,7 +2,14 @@ import { supabase } from '../lib/supabase';
 import { vnStartOfDay } from '../lib/vnTime';
 import { GEMINI_PRICING, LEGACY_LOG_MODEL, isGeminiModel } from '../lib/geminiModels';
 
-export type ReportRange = 'today' | '7d' | '30d';
+export type ReportRange = 'today' | '7d' | '30d' | 'custom';
+
+export interface ReportCustomRange {
+  /** YYYY-MM-DD in ICT. */
+  start: string;
+  /** YYYY-MM-DD in ICT, inclusive. */
+  end: string;
+}
 
 export interface DailyAnalysisCount {
   date: string; // YYYY-MM-DD
@@ -90,15 +97,44 @@ function toNumber(value: unknown): number {
 
 // Anchor "today" to ICT, matching the quota system's day boundary
 // (current_quota_cycle) rather than the admin's browser timezone.
-function getRangeStart(range: ReportRange): Date {
+function getRangeStart(range: Exclude<ReportRange, 'custom'>): Date {
   return vnStartOfDay(new Date(), range === '7d' ? -6 : range === '30d' ? -29 : 0);
 }
 
-export async function getAdminReportStats(range: ReportRange): Promise<AdminReportStats> {
-  const startIso = getRangeStart(range).toISOString();
+function parseVnDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00+07:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getRangeWindow(
+  range: ReportRange,
+  custom?: ReportCustomRange
+): { start: Date; end: Date } {
+  if (range === 'custom') {
+    const startDay = custom ? parseVnDate(custom.start) : null;
+    const endDay = custom ? parseVnDate(custom.end) : null;
+    if (!startDay || !endDay) {
+      throw new Error('Custom range requires valid start and end dates');
+    }
+    const start = vnStartOfDay(startDay);
+    // End date is inclusive: [start, next-day 00:00 ICT).
+    const end = vnStartOfDay(endDay, 1);
+    if (start >= end) throw new Error('Custom range start must be before end');
+    return { start, end };
+  }
+  return { start: getRangeStart(range), end: new Date() };
+}
+
+export async function getAdminReportStats(
+  range: ReportRange,
+  custom?: ReportCustomRange
+): Promise<AdminReportStats> {
+  const window = getRangeWindow(range, custom);
   // Half-open [start, end): the RPC buckets by VN calendar day and zero-fills
   // every day in the range.
-  const endIso = new Date().toISOString();
+  const startIso = window.start.toISOString();
+  const endIso = window.end.toISOString();
 
   const [statsRes, opsRes] = await Promise.all([
     supabase.rpc('admin_report_stats', { p_start: startIso, p_end: endIso }),

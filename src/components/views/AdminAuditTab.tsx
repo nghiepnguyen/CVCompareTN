@@ -48,14 +48,36 @@ function detailsText(details: Record<string, unknown> | null): string {
     .join(' · ');
 }
 
+type AuditUrlState = {
+  action: AdminAuditAction | 'all';
+  search: string;
+  page: number;
+};
+
+function auditUrlState(): AuditUrlState {
+  const params = new URLSearchParams(window.location.search);
+  const rawAction = params.get('action');
+  const action: AdminAuditAction | 'all' =
+    rawAction && (ADMIN_AUDIT_ACTIONS as readonly string[]).includes(rawAction)
+      ? (rawAction as AdminAuditAction)
+      : 'all';
+  const page = Number(params.get('page'));
+  return {
+    action,
+    search: params.get('q') ?? '',
+    page: Number.isInteger(page) && page > 0 ? page : 1,
+  };
+}
+
 export function AdminAuditTab() {
   const { t, reportLanguage } = useUI();
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
 
-  const [action, setAction] = useState<AdminAuditAction | 'all'>('all');
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [initialUrl] = useState(auditUrlState);
+  const [action, setAction] = useState<AdminAuditAction | 'all'>(initialUrl.action);
+  const [searchInput, setSearchInput] = useState(initialUrl.search);
+  const [search, setSearch] = useState(initialUrl.search);
+  const [page, setPage] = useState(initialUrl.page);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -77,6 +99,31 @@ export function AdminAuditTab() {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const next = auditUrlState();
+      setAction(next.action);
+      setSearchInput(next.search);
+      setSearch(next.search);
+      setPage(next.page);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (action !== 'all') params.set('action', action);
+    if (searchInput.trim()) params.set('q', searchInput.trim());
+    if (page > 1) params.set('page', String(page));
+    const prefix = reportLanguage === 'en' ? '/en' : '/vi';
+    const qs = params.toString();
+    const next = `${prefix}/admin/audit${qs ? `?${qs}` : ''}`;
+    if (window.location.pathname + window.location.search !== next) {
+      window.history.replaceState(null, '', next + window.location.hash);
+    }
+  }, [action, searchInput, page, reportLanguage]);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

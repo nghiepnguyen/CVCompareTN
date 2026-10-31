@@ -49,6 +49,10 @@ export interface UiLabels {
   adminFilterStatusAll: string;
   adminFilterStatusActive: string;
   adminFilterStatusLocked: string;
+  adminQuickFilterLabel: string;
+  adminQuickFilterAll: string;
+  adminQuickFilterNew: string;
+  adminQuickFilterExpiring: string;
   adminSortLabel: string;
   adminSortCreatedDesc: string;
   adminSortCreatedAsc: string;
@@ -135,6 +139,9 @@ export interface UiLabels {
   adminReportFilterToday: string;
   adminReportFilterWeek: string;
   adminReportFilterMonth: string;
+  adminReportFilterCustom: string;
+  adminReportCustomFrom: string;
+  adminReportCustomTo: string;
   adminReportNewUsers: string;
   adminReportTotalAnalyses: string;
   adminReportAnalysesThisMonth: string;

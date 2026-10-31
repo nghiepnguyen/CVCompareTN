@@ -6,6 +6,7 @@ import { formatLabel } from '../../translations';
 import { cn } from '../../lib/utils';
 import { UserAvatar } from '../ui/UserAvatar';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { supabase } from '../../lib/supabase';
 import {
   getDefaultMonthlyAnalyticsLimit,
@@ -43,36 +44,70 @@ function adminSectionFromPath(): AdminSection {
   return (match?.[1] as AdminSection | undefined) ?? 'users';
 }
 
+type AdminUserFilters = {
+  q: string;
+  plan: 'all' | 'free' | 'pro' | 'recruiter';
+  role: 'all' | 'user' | 'admin';
+  status: 'all' | 'active' | 'locked';
+  flag: 'all' | 'new' | 'expiring';
+  sort: 'created_desc' | 'created_asc' | 'usage_desc' | 'name_asc' | 'expiry_asc';
+  page: number;
+};
+
+function adminFiltersFromSearch(): AdminUserFilters {
+  const params = new URLSearchParams(window.location.search);
+  const pick = <T extends string>(value: string | null, allowed: readonly T[], fallback: T): T =>
+    value && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
+  const page = Number(params.get('page'));
+  return {
+    q: params.get('q') ?? '',
+    plan: pick(params.get('plan'), ['all', 'free', 'pro', 'recruiter'] as const, 'all'),
+    role: pick(params.get('role'), ['all', 'user', 'admin'] as const, 'all'),
+    status: pick(params.get('status'), ['all', 'active', 'locked'] as const, 'all'),
+    flag: pick(params.get('flag'), ['all', 'new', 'expiring'] as const, 'all'),
+    sort: pick(
+      params.get('sort'),
+      ['created_desc', 'created_asc', 'usage_desc', 'name_asc', 'expiry_asc'] as const,
+      'created_desc'
+    ),
+    page: Number.isInteger(page) && page > 0 ? page : 1,
+  };
+}
+
 export function AdminView() {
   const { user, userProfile } = useAuth();
   const { t, reportLanguage } = useUI();
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
 
   const [adminSubTab, setAdminSubTabState] = useState<AdminSection>(adminSectionFromPath);
-  const [searchInput, setSearchInput] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [planFilter, setPlanFilter] = useState<'all' | 'free' | 'pro' | 'recruiter'>('all');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'locked'>('all');
+  const [initialFilters] = useState(adminFiltersFromSearch);
+  const [searchInput, setSearchInput] = useState(initialFilters.q);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialFilters.q);
+  const [planFilter, setPlanFilter] = useState<'all' | 'free' | 'pro' | 'recruiter'>(initialFilters.plan);
+  const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>(initialFilters.role);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'locked'>(initialFilters.status);
+  const [quickFilter, setQuickFilter] = useState<'all' | 'new' | 'expiring'>(initialFilters.flag);
   const [sort, setSort] = useState<
     'created_desc' | 'created_asc' | 'usage_desc' | 'name_asc' | 'expiry_asc'
-  >('created_desc');
+  >(initialFilters.sort);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savingPlanUserId, setSavingPlanUserId] = useState<string | null>(null);
   const savingPlanRef = useRef(false);
+  const planDialogRef = useRef<HTMLDivElement>(null);
   const [globalDefaultLimit, setGlobalDefaultLimit] = useState(5);
   const [isGlobalLimitLoaded, setIsGlobalLimitLoaded] = useState(false);
   const [globalLimitError, setGlobalLimitError] = useState<string | null>(null);
   const [globalLimitDraft, setGlobalLimitDraft] = useState('5');
   const [isSavingGlobalLimit, setIsSavingGlobalLimit] = useState(false);
   const [globalLimitMessage, setGlobalLimitMessage] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialFilters.page);
   const [planModal, setPlanModal] = useState<{
     user: UserProfile;
     grant: AdminPlanGrant;
     limitMode: 'inherit' | 'custom';
     limitDraft: string;
+    requestId: string;
   } | null>(null);
   const pageSize = 20;
 
@@ -102,6 +137,7 @@ export function AdminView() {
     plan: planFilter,
     role: roleFilter,
     status: statusFilter,
+    flag: quickFilter,
     sort,
     page: currentPage,
     pageSize,
@@ -116,7 +152,7 @@ export function AdminView() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchInput, planFilter, roleFilter, statusFilter, sort]);
+  }, [searchInput, planFilter, roleFilter, statusFilter, quickFilter, sort]);
 
   const totalPages = Math.max(1, Math.ceil((totalCount ?? 0) / pageSize));
 
@@ -134,7 +170,7 @@ export function AdminView() {
 
   useEffect(() => {
     setSelectedIds([]);
-  }, [currentPage, debouncedSearch, planFilter, roleFilter, statusFilter, sort]);
+  }, [currentPage, debouncedSearch, planFilter, roleFilter, statusFilter, quickFilter, sort]);
 
   const setAdminSubTab = (next: AdminSection) => {
     setAdminSubTabState(next);
@@ -146,10 +182,52 @@ export function AdminView() {
   };
 
   useEffect(() => {
-    const onPopState = () => setAdminSubTabState(adminSectionFromPath());
+    const onPopState = () => {
+      setAdminSubTabState(adminSectionFromPath());
+      const filters = adminFiltersFromSearch();
+      setSearchInput(filters.q);
+      setDebouncedSearch(filters.q);
+      setPlanFilter(filters.plan);
+      setRoleFilter(filters.role);
+      setStatusFilter(filters.status);
+      setQuickFilter(filters.flag);
+      setSort(filters.sort);
+      setCurrentPage(filters.page);
+    };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
+
+  // Keep the Users filters/page shareable. replaceState avoids one history entry
+  // per keystroke; back/forward still restores because popstate re-parses.
+  useEffect(() => {
+    if (adminSubTab !== 'users') return;
+    const params = new URLSearchParams();
+    if (searchInput.trim()) params.set('q', searchInput.trim());
+    if (planFilter !== 'all') params.set('plan', planFilter);
+    if (roleFilter !== 'all') params.set('role', roleFilter);
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    if (quickFilter !== 'all') params.set('flag', quickFilter);
+    if (sort !== 'created_desc') params.set('sort', sort);
+    if (currentPage > 1) params.set('page', String(currentPage));
+
+    const prefix = reportLanguage === 'en' ? '/en' : '/vi';
+    const qs = params.toString();
+    const next = `${prefix}/admin/users${qs ? `?${qs}` : ''}`;
+    if (window.location.pathname + window.location.search !== next) {
+      window.history.replaceState(null, '', next + window.location.hash);
+    }
+  }, [
+    adminSubTab,
+    searchInput,
+    planFilter,
+    roleFilter,
+    statusFilter,
+    quickFilter,
+    sort,
+    currentPage,
+    reportLanguage,
+  ]);
 
   const loadGlobalDefaultLimit = useCallback(async () => {
     setGlobalLimitError(null);
@@ -213,17 +291,12 @@ export function AdminView() {
     }
   };
 
-  useEffect(() => {
-    if (!planModal) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !savingPlanRef.current) {
-        setError(null);
-        setPlanModal(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [planModal]);
+  useFocusTrap(planModal !== null, planDialogRef, () => {
+    if (!savingPlanRef.current) {
+      setError(null);
+      setPlanModal(null);
+    }
+  });
 
   const handleSavePlanModal = async () => {
     if (!planModal || savingPlanRef.current) return;
@@ -260,6 +333,7 @@ export function AdminView() {
     setError(null);
     try {
       await adminUpdateUser(target.id, {
+        requestId: planModal.requestId,
         plan: planChanged ? grant : null,
         limitMode: nextLimitMode,
         limit: nextLimit,
@@ -367,6 +441,7 @@ export function AdminView() {
         plan: planFilter,
         role: roleFilter,
         status: statusFilter,
+        flag: quickFilter,
         sort,
         pageSize: 100,
       };
@@ -634,6 +709,33 @@ export function AdminView() {
 
             {/* Filter Row */}
             <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+                  {t.adminQuickFilterLabel}
+                </span>
+                <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
+                  {(['all', 'new', 'expiring'] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setQuickFilter(opt)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer',
+                        quickFilter === opt
+                          ? 'bg-surface text-accent shadow-sm border border-border'
+                          : 'text-text-muted hover:text-text-main'
+                      )}
+                    >
+                      {opt === 'all'
+                        ? t.adminQuickFilterAll
+                        : opt === 'new'
+                          ? t.adminQuickFilterNew
+                          : t.adminQuickFilterExpiring}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
                   {t.adminFilterPlan}
@@ -929,6 +1031,10 @@ export function AdminView() {
                                   limitDraft: u.monthlyAnalyticsLimitCustom && u.monthlyAnalyticsLimit !== null
                                     ? String(u.monthlyAnalyticsLimit)
                                     : '',
+                                  requestId:
+                                    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+                                      ? crypto.randomUUID()
+                                      : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
                                 })
                               }
                               className={cn(
@@ -1118,9 +1224,11 @@ export function AdminView() {
               onClick={() => { setError(null); setPlanModal(null); }}
             />
             <motion.div
+              ref={planDialogRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby="admin-plan-modal-title"
+              tabIndex={-1}
               className="relative z-10 w-full max-w-sm bg-surface border border-border rounded-2xl shadow-2xl p-6"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}

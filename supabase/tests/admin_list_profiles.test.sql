@@ -16,7 +16,7 @@ BEGIN
   VALUES
     (admin_id, 'admin@example.test', 'Admin', 'admin', true,  '2026-10-01T00:00:00Z', false, 'free', NULL),
     (alice_id, 'alice@example.test', 'Alice', 'user',  true,  '2026-10-02T00:00:00Z', true,  'free', NULL),
-    (bob_id,   'bob@example.test',   'Bob',   'user',  true,  '2026-10-03T00:00:00Z', false, 'pro',  now() + interval '30 days'),
+    (bob_id,   'bob@example.test',   'Bob',   'user',  true,  '2026-10-03T00:00:00Z', false, 'pro',  now() + interval '3 days'),
     (carol_id, 'carol@example.test', 'Carol', 'user',  false, '2026-10-04T00:00:00Z', false, 'free', NULL);
 
   PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
@@ -42,6 +42,14 @@ BEGIN
   r := public.admin_list_profiles(NULL, 'all', 'all', 'all', 'created_asc', 2, 1);
   ASSERT jsonb_array_length(r->'rows') = 2, 'page size';
   ASSERT r->'rows'->0->>'email' = 'alice@example.test', 'offset/sort';
+
+  r := public.admin_list_profiles_v2(NULL, 'all', 'all', 'all', 'new', 'created_desc', 10, 0);
+  ASSERT (r->>'total')::int = 1, 'quick new filter';
+  ASSERT r->'rows'->0->>'email' = 'alice@example.test', 'quick new user';
+
+  r := public.admin_list_profiles_v2(NULL, 'all', 'all', 'all', 'expiring', 'created_desc', 10, 0);
+  ASSERT (r->>'total')::int = 1, 'quick expiring filter';
+  ASSERT r->'rows'->0->>'email' = 'bob@example.test', 'quick expiring user';
 
   ASSERT EXISTS (
     SELECT 1 FROM pg_indexes

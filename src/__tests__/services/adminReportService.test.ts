@@ -118,6 +118,20 @@ describe('getAdminReportStats', () => {
     expect(rpcCalls[0].args.p_end).toBe('2026-09-27T03:00:00.000Z');
   });
 
+  it('converts an inclusive custom ICT date range to half-open instants', async () => {
+    await getAdminReportStats('custom', { start: '2026-10-01', end: '2026-10-03' });
+
+    expect(rpcCalls[0].args.p_start).toBe('2026-09-30T17:00:00.000Z');
+    expect(rpcCalls[0].args.p_end).toBe('2026-10-03T17:00:00.000Z');
+  });
+
+  it('rejects an invalid custom range before calling the RPC', async () => {
+    await expect(
+      getAdminReportStats('custom', { start: '2026-10-03', end: '2026-10-01' })
+    ).rejects.toThrow('Custom range start must be before end');
+    expect(rpcCalls).toHaveLength(0);
+  });
+
   it('surfaces RPC errors', async () => {
     rpcError = { message: 'permission denied' };
 

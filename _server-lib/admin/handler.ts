@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { adminDeleteUser } from './deleteUser.js';
 import { logAdminAudit } from './audit.js';
@@ -123,8 +124,16 @@ export async function handleAdminAction(input: {
       const duration = readDuration(body);
       const limitMode = body.p_limit_mode ?? 'keep';
       const limit = body.p_limit;
-
-      if (!targetId) return invalid('Missing/invalid p_user_id');
+      // Backward compatible: an older cached Admin bundle may not send an id.
+      // New bundles send one and get idempotent retries.
+      const suppliedRequestId = body.p_request_id;
+      if (
+        suppliedRequestId !== undefined &&
+        (typeof suppliedRequestId !== 'string' || !UUID_RE.test(suppliedRequestId))
+      ) {
+        return invalid('Invalid p_request_id');
+      }
+      const requestId = (suppliedRequestId as string | undefined) ?? randomUUID();
       if (plan !== undefined && plan !== null && plan !== 'free' && plan !== 'pro' && plan !== 'recruiter') {
         return invalid('Invalid p_plan');
       }
@@ -141,13 +150,14 @@ export async function handleAdminAction(input: {
         return invalid('p_limit must be a non-negative integer for custom mode');
       }
 
-      const { error } = await supabase.rpc('admin_update_user', {
+      const { error } = await supabase.rpc('admin_update_user_v2', {
         p_admin_id: callerId,
         p_user_id: targetId,
         p_plan: plan ?? null,
         p_duration_days: duration,
         p_limit_mode: limitMode,
         p_limit: limitMode === 'custom' ? limit : null,
+        p_request_id: requestId,
       });
       if (error) return rpcFailure(error as NonNullable<RpcError>, 'Failed to update user');
 

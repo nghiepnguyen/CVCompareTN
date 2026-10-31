@@ -37,6 +37,7 @@ const QUERY: AdminUsersQuery = {
   plan: 'all',
   role: 'all',
   status: 'all',
+  flag: 'all',
   sort: 'created_desc',
   page: 1,
   pageSize: 20,

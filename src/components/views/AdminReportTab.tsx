@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { vnStartOfDay } from '../../lib/vnTime';
 import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign, Gauge, HelpCircle, RefreshCw, Timer, ListChecks, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useUI } from '../../context/UIContext';
@@ -13,11 +14,44 @@ import {
   type ReportRange,
 } from '../../services/adminReportService';
 
+type ReportUrlState = {
+  range: ReportRange;
+  start: string;
+  end: string;
+};
+
+function dateInputValue(d: Date): string {
+  const { y, m, day } = (() => {
+    const vn = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+    return { y: vn.getUTCFullYear(), m: vn.getUTCMonth(), day: vn.getUTCDate() };
+  })();
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function reportUrlState(): ReportUrlState {
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get('range');
+  const range: ReportRange =
+    raw === 'today' || raw === '7d' || raw === '30d' || raw === 'custom' ? raw : '7d';
+  const today = dateInputValue(vnStartOfDay(new Date()));
+  const weekAgo = dateInputValue(vnStartOfDay(new Date(), -6));
+  const startParam = params.get('start');
+  const endParam = params.get('end');
+  return {
+    range,
+    start: startParam && /^\d{4}-\d{2}-\d{2}$/.test(startParam) ? startParam : weekAgo,
+    end: endParam && /^\d{4}-\d{2}-\d{2}$/.test(endParam) ? endParam : today,
+  };
+}
+
 export function AdminReportTab() {
   const { t, reportLanguage } = useUI();
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
 
-  const [range, setRange] = useState<ReportRange>('7d');
+  const [initialUrl] = useState(reportUrlState);
+  const [range, setRange] = useState<ReportRange>(initialUrl.range);
+  const [customStart, setCustomStart] = useState(initialUrl.start);
+  const [customEnd, setCustomEnd] = useState(initialUrl.end);
   const [stats, setStats] = useState<AdminReportStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,12 +61,15 @@ export function AdminReportTab() {
   // Guard against out-of-order responses: switching range quickly must not let
   // a slower, older request overwrite the stats for the range now selected.
   const requestIdRef = useRef(0);
-  const loadStats = useCallback(async (r: ReportRange) => {
+  const loadStats = useCallback(async (r: ReportRange, start: string, end: string) => {
     const requestId = ++requestIdRef.current;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getAdminReportStats(r);
+      const data = await getAdminReportStats(
+        r,
+        r === 'custom' ? { start, end } : undefined
+      );
       if (requestId === requestIdRef.current) setStats(data);
     } catch (err: unknown) {
       if (requestId !== requestIdRef.current) return;
@@ -44,17 +81,43 @@ export function AdminReportTab() {
   }, [t.adminReportLoadError]);
 
   useEffect(() => {
-    void loadStats(range);
-  }, [range, loadStats]);
+    void loadStats(range, customStart, customEnd);
+  }, [range, customStart, customEnd, loadStats]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const next = reportUrlState();
+      setRange(next.range);
+      setCustomStart(next.start);
+      setCustomEnd(next.end);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (range !== '7d') params.set('range', range);
+    if (range === 'custom') {
+      params.set('start', customStart);
+      params.set('end', customEnd);
+    }
+    const prefix = reportLanguage === 'en' ? '/en' : '/vi';
+    const qs = params.toString();
+    const next = `${prefix}/admin/report${qs ? `?${qs}` : ''}`;
+    if (window.location.pathname + window.location.search !== next) {
+      window.history.replaceState(null, '', next + window.location.hash);
+    }
+  }, [range, customStart, customEnd, reportLanguage]);
 
   // The report is a dashboard, not a realtime feed: refresh only while the tab
   // is visible so a forgotten admin tab doesn't keep querying the database.
   useEffect(() => {
     const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') void loadStats(range);
+      if (document.visibilityState === 'visible') void loadStats(range, customStart, customEnd);
     }, 60_000);
     return () => clearInterval(interval);
-  }, [range, loadStats]);
+  }, [range, customStart, customEnd, loadStats]);
 
   const chartData = (stats?.dailyCounts ?? []).map((d) => ({
     ...d,
@@ -104,7 +167,10 @@ export function AdminReportTab() {
         ['section', 'message', 'count'],
         ...stats.errorCategories.map((row) => ['error', row.message, row.count]),
       ];
-      await logAdminExport('report', stats.dailyCounts.length + stats.topUsers.length, { range });
+      await logAdminExport('report', stats.dailyCounts.length + stats.topUsers.length, {
+        range,
+        ...(range === 'custom' ? { start: customStart, end: customEnd } : {}),
+      });
       downloadCsv(`admin-report-${range}-${csvDateStamp()}.csv`, rows);
       setExportMessage(t.adminToastExported);
     } catch (err: unknown) {
@@ -171,6 +237,7 @@ export function AdminReportTab() {
             { value: 'today', label: t.adminReportFilterToday },
             { value: '7d', label: t.adminReportFilterWeek },
             { value: '30d', label: t.adminReportFilterMonth },
+            { value: 'custom', label: t.adminReportFilterCustom },
           ] as const).map((opt) => (
             <button
               key={opt.value}
@@ -190,7 +257,7 @@ export function AdminReportTab() {
         {isLoading && <Loader2 className="w-4 h-4 text-text-light animate-spin" />}
         <button
           type="button"
-          onClick={() => void loadStats(range)}
+          onClick={() => void loadStats(range, customStart, customEnd)}
           disabled={isLoading}
           title={t.adminReportRefresh}
           aria-label={t.adminReportRefresh}
@@ -209,6 +276,35 @@ export function AdminReportTab() {
           {t.adminExportReportCsv}
         </button>
       </div>
+
+      {range === 'custom' && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-text-light">
+              {t.adminReportCustomFrom}
+            </span>
+            <input
+              type="date"
+              value={customStart}
+              max={customEnd}
+              onChange={(e) => setCustomStart(e.target.value)}
+              className="rounded-lg border border-border bg-surface px-2 py-1.5 text-xs font-bold text-text-main"
+            />
+          </label>
+          <label className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-text-light">
+              {t.adminReportCustomTo}
+            </span>
+            <input
+              type="date"
+              value={customEnd}
+              min={customStart}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              className="rounded-lg border border-border bg-surface px-2 py-1.5 text-xs font-bold text-text-main"
+            />
+          </label>
+        </div>
+      )}
 
       {exportMessage && (
         <p className="text-xs font-bold text-success">{exportMessage}</p>
