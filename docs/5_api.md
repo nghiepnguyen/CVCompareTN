@@ -88,6 +88,7 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
 | **Express** | `POST /api/extract-pdf` | `server/routes/pdf.ts` |
 
 - **Auth (2026-06):** Bearer token (Supabase JWT) hoặc `recaptchaToken` trong body — bắt buộc. Anonymous request không có token sẽ nhận `401`.
+- **Rate limit (2026-10-31):** `enforceRateLimit()` (`_server-lib/rateLimit.ts`) — 120 request/giờ cho mỗi user (Bearer) hoặc mỗi IP (anonymous; IP được băm HMAC, không lưu IP thô) → vượt **429** `Too many requests` (đủ cho ~2 batch recruiter 50 JD). Đếm trước bước verify reCAPTCHA. Bộ đếm dùng chung Postgres (`consume_api_rate_limit`, migration `20261101100000`) nên có hiệu lực trên cả Vercel và Express; lookup lỗi/timeout → fail-open như rate limit AI.
 - **Body:** `{ base64Data: string, recaptchaToken?: string }`
 - **Response:** `{ text: string }`
 - **Dùng cho:** Trích xuất text từ PDF JD (Job Description) upload trong `AnalysisInputView`. CV PDF dùng `unpdf` client-side (`useFileProcessor.ts`), không qua endpoint này — file gốc (≤2MB base64 inline, 2–15MB qua storage path `cv-analyze-tmp`) được gửi kèm trực tiếp trong body `/api/analyze`/`/api/parse-cv`/`/api/rewrite-cv` thay vì qua một endpoint trích xuất riêng.
@@ -130,9 +131,11 @@ Vercel dùng một handler duy nhất dispatch theo `type` field. Express dùng 
 **Feedback** (`type: 'feedback'`):
 - **Body:** `{ type: 'feedback', token, rating, title, content, userEmail }`
 - **reCAPTCHA:** Bắt buộc (score ≥ 0.5).
+- **Rate limit (2026-10-31):** 5 request/giờ/IP (IP băm HMAC) trước bước verify reCAPTCHA → **429**.
 
 **Welcome** (`type: 'welcome'`):
 - **Auth (2026-10):** `Authorization: Bearer` bắt buộc (401 nếu thiếu/sai); mail chỉ gửi tới **email của user trong token**, `userEmail` trong body bị bỏ qua.
+- **Rate limit (2026-10-31):** 5 request/giờ/user → **429**.
 - **Body:** `{ type: 'welcome', userName }`
 - **reCAPTCHA:** Không (trigger là `createUserProfile()` client-side ngay sau khi tạo `profiles` row mới). Fire-and-forget từ `userService.ts::createUserProfile()`, log lỗi HTTP status nếu gửi thất bại nhưng không throw/block đăng nhập.
 
@@ -168,3 +171,5 @@ Chi tiết semantics, Admin UI, migration: [8_analytics.md](8_analytics.md).
 ## Cập nhật storage R2 (2026-10-18)
 
 Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới giữ Supabase làm nơi upload mặc định và đọc theo metadata; có thể bật R2 riêng cho `temp`, `saved`, `candidate` qua cấu hình server. File tạm R2 dùng reference `r2:{uploadId}`, file lâu dài giữ `file_path` cùng `storage_provider`. Tải file cá nhân/recruiter qua `POST /api/storage` với JWT, không dùng public URL. Cleanup có queue bền vững và scheduler, kể cả khi xoá campaign/user. Xem [10_storage_r2.md](10_storage_r2.md) cho migration bắt buộc, API, CORS/lifecycle, kiểm thử và rollback.
+
+**Rate limit (2026-10-31):** mọi action của `POST /api/storage` (upload/finalize/download/delete/delete-temp) bị giới hạn 120 request/giờ/user → **429**; bộ đếm chung Postgres `consume_api_rate_limit` (`_server-lib/rateLimit.ts`, migration `20261101100000`). Giới hạn này không thay cho plan caps/upload caps — xem §4.5/§4.6 của audit.

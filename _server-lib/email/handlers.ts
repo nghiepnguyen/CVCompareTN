@@ -1,12 +1,16 @@
 import { Resend } from 'resend';
 import { escapeHtml } from '../escapeHtml.js';
 import { validateFeedbackInput, validateWelcomeEmailInput } from '../validate.js';
+import { enforceRateLimit, rateLimitSubject } from '../rateLimit.js';
 import { verifyRecaptcha } from '../recaptcha.js';
 import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
-export async function handleSendFeedback(body: unknown): Promise<HandlerResult> {
+export async function handleSendFeedback(
+  body: unknown,
+  context: { ip?: string | null } = {}
+): Promise<HandlerResult> {
   const b = (body ?? {}) as {
     token?: string;
     rating?: unknown;
@@ -18,6 +22,14 @@ export async function handleSendFeedback(body: unknown): Promise<HandlerResult> 
   const errors = validateFeedbackInput(b as Record<string, unknown>);
   if (errors.length > 0) {
     return { status: 400, body: { success: false, message: 'Invalid input', errors } };
+  }
+
+  // Count before reCAPTCHA so floods are cut before the Google call.
+  if (!(await enforceRateLimit({
+    bucket: 'send_email_feedback',
+    subject: rateLimitSubject(null, context.ip),
+  }))) {
+    return { status: 429, body: { success: false, message: 'Too many requests. Please try again later.' } };
   }
 
   if (!b.token) {
@@ -130,6 +142,13 @@ export async function handleSendWelcomeEmail(
   }
   if (!user.email) {
     return { status: 400, body: { success: false, message: 'Account has no email' } };
+  }
+
+  if (!(await enforceRateLimit({
+    bucket: 'send_email_welcome',
+    subject: rateLimitSubject(user.id),
+  }))) {
+    return { status: 429, body: { success: false, message: 'Too many requests. Please try again later.' } };
   }
 
   const b = (body ?? {}) as { userName?: string };

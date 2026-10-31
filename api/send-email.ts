@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { handleSendFeedback, handleSendWelcomeEmail } from '../_server-lib/email/handlers.js';
+import { clientIpFromHeaders } from '../_server-lib/rateLimit.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -14,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (type === 'feedback') {
-      const result = await handleSendFeedback(req.body);
+      const result = await handleSendFeedback(req.body, { ip: clientIpFromHeaders(req.headers) });
       return res.status(result.status).json(result.body);
     }
     if (type === 'welcome') {

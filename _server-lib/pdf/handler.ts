@@ -1,6 +1,7 @@
 import { checkAccountAccess } from '../accountLock.js';
 import { extractText } from 'unpdf';
 import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
+import { enforceRateLimit, rateLimitSubject } from '../rateLimit.js';
 import { verifyRecaptcha } from '../recaptcha.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
@@ -14,7 +15,8 @@ function isPdfBuffer(buffer: Buffer): boolean {
 
 export async function handleExtractPdf(
   authHeader: string | undefined,
-  body: unknown
+  body: unknown,
+  context: { ip?: string | null } = {}
 ): Promise<HandlerResult> {
   const b = (body ?? {}) as { base64Data?: string; recaptchaToken?: string };
 
@@ -25,6 +27,14 @@ export async function handleExtractPdf(
     const access = await checkAccountAccess(user.id);
     if (access === 'locked') return { status: 403, body: { error: 'Account locked' } };
     if (access === 'unavailable') return { status: 503, body: { error: 'Account verification unavailable' } };
+  }
+
+  // Count before reCAPTCHA so anonymous floods are cut before the Google call.
+  if (!(await enforceRateLimit({
+    bucket: 'extract_pdf',
+    subject: rateLimitSubject(user?.id, context.ip),
+  }))) {
+    return { status: 429, body: { error: 'Too many requests. Please try again later.' } };
   }
 
   if (!user) {
