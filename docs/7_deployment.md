@@ -222,7 +222,7 @@ Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới g
 
 **Trạng thái production 2026-10-31 (admin-only unlimited):** migration `20261101150000` đã áp; verify `pg_constraint` trả `profiles_admin_only_unlimited_limit` với `convalidated = true`. A7 audit trước đó trả 0 row non-admin `custom=true, limit=NULL`, nên không cần backfill.
 
-**Production 2026-10-31:** migrations `20261101160000`–`20261101260000` đã apply; PR #46 (Admin Phase 1–2) và PR #47 (pricing limits) đã merge. Deployment production gần nhất `dpl_J2XEhsHd88FqxFhqXdhxaZ527CF6` — Ready, alias `cvfit.pro`. Global default hiện tại = 3; `get_public_plan_limits` trả `{free:3, pro:100, recruiter:500}`.
+**Production 2026-10-31:** migrations `20261101160000`–`20261101280000` đã apply; PR #46 (Admin Phase 1–2) và PR #47 (pricing limits) đã merge. Deployment production gần nhất `dpl_J2XEhsHd88FqxFhqXdhxaZ527CF6` — Ready, alias `cvfit.pro`. Global default hiện tại = 3; `get_public_plan_limits` trả `{free:3, pro:100, recruiter:500}`. Code follow-up (#48) chưa merge/deploy, nhưng migration `270000`/`280000` đã sẵn sàng.
 
 **Thứ tự deploy Phase 2 bắt buộc:** apply `20261101160000`–`20261101240000` trước → deploy bundle Admin/API → apply `20261101250000` sau cùng. Lý do: `20261101250000` revoke quyền write trực tiếp `app_settings`; bundle cũ vẫn ghi global limit bằng upsert trực tiếp nên sẽ lỗi nếu migration này lên trước khi bundle mới được deploy.
 

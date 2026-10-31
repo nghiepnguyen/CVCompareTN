@@ -772,6 +772,6 @@ WHERE role <> 'admin'
 | Request-id idempotency | ✅ Code | `admin_action_requests` + `admin_update_user_v2`; UI giữ một `requestId`/modal, retry mạng không stack plan |
 | Docs production status | ✅ Updated | `7_deployment.md` + báo cáo ghi trạng thái đã apply/deploy; global default hiện tại 3 |
 
-**Migration mới:** `20261101270000` (list v2), `20261101280000` (idempotency) — **chưa apply production**.
+**Migration mới:** `20261101270000` (list v2), `20261101280000` (idempotency) — **đã apply production**; code PR #48 chưa merge/deploy.
 
 **Deploy:** apply `270000` + `280000` trước → deploy bundle → smoke test quick filter/custom range/idempotent retry.
