@@ -270,6 +270,10 @@ export const system = {
     vi: "Email này đã được đăng ký. Vui lòng đăng nhập.",
     en: "This email is already registered. Please sign in.",
   },
+  authAccountPermanentlyDeleted: {
+    vi: "Tài khoản đã bị xóa vĩnh viễn. Vui lòng sử dụng email khác.",
+    en: "This account has been permanently deleted. Please use a different email address.",
+  },
   authInvalidCredentials: {
     vi: "Email hoặc mật khẩu không đúng. Vui lòng thử lại.",
     en: "Invalid email or password. Please try again.",

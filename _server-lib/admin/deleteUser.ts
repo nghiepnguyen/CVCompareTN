@@ -34,8 +34,30 @@ async function listFilesRecursive(
 }
 
 /**
+ * Adds the email to the permanent blocklist so the account cannot be re-created
+ * (supabase/migrations/20261102100000_deleted_accounts.sql). Best effort: the
+ * auth user is already gone by now, so a failure is logged instead of turning a
+ * completed deletion into an error. The admin audit log keeps the email for
+ * recovery, and release_deleted_account() can unblock an appeal.
+ */
+async function recordDeletedEmail(
+  supabase: SupabaseClient,
+  email: string | null | undefined,
+  adminId: string
+): Promise<void> {
+  if (!email) return;
+
+  const { error } = await supabase.rpc('record_deleted_account', {
+    p_email: email,
+    p_deleted_by: adminId,
+  });
+  if (error) console.error('record_deleted_account failed:', error);
+}
+
+/**
  * Hard-deletes a user: auth.users row (profiles, history, saved_cvs, campaigns
- * cascade via FK) plus their storage objects.
+ * cascade via FK) plus their storage objects, then blocklists the email so it
+ * cannot be used to sign up again.
  *
  * Deleting only the profiles row (the old client-side behaviour) left the auth
  * account alive — the next login re-created a fresh profile with usage_count 0,
@@ -95,11 +117,13 @@ export async function adminDeleteUser(
         console.error('Profile deletion failed:', profileDeleteError);
         return { ok: false, status: 500, error: 'Không thể xoá hồ sơ tài khoản.' };
       }
+      await recordDeletedEmail(supabase, target?.email, callerId);
       return { ok: true, storageErrors };
     }
     console.error('Auth user deletion failed:', deleteError);
     return { ok: false, status: 500, error: 'Không thể xoá tài khoản. Vui lòng thử lại.' };
   }
 
+  await recordDeletedEmail(supabase, target?.email, callerId);
   return { ok: true, storageErrors };
 }

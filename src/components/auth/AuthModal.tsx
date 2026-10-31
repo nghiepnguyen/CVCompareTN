@@ -20,6 +20,7 @@ const ERROR_KEY_MAP: Record<string, string> = {
   authInvalidCredentials: 'authInvalidCredentials',
   authEmailInUse: 'authEmailInUse',
   authEmailNotConfirmed: 'authEmailNotConfirmed',
+  authAccountPermanentlyDeleted: 'authAccountPermanentlyDeleted',
 };
 
 function getErrorKey(resultError: string | undefined): string | null {
