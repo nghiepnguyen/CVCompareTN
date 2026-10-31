@@ -122,7 +122,12 @@ export async function createCampaign(params: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === '42501' && /campaign limit/i.test(error.message)) {
+      throw new Error('CAMPAIGN_LIMIT_REACHED');
+    }
+    throw error;
+  }
   return mapCampaignRow(data);
 }
 

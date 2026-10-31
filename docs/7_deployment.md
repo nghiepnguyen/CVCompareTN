@@ -201,6 +201,7 @@ Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới g
 | `20261101070000` | Trigger `enforce_plan_caps` |
 | `20261101080000`, `20261101080001` | Retention lịch sử free 7 ngày + pg_cron `purge-free-history` |
 | `20261101100000`, `20261101100001` | Rate limit chung `api_rate_limits` + RPC `consume_api_rate_limit`, purge 2 ngày + pg_cron `purge-api-rate-limits` |
+| `20261101110000` | `enforce_plan_caps`: tối đa `MAX_CAMPAIGNS` = 10 đợt/recruiter (admin miễn) |
 
 Verify sau deploy (kỳ vọng `f | f | t`):
 

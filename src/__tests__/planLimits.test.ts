@@ -3,6 +3,8 @@ import {
   isProPlan,
   isRecruiterPlan,
   formatPlanExpiryDate,
+  campaignLimitForPlan,
+  hasReachedCampaignLimit,
   MAX_BATCH_BY_PLAN,
   MAX_SAVED_JD_BY_PLAN,
   MAX_CAMPAIGN_CVS,
@@ -78,6 +80,31 @@ describe("planLimits", () => {
 
     it("recruiter plan allows 10 campaigns", () => {
       expect(MAX_CAMPAIGNS.recruiter).toBe(10);
+    });
+  });
+
+  describe("campaignLimitForPlan", () => {
+    it("free and pro have no campaign slots", () => {
+      expect(campaignLimitForPlan("free")).toBe(0);
+      expect(campaignLimitForPlan("pro")).toBe(0);
+    });
+
+    it("recruiter has 10 campaign slots", () => {
+      expect(campaignLimitForPlan("recruiter")).toBe(10);
+    });
+  });
+
+  describe("hasReachedCampaignLimit", () => {
+    it("free and pro are always at the limit", () => {
+      expect(hasReachedCampaignLimit("free", 0)).toBe(true);
+      expect(hasReachedCampaignLimit("pro", 0)).toBe(true);
+    });
+
+    it("recruiter can create until the 10th campaign", () => {
+      expect(hasReachedCampaignLimit("recruiter", 0)).toBe(false);
+      expect(hasReachedCampaignLimit("recruiter", 9)).toBe(false);
+      expect(hasReachedCampaignLimit("recruiter", 10)).toBe(true);
+      expect(hasReachedCampaignLimit("recruiter", 11)).toBe(true);
     });
   });
 

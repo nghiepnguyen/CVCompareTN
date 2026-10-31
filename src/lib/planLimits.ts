@@ -37,6 +37,15 @@ export const MAX_CAMPAIGNS: Record<UserPlan, number> = {
   recruiter: 10,
 };
 
+/** Campaign slots for a plan; free/pro have none, so any usage is over the limit. */
+export function campaignLimitForPlan(plan: UserPlan): number {
+  return MAX_CAMPAIGNS[plan] ?? 0;
+}
+
+export function hasReachedCampaignLimit(plan: UserPlan, used: number): boolean {
+  return used >= campaignLimitForPlan(plan);
+}
+
 export function isProPlan(plan: UserPlan): boolean {
   return plan === 'pro';
 }

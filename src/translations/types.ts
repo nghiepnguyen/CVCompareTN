@@ -673,6 +673,7 @@ export interface UiLabels {
   // RecruiterView
   recruiterViewTitle: string;
   recruiterViewCount: string;
+  recruiterCampaignLimitReached: string;
   recruiterCreateBtn: string;
   recruiterEmptyTitle: string;
   recruiterEmptyDesc: string;
@@ -707,6 +708,7 @@ export interface UiLabels {
   createCampaignRequiredName: string;
   createCampaignRequiredJd: string;
   createCampaignError: string;
+  createCampaignLimitError: string;
   createCampaignJdFileError: string;
   createCampaignCancel: string;
   createCampaignSubmit: string;
