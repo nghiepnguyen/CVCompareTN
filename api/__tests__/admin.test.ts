@@ -30,7 +30,7 @@ function makeReq(action: string, body: Record<string, unknown>): VercelRequest {
 function makeRes() {
   const json = vi.fn();
   const status = vi.fn(() => ({ json }));
-  return { res: { status } as unknown as VercelResponse, status, json };
+  return { res: { status, setHeader: vi.fn(), end: vi.fn() } as unknown as VercelResponse, status, json };
 }
 
 /** Service-role client stub: caller role, target profile, audit insert, RPC, auth delete. */

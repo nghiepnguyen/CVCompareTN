@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, handlePreflight } from '../_server-lib/http/guard.js';
 
 function publicConfig() {
   const supabaseUrl =
@@ -21,6 +22,8 @@ function publicConfig() {
 }
 
 export default function handler(_req: VercelRequest, res: VercelResponse) {
+  applyCors(_req, res);
+  if (handlePreflight(_req, res)) return;
   res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json(publicConfig());
 }

@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, handlePreflight, rejectOversizedBody, BODY_LIMITS } from '../_server-lib/http/guard.js';
 import { handlePaymentCreate, handlePaymentConfirm, handlePaymentWebhook } from '../_server-lib/payment/handlers.js';
 import type { PlanType } from '../_server-lib/payment/payos.js';
 import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
@@ -12,14 +13,21 @@ import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentryServer();
 
+  applyCors(req, res);
+  if (handlePreflight(req, res)) return;
+
   // Parse action from the last path segment (e.g., /api/payment/create → create)
   const urlPath = new URL(req.url || '', `https://${req.headers.host}`).pathname;
   const segments = urlPath.replace(/\/$/, '').split('/');
   const action = segments[segments.length - 1] || '';
 
+  if (rejectOversizedBody(req, res, BODY_LIMITS.json)) return;
+
   switch (action) {
     case 'create': {
       if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
+
+  if (rejectOversizedBody(req, res, BODY_LIMITS.json)) return;
       try {
         const authHeader =
           typeof req.headers.authorization === 'string' ? req.headers.authorization : undefined;

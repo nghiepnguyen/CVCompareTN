@@ -46,7 +46,7 @@ function makeReq(opts: {
 function makeRes(): { res: VercelResponse; status: ReturnType<typeof vi.fn>; json: ReturnType<typeof vi.fn> } {
   const json = vi.fn();
   const status = vi.fn().mockReturnThis();
-  const res = { status, json } as unknown as VercelResponse;
+  const res = { status, json, setHeader: vi.fn(), end: vi.fn() } as unknown as VercelResponse;
   return { res, status, json };
 }
 
