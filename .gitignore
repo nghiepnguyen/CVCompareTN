@@ -43,3 +43,9 @@ graphify-out/*
 
 # Local R2 migration checkpoints (may identify user records)
 .r2-migration/
+
+# Local agent/PRD scratch files
+.claude/
+.ignore
+create-prd.md
+generate-tasks.md
