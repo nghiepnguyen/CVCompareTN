@@ -284,4 +284,52 @@ describe('AdminView', () => {
     expect(screen.queryByTitle('adminDelete')).toBeNull();
   });
 
+  it('surfaces each active filter as a chip and clears them all at once', async () => {
+    await renderView();
+
+    fireEvent.change(screen.getByLabelText('adminFilterPlan'), { target: { value: 'free' } });
+    expect(screen.queryByText('adminFilterPlan: adminFilterPlanFree')).not.toBeNull();
+
+    fireEvent.change(screen.getByLabelText('adminFilterRole'), { target: { value: 'admin' } });
+    expect(screen.queryByText('adminFilterRole: adminFilterRoleAdmin')).not.toBeNull();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('adminFiltersClearAll'));
+    });
+
+    expect(screen.queryByText('adminFilterPlan: adminFilterPlanFree')).toBeNull();
+    expect(screen.queryByText('adminFilterRole: adminFilterRoleAdmin')).toBeNull();
+    expect((screen.getByLabelText('adminFilterPlan') as HTMLSelectElement).value).toBe('all');
+    expect((screen.getByLabelText('adminFilterRole') as HTMLSelectElement).value).toBe('all');
+  });
+
+  it('removes a single filter from its chip without touching the others', async () => {
+    await renderView();
+
+    fireEvent.change(screen.getByLabelText('adminFilterPlan'), { target: { value: 'pro' } });
+    fireEvent.change(screen.getByLabelText('adminFilterStatus'), { target: { value: 'locked' } });
+
+    const chip = screen.getByText('adminFilterPlan: adminFilterPlanPro').closest('span') as HTMLElement;
+    await act(async () => {
+      fireEvent.click(within(chip).getByRole('button'));
+    });
+
+    expect(screen.queryByText('adminFilterPlan: adminFilterPlanPro')).toBeNull();
+    expect(screen.queryByText('adminFilterStatus: adminFilterStatusLocked')).not.toBeNull();
+  });
+
+  it('offers a clear-filters shortcut when the filtered list is empty', async () => {
+    adminUsersState = { users: [] };
+    await renderView();
+
+    fireEvent.change(screen.getByLabelText('adminFilterPlan'), { target: { value: 'pro' } });
+
+    const table = screen.getByRole('table');
+    await act(async () => {
+      fireEvent.click(within(table).getByText('adminFiltersClearAll'));
+    });
+
+    expect((screen.getByLabelText('adminFilterPlan') as HTMLSelectElement).value).toBe('all');
+  });
+
 });

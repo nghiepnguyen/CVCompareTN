@@ -1,3 +1,4 @@
+// @refresh reset — provider and hooks share this module; see UIContext.tsx.
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import * as Sentry from '@sentry/react';
 import { useAuth } from '../AuthContext';

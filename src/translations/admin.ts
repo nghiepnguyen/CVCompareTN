@@ -401,8 +401,8 @@ export const admin = {
     en: "Locked",
   },
   adminQuickFilterLabel: {
-    vi: "Nhanh",
-    en: "Quick",
+    vi: "Lọc nhanh",
+    en: "Quick filter",
   },
   adminQuickFilterAll: {
     vi: "Tất cả",
@@ -415,6 +415,18 @@ export const admin = {
   adminQuickFilterExpiring: {
     vi: "Sắp hết hạn",
     en: "Expiring soon",
+  },
+  adminFiltersActive: {
+    vi: "Đang lọc",
+    en: "Filtering",
+  },
+  adminFiltersClearAll: {
+    vi: "Xoá tất cả",
+    en: "Clear all",
+  },
+  adminFiltersRemove: {
+    vi: "Bỏ lọc {filter}",
+    en: "Remove {filter} filter",
   },
   adminSortLabel: {
     vi: "Sắp xếp",

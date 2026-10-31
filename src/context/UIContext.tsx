@@ -1,3 +1,7 @@
+// @refresh reset — provider and hook share this module, so Fast Refresh must
+// remount: otherwise a re-evaluated consumer reads a new context object while
+// the mounted provider still holds the old one ("useUI must be used within a
+// UIProvider"). Dev-only; production has no Fast Refresh.
 import React, { createContext, useCallback, useContext, useState, useEffect } from 'react';
 import { UI_LABELS } from '../translations';
 

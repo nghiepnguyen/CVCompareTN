@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Users, BarChart3, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown, Briefcase, AlertCircle, X, ClipboardList, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
@@ -53,6 +53,9 @@ type AdminUserFilters = {
   sort: 'created_desc' | 'created_asc' | 'usage_desc' | 'name_asc' | 'expiry_asc';
   page: number;
 };
+
+/** Filters that narrow the list (sort is a view preference, not a filter). */
+type AdminActiveFilterKey = 'search' | 'plan' | 'role' | 'status' | 'flag';
 
 function adminFiltersFromSearch(): AdminUserFilters {
   const params = new URLSearchParams(window.location.search);
@@ -155,6 +158,67 @@ export function AdminView() {
   }, [searchInput, planFilter, roleFilter, statusFilter, quickFilter, sort]);
 
   const totalPages = Math.max(1, Math.ceil((totalCount ?? 0) / pageSize));
+
+  // The chips mirror the filters the RPC is actually applying, so a stale page
+  // can never look "unfiltered": debouncedSearch, not the raw input.
+  const activeFilters = useMemo<{ key: AdminActiveFilterKey; label: string }[]>(() => {
+    const filters: { key: AdminActiveFilterKey; label: string }[] = [];
+    if (debouncedSearch) filters.push({ key: 'search', label: `“${debouncedSearch}”` });
+    if (planFilter !== 'all') {
+      const planLabel =
+        planFilter === 'free'
+          ? t.adminFilterPlanFree
+          : planFilter === 'pro'
+            ? t.adminFilterPlanPro
+            : t.adminFilterPlanRecruiter;
+      filters.push({ key: 'plan', label: `${t.adminFilterPlan}: ${planLabel}` });
+    }
+    if (roleFilter !== 'all') {
+      const roleLabel = roleFilter === 'user' ? t.adminFilterRoleUser : t.adminFilterRoleAdmin;
+      filters.push({ key: 'role', label: `${t.adminFilterRole}: ${roleLabel}` });
+    }
+    if (statusFilter !== 'all') {
+      const statusLabel = statusFilter === 'active' ? t.adminFilterStatusActive : t.adminFilterStatusLocked;
+      filters.push({ key: 'status', label: `${t.adminFilterStatus}: ${statusLabel}` });
+    }
+    if (quickFilter !== 'all') {
+      filters.push({
+        key: 'flag',
+        label: quickFilter === 'new' ? t.adminQuickFilterNew : t.adminQuickFilterExpiring,
+      });
+    }
+    return filters;
+  }, [debouncedSearch, planFilter, roleFilter, statusFilter, quickFilter, t]);
+
+  const clearFilter = useCallback((key: AdminActiveFilterKey) => {
+    switch (key) {
+      case 'search':
+        setSearchInput('');
+        setDebouncedSearch('');
+        break;
+      case 'plan':
+        setPlanFilter('all');
+        break;
+      case 'role':
+        setRoleFilter('all');
+        break;
+      case 'status':
+        setStatusFilter('all');
+        break;
+      case 'flag':
+        setQuickFilter('all');
+        break;
+    }
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setSearchInput('');
+    setDebouncedSearch('');
+    setPlanFilter('all');
+    setRoleFilter('all');
+    setStatusFilter('all');
+    setQuickFilter('all');
+  }, []);
 
   // Realtime refreshes/deletes can shrink the list under the current page —
   // clamp so the table never lands on an empty page past the end.
@@ -707,22 +771,31 @@ export function AdminView() {
               </div>
             </div>
 
-            {/* Filter Row */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+            {/* Filter toolbar: quick-filter strip on its own row, then four
+                equal labelled selects, then removable chips for what is on. */}
+            <div className="rounded-2xl border border-border bg-surface-secondary/40 p-3">
+              <div className="flex flex-col gap-1">
+                <span
+                  id="admin-quick-filter-label"
+                  className="text-[10px] font-black text-text-light uppercase tracking-widest"
+                >
                   {t.adminQuickFilterLabel}
                 </span>
-                <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
+                <div
+                  role="group"
+                  aria-labelledby="admin-quick-filter-label"
+                  className="flex h-10 w-full items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5 sm:w-auto sm:self-start"
+                >
                   {(['all', 'new', 'expiring'] as const).map((opt) => (
                     <button
                       key={opt}
                       type="button"
                       onClick={() => setQuickFilter(opt)}
+                      aria-pressed={quickFilter === opt}
                       className={cn(
-                        'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer',
+                        'h-full flex-1 rounded-md px-2 text-[10px] font-bold whitespace-nowrap uppercase tracking-wide transition-all cursor-pointer sm:flex-none sm:px-4',
                         quickFilter === opt
-                          ? 'bg-surface text-accent shadow-sm border border-border'
+                          ? 'bg-accent/15 text-accent shadow-sm'
                           : 'text-text-muted hover:text-text-main'
                       )}
                     >
@@ -736,105 +809,101 @@ export function AdminView() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
-                  {t.adminFilterPlan}
-                </span>
-                <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
-                  {(['all', 'free', 'pro', 'recruiter'] as const).map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setPlanFilter(opt)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer',
-                        planFilter === opt
-                          ? 'bg-surface text-accent shadow-sm border border-border'
-                          : 'text-text-muted hover:text-text-main'
-                      )}
-                    >
-                      {opt === 'all'
-                        ? t.adminFilterPlanAll
-                        : opt === 'free'
-                          ? t.adminFilterPlanFree
-                          : opt === 'pro'
-                            ? t.adminFilterPlanPro
-                            : t.adminFilterPlanRecruiter}
-                    </button>
-                  ))}
-                </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <label className="flex min-w-0 flex-col gap-1">
+                  <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+                    {t.adminFilterPlan}
+                  </span>
+                  <select
+                    value={planFilter}
+                    onChange={(e) => setPlanFilter(e.target.value as typeof planFilter)}
+                    className="h-10 w-full cursor-pointer rounded-lg border border-border bg-surface px-2 text-[11px] font-bold text-text-main transition-colors outline-none hover:border-accent/40 focus:border-accent"
+                  >
+                    <option value="all">{t.adminFilterPlanAll}</option>
+                    <option value="free">{t.adminFilterPlanFree}</option>
+                    <option value="pro">{t.adminFilterPlanPro}</option>
+                    <option value="recruiter">{t.adminFilterPlanRecruiter}</option>
+                  </select>
+                </label>
+
+                <label className="flex min-w-0 flex-col gap-1">
+                  <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+                    {t.adminFilterRole}
+                  </span>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
+                    className="h-10 w-full cursor-pointer rounded-lg border border-border bg-surface px-2 text-[11px] font-bold text-text-main transition-colors outline-none hover:border-accent/40 focus:border-accent"
+                  >
+                    <option value="all">{t.adminFilterRoleAll}</option>
+                    <option value="user">{t.adminFilterRoleUser}</option>
+                    <option value="admin">{t.adminFilterRoleAdmin}</option>
+                  </select>
+                </label>
+
+                <label className="flex min-w-0 flex-col gap-1">
+                  <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+                    {t.adminFilterStatus}
+                  </span>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+                    className="h-10 w-full cursor-pointer rounded-lg border border-border bg-surface px-2 text-[11px] font-bold text-text-main transition-colors outline-none hover:border-accent/40 focus:border-accent"
+                  >
+                    <option value="all">{t.adminFilterStatusAll}</option>
+                    <option value="active">{t.adminFilterStatusActive}</option>
+                    <option value="locked">{t.adminFilterStatusLocked}</option>
+                  </select>
+                </label>
+
+                <label className="flex min-w-0 flex-col gap-1">
+                  <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+                    {t.adminSortLabel}
+                  </span>
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as typeof sort)}
+                    className="h-10 w-full cursor-pointer rounded-lg border border-border bg-surface px-2 text-[11px] font-bold text-text-main transition-colors outline-none hover:border-accent/40 focus:border-accent"
+                  >
+                    <option value="created_desc">{t.adminSortCreatedDesc}</option>
+                    <option value="created_asc">{t.adminSortCreatedAsc}</option>
+                    <option value="usage_desc">{t.adminSortUsageDesc}</option>
+                    <option value="name_asc">{t.adminSortNameAsc}</option>
+                    <option value="expiry_asc">{t.adminSortExpiryAsc}</option>
+                  </select>
+                </label>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
-                  {t.adminFilterRole}
-                </span>
-                <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
-                  {(['all', 'user', 'admin'] as const).map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setRoleFilter(opt)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer',
-                        roleFilter === opt
-                          ? 'bg-surface text-accent shadow-sm border border-border'
-                          : 'text-text-muted hover:text-text-main'
-                      )}
+              {activeFilters.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
+                  <span className="mr-1 text-[10px] font-black text-text-light uppercase tracking-widest">
+                    {t.adminFiltersActive}
+                  </span>
+                  {activeFilters.map((filter) => (
+                    <span
+                      key={filter.key}
+                      className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-surface px-2.5 py-1 text-[10px] font-bold text-text-main"
                     >
-                      {opt === 'all'
-                        ? t.adminFilterRoleAll
-                        : opt === 'user'
-                          ? t.adminFilterRoleUser
-                          : t.adminFilterRoleAdmin}
-                    </button>
+                      {filter.label}
+                      <button
+                        type="button"
+                        onClick={() => clearFilter(filter.key)}
+                        aria-label={formatLabel(t.adminFiltersRemove, { filter: filter.label })}
+                        className="cursor-pointer rounded-full p-0.5 text-text-light transition-colors hover:text-error"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
                   ))}
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="ml-auto cursor-pointer rounded-lg px-2 py-1 text-[10px] font-black text-text-muted uppercase tracking-widest transition-all hover:scale-105 hover:text-error active:scale-95"
+                  >
+                    {t.adminFiltersClearAll}
+                  </button>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
-                  {t.adminFilterStatus}
-                </span>
-                <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
-                  {(['all', 'active', 'locked'] as const).map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setStatusFilter(opt)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer',
-                        statusFilter === opt
-                          ? 'bg-surface text-accent shadow-sm border border-border'
-                          : 'text-text-muted hover:text-text-main'
-                      )}
-                    >
-                      {opt === 'all'
-                        ? t.adminFilterStatusAll
-                        : opt === 'active'
-                          ? t.adminFilterStatusActive
-                          : t.adminFilterStatusLocked}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <label className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
-                  {t.adminSortLabel}
-                </span>
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as typeof sort)}
-                  className="rounded-lg border border-border bg-surface-secondary px-2 py-1.5 text-[11px] font-bold text-text-main cursor-pointer"
-                >
-                  <option value="created_desc">{t.adminSortCreatedDesc}</option>
-                  <option value="created_asc">{t.adminSortCreatedAsc}</option>
-                  <option value="usage_desc">{t.adminSortUsageDesc}</option>
-                  <option value="name_asc">{t.adminSortNameAsc}</option>
-                  <option value="expiry_asc">{t.adminSortExpiryAsc}</option>
-                </select>
-              </label>
+              )}
             </div>
           </div>
 
@@ -1127,6 +1196,17 @@ export function AdminView() {
                               className="rounded-lg border border-error/30 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95"
                             >
                               {t.adminRetry}
+                            </button>
+                          </div>
+                        ) : activeFilters.length > 0 ? (
+                          <div className="flex flex-col items-center gap-3">
+                            <span>{t.adminUsersEmptyState}</span>
+                            <button
+                              type="button"
+                              onClick={clearFilters}
+                              className="cursor-pointer rounded-lg border border-border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-text-main transition-all hover:scale-105 hover:border-accent/40 active:scale-95"
+                            >
+                              {t.adminFiltersClearAll}
                             </button>
                           </div>
                         ) : (
