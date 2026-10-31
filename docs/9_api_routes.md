@@ -11,7 +11,7 @@ Canonical reference for **which runtime handles each capability**. Từ 2026-06,
 | **Gemini CV rewrite** (nền, `fullRewrittenCV`) | `POST /api/rewrite-cv` → `api/rewrite-cv.ts` (maxDuration 300s, deadline 65s) | `POST /api/rewrite-cv` → `server/routes/rewriteCv.ts` | `_server-lib/rewriteCv/handler.ts` |
 | **Gemini CV parse** (nền, `parsedCV`) | `POST /api/parse-cv` → `api/parse-cv.ts` (maxDuration 300s, deadline 65s) | `POST /api/parse-cv` → `server/routes/parseCv.ts` | `_server-lib/parseCv/handler.ts` |
 | PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` (Auth: Bearer or reCAPTCHA) | `POST /api/extract-pdf` → `server/routes/pdf.ts` (idem) | `_server-lib/pdf/handler.ts` |
-| reCAPTCHA verify (auth flow) | `POST /api/verify-recaptcha` → `api/verify-recaptcha.ts` | `POST /api/verify-recaptcha` → `server/routes/recaptcha.ts` | `_server-lib/recaptcha.ts` |
+| reCAPTCHA verify | Không còn route riêng — verify inline trong handler dùng nó (extract-pdf, feedback) | — | `_server-lib/recaptcha.ts` |
 | Feedback email | `POST /api/send-email` (`type:'feedback'`) → `api/send-email.ts` | `POST /api/send-feedback` → `server/routes/feedback.ts` | `_server-lib/email/handlers.ts` |
 | Welcome email (cần `Authorization: Bearer`; chỉ gửi tới email của user trong token) | `POST /api/send-email` (`type:'welcome'`) → `api/send-email.ts` | `POST /api/send-welcome-email` → `server/routes/welcomeEmail.ts` | `_server-lib/email/handlers.ts` |
 | VIP upgrade email | server-side via `_server-lib/payment/vipUpgradeEmail.ts` | — | — |
@@ -62,18 +62,17 @@ flowchart TB
 - **Paths và behavior giống hệt Vercel** — cả hai gọi cùng `_server-lib/` handlers.
 - Rate limiting: Express dùng `server/lib/rateLimiter.ts`; ngoài ra cả Vercel và Express dùng bộ đếm chung Postgres `consume_api_rate_limit` qua `_server-lib/rateLimit.ts` (migration `20261101100000`) cho `extract-pdf`, `storage`, `send-email`.
 
-### Supabase Edge Functions (`supabase/functions/`)
+### Supabase Edge Functions — không còn
 
-- **`verify-recaptcha`:** Legacy — **không còn dùng cho analyze flow**. reCAPTCHA verify cho analyze giờ chạy inline trong `POST /api/analyze`. Vẫn còn dùng cho auth flow (`AuthContext.tsx`).
-- **`extract-pdf`:** Legacy — không còn được gọi từ frontend. PDF extraction dùng `unpdf` client-side (trong `useFileProcessor.ts`) trước khi gửi text lên `/api/analyze`; từ 2026-07, file gốc (≤2MB base64 inline `cvPdfInlineData`, 2–15MB storage path `cvPdfStoragePath` qua bucket `cv-analyze-tmp`) cũng được gửi kèm luôn thay vì qua một bước trích xuất riêng.
+Từ 2026-10-31 (audit §4.10), project không còn Edge Function nào và repo không còn `supabase/functions/`. `extract-pdf`, `verify-recaptcha` và `send-email` (deploy cũ) đã bị xoá; client không dùng `supabase.functions.invoke`. Mọi luồng đi qua `/api/*` (Vercel) hoặc Express, dùng chung `_server-lib/`.
 
-Do **not** assume one Edge function replaces Express and Vercel handlers without checking call sites.
+Do **not** assume an Edge function replaces Express and Vercel handlers — kiểm tra call sites trước khi thêm mới.
 
 ## Supabase data plane (not HTTP `/api`)
 
 | Concern | Client module | Notes |
 |---------|---------------|--------|
-| Auth | `src/lib/supabase.ts` + `src/context/AuthContext.tsx` | Google OAuth + Email/Password (Supabase Auth), reCAPTCHA v3 verify qua `/api/verify-recaptcha` trước sign in/sign up |
+| Auth | `src/lib/supabase.ts` + `src/context/AuthContext.tsx` | Google OAuth + Email/Password (Supabase Auth); không có verify endpoint reCAPTCHA riêng — reCAPTCHA v3 chỉ dùng inline cho feedback/extract-pdf |
 | History / saved JDs | `src/services/historyService.ts` | Postgres via Supabase client |
 | Storage bucket `cv-files` | Supabase Storage API | Kho CV vĩnh viễn — upload/download/delete qua `src/services/cvService.ts` |
 | Storage bucket `cv-analyze-tmp` (2026-07) | `src/services/cvService.ts` (`uploadTempAnalysisFile`/`cleanupTempAnalysisFiles`), server `_server-lib/storage/tempFile.ts` (`resolveStorageRef`) | File tạm 2–15MB trong luồng phân tích, client tự xoá sau khi analyze/rewrite/parse-cv xong |

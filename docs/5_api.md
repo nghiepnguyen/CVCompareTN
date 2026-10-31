@@ -93,17 +93,9 @@ Gemini được gọi qua **3 endpoint riêng biệt** (từ 2026-07) thay vì m
 - **Response:** `{ text: string }`
 - **Dùng cho:** Trích xuất text từ PDF JD (Job Description) upload trong `AnalysisInputView`. CV PDF dùng `unpdf` client-side (`useFileProcessor.ts`), không qua endpoint này — file gốc (≤2MB base64 inline, 2–15MB qua storage path `cv-analyze-tmp`) được gửi kèm trực tiếp trong body `/api/analyze`/`/api/parse-cv`/`/api/rewrite-cv` thay vì qua một endpoint trích xuất riêng.
 
-### Xác thực reCAPTCHA (standalone — chỉ cho auth flow)
+### Xác thực reCAPTCHA (inline — không còn endpoint standalone)
 
-| Môi trường | Method & path |
-|------------|----------------|
-| **Vercel** | `POST /api/verify-recaptcha` |
-| **Express** | `POST /api/verify-recaptcha` |
-
-- **Body:** `{ token: string }`
-- **Sử dụng:** `AuthContext.tsx` — verify trước `signInWithEmail()` / `signUpWithEmail()`.
-- **Ghi chú:** Localhost bypass tự động (`NODE_ENV !== 'production'`). Shared logic: `_server-lib/recaptcha.ts`.
-- Analyze và extract-pdf verify reCAPTCHA **inline** trong shared handler, không gọi endpoint này.
+Không còn route `/api/verify-recaptcha` hay Edge Function `verify-recaptcha` (audit §4.10, 2026-10-31). reCAPTCHA v3 được verify **inline** trong các handler dùng nó: `/api/extract-pdf` (action `extract_pdf`) và feedback `POST /api/send-email` (action `feedback`), qua `_server-lib/recaptcha.ts` — kiểm `success`, score trong ngưỡng, đúng action và hostname. Auth flow không gọi verify endpoint riêng.
 
 ### Thanh toán PayOS
 
@@ -146,9 +138,9 @@ Vercel dùng một handler duy nhất dispatch theo `type` field. Express dùng 
 - **File:** `_server-lib/payment/vipUpgradeEmail.ts` — gọi trực tiếp từ `_server-lib/payment/handlers.ts` (non-blocking, fire-and-forget).
 - **Phân biệt plan:** Tự động nhận diện Pro vs Recruiter, hiển thị danh sách quyền lợi tương ứng (Pro: 5 CV batch, 10 saved CV; Recruiter: 50 CV batch, 50 saved CV, 10 campaigns).
 
-### Edge Function (tùy chọn — Supabase)
+### Edge Functions — không còn (2026-10-31)
 
-- **`extract-pdf`:** Edge function không còn được gọi trực tiếp từ frontend cho JD. PDF extraction hiện dùng backend API thống nhất `POST /api/extract-pdf` (Vercel hoặc Express — cùng path). File source: `supabase/functions/extract-pdf/` giữ lại để dùng trong tương lai.
+Project Supabase không còn Edge Function nào: `extract-pdf`, `verify-recaptcha` và `send-email` (bản deploy cũ, không có source trong repo) đã bị xoá bằng `supabase functions delete` theo audit §4.10. Client không dùng `supabase.functions.invoke`; mọi luồng đi qua `/api/*` (Vercel) hoặc Express. Source cũ nằm trong git history nếu cần dựng lại, nhưng phải thêm auth/size cap/CORS allowlist trước khi deploy.
 
 ## 2. Dịch vụ lưu trữ & xác thực (Supabase)
 
