@@ -273,11 +273,11 @@ export const admin = {
     en: "Analytic",
   },
   adminStatusActive: {
-    vi: "Active",
+    vi: "Hoạt động",
     en: "Active",
   },
   adminStatusLocked: {
-    vi: "Locked",
+    vi: "Đã khóa",
     en: "Locked",
   },
   adminInvalidAnalyticsLimit: {

@@ -491,9 +491,11 @@ export function AdminView() {
                   {paginatedUsers.map((u) => (
                     <tr key={u.id} className={cn(
                       "group hover:bg-surface-secondary/80 transition-all duration-200", 
-                      u.isNew && "bg-accent-light/40"
+                      u.role !== 'admin' && !u.hasPermission
+                        ? "bg-red-50/80 hover:bg-red-100/70 dark:bg-red-950/25 dark:hover:bg-red-950/40"
+                        : u.isNew && "bg-accent-light/40"
                     )}>
-                      <td className="px-6 py-4">
+                      <td className={cn("px-6 py-4 border-l-4", u.role !== 'admin' && !u.hasPermission ? "border-l-red-600 dark:border-l-red-400" : "border-l-transparent")}>
                         <div className="flex items-center gap-3">
                           <div className="relative shrink-0">
                             <UserAvatar
@@ -596,18 +598,17 @@ export function AdminView() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className={cn(
-                            "w-1.5 h-1.5 rounded-full",
-                            u.hasPermission ? "bg-success shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-text-light"
-                          )} />
-                          <span className={cn(
-                            "text-[11px] font-bold uppercase tracking-tight",
-                            u.hasPermission ? "text-success" : "text-text-light"
-                          )}>
-                            {u.hasPermission ? t.adminStatusActive : t.adminStatusLocked}
-                          </span>
-                        </div>
+                        <span className={cn(
+                          "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-1 text-xs font-bold",
+                          u.role === 'admin' || u.hasPermission
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
+                            : "border-red-300 bg-red-100 text-red-800 dark:border-red-700 dark:bg-red-950/50 dark:text-red-200"
+                        )}>
+                          {u.role === 'admin' || u.hasPermission
+                            ? <UserCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            : <UserX className="h-3 w-3 shrink-0" aria-hidden="true" />}
+                          {u.role === 'admin' || u.hasPermission ? t.adminStatusActive : t.adminStatusLocked}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-[11px] text-text-muted font-medium">
                         {new Date(u.createdAt).toLocaleDateString(dateLocale, { timeZone: VN_TIME_ZONE })}
@@ -616,16 +617,17 @@ export function AdminView() {
                         <div className="flex items-center justify-end gap-1">
                           {u.id !== user?.id && (
                             <>
-                              <button 
+                              {u.role !== 'admin' && <button
                                 onClick={() => void handleTogglePermission(u)}
                                 className={cn(
-                                  "p-2 rounded-lg transition-all cursor-pointer hover:scale-110 active:scale-95",
-                                  u.hasPermission ? "text-text-light hover:text-warning hover:bg-warning-light" : "text-success hover:bg-success-light"
+                                  "inline-flex min-h-11 items-center gap-2 px-3 rounded-lg border transition-colors cursor-pointer hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
+                                  u.hasPermission ? "border-border text-text-muted hover:text-warning hover:bg-warning-light" : "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200"
                                 )}
                                 title={u.hasPermission ? t.adminLock : t.adminUnlock}
                               >
-                                {u.hasPermission ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                              </button>
+                                {u.hasPermission ? <UserX className="w-4 h-4" aria-hidden="true" /> : <UserCheck className="w-4 h-4" aria-hidden="true" />}
+                                <span className="text-xs font-bold whitespace-nowrap">{u.hasPermission ? t.adminLock : t.adminUnlock}</span>
+                              </button>}
                               {u.role !== 'admin' && (
                               <button 
                                 onClick={() => void handleDeleteUser(u)}
