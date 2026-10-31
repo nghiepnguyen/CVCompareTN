@@ -56,10 +56,42 @@ export async function checkAccountAccess(userId: string): Promise<'ok' | 'locked
 }
 
 /**
- * Gate for /api/rewrite-cv and /api/parse-cv: account lock, then a per-user
- * hourly cap counted from analysis_log (every call writes one row).
- * Account lookup fails closed. The independent rate-count lookup retains its
- * existing fail-open behavior.
+ * Hourly cap counted from analysis_log (every AI call writes one row). This is
+ * the enforceable entitlement for /api/analyze: the client-declared
+ * `batchTotal` only carries one request's share of a batch, so a caller could
+ * understate it; the actual number of analyze calls is capped here instead.
+ * Fails open on lookup errors, matching the existing AI rate-count behavior.
+ */
+export async function checkHourlyAiLimit(
+  userId: string,
+  kind: 'analyze' | 'rewrite' | 'parse_cv',
+  plan: 'free' | 'pro' | 'recruiter',
+  timeoutMs: number,
+  signal?: AbortSignal
+): Promise<'ok' | 'rate_limited'> {
+  try {
+    const query = getSupabaseAdmin()
+      .from('analysis_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('kind', kind)
+      .gte('created_at', new Date(Date.now() - RATE_WINDOW_MS).toISOString());
+    const { count } = await withTimeout(
+      (signal ? query.abortSignal(signal) : query) as unknown as Promise<{ count: number | null }>,
+      timeoutMs,
+      'Rate limit check'
+    );
+    return (count ?? 0) >= hourlyAiLimit(plan) ? 'rate_limited' : 'ok';
+  } catch (err) {
+    console.warn('Rate limit check skipped:', err instanceof Error ? err.message : err);
+    return 'ok';
+  }
+}
+
+/**
+ * Gate for /api/rewrite-cv and /api/parse-cv: account lock, then the hourly
+ * cap. Account lookup fails closed; the independent rate-count lookup retains
+ * its existing fail-open behavior.
  */
 export async function checkAiAccess(
   userId: string,
@@ -75,25 +107,8 @@ export async function checkAiAccess(
   }
   if (isLockedProfile(profile)) return 'locked';
 
-  try {
-    const supabase = getSupabaseAdmin();
-    const plan = profile
-      ? getEffectivePlan({ plan: profile.plan, planExpiresAt: profile.plan_expires_at, role: profile.role })
-      : 'free';
-    const query = supabase
-      .from('analysis_log')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('kind', kind)
-      .gte('created_at', new Date(Date.now() - RATE_WINDOW_MS).toISOString());
-    const { count } = await withTimeout(
-      (signal ? query.abortSignal(signal) : query) as unknown as Promise<{ count: number | null }>,
-      timeoutMs,
-      'Rate limit check'
-    );
-    if ((count ?? 0) >= hourlyAiLimit(plan)) return 'rate_limited';
-  } catch (err) {
-    console.warn('Rate limit check skipped:', err instanceof Error ? err.message : err);
-  }
-  return 'ok';
+  const plan = profile
+    ? getEffectivePlan({ plan: profile.plan, planExpiresAt: profile.plan_expires_at, role: profile.role })
+    : 'free';
+  return checkHourlyAiLimit(userId, kind, plan, timeoutMs, signal);
 }

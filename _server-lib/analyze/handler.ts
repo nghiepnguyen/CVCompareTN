@@ -1,5 +1,5 @@
 import { getUserFromBearerToken, getSupabaseAdmin } from '../payment/supabaseAdmin.js';
-import { getAccountProfile, getEffectivePlan, isLockedProfile } from '../accountLock.js';
+import { getAccountProfile, getEffectivePlan, isLockedProfile, checkHourlyAiLimit } from '../accountLock.js';
 import { analyzeCV } from '../ai/analysisService.js';
 import { GEMINI_ANALYZE_MODEL } from '../ai/geminiClient.js';
 import { withTimeout } from '../withTimeout.js';
@@ -89,6 +89,9 @@ export async function handleAnalyze(
   // Re-check batch size server-side — the UI already enforces MAX_BATCH_BY_PLAN,
   // this is defense-in-depth against a caller hitting /api/analyze directly.
   // The profile also carries the account lock, so this lookup must fail closed.
+  // `batchTotal` is only the caller's declaration (one request carries one CV);
+  // the hourly cap below is the entitlement the server can actually enforce.
+  let effectivePlan: 'free' | 'pro' | 'recruiter' = 'free';
   try {
     const profile = await getAccountProfile(userId, Math.min(PLAN_CHECK_TIMEOUT_MS, deadline.remainingMs()), deadline.signal(PLAN_CHECK_TIMEOUT_MS));
     if (isLockedProfile(profile)) {
@@ -96,7 +99,7 @@ export async function handleAnalyze(
       return { status: 403, body: { error: 'Account locked' } };
     }
     if (profile) {
-      const effectivePlan = getEffectivePlan({
+      effectivePlan = getEffectivePlan({
         plan: profile.plan as 'free' | 'pro' | 'recruiter',
         planExpiresAt: profile.plan_expires_at,
         role: profile.role === 'admin' ? 'admin' : 'user',
@@ -110,6 +113,21 @@ export async function handleAnalyze(
     }
   } catch {
     return { status: 503, body: { error: 'Account verification unavailable' } };
+  }
+
+  // Count actual analyze calls in the last hour, so understating batchTotal
+  // cannot buy more concurrent work than the plan allows. Fail-open matches
+  // the rewrite/parse rate-count behavior.
+  const hourly = await checkHourlyAiLimit(
+    userId,
+    'analyze',
+    effectivePlan,
+    Math.min(PLAN_CHECK_TIMEOUT_MS, deadline.remainingMs()),
+    deadline.signal(PLAN_CHECK_TIMEOUT_MS)
+  );
+  if (hourly === 'rate_limited') {
+    await logAnalysisAttempt(userId, 'error', 'analyze', 'Hourly analysis limit exceeded', undefined, undefined, deadline);
+    return { status: 429, body: { error: 'Too many requests. Please try again later.' } };
   }
 
   // Client uploaded the raw file to Storage instead of inlining base64 (large
