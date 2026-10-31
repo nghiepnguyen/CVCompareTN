@@ -114,7 +114,7 @@ export function ProfileView() {
               {displayName || email}
             </h2>
             {isRecruiter && (
-              <span className="mt-2 text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="mt-2 text-[10px] font-black px-2 py-0.5 rounded dark:bg-purple-500/10 bg-purple-100 dark:text-purple-400 text-purple-700 border dark:border-purple-400/20 border-purple-300">
                 {t.planBadgeRecruiter}
               </span>
             )}
