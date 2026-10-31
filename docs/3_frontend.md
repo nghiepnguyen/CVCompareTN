@@ -65,7 +65,7 @@ CI/CD: **GitHub Actions** (`.github/workflows/ci.yml`) — trigger `push`/`PR` t
 -   **`PaymentSuccessView.tsx`**: Polling Supabase mỗi 2s (tối đa 15 lần) để phát hiện plan activation, tự động redirect Dashboard sau 4s.
 -   **`PaymentCancelView.tsx`**: Trang thông báo hủy thanh toán, nút quay lại Dashboard.
 -   **`ProfileView.tsx`**: Trang thông tin cá nhân (Họ tên, Email, Loại tài khoản Free/Pro/Recruiter, hạn sử dụng, số lượt phân tích đã dùng/tháng).
--   **`HistoryView.tsx`**, **`AdminView.tsx`**: Lịch sử và quản trị (Admin: cấu hình hạn mức mặc định `app_settings`, override/unlimited từng user, set plan Pro/Recruiter qua modal — xem [8_analytics.md](8_analytics.md)).
+-   **`HistoryView.tsx`**, **`AdminView.tsx`**: Lịch sử và quản trị (Admin: cấu hình hạn mức mặc định `app_settings`, override limit từng user (unlimited chỉ admin), set plan Pro/Recruiter qua modal atomic — xem [8_analytics.md](8_analytics.md)).
 -   Các trang pháp lý / hỗ trợ: lazy-load từ `AppContent` (`TermsOfServicePage`, `PrivacyPolicyPage`, …).
 
 ### Recruiter components (`src/components/recruiter/`)

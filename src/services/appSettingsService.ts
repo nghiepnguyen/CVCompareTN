@@ -29,23 +29,29 @@ export async function getDefaultMonthlyAnalyticsLimit(): Promise<number> {
 }
 
 export async function updateDefaultMonthlyAnalyticsLimit(limit: number): Promise<void> {
-  if (!Number.isFinite(limit) || limit < 0) {
+  if (!Number.isInteger(limit) || limit < 0 || limit > 100000) {
     throw new Error('Invalid default monthly analytics limit');
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // Privileged global setting: go through the admin API so validation and the
+  // audit row are written server-side in the same transaction.
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Not authenticated');
 
-  const { error } = await supabase
-    .from('app_settings')
-    .upsert({
-      key: DEFAULT_MONTHLY_ANALYTICS_LIMIT_KEY,
-      value: Math.floor(limit),
-      updated_at: new Date().toISOString(),
-      updated_by: user?.id ?? null,
-    });
+  const res = await fetch('/api/admin/update-global-limit', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      p_key: DEFAULT_MONTHLY_ANALYTICS_LIMIT_KEY,
+      p_value: limit,
+    }),
+  });
 
-  if (error) {
-    console.error('updateDefaultMonthlyAnalyticsLimit failed:', error);
-    throw error;
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string })?.error || `Request failed: ${res.status}`);
   }
 }

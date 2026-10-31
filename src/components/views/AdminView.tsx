@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, BarChart3, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown, Briefcase, AlertCircle, X } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Users, BarChart3, Search, UserPlus, Check, User as UserIcon, UserCog, UserCheck, UserCheck2, UserX, Trash2, Loader2, CheckCircle2, HelpCircle, ShieldCheck, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Activity, Crown, Briefcase, AlertCircle, X, ClipboardList, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
 import { cn } from '../../lib/utils';
 import { UserAvatar } from '../ui/UserAvatar';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { supabase } from '../../lib/supabase';
 import {
   getDefaultMonthlyAnalyticsLimit,
@@ -14,37 +15,55 @@ import {
   markUserAsRead,
   updateUserRole,
   updateUserPermission,
-  updateUserMonthlyAnalyticsLimit,
-  resetUserToGlobalAnalyticsLimit,
   resolveEffectiveMonthlyAnalyticsLimit,
-  adminUpdateUserPlan,
+  adminUpdateUser,
+  adminBulkUpdateUsers,
+  fetchAdminUsersPage,
+  type AdminBulkAction,
   adminPlanSelectValue,
   getDisplayEffectivePlan,
   deleteUser,
-  fetchAllProfiles,
   type AdminPlanGrant,
   type UserProfile,
 } from '../../services/userService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAdminUsers } from '../../hooks/useAdminUsers';
 import { AdminReportTab } from './AdminReportTab';
+import { AdminAuditTab } from './AdminAuditTab';
 import { VN_TIME_ZONE } from '../../lib/vnTime';
+import { csvDateStamp, downloadCsv } from '../../lib/csv';
+import { logAdminExport } from '../../services/adminExportService';
+
+const toErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+type AdminSection = 'users' | 'report' | 'audit';
+
+function adminSectionFromPath(): AdminSection {
+  const match = window.location.pathname.match(/\/admin\/(users|report|audit)(?:\/|$)/);
+  return (match?.[1] as AdminSection | undefined) ?? 'users';
+}
 
 export function AdminView() {
   const { user, userProfile } = useAuth();
   const { t, reportLanguage } = useUI();
-  const { users: allUsers, isLoading: isLoadingUsers, hasMore, totalCount, loadMore } = useAdminUsers();
   const dateLocale = reportLanguage === 'vi' ? 'vi-VN' : 'en-US';
-  const newUsersCount = allUsers.filter(u => u.isNew && u.role !== 'admin').length;
 
-  const [adminSubTab, setAdminSubTab] = useState<'users' | 'report'>('users');
-  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [adminSubTab, setAdminSubTabState] = useState<AdminSection>(adminSectionFromPath);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [planFilter, setPlanFilter] = useState<'all' | 'free' | 'pro' | 'recruiter'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'locked'>('all');
+  const [sort, setSort] = useState<
+    'created_desc' | 'created_asc' | 'usage_desc' | 'name_asc' | 'expiry_asc'
+  >('created_desc');
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [savingLimitUserId, setSavingLimitUserId] = useState<string | null>(null);
   const [savingPlanUserId, setSavingPlanUserId] = useState<string | null>(null);
+  const savingPlanRef = useRef(false);
   const [globalDefaultLimit, setGlobalDefaultLimit] = useState(5);
+  const [isGlobalLimitLoaded, setIsGlobalLimitLoaded] = useState(false);
+  const [globalLimitError, setGlobalLimitError] = useState<string | null>(null);
   const [globalLimitDraft, setGlobalLimitDraft] = useState('5');
   const [isSavingGlobalLimit, setIsSavingGlobalLimit] = useState(false);
   const [globalLimitMessage, setGlobalLimitMessage] = useState<string | null>(null);
@@ -52,17 +71,100 @@ export function AdminView() {
   const [planModal, setPlanModal] = useState<{
     user: UserProfile;
     grant: AdminPlanGrant;
+    limitMode: 'inherit' | 'custom';
     limitDraft: string;
   } | null>(null);
-  const pageSize = 10;
+  const pageSize = 20;
+
+  const [confirmState, setConfirmState] = useState<
+    | { kind: 'delete'; user: UserProfile }
+    | { kind: 'role'; user: UserProfile; nextRole: 'admin' | 'user' }
+    | null
+  >(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+
+  const {
+    users: allUsers,
+    isLoading: isLoadingUsers,
+    totalCount,
+    newUsersCount,
+    newUsers,
+    error: usersError,
+    refresh: refreshUsers,
+    applyUser,
+    removeUser,
+  } = useAdminUsers({
+    search: debouncedSearch,
+    plan: planFilter,
+    role: roleFilter,
+    status: statusFilter,
+    sort,
+    page: currentPage,
+    pageSize,
+  });
+
+  // Search is the only free-text filter; debounce it so typing doesn't fire one
+  // RPC per keystroke. Other filters reset to page 1 immediately.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchInput, planFilter, roleFilter, statusFilter, sort]);
+
+  const totalPages = Math.max(1, Math.ceil((totalCount ?? 0) / pageSize));
+
+  // Realtime refreshes/deletes can shrink the list under the current page —
+  // clamp so the table never lands on an empty page past the end.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [currentPage, debouncedSearch, planFilter, roleFilter, statusFilter, sort]);
+
+  const setAdminSubTab = (next: AdminSection) => {
+    setAdminSubTabState(next);
+    const prefix = reportLanguage === 'en' ? '/en' : '/vi';
+    const nextPath = `${prefix}/admin/${next}`;
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState(null, '', nextPath + window.location.search + window.location.hash);
+    }
+  };
+
+  useEffect(() => {
+    const onPopState = () => setAdminSubTabState(adminSectionFromPath());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const loadGlobalDefaultLimit = useCallback(async () => {
+    setGlobalLimitError(null);
+    setGlobalLimitMessage(null);
     try {
       const value = await getDefaultMonthlyAnalyticsLimit();
       setGlobalDefaultLimit(value);
       setGlobalLimitDraft(String(value));
+      setIsGlobalLimitLoaded(true);
     } catch (err: unknown) {
+      // Never let a failed load leave the input showing a stale default: saving
+      // it would overwrite the real setting with the hardcoded fallback.
       console.error('Failed to load global analytics limit:', err);
+      setIsGlobalLimitLoaded(false);
+      setGlobalLimitError(toErrorMessage(err));
     }
   }, []);
 
@@ -72,56 +174,14 @@ export function AdminView() {
     }
   }, [adminSubTab, loadGlobalDefaultLimit]);
 
-  // The default browse view lazy-loads 50 profiles at a time (see useAdminUsers +
-  // "Load more" below) — filtering/searching that loaded window only would silently
-  // miss matches past it. Whenever a search term or plan filter is active, scan the
-  // full profiles table instead so results are always complete.
-  // allUsers gets a new reference on every realtime profiles change (useAdminUsers
-  // re-fetches), so depending on it keeps the filtered snapshot live too — otherwise
-  // usage/limit/plan edits never show up while a search or filter is active.
-  const isFiltering = userSearchTerm.trim() !== '' || planFilter !== 'all';
-  const [allProfiles, setAllProfiles] = useState<UserProfile[] | null>(null);
-  useEffect(() => {
-    if (!isFiltering) return;
-    let cancelled = false;
-    fetchAllProfiles()
-      .then((rows) => { if (!cancelled) setAllProfiles(rows); })
-      .catch((err: unknown) => console.error('fetchAllProfiles failed:', err));
-    return () => { cancelled = true; };
-  }, [isFiltering, allUsers]);
-  const searchScopedUsers = isFiltering ? (allProfiles ?? []) : allUsers;
-
-  const filteredUsers = useMemo(
-    () =>
-      searchScopedUsers.filter(u => {
-        const matchSearch = u.email.toLowerCase().includes(userSearchTerm.toLowerCase());
-        const matchPlan =
-          planFilter === 'all' || getDisplayEffectivePlan(u) === planFilter;
-        return matchSearch && matchPlan;
-      }),
-    [searchScopedUsers, userSearchTerm, planFilter]
-  );
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
-  const paginatedUsers = useMemo(
-    () => filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-    [filteredUsers, currentPage, pageSize]
-  );
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [userSearchTerm, planFilter]);
-
-  // Realtime refreshes/deletes can shrink the list under the current page —
-  // clamp so the table never lands on an empty page past the end.
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-  }, [currentPage, totalPages]);
-
-  const toErrorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
-
   const formatUsageLimit = (u: UserProfile) => {
+    // A free user without a custom limit inherits the global setting. While that
+    // setting is still loading (or failed), don't display a made-up fallback.
+    if (!u.monthlyAnalyticsLimitCustom && getDisplayEffectivePlan(u) === 'free' && !isGlobalLimitLoaded) {
+      return '—';
+    }
     const effective = resolveEffectiveMonthlyAnalyticsLimit(u, globalDefaultLimit);
-    const limitLabel = effective === null ? '∞' : String(effective);
+    const limitLabel = effective === null ? t.adminAnalyticsUnlimited : String(effective);
     return formatLabel(t.adminAnalyticsUsedOfLimit, {
       used: String(u.effectiveUsageCount),
       limit: limitLabel,
@@ -129,8 +189,13 @@ export function AdminView() {
   };
 
   const handleSaveGlobalDefaultLimit = async () => {
-    const parsed = parseInt(globalLimitDraft.trim(), 10);
-    if (Number.isNaN(parsed) || parsed < 0) {
+    if (!isGlobalLimitLoaded) {
+      setError(t.adminGlobalAnalyticsLoadError);
+      return;
+    }
+    const raw = globalLimitDraft.trim();
+    const parsed = Number(raw);
+    if (raw === '' || !Number.isInteger(parsed) || parsed < 0) {
       setError(t.adminInvalidAnalyticsLimit);
       return;
     }
@@ -148,113 +213,204 @@ export function AdminView() {
     }
   };
 
-  const handleResetToGlobalLimit = async (u: UserProfile): Promise<boolean> => {
-    setSavingLimitUserId(u.id);
-    setError(null);
-    try {
-      await resetUserToGlobalAnalyticsLimit(u.id);
-      return true;
-    } catch (err: unknown) {
-      setError(toErrorMessage(err));
-      return false;
-    } finally {
-      setSavingLimitUserId(null);
-    }
-  };
-
-  // Takes the draft explicitly: reading it back from state right after a
-  // setState in the same handler would see the stale pre-update value.
-  const handleSaveMonthlyLimit = async (u: UserProfile, rawDraft: string): Promise<boolean> => {
-    const raw = rawDraft.trim();
-    if (raw === '' && !u.monthlyAnalyticsLimitCustom) {
-      return true;
-    }
-    let limit: number | null = null;
-    if (raw !== '') {
-      const parsed = parseInt(raw, 10);
-      if (Number.isNaN(parsed) || parsed < 0) {
-        setError(t.adminInvalidAnalyticsLimit);
-        return false;
+  useEffect(() => {
+    if (!planModal) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !savingPlanRef.current) {
+        setError(null);
+        setPlanModal(null);
       }
-      limit = parsed;
-    }
-    setSavingLimitUserId(u.id);
-    setError(null);
-    try {
-      await updateUserMonthlyAnalyticsLimit(u.id, limit);
-      return true;
-    } catch (err: unknown) {
-      setError(toErrorMessage(err));
-      return false;
-    } finally {
-      setSavingLimitUserId(null);
-    }
-  };
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [planModal]);
 
-  const handleAdminPlanChange = async (u: UserProfile, grant: AdminPlanGrant): Promise<boolean> => {
-    setSavingPlanUserId(u.id);
+  const handleSavePlanModal = async () => {
+    if (!planModal || savingPlanRef.current) return;
+    const { user: target, limitDraft, grant, limitMode } = planModal;
+
+    const planChanged = grant !== adminPlanSelectValue(target);
+    let nextLimitMode: 'keep' | 'inherit' | 'custom' = 'keep';
+    let nextLimit: number | null = null;
+
+    if (limitMode === 'inherit') {
+      if (target.monthlyAnalyticsLimitCustom) nextLimitMode = 'inherit';
+    } else {
+      const raw = limitDraft.trim();
+      const limit = Number(raw);
+      if (raw === '' || !Number.isInteger(limit) || limit < 0) {
+        setError(t.adminInvalidAnalyticsLimit);
+        return;
+      }
+      const limitChanged =
+        !target.monthlyAnalyticsLimitCustom || target.monthlyAnalyticsLimit !== limit;
+      if (limitChanged) {
+        nextLimitMode = 'custom';
+        nextLimit = limit;
+      }
+    }
+
+    if (!planChanged && nextLimitMode === 'keep') {
+      setPlanModal(null);
+      return;
+    }
+
+    savingPlanRef.current = true;
+    setSavingPlanUserId(target.id);
     setError(null);
     try {
-      await adminUpdateUserPlan(u.id, grant);
-      return true;
+      await adminUpdateUser(target.id, {
+        plan: planChanged ? grant : null,
+        limitMode: nextLimitMode,
+        limit: nextLimit,
+      });
+      setToast({ type: 'success', message: t.adminToastSaved });
+      setPlanModal(null);
     } catch (err: unknown) {
       setError(formatLabel(t.adminPlanChangeError, { message: toErrorMessage(err) }));
-      return false;
     } finally {
+      savingPlanRef.current = false;
       setSavingPlanUserId(null);
     }
   };
 
-  const handleSavePlanModal = async () => {
-    if (!planModal) return;
-    const { user: target, limitDraft, grant } = planModal;
-    const newLimit = limitDraft.trim();
-    const oldLimit = target.monthlyAnalyticsLimitCustom
-      ? (target.monthlyAnalyticsLimit === null ? '' : String(target.monthlyAnalyticsLimit))
-      : '';
-    if (newLimit !== oldLimit) {
-      const ok = newLimit === ''
-        ? (target.monthlyAnalyticsLimitCustom ? await handleResetToGlobalLimit(target) : true)
-        : await handleSaveMonthlyLimit(target, newLimit);
-      if (!ok) return;
-    }
-    if (grant !== adminPlanSelectValue(target)) {
-      const ok = await handleAdminPlanChange(target, grant);
-      if (!ok) return;
-    }
-    setPlanModal(null);
-  };
-
-  const handleToggleRole = async (u: UserProfile) => {
-    const nextRole = u.role === 'admin' ? 'user' : 'admin';
-    if (!window.confirm(formatLabel(t.adminConfirmRoleChange, { email: u.email, role: nextRole }))) return;
-    setError(null);
-    try {
-      await updateUserRole(u.id, nextRole);
-    } catch (err: unknown) {
-      setError(toErrorMessage(err));
-    }
+  const handleToggleRole = (u: UserProfile) => {
+    setConfirmState({ kind: 'role', user: u, nextRole: u.role === 'admin' ? 'user' : 'admin' });
   };
 
   const handleTogglePermission = async (u: UserProfile) => {
+    const next = !u.hasPermission;
     setError(null);
+    // Optimistic: lock/unlock is reversible and the server response is a single
+    // boolean update; a failed call refreshes the row back from the DB.
+    applyUser(u.id, { hasPermission: next });
     try {
-      await updateUserPermission(u.id, !u.hasPermission);
+      await updateUserPermission(u.id, next);
+      setToast({ type: 'success', message: next ? t.adminToastLocked : t.adminToastUnlocked });
     } catch (err: unknown) {
       setError(toErrorMessage(err));
+      void refreshUsers();
     }
   };
 
-  const handleDeleteUser = async (u: UserProfile) => {
-    if (!window.confirm(t.adminConfirmDelete)) return;
-    setDeletingUserId(u.id);
+  const handleDeleteUser = (u: UserProfile) => {
+    setConfirmState({ kind: 'delete', user: u });
+  };
+
+  const handleConfirm = async () => {
+    if (!confirmState || confirmBusy) return;
+    setConfirmBusy(true);
     setError(null);
     try {
-      await deleteUser(u.id);
+      if (confirmState.kind === 'role') {
+        await updateUserRole(confirmState.user.id, confirmState.nextRole);
+        applyUser(confirmState.user.id, { role: confirmState.nextRole });
+        setToast({ type: 'success', message: t.adminToastRoleUpdated });
+      } else {
+        setDeletingUserId(confirmState.user.id);
+        await deleteUser(confirmState.user.id);
+        removeUser(confirmState.user.id);
+        setToast({ type: 'success', message: t.adminToastDeleted });
+      }
+      setConfirmState(null);
+    } catch (err: unknown) {
+      const message = toErrorMessage(err);
+      setError(message);
+      setToast({ type: 'error', message });
+    } finally {
+      setConfirmBusy(false);
+      setDeletingUserId(null);
+    }
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const selectableIds = allUsers
+    .filter((u) => u.role !== 'admin' && u.id !== user?.id)
+    .map((u) => u.id);
+  const allPageSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
+
+  const toggleSelectAll = () => {
+    setSelectedIds(allPageSelected ? [] : selectableIds);
+  };
+
+  const handleBulkAction = async (action: AdminBulkAction) => {
+    if (selectedIds.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    setError(null);
+    try {
+      const count = await adminBulkUpdateUsers(selectedIds, action);
+      setToast({
+        type: 'success',
+        message: formatLabel(t.adminToastBulkDone, { count: String(count) }),
+      });
+      setSelectedIds([]);
+      await refreshUsers();
     } catch (err: unknown) {
       setError(toErrorMessage(err));
     } finally {
-      setDeletingUserId(null);
+      setBulkBusy(false);
+    }
+  };
+
+  const handleExportUsers = async () => {
+    if (exportBusy) return;
+    setExportBusy(true);
+    setError(null);
+    try {
+      const query = {
+        search: debouncedSearch,
+        plan: planFilter,
+        role: roleFilter,
+        status: statusFilter,
+        sort,
+        pageSize: 100,
+      };
+      const rows: UserProfile[] = [];
+      let total = 0;
+      for (let page = 1; page <= 10; page += 1) {
+        const result = await fetchAdminUsersPage({ ...query, page });
+        total = result.total;
+        rows.push(...result.rows);
+        if (rows.length >= total || result.rows.length < 100) break;
+      }
+
+      if (total > 1000) {
+        setError(formatLabel(t.adminExportTooMany, { max: '1000', count: String(total) }));
+        return;
+      }
+
+      await logAdminExport('users', rows.length, {
+        search: debouncedSearch,
+        plan: planFilter,
+        role: roleFilter,
+        status: statusFilter,
+        sort,
+      });
+      downloadCsv(`admin-users-${csvDateStamp()}.csv`, [
+        ['id', 'email', 'display_name', 'role', 'plan', 'active', 'used', 'limit_custom', 'limit', 'created_at'],
+        ...rows.map((u) => [
+          u.id,
+          u.email,
+          u.displayName,
+          u.role,
+          getDisplayEffectivePlan(u),
+          u.role === 'admin' || u.hasPermission ? 'true' : 'false',
+          u.effectiveUsageCount,
+          u.monthlyAnalyticsLimitCustom ? 'true' : 'false',
+          u.monthlyAnalyticsLimit ?? '',
+          u.createdAt,
+        ]),
+      ]);
+      setToast({ type: 'success', message: t.adminToastExported });
+    } catch (err: unknown) {
+      setError(toErrorMessage(err));
+    } finally {
+      setExportBusy(false);
     }
   };
 
@@ -291,6 +447,16 @@ export function AdminView() {
           >
             <BarChart3 className="w-3.5 h-3.5" />
             {t.adminTabReport}
+          </button>
+          <button
+            onClick={() => setAdminSubTab('audit')}
+            className={cn(
+              "px-5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95",
+              adminSubTab === 'audit' ? "bg-surface text-accent shadow-sm border border-border" : "text-text-muted hover:text-text-main"
+            )}
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            {t.adminTabAudit}
           </button>
         </div>
       </div>
@@ -333,7 +499,7 @@ export function AdminView() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {allUsers.filter(u => u.isNew && u.role !== 'admin').map(u => (
+                    {newUsers.map(u => (
                       <div key={u.id} className="group bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl p-3 flex items-center justify-between gap-3 transition-all cursor-default">
                         <div className="flex items-center gap-3 overflow-hidden">
                           <UserAvatar
@@ -355,6 +521,7 @@ export function AdminView() {
                             btn.style.opacity = '0.5';
                             try {
                               await markUserAsRead(u.id);
+                              await refreshUsers();
                             } catch (err: unknown) {
                               alert(formatLabel(t.adminMarkReadError, { message: err instanceof Error ? err.message : String(err) }));
                             } finally {
@@ -382,6 +549,21 @@ export function AdminView() {
                   {t.adminGlobalAnalyticsTitle}
                 </h3>
                 <p className="text-xs text-text-muted">{t.adminGlobalAnalyticsDesc}</p>
+                {globalLimitError && !isGlobalLimitLoaded && (
+                  <div role="alert" className="flex items-center gap-2 text-xs font-bold text-error">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span className="flex-1" title={globalLimitError}>
+                      {t.adminGlobalAnalyticsLoadError}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void loadGlobalDefaultLimit()}
+                      className="rounded-md border border-error/30 px-2 py-1 text-[10px] font-black uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95"
+                    >
+                      {t.adminRetry}
+                    </button>
+                  </div>
+                )}
                 {globalLimitMessage && (
                   <p className="text-xs font-bold text-success flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
@@ -395,13 +577,14 @@ export function AdminView() {
                   min={0}
                   value={globalLimitDraft}
                   onChange={(e) => setGlobalLimitDraft(e.target.value)}
-                  className="w-24 px-3 py-2 text-sm font-mono border-2 border-border rounded-xl bg-surface focus:border-accent focus:outline-none"
+                  disabled={!isGlobalLimitLoaded || isSavingGlobalLimit}
+                  className="w-24 px-3 py-2 text-sm font-mono border-2 border-border rounded-xl bg-surface focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label={t.adminGlobalAnalyticsTitle}
                 />
                 <button
                   type="button"
                   onClick={() => void handleSaveGlobalDefaultLimit()}
-                  disabled={isSavingGlobalLimit}
+                  disabled={!isGlobalLimitLoaded || isSavingGlobalLimit}
                   className="px-4 py-2 bg-accent text-white text-xs font-black uppercase tracking-wider rounded-xl hover:scale-105 active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {isSavingGlobalLimit ? (
@@ -422,25 +605,35 @@ export function AdminView() {
                 <Activity className="w-5 h-5 text-accent" />
                 {t.adminDirectoryTitle}
               </h3>
-              <div className="relative w-full sm:w-72 group">
-                {isFiltering && allProfiles === null ? (
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => void handleExportUsers()}
+                  disabled={exportBusy}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-[10px] font-black uppercase tracking-wider text-text-muted cursor-pointer hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {exportBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                  {t.adminExportUsersCsv}
+                </button>
+                <div className="relative w-full sm:w-72 group">
+                {isLoadingUsers ? (
                   <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-light animate-spin" />
                 ) : (
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-light group-focus-within:text-accent transition-colors" />
                 )}
                 <input
-                  type="text" 
+                  type="text"
                   placeholder={t.adminSearchPlaceholder}
-                  value={userSearchTerm}
-                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-surface border-2 border-border rounded-xl text-sm font-medium focus:border-accent focus:ring-0 transition-all outline-none text-text-main"
                 />
+                </div>
               </div>
             </div>
 
             {/* Filter Row */}
             <div className="flex flex-wrap items-center gap-3">
-              {/* Plan Filter */}
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
                   {t.adminFilterPlan}
@@ -469,8 +662,134 @@ export function AdminView() {
                   ))}
                 </div>
               </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+                  {t.adminFilterRole}
+                </span>
+                <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
+                  {(['all', 'user', 'admin'] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setRoleFilter(opt)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer',
+                        roleFilter === opt
+                          ? 'bg-surface text-accent shadow-sm border border-border'
+                          : 'text-text-muted hover:text-text-main'
+                      )}
+                    >
+                      {opt === 'all'
+                        ? t.adminFilterRoleAll
+                        : opt === 'user'
+                          ? t.adminFilterRoleUser
+                          : t.adminFilterRoleAdmin}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+                  {t.adminFilterStatus}
+                </span>
+                <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
+                  {(['all', 'active', 'locked'] as const).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setStatusFilter(opt)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer',
+                        statusFilter === opt
+                          ? 'bg-surface text-accent shadow-sm border border-border'
+                          : 'text-text-muted hover:text-text-main'
+                      )}
+                    >
+                      {opt === 'all'
+                        ? t.adminFilterStatusAll
+                        : opt === 'active'
+                          ? t.adminFilterStatusActive
+                          : t.adminFilterStatusLocked}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-text-light uppercase tracking-widest">
+                  {t.adminSortLabel}
+                </span>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as typeof sort)}
+                  className="rounded-lg border border-border bg-surface-secondary px-2 py-1.5 text-[11px] font-bold text-text-main cursor-pointer"
+                >
+                  <option value="created_desc">{t.adminSortCreatedDesc}</option>
+                  <option value="created_asc">{t.adminSortCreatedAsc}</option>
+                  <option value="usage_desc">{t.adminSortUsageDesc}</option>
+                  <option value="name_asc">{t.adminSortNameAsc}</option>
+                  <option value="expiry_asc">{t.adminSortExpiryAsc}</option>
+                </select>
+              </label>
             </div>
           </div>
+
+          {selectedIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-accent/20 bg-accent-light/40 p-3">
+              <span className="mr-2 text-xs font-black text-text-main">
+                {formatLabel(t.adminBulkSelected, { count: String(selectedIds.length) })}
+              </span>
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={() => void handleBulkAction('mark_read')}
+                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-text-main cursor-pointer hover:border-accent/40 disabled:opacity-50"
+              >
+                {t.adminBulkMarkRead}
+              </button>
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={() => void handleBulkAction('lock')}
+                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-warning cursor-pointer hover:border-warning/40 disabled:opacity-50"
+              >
+                {t.adminBulkLock}
+              </button>
+              <button
+                type="button"
+                disabled={bulkBusy}
+                onClick={() => void handleBulkAction('unlock')}
+                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-success cursor-pointer hover:border-success/40 disabled:opacity-50"
+              >
+                {t.adminBulkUnlock}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-text-muted cursor-pointer hover:text-text-main"
+              >
+                {t.adminBulkClear}
+              </button>
+            </div>
+          )}
+
+          {usersError && allUsers.length > 0 && (
+            <div role="alert" className="flex items-center gap-3 rounded-xl border border-error/10 bg-error-light p-4 text-error">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span className="flex-1 text-xs font-bold">
+                {formatLabel(t.adminUsersLoadError, { message: usersError })}
+              </span>
+              <button
+                type="button"
+                onClick={() => void refreshUsers()}
+                className="rounded-lg border border-error/30 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95"
+              >
+                {t.adminRetry}
+              </button>
+            </div>
+          )}
 
           {/* Precision Table */}
           <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-sm">
@@ -478,23 +797,60 @@ export function AdminView() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-surface-secondary/50 border-b border-border">
-                    <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColMember}</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColFormat}</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColPlan}</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColAnalytics}</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColStatus}</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColInit}</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em] text-right">{t.adminColActions}</th>
+                    <th scope="col" className="w-10 px-3 py-4">
+                      <input
+                        type="checkbox"
+                        checked={allPageSelected}
+                        onChange={toggleSelectAll}
+                        disabled={selectableIds.length === 0}
+                        aria-label={t.adminBulkSelected.replace('{count}', String(selectableIds.length))}
+                        className="h-4 w-4 cursor-pointer disabled:cursor-not-allowed"
+                      />
+                    </th>
+                    <th scope="col" className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColMember}</th>
+                    <th scope="col" className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColFormat}</th>
+                    <th scope="col" className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColPlan}</th>
+                    <th scope="col" className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColAnalytics}</th>
+                    <th scope="col" className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColStatus}</th>
+                    <th scope="col" className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em]">{t.adminColInit}</th>
+                    <th scope="col" className="px-6 py-4 text-[10px] font-black text-text-light uppercase tracking-[0.15em] text-right">{t.adminColActions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {paginatedUsers.map((u) => (
+                  {isLoadingUsers &&
+                    allUsers.length === 0 &&
+                    Array.from({ length: 5 }).map((_, rowIndex) => (
+                      <tr key={`admin-skeleton-${rowIndex}`} className="animate-pulse">
+                        {Array.from({ length: 8 }).map((__, cellIndex) => (
+                          <td key={cellIndex} className="px-6 py-4">
+                            <div
+                              className={cn(
+                                'h-3 rounded bg-surface-secondary',
+                                cellIndex === 0 ? 'w-40' : 'w-16'
+                              )}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  {!(isLoadingUsers && allUsers.length === 0) &&
+                    allUsers.map((u) => (
                     <tr key={u.id} className={cn(
                       "group hover:bg-surface-secondary/80 transition-all duration-200", 
                       u.role !== 'admin' && !u.hasPermission
                         ? "bg-red-50/80 hover:bg-red-100/70 dark:bg-red-950/25 dark:hover:bg-red-950/40"
                         : u.isNew && "bg-accent-light/40"
                     )}>
+                      <td className="px-3 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(u.id)}
+                          onChange={() => toggleSelected(u.id)}
+                          disabled={u.role === 'admin' || u.id === user?.id}
+                          aria-label={u.email}
+                          className="h-4 w-4 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                        />
+                      </td>
                       <td className={cn("px-6 py-4 border-l-4", u.role !== 'admin' && !u.hasPermission ? "border-l-red-600 dark:border-l-red-400" : "border-l-transparent")}>
                         <div className="flex items-center gap-3">
                           <div className="relative shrink-0">
@@ -521,7 +877,7 @@ export function AdminView() {
                               ? "bg-accent-light border-accent/10 text-accent" 
                               : "bg-surface-secondary border-border text-text-muted"
                           )}>
-                            {u.role}
+                            {u.role === 'admin' ? t.adminFilterRoleAdmin : t.adminFilterRoleUser}
                           </span>
                           {u.id !== user?.id && (
                             <button 
@@ -552,7 +908,7 @@ export function AdminView() {
                               <Crown className="w-3 h-3" />
                             ) : null}
                             {getDisplayEffectivePlan(u) === 'recruiter'
-                              ? 'Recruiter'
+                              ? t.adminFilterPlanRecruiter
                               : getDisplayEffectivePlan(u) === 'pro'
                                 ? t.adminPlanPro
                                 : t.adminPlanFree}
@@ -564,8 +920,14 @@ export function AdminView() {
                                 setPlanModal({
                                   user: u,
                                   grant: adminPlanSelectValue(u),
-                                  limitDraft: u.monthlyAnalyticsLimitCustom
-                                    ? (u.monthlyAnalyticsLimit === null ? '' : String(u.monthlyAnalyticsLimit))
+                                  // A legacy custom-null row is invalid under the
+                                  // admin-only unlimited policy: start on "inherit"
+                                  // and show the warning instead of preserving it.
+                                  limitMode: u.monthlyAnalyticsLimitCustom && u.monthlyAnalyticsLimit !== null
+                                    ? 'custom'
+                                    : 'inherit',
+                                  limitDraft: u.monthlyAnalyticsLimitCustom && u.monthlyAnalyticsLimit !== null
+                                    ? String(u.monthlyAnalyticsLimit)
                                     : '',
                                 })
                               }
@@ -645,11 +1007,22 @@ export function AdminView() {
                       </td>
                     </tr>
                   ))}
-                  {paginatedUsers.length === 0 && (
+                  {allUsers.length === 0 && !(isLoadingUsers && allUsers.length === 0) && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-sm text-text-muted">
-                        {isFiltering && allProfiles === null ? (
-                          <Loader2 className="w-5 h-5 animate-spin mx-auto text-text-light" />
+                      <td colSpan={8} className="px-6 py-12 text-center text-sm text-text-muted">
+                        {usersError ? (
+                          <div role="alert" className="flex flex-col items-center gap-3 text-error">
+                            <span className="text-xs font-bold">
+                              {formatLabel(t.adminUsersLoadError, { message: usersError })}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => void refreshUsers()}
+                              className="rounded-lg border border-error/30 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95"
+                            >
+                              {t.adminRetry}
+                            </button>
+                          </div>
                         ) : (
                           t.adminUsersEmptyState
                         )}
@@ -664,16 +1037,10 @@ export function AdminView() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm px-1">
               <p className="text-xs font-bold text-text-muted">
                 {formatLabel(t.adminPaginationInfo, {
-                  start: String(filteredUsers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1),
-                  end: String(Math.min(currentPage * pageSize, filteredUsers.length)),
-                  total: String(filteredUsers.length),
+                  start: String((totalCount ?? 0) === 0 ? 0 : (currentPage - 1) * pageSize + 1),
+                  end: String(Math.min(currentPage * pageSize, totalCount ?? 0)),
+                  total: String(totalCount ?? 0),
                 })}
-                {/* Unfiltered browse only holds the loaded window — show the real DB total too. */}
-                {!isFiltering && totalCount !== null && totalCount > allUsers.length && (
-                  <span className="text-text-light">
-                    {' '}{formatLabel(t.adminPaginationDbTotal, { total: String(totalCount) })}
-                  </span>
-                )}
               </p>
               <div className="flex items-center gap-1">
                 <button
@@ -732,24 +1099,11 @@ export function AdminView() {
               </div>
             </div>
 
-            {hasMore && !isFiltering && (
-              <div className="flex justify-center pt-2 pb-4">
-                <button
-                  type="button"
-                  onClick={loadMore}
-                  disabled={isLoadingUsers}
-                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold text-accent border border-accent/30 hover:bg-accent/5 transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoadingUsers ? <Loader2 className="size-4 animate-spin" /> : null}
-                  {isLoadingUsers
-                    ? t.adminLoadingMore
-                    : formatLabel(t.adminLoadMoreUsers, { count: String(allUsers.length) })}
-                </button>
-              </div>
-            )}
           </div>
-      ) : (
+      ) : adminSubTab === 'report' ? (
         <AdminReportTab />
+      ) : (
+        <AdminAuditTab />
       )}
 
       {/* Plan Change Modal */}
@@ -764,13 +1118,16 @@ export function AdminView() {
               onClick={() => { setError(null); setPlanModal(null); }}
             />
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="admin-plan-modal-title"
               className="relative z-10 w-full max-w-sm bg-surface border border-border rounded-2xl shadow-2xl p-6"
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.2 }}
             >
-              <h3 className="text-lg font-black text-text-main mb-1">{t.adminEditUserTitle}</h3>
+              <h3 id="admin-plan-modal-title" className="text-lg font-black text-text-main mb-1">{t.adminEditUserTitle}</h3>
               <p className="text-xs text-text-muted mb-4">
                 {planModal.user.displayName || planModal.user.email}
               </p>
@@ -778,6 +1135,7 @@ export function AdminView() {
               {/* Plan Section */}
               <div className="mb-5">
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-text-muted mb-2">{t.adminPlanSectionLabel}</p>
+                <p className="text-[10px] font-medium text-text-muted mb-2">{t.adminPlanStackingHint}</p>
                 {getDisplayEffectivePlan(planModal.user) === 'recruiter' && (
                   <p className="text-[10px] font-bold text-warning mb-2">{t.adminPlanRecruiterNoDowngrade}</p>
                 )}
@@ -821,34 +1179,94 @@ export function AdminView() {
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-text-muted mb-2">
                   {t.adminAnalyticsLimitLabel}
                 </p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={0}
-                    value={planModal.limitDraft}
-                    onChange={(e) =>
-                      setPlanModal((prev) =>
-                        prev ? { ...prev, limitDraft: e.target.value } : prev
-                      )
-                    }
-                    placeholder={String(globalDefaultLimit)}
-                    className="flex-1 px-3 py-2 text-sm font-mono border border-border rounded-xl bg-surface-secondary focus:outline-none focus:ring-1 focus:ring-accent"
-                  />
-                  <span className="text-xs text-text-muted">{t.adminAnalyticsLimitLabel}</span>
-                </div>
-                {planModal.user.monthlyAnalyticsLimitCustom && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPlanModal((prev) =>
-                        prev ? { ...prev, limitDraft: '' } : prev
-                      )
-                    }
-                    disabled={savingLimitUserId === planModal.user.id}
-                    className="mt-2 text-[10px] font-bold text-accent uppercase tracking-wider hover:underline cursor-pointer disabled:opacity-50"
+
+                {planModal.user.monthlyAnalyticsLimitCustom &&
+                  planModal.user.monthlyAnalyticsLimit === null && (
+                    <p
+                      role="alert"
+                      className="mb-3 rounded-lg border border-warning/20 bg-warning-light px-3 py-2 text-[11px] font-bold text-warning"
+                    >
+                      {t.adminLegacyUnlimitedWarning}
+                    </p>
+                  )}
+
+                <div role="radiogroup" aria-label={t.adminAnalyticsLimitLabel} className="space-y-2">
+                  <label
+                    className={cn(
+                      'flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors',
+                      planModal.limitMode === 'inherit'
+                        ? 'border-accent bg-accent-light/40'
+                        : 'border-border bg-surface-secondary'
+                    )}
                   >
-                    {formatLabel(t.adminResetToGlobalLimitWithValue, { limit: String(globalDefaultLimit) })}
-                  </button>
+                    <input
+                      type="radio"
+                      name="admin-limit-mode"
+                      className="mt-0.5 h-4 w-4 cursor-pointer"
+                      checked={planModal.limitMode === 'inherit'}
+                      onChange={() =>
+                        setPlanModal((prev) =>
+                          prev ? { ...prev, limitMode: 'inherit' } : prev
+                        )
+                      }
+                    />
+                    <span className="text-xs font-bold text-text-main">
+                      {t.adminLimitModeInherit}
+                      <span className="mt-0.5 block text-[10px] font-medium text-text-muted">
+                        {isGlobalLimitLoaded
+                          ? formatLabel(t.adminAnalyticsUsingDefault, {
+                              limit: String(globalDefaultLimit),
+                            })
+                          : t.adminGlobalAnalyticsLoadError}
+                      </span>
+                    </span>
+                  </label>
+
+                  <label
+                    className={cn(
+                      'flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors',
+                      planModal.limitMode === 'custom'
+                        ? 'border-accent bg-accent-light/40'
+                        : 'border-border bg-surface-secondary'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="admin-limit-mode"
+                      className="mt-0.5 h-4 w-4 cursor-pointer"
+                      checked={planModal.limitMode === 'custom'}
+                      onChange={() =>
+                        setPlanModal((prev) =>
+                          prev ? { ...prev, limitMode: 'custom' } : prev
+                        )
+                      }
+                    />
+                    <span className="text-xs font-bold text-text-main">
+                      {t.adminLimitModeCustom}
+                    </span>
+                  </label>
+                </div>
+
+                {planModal.limitMode === 'custom' && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={planModal.limitDraft}
+                      onChange={(e) =>
+                        setPlanModal((prev) =>
+                          prev ? { ...prev, limitDraft: e.target.value } : prev
+                        )
+                      }
+                      placeholder={t.adminAnalyticsLimitPlaceholder}
+                      aria-label={t.adminAnalyticsLimitLabel}
+                      className="flex-1 px-3 py-2 text-sm font-mono border border-border rounded-xl bg-surface-secondary focus:outline-none focus:ring-1 focus:ring-accent"
+                    />
+                    <span className="text-xs text-text-muted">
+                      {t.adminAnalyticsLimitPlaceholder}
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -869,15 +1287,15 @@ export function AdminView() {
                 </button>
                 <button
                   type="button"
-                  disabled={savingPlanUserId === planModal.user.id || savingLimitUserId === planModal.user.id}
+                  disabled={savingPlanUserId === planModal.user.id || savingPlanUserId === planModal.user.id}
                   onClick={() => void handleSavePlanModal()}
                   className={cn(
                     'flex-1 px-4 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider text-white cursor-pointer transition-all bg-accent hover:scale-[1.02] active:scale-[0.98]',
-                    (savingPlanUserId === planModal.user.id || savingLimitUserId === planModal.user.id) &&
+                    (savingPlanUserId === planModal.user.id || savingPlanUserId === planModal.user.id) &&
                       'opacity-50 cursor-not-allowed',
                   )}
                 >
-                  {savingPlanUserId === planModal.user.id || savingLimitUserId === planModal.user.id ? (
+                  {savingPlanUserId === planModal.user.id || savingPlanUserId === planModal.user.id ? (
                     <Loader2 className="w-4 h-4 animate-spin mx-auto" />
                   ) : (
                     t.adminSaveChanges
@@ -888,6 +1306,53 @@ export function AdminView() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={
+          confirmState?.kind === 'delete'
+            ? t.adminConfirmDeleteTitle
+            : t.adminConfirmRoleTitle
+        }
+        message={
+          confirmState?.kind === 'delete'
+            ? formatLabel(t.adminConfirmDelete, { email: confirmState.user.email })
+            : confirmState?.kind === 'role'
+              ? formatLabel(t.adminConfirmRoleChange, {
+                  email: confirmState.user.email,
+                  role: confirmState.nextRole === 'admin' ? t.adminFilterRoleAdmin : t.adminFilterRoleUser,
+                })
+              : ''
+        }
+        confirmLabel={confirmState?.kind === 'delete' ? t.adminDelete : t.adminSaveChanges}
+        cancelLabel={t.adminCancel}
+        danger={confirmState?.kind === 'delete'}
+        requiredText={confirmState?.kind === 'delete' ? confirmState.user.email : undefined}
+        requiredTextLabel={
+          confirmState?.kind === 'delete'
+            ? formatLabel(t.adminTypeEmailToConfirm, { email: confirmState.user.email })
+            : undefined
+        }
+        isBusy={confirmBusy}
+        onConfirm={() => void handleConfirm()}
+        onCancel={() => {
+          if (!confirmBusy) setConfirmState(null);
+        }}
+      />
+
+      {toast && (
+        <div
+          role="status"
+          className={cn(
+            'fixed bottom-6 right-6 z-[70] max-w-sm rounded-xl border px-4 py-3 text-sm font-bold shadow-xl',
+            toast.type === 'success'
+              ? 'border-success/20 bg-success-light text-success'
+              : 'border-error/20 bg-error-light text-error'
+          )}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

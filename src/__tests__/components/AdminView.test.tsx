@@ -39,33 +39,40 @@ vi.mock('framer-motion', () => {
   return { motion, AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</> };
 });
 
-let adminUsersState: { users: UserProfile[] };
+let adminUsersState: {
+  users: UserProfile[];
+  isLoading?: boolean;
+  error?: string | null;
+  newUsers?: UserProfile[];
+  newUsersCount?: number;
+};
 vi.mock('../../hooks/useAdminUsers', () => ({
   useAdminUsers: () => ({
     users: adminUsersState.users,
-    isLoading: false,
-    hasMore: false,
+    isLoading: adminUsersState.isLoading ?? false,
     totalCount: adminUsersState.users.length,
-    loadMore: vi.fn(),
+    newUsers: adminUsersState.newUsers ?? [],
+    newUsersCount: adminUsersState.newUsersCount ?? 0,
+    error: adminUsersState.error ?? null,
     refresh: vi.fn(),
+    applyUser: vi.fn(),
+    removeUser: vi.fn(),
   }),
 }));
 
 const svc = vi.hoisted(() => ({
-  updateUserMonthlyAnalyticsLimit: vi.fn(),
-  resetUserToGlobalAnalyticsLimit: vi.fn(),
-  adminUpdateUserPlan: vi.fn(),
+  adminUpdateUser: vi.fn(),
   updateUserRole: vi.fn(),
   updateUserPermission: vi.fn(),
   deleteUser: vi.fn(),
   markUserAsRead: vi.fn(),
-  fetchAllProfiles: vi.fn(),
 }));
 vi.mock('../../services/userService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/userService')>();
   return { ...actual, ...svc };
 });
 
+import { getDefaultMonthlyAnalyticsLimit } from '../../services/appSettingsService';
 import { AdminView } from '../../components/views/AdminView';
 
 function user(overrides: Partial<UserProfile> = {}): UserProfile {
@@ -111,11 +118,9 @@ function openModal() {
 describe('AdminView', () => {
   beforeEach(() => {
     Object.values(svc).forEach((fn) => fn.mockReset());
-    svc.updateUserMonthlyAnalyticsLimit.mockResolvedValue(undefined);
-    svc.adminUpdateUserPlan.mockResolvedValue(undefined);
+    svc.adminUpdateUser.mockResolvedValue(undefined);
     svc.updateUserRole.mockResolvedValue(undefined);
     svc.deleteUser.mockResolvedValue(undefined);
-    svc.fetchAllProfiles.mockResolvedValue([]);
     adminUsersState = { users: [user()] };
   });
 
@@ -128,16 +133,110 @@ describe('AdminView', () => {
     await renderView();
     const modal = openModal();
 
+    fireEvent.click(within(modal).getByLabelText('adminLimitModeCustom'));
     fireEvent.change(within(modal).getByRole('spinbutton'), { target: { value: '20' } });
     await act(async () => {
       fireEvent.click(within(modal).getByText(SAVE_BUTTON));
     });
 
-    expect(svc.updateUserMonthlyAnalyticsLimit).toHaveBeenCalledWith('u1', 20);
+    expect(svc.adminUpdateUser).toHaveBeenCalledWith('u1', {
+      plan: null,
+      limitMode: 'custom',
+      limit: 20,
+    });
+  });
+
+  it('does not offer unlimited for a normal user', async () => {
+    await renderView();
+    const modal = openModal();
+
+    expect(within(modal).queryByText('adminAnalyticsUnlimited')).toBeNull();
+  });
+
+  it('resets a legacy custom-unlimited user to the system default', async () => {
+    adminUsersState = {
+      users: [user({ monthlyAnalyticsLimit: null, monthlyAnalyticsLimitCustom: true })],
+    };
+    await renderView();
+    const modal = openModal();
+
+    expect(within(modal).getByText('adminLegacyUnlimitedWarning')).not.toBeNull();
+
+    await act(async () => {
+      fireEvent.click(within(modal).getByText(SAVE_BUTTON));
+    });
+
+    expect(svc.adminUpdateUser).toHaveBeenCalledWith('u1', {
+      plan: null,
+      limitMode: 'inherit',
+      limit: null,
+    });
+  });
+
+  it('shows skeleton rows, not the empty state, while the first page loads', async () => {
+    adminUsersState = { users: [], isLoading: true };
+    const { container } = await renderView();
+
+    expect(container.querySelectorAll('tr.animate-pulse')).toHaveLength(5);
+    expect(screen.queryByText('adminUsersEmptyState')).toBeNull();
+  });
+
+  it('shows a list error with retry instead of an endless spinner', async () => {
+    adminUsersState = { users: [], error: 'table down' };
+    await renderView();
+
+    expect(screen.queryByText(/adminUsersLoadError: table down/)).not.toBeNull();
+    expect(screen.getByText('adminRetry')).not.toBeNull();
+  });
+
+  it('submits the atomic plan+limit update only once on a double click', async () => {
+    let resolveUpdate!: () => void;
+    svc.adminUpdateUser.mockImplementation(
+      () => new Promise<void>((resolve) => { resolveUpdate = resolve; })
+    );
+    await renderView();
+    const modal = openModal();
+
+    fireEvent.click(within(modal).getByText('adminPlanGrantPro30'));
+    await act(async () => {
+      fireEvent.click(within(modal).getByText(SAVE_BUTTON));
+      fireEvent.click(within(modal).getByText(SAVE_BUTTON));
+    });
+
+    expect(svc.adminUpdateUser).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveUpdate();
+      await Promise.resolve();
+    });
+  });
+
+  it('shows DB-wide new users in the banner, not just the current page', async () => {
+    adminUsersState = {
+      users: [user()],
+      newUsers: [user({ id: 'new-2', email: 'new2@x.com', isNew: true })],
+      newUsersCount: 7,
+    };
+    await renderView();
+
+    expect(screen.queryByText(/adminNewProfilesTitle/)).not.toBeNull();
+    expect(screen.queryByText('new2@x.com')).not.toBeNull();
+  });
+
+  it('disables the global limit save when loading the default fails', async () => {
+    vi.mocked(getDefaultMonthlyAnalyticsLimit).mockRejectedValueOnce(new Error('offline'));
+    await renderView();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const save = screen.getByText('adminGlobalAnalyticsSave').closest('button');
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByText(/adminGlobalAnalyticsLoadError/)).not.toBeNull();
   });
 
   it('keeps the modal open and shows the error when saving the plan fails', async () => {
-    svc.adminUpdateUserPlan.mockRejectedValue(new Error('rpc exploded'));
+    svc.adminUpdateUser.mockRejectedValue(new Error('rpc exploded'));
     await renderView();
     const modal = openModal();
 
@@ -150,15 +249,18 @@ describe('AdminView', () => {
     expect(screen.queryByText(/rpc exploded/)).not.toBeNull();
   });
 
-  it('asks for confirmation before changing a role, and does nothing if declined', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('asks for confirmation before changing a role, and does nothing if cancelled', async () => {
     await renderView();
 
     await act(async () => {
       fireEvent.click(screen.getByTitle('adminToggleRole'));
     });
 
-    expect(window.confirm).toHaveBeenCalled();
+    expect(screen.queryByText('adminConfirmRoleTitle')).not.toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByText('adminCancel'));
+    });
+
     expect(svc.updateUserRole).not.toHaveBeenCalled();
   });
 
@@ -180,22 +282,4 @@ describe('AdminView', () => {
     expect(screen.queryByTitle('adminDelete')).toBeNull();
   });
 
-  it('re-fetches the full-table snapshot while filtering when profiles change', async () => {
-    const { rerender } = await renderView();
-
-    fireEvent.change(screen.getByPlaceholderText('adminSearchPlaceholder'), { target: { value: 'u1' } });
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(svc.fetchAllProfiles).toHaveBeenCalledTimes(1);
-
-    // Realtime refresh in useAdminUsers hands back a new array.
-    adminUsersState = { users: [user({ effectiveUsageCount: 3 })] };
-    rerender(<AdminView />);
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(svc.fetchAllProfiles).toHaveBeenCalledTimes(2);
-  });
 });

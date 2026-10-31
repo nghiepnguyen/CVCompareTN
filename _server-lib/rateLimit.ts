@@ -12,7 +12,12 @@ import { withTimeout } from './withTimeout.js';
  * Limits are intentionally coarse: they bound bursts and third-party cost,
  * they are not per-feature quotas (analysis quota stays month-based).
  */
-export type RateLimitBucket = 'extract_pdf' | 'storage' | 'send_email_feedback' | 'send_email_welcome';
+export type RateLimitBucket =
+  | 'extract_pdf'
+  | 'storage'
+  | 'send_email_feedback'
+  | 'send_email_welcome'
+  | 'admin';
 
 export const RATE_LIMITS: Record<RateLimitBucket, { limit: number; windowSeconds: number }> = {
   // A recruiter batch of 50 JD PDFs calls this once per file; keep room for two batches.
@@ -20,6 +25,9 @@ export const RATE_LIMITS: Record<RateLimitBucket, { limit: number; windowSeconds
   storage: { limit: 120, windowSeconds: 3600 },
   send_email_feedback: { limit: 5, windowSeconds: 3600 },
   send_email_welcome: { limit: 5, windowSeconds: 3600 },
+  // Admin actions are authenticated and low-volume, but a stolen admin token
+  // must still be bounded. 120/15min leaves room for bulk edits.
+  admin: { limit: 120, windowSeconds: 15 * 60 },
 };
 
 const TIMEOUT_MS = 1500;

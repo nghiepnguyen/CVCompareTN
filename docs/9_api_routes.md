@@ -18,7 +18,11 @@ Canonical reference for **which runtime handles each capability**. Từ 2026-06,
 | PayOS — tạo link (≤5 đơn pending/15 phút) | `POST /api/payment/create` → `api/payment.ts` (unified) | `POST /api/payment/create` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
 | PayOS — webhook | `POST /api/payment/webhook` → `api/payment.ts` | `POST /api/payment/webhook` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
 | PayOS — confirm (fallback) | `POST /api/payment/confirm` → `api/payment.ts` | `POST /api/payment/confirm` → `server/routes/payment.ts` | `_server-lib/payment/handlers.ts` |
-| Admin — đổi role / plan | `POST /api/admin/set-user-role`, `/api/admin/set-user-plan` → `api/admin.ts` (unified, Bearer + role=admin) | `server/routes/admin.ts` | RPC `set_user_role` / `admin_set_user_plan` |
+| Admin — đổi role / plan / limit | `POST /api/admin/set-user-role`, `/api/admin/set-user-plan`, `/api/admin/update-user` → `api/admin.ts` | `server/routes/admin.ts` | RPC `set_user_role` / `admin_set_user_plan` / `admin_update_user` (atomic plan+limit) |
+| Admin — global limit / bulk / export audit | `POST /api/admin/update-global-limit`, `/api/admin/bulk-users` → `api/admin.ts` | `server/routes/admin.ts` | RPC `admin_update_app_setting` / `admin_bulk_update_users`; CSV export ghi `export_data` qua `log_admin_action` |
+| Admin — list/search Users (read) | Supabase RPC `admin_list_profiles` trực tiếp từ client admin (RLS + `is_admin()`) | — | phân trang/filter/sort + new-user preview, không tải full bảng |
+| Admin — Audit log (read) | Supabase RPC `admin_list_audit` trực tiếp từ client admin (RLS + `is_admin()`) | — | phân trang/filter action/search, join actor/target email |
+| Admin — Report aggregate (read) | Supabase RPC `admin_report_stats` + `admin_report_ops` trực tiếp từ client admin (RLS + `is_admin()`) | — | volume/daily/top user/token buckets + quota hiện tại; latency/error categories |
 | Admin — xoá user (hard delete) | `POST /api/admin/delete-user` → `api/admin.ts` | `POST /api/admin/delete-user` → `server/routes/admin.ts` | `_server-lib/admin/deleteUser.ts` (xoá `auth.users` → cascade profiles/history; dọn storage `cv-files`, `cv-analyze-tmp`; chặn xoá admin/chính mình) |
 | Recruiter — lưu phân tích | `POST /api/recruiter/save-analysis` → `api/recruiter/save-analysis.ts` | `POST /api/recruiter/save-analysis` → `server/routes/recruiter.ts` | Inline (RPC call) |
 

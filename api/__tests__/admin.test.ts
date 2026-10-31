@@ -12,11 +12,20 @@ vi.mock('../../_server-lib/payment/supabaseAdmin.js', () => ({
   getSupabaseAdmin: vi.fn(),
 }));
 
+vi.mock('../../_server-lib/rateLimit.js', () => ({
+  enforceRateLimit: vi.fn().mockResolvedValue(true),
+  rateLimitSubject: (id: string) => `u:${id}`,
+}));
+
 import handler from '../admin.js';
 import * as supabaseAdmin from '../../_server-lib/payment/supabaseAdmin.js';
+import { enforceRateLimit } from '../../_server-lib/rateLimit.js';
 
 const mockGetUser = vi.mocked(supabaseAdmin.getUserFromBearerToken);
 const mockGetAdmin = vi.mocked(supabaseAdmin.getSupabaseAdmin);
+
+const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
+const TARGET_ID = '22222222-2222-4222-8222-222222222222';
 
 function makeReq(action: string, body: Record<string, unknown>): VercelRequest {
   return {
@@ -46,7 +55,7 @@ function makeAdminClient(opts: { callerRole: string; target?: { id: string; emai
           eq: (_col: string, id: string) => ({
             maybeSingle: () =>
               Promise.resolve({
-                data: id === 'admin-1' ? { role: opts.callerRole } : (opts.target ?? null),
+                data: id === ADMIN_ID ? { role: opts.callerRole } : (opts.target ?? null),
                 error: null,
               }),
           }),
@@ -64,21 +73,22 @@ describe('api/admin handler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockGetUser.mockResolvedValue({ id: 'admin-1' } as never);
+    mockGetUser.mockResolvedValue({ id: ADMIN_ID } as never);
+    vi.mocked(enforceRateLimit).mockResolvedValue(true);
   });
 
   it('delete-user: hard-deletes the auth user when caller is admin', async () => {
     const { client, deleteUser } = makeAdminClient({
       callerRole: 'admin',
-      target: { id: 'user-1', email: 'u@x.com', role: 'user' },
+      target: { id: TARGET_ID, email: 'u@x.com', role: 'user' },
     });
     mockGetAdmin.mockReturnValue(client as never);
     const { res, status } = makeRes();
 
-    await handler(makeReq('delete-user', { p_user_id: 'user-1' }), res);
+    await handler(makeReq('delete-user', { p_user_id: TARGET_ID }), res);
 
     expect(status).toHaveBeenCalledWith(200);
-    expect(deleteUser).toHaveBeenCalledWith('user-1');
+    expect(deleteUser).toHaveBeenCalledWith(TARGET_ID);
   });
 
   it('delete-user: rejects non-admin callers with 403', async () => {
@@ -86,18 +96,18 @@ describe('api/admin handler', () => {
     mockGetAdmin.mockReturnValue(client as never);
     const { res, status } = makeRes();
 
-    await handler(makeReq('delete-user', { p_user_id: 'user-1' }), res);
+    await handler(makeReq('delete-user', { p_user_id: TARGET_ID }), res);
 
     expect(status).toHaveBeenCalledWith(403);
     expect(deleteUser).not.toHaveBeenCalled();
   });
 
-  it('delete-user: 400 when p_user_id missing', async () => {
+  it('delete-user: 400 when p_user_id is missing or not a UUID', async () => {
     const { client } = makeAdminClient({ callerRole: 'admin' });
     mockGetAdmin.mockReturnValue(client as never);
     const { res, status } = makeRes();
 
-    await handler(makeReq('delete-user', {}), res);
+    await handler(makeReq('delete-user', { p_user_id: 'not-a-uuid' }), res);
 
     expect(status).toHaveBeenCalledWith(400);
   });
@@ -107,11 +117,16 @@ describe('api/admin handler', () => {
     mockGetAdmin.mockReturnValue(client as never);
     const { res, status } = makeRes();
 
-    await handler(makeReq('set-user-role', { p_user_id: 'user-1', p_role: 'admin' }), res);
+    await handler(makeReq('set-user-role', { p_user_id: TARGET_ID, p_role: 'admin' }), res);
 
     expect(status).toHaveBeenCalledWith(200);
     expect(auditInsert).toHaveBeenCalledWith(
-      expect.objectContaining({ admin_id: 'admin-1', action: 'update_role', target_user_id: 'user-1', details: { role: 'admin' } })
+      expect.objectContaining({
+        admin_id: ADMIN_ID,
+        action: 'update_role',
+        target_user_id: TARGET_ID,
+        details: { role: 'admin' },
+      })
     );
   });
 
@@ -120,20 +135,66 @@ describe('api/admin handler', () => {
     mockGetAdmin.mockReturnValue(client as never);
     const { res } = makeRes();
 
-    await handler(makeReq('set-user-plan', { p_user_id: 'user-1', p_plan: 'pro', p_duration_days: 90 }), res);
+    await handler(makeReq('set-user-plan', { p_user_id: TARGET_ID, p_plan: 'pro', p_duration_days: 90 }), res);
 
     expect(auditInsert).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'update_plan', target_user_id: 'user-1', details: { plan: 'pro', duration_days: 90 } })
+      expect.objectContaining({
+        action: 'update_plan',
+        target_user_id: TARGET_ID,
+        details: { plan: 'pro', duration_days: 90 },
+      })
     );
+  });
+
+  it('update-user: sends plan + limit in one atomic RPC (audit lives in the RPC)', async () => {
+    const { client, rpc, auditInsert } = makeAdminClient({ callerRole: 'admin' });
+    mockGetAdmin.mockReturnValue(client as never);
+    const { res, status } = makeRes();
+
+    await handler(
+      makeReq('update-user', {
+        p_user_id: TARGET_ID,
+        p_plan: 'pro',
+        p_duration_days: 90,
+        p_limit_mode: 'custom',
+        p_limit: 20,
+      }),
+      res
+    );
+
+    expect(status).toHaveBeenCalledWith(200);
+    expect(rpc).toHaveBeenCalledWith('admin_update_user', {
+      p_admin_id: ADMIN_ID,
+      p_user_id: TARGET_ID,
+      p_plan: 'pro',
+      p_duration_days: 90,
+      p_limit_mode: 'custom',
+      p_limit: 20,
+    });
+    expect(auditInsert).not.toHaveBeenCalled();
+  });
+
+  it('update-user: rejects a custom limit that is not a non-negative integer', async () => {
+    const { client, rpc } = makeAdminClient({ callerRole: 'admin' });
+    mockGetAdmin.mockReturnValue(client as never);
+    const { res, status } = makeRes();
+
+    await handler(
+      makeReq('update-user', { p_user_id: TARGET_ID, p_limit_mode: 'custom', p_limit: -1 }),
+      res
+    );
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it('set-user-role: no audit row when the RPC fails', async () => {
     const { client, auditInsert, rpc } = makeAdminClient({ callerRole: 'admin' });
-    rpc.mockResolvedValue({ error: { message: 'boom' } });
+    rpc.mockResolvedValue({ error: { message: 'boom', code: 'XX000' } });
     mockGetAdmin.mockReturnValue(client as never);
     const { res, status } = makeRes();
 
-    await handler(makeReq('set-user-role', { p_user_id: 'user-1', p_role: 'admin' }), res);
+    await handler(makeReq('set-user-role', { p_user_id: TARGET_ID, p_role: 'admin' }), res);
 
     expect(status).toHaveBeenCalledWith(500);
     expect(auditInsert).not.toHaveBeenCalled();
@@ -144,9 +205,81 @@ describe('api/admin handler', () => {
     mockGetAdmin.mockReturnValue(client as never);
     const { res, status } = makeRes();
 
-    await handler(makeReq('set-user-role', { p_user_id: 'admin-1', p_role: 'user' }), res);
+    await handler(makeReq('set-user-role', { p_user_id: ADMIN_ID, p_role: 'user' }), res);
 
     expect(status).toHaveBeenCalledWith(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('update-global-limit: validates and calls the audited setting RPC', async () => {
+    const { client, rpc } = makeAdminClient({ callerRole: 'admin' });
+    mockGetAdmin.mockReturnValue(client as never);
+    const { res, status } = makeRes();
+
+    await handler(
+      makeReq('update-global-limit', {
+        p_key: 'default_monthly_analytics_limit',
+        p_value: 12,
+      }),
+      res
+    );
+
+    expect(status).toHaveBeenCalledWith(200);
+    expect(rpc).toHaveBeenCalledWith('admin_update_app_setting', {
+      p_admin_id: ADMIN_ID,
+      p_key: 'default_monthly_analytics_limit',
+      p_value: 12,
+    });
+  });
+
+  it('update-global-limit: rejects a negative/non-integer value before the RPC', async () => {
+    const { client, rpc } = makeAdminClient({ callerRole: 'admin' });
+    mockGetAdmin.mockReturnValue(client as never);
+    const { res, status } = makeRes();
+
+    await handler(
+      makeReq('update-global-limit', {
+        p_key: 'default_monthly_analytics_limit',
+        p_value: -1,
+      }),
+      res
+    );
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('bulk-users: validates ids and calls the bulk RPC', async () => {
+    const { client, rpc } = makeAdminClient({ callerRole: 'admin' });
+    rpc.mockResolvedValue({ data: 2, error: null });
+    mockGetAdmin.mockReturnValue(client as never);
+    const { res, status } = makeRes();
+
+    await handler(
+      makeReq('bulk-users', {
+        p_user_ids: [TARGET_ID, '33333333-3333-4333-8333-333333333333'],
+        p_action: 'lock',
+      }),
+      res
+    );
+
+    expect(status).toHaveBeenCalledWith(200);
+    expect(rpc).toHaveBeenCalledWith('admin_bulk_update_users', {
+      p_admin_id: ADMIN_ID,
+      p_user_ids: [TARGET_ID, '33333333-3333-4333-8333-333333333333'],
+      p_action: 'lock',
+    });
+  });
+
+  it('returns 429 when the shared admin rate limit rejects the call', async () => {
+    vi.mocked(enforceRateLimit).mockResolvedValue(false);
+    const { client, rpc } = makeAdminClient({ callerRole: 'admin' });
+    mockGetAdmin.mockReturnValue(client as never);
+    const { res, status } = makeRes();
+
+    await handler(makeReq('set-user-role', { p_user_id: TARGET_ID, p_role: 'admin' }), res);
+
+    expect(status).toHaveBeenCalledWith(429);
     expect(rpc).not.toHaveBeenCalled();
   });
 });

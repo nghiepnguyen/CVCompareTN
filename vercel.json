@@ -29,7 +29,7 @@
       "destination": "/api/recruiter/save-analysis.ts"
     },
     {
-      "source": "/api/admin/:action(set-user-role|set-user-plan|delete-user)",
+      "source": "/api/admin/:action(set-user-role|set-user-plan|update-user|update-global-limit|bulk-users|delete-user)",
       "destination": "/api/admin.ts"
     },
     {

@@ -24,7 +24,6 @@ function stats(newUsersCount: number): AdminReportStats {
     newUsersCount,
     totalSuccess: 0,
     totalError: 0,
-    totalAnalysesThisMonth: 0,
     dailyCounts: [],
     topUsers: [],
     avgInputTokens: 0,
@@ -33,6 +32,12 @@ function stats(newUsersCount: number): AdminReportStats {
     avgCostUsd: 0,
     totalCostUsd: 0,
     unpricedModels: [],
+    quotaUsedCurrentCycle: 0,
+    quotaAsOf: '2026-10-31T03:00:00.000Z',
+    latencyP50Ms: null,
+    latencyP95Ms: null,
+    errorCategories: [],
+    modelUsage: [],
   };
 }
 

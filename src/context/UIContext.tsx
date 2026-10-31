@@ -142,6 +142,16 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // AdminView owns /admin/{users|report|audit}; preserve the section and only
+    // sync the language prefix here.
+    if (activeTab === 'admin' && /\/admin(?:\/|$)/.test(currentPathname)) {
+      const adminPath = langPrefix + currentPathname.replace(/^\/(vi|en)(?=\/|$)/, '');
+      if (adminPath !== currentPathname) {
+        window.history.pushState(null, '', adminPath + window.location.search + window.location.hash);
+      }
+      return;
+    }
+
     if (activeTab === 'privacy') subPath = '/privacy';
     else if (activeTab === 'terms') subPath = '/terms';
     else if (activeTab === 'support') subPath = '/support';

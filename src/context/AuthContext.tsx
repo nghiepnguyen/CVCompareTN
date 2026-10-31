@@ -222,14 +222,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (userProfile?.role === 'admin') {
       fetchAdminNewUsersCount();
 
+      // A burst of profile writes (one per analysis) must not trigger a count
+      // query per event; the Admin Users RPC uses the same debounce window.
+      let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+      const scheduleCount = () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          debounceTimer = null;
+          void fetchAdminNewUsersCount();
+        }, 1000);
+      };
+
       const channel = supabase
         .channel('admin_new_users_count')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-          fetchAdminNewUsersCount();
-        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, scheduleCount)
         .subscribe();
 
       return () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
         supabase.removeChannel(channel);
       };
     }
@@ -402,6 +412,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     await loadUserProfileData(user);
   };
+
+  // Re-read the caller's own profile when the tab regains focus and every
+  // 5 minutes. This makes a demotion/promotion (or a lock) visible without a
+  // full reload; server-side RLS/API guards remain authoritative.
+  useEffect(() => {
+    if (!user) return;
+    const refresh = () => {
+      if (document.visibilityState === 'visible') void loadUserProfileData(user);
+    };
+    const onFocus = () => void loadUserProfileData(user);
+    window.addEventListener('focus', onFocus);
+    const interval = setInterval(refresh, 5 * 60 * 1000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      clearInterval(interval);
+    };
+  }, [user]);
 
   const logout = async () => {
     try {
