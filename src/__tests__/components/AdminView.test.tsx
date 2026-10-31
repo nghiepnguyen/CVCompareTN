@@ -140,6 +140,7 @@ describe('AdminView', () => {
     });
 
     expect(svc.adminUpdateUser).toHaveBeenCalledWith('u1', {
+      requestId: expect.any(String),
       plan: null,
       limitMode: 'custom',
       limit: 20,
@@ -167,6 +168,7 @@ describe('AdminView', () => {
     });
 
     expect(svc.adminUpdateUser).toHaveBeenCalledWith('u1', {
+      requestId: expect.any(String),
       plan: null,
       limitMode: 'inherit',
       limit: null,

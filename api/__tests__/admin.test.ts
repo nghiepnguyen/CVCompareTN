@@ -26,6 +26,7 @@ const mockGetAdmin = vi.mocked(supabaseAdmin.getSupabaseAdmin);
 
 const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
 const TARGET_ID = '22222222-2222-4222-8222-222222222222';
+const REQUEST_ID = '44444444-4444-4444-8444-444444444444';
 
 function makeReq(action: string, body: Record<string, unknown>): VercelRequest {
   return {
@@ -154,6 +155,7 @@ describe('api/admin handler', () => {
     await handler(
       makeReq('update-user', {
         p_user_id: TARGET_ID,
+        p_request_id: REQUEST_ID,
         p_plan: 'pro',
         p_duration_days: 90,
         p_limit_mode: 'custom',
@@ -163,13 +165,14 @@ describe('api/admin handler', () => {
     );
 
     expect(status).toHaveBeenCalledWith(200);
-    expect(rpc).toHaveBeenCalledWith('admin_update_user', {
+    expect(rpc).toHaveBeenCalledWith('admin_update_user_v2', {
       p_admin_id: ADMIN_ID,
       p_user_id: TARGET_ID,
       p_plan: 'pro',
       p_duration_days: 90,
       p_limit_mode: 'custom',
       p_limit: 20,
+      p_request_id: REQUEST_ID,
     });
     expect(auditInsert).not.toHaveBeenCalled();
   });
@@ -180,7 +183,12 @@ describe('api/admin handler', () => {
     const { res, status } = makeRes();
 
     await handler(
-      makeReq('update-user', { p_user_id: TARGET_ID, p_limit_mode: 'custom', p_limit: -1 }),
+      makeReq('update-user', {
+        p_user_id: TARGET_ID,
+        p_request_id: REQUEST_ID,
+        p_limit_mode: 'custom',
+        p_limit: -1,
+      }),
       res
     );
 

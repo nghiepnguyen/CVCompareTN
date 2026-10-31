@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -31,23 +32,15 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState('');
-  const confirmRef = useRef<HTMLButtonElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) {
-      setTyped('');
-      return;
-    }
-    const target = requiredText ? inputRef.current : confirmRef.current;
-    target?.focus();
+    if (!open) setTyped('');
+  }, [open]);
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isBusy) onCancel();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, requiredText, isBusy, onCancel]);
+  useFocusTrap(open, dialogRef, () => {
+    if (!isBusy) onCancel();
+  });
 
   if (!open) return null;
 
@@ -61,10 +54,12 @@ export function ConfirmDialog({
         aria-hidden="true"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-confirm-title"
         aria-describedby="admin-confirm-message"
+        tabIndex={-1}
         className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl"
       >
         <button
@@ -93,7 +88,7 @@ export function ConfirmDialog({
               {requiredTextLabel}
             </span>
             <input
-              ref={inputRef}
+              data-autofocus
               type="text"
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
@@ -113,8 +108,8 @@ export function ConfirmDialog({
             {cancelLabel}
           </button>
           <button
-            ref={confirmRef}
             type="button"
+            data-autofocus={requiredText ? undefined : true}
             onClick={onConfirm}
             disabled={!canConfirm}
             className={cn(

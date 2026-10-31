@@ -716,7 +716,7 @@ WHERE role <> 'admin'
 - `npm run build` → PASS
 - SQL suite (Postgres 16 disposable): `admin_list_profiles`, `admin_report_stats`, `admin_update_user`, `admin_only_unlimited_limit` → PASS
 
-**Chưa triển khai production:** migrations `20261101160000`–`20261101190000` và bundle code mới chưa apply/deploy; constraint `20261101150000` đã apply trước đó. Cần `supabase db push` + deploy bundle Admin/API để Phase 1 có hiệu lực.
+**Production:** migration `20261101150000`–`20261101260000` đã apply; bundle Admin/API đã deploy qua PR #46.
 
 **Ghi chú:**
 - B3 chưa gộp hẳn 2 realtime channel; cả hai đã debounce và dùng cùng định nghĩa count (`is_new` + non-admin), nên số không lệch.
@@ -741,7 +741,7 @@ WHERE role <> 'admin'
 
 **Gate:** `npm run lint`, `npm run lint:api`, `npm test` (**714/714**), `npm run build`; SQL suite gồm `admin_phase2.test.sql` + 4 suite Phase 1 đều PASS trên Postgres 16 disposable.
 
-**Chưa triển khai production:** migrations `20261101200000`–`20261101250000` và bundle code mới chưa apply/deploy. Thứ tự: apply `160000`–`240000` trước → deploy bundle → apply `250000` (revoke direct `app_settings` write) sau cùng; nếu `250000` lên trước, bundle cũ sẽ lỗi khi lưu global limit.
+**Production:** đã apply `20261101200000`–`20261101250000` và deploy bundle; `250000` được apply sau khi bundle mới live.
 
 **Còn lại:** filter page/query trong URL; quick filter new/expiring; custom date range; focus trap; CSV theo lịch; audit export UI.
 
@@ -757,4 +757,21 @@ WHERE role <> 'admin'
 - `PricingSection` (landing) và `UpgradeView` dùng hook thay vì hardcode `5`/`100`/`500`.
 - SQL test `public_plan_limits.test.sql`: gọi bằng role `anon`, assert free đổi theo app_settings.
 
-**Trạng thái:** code + migration local; `20261101260000` chưa apply production. Cần apply migration trước/đồng thời deploy bundle để bảng giá lấy số mới.
+**Trạng thái:** code + migration đã merge qua PR #47; `20261101260000` đã apply production. `get_public_plan_limits` trả free=3, pro=100, recruiter=500.
+
+---
+
+## 16. Follow-up không blocker (2026-10-31)
+
+| Hạng mục | Trạng thái | Ghi chú |
+|---|---|---|
+| Filter/page trong URL query | ✅ Code | Users `?q=&plan=&role=&status=&flag=&sort=&page=`; Report `?range=&start=&end=`; Audit `?action=&q=&page=`; dùng `replaceState` + `popstate` |
+| Custom date range Report | ✅ Code | `ReportRange='custom'`; ngày ICT inclusive; service chuyển sang `[start, next-day)`; validate start < end |
+| Quick filter mới / sắp hết hạn | ✅ Code | RPC `admin_list_profiles_v2` thêm `p_flag` (`new`, `expiring` 7 ngày); RPC cũ giữ nguyên cho bundle đang chạy |
+| Focus trap đầy đủ | ✅ Code | `useFocusTrap`: focus ưu tiên, Tab/Shift+Tab cycle, Esc, restore focus; dùng cho ConfirmDialog + plan modal |
+| Request-id idempotency | ✅ Code | `admin_action_requests` + `admin_update_user_v2`; UI giữ một `requestId`/modal, retry mạng không stack plan |
+| Docs production status | ✅ Updated | `7_deployment.md` + báo cáo ghi trạng thái đã apply/deploy; global default hiện tại 3 |
+
+**Migration mới:** `20261101270000` (list v2), `20261101280000` (idempotency) — **đã apply production**; code PR #48 chưa merge/deploy.
+
+**Deploy:** apply `270000` + `280000` trước → deploy bundle → smoke test quick filter/custom range/idempotent retry.

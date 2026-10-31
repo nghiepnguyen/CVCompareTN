@@ -192,6 +192,18 @@ export const admin = {
     vi: "30 ngày",
     en: "30 days",
   },
+  adminReportFilterCustom: {
+    vi: "Tùy chọn",
+    en: "Custom",
+  },
+  adminReportCustomFrom: {
+    vi: "Từ ngày",
+    en: "From",
+  },
+  adminReportCustomTo: {
+    vi: "Đến ngày",
+    en: "To",
+  },
   adminReportNewUsers: {
     vi: "User mới đăng ký",
     en: "New registrations",
@@ -387,6 +399,22 @@ export const admin = {
   adminFilterStatusLocked: {
     vi: "Đã khóa",
     en: "Locked",
+  },
+  adminQuickFilterLabel: {
+    vi: "Nhanh",
+    en: "Quick",
+  },
+  adminQuickFilterAll: {
+    vi: "Tất cả",
+    en: "All",
+  },
+  adminQuickFilterNew: {
+    vi: "Mới",
+    en: "New",
+  },
+  adminQuickFilterExpiring: {
+    vi: "Sắp hết hạn",
+    en: "Expiring soon",
   },
   adminSortLabel: {
     vi: "Sắp xếp",

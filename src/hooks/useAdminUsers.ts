@@ -83,10 +83,10 @@ export function useAdminUsers(query: AdminUsersQuery): AdminUsersState {
 
   // Re-fetch whenever a server-side query parameter changes. Search is
   // debounced by AdminView so each keystroke doesn't hit the RPC.
-  const { search, plan, role, status, sort, page, pageSize } = query;
+  const { search, plan, role, status, flag, sort, page, pageSize } = query;
   useEffect(() => {
     void refresh();
-  }, [search, plan, role, status, sort, page, pageSize, refresh]);
+  }, [search, plan, role, status, flag, sort, page, pageSize, refresh]);
 
   useEffect(() => {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
