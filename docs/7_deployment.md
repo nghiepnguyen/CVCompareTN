@@ -216,6 +216,7 @@ Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới g
 | `20261101230000` | `admin_report_ops`: latency p50/p95 + top analyze error categories |
 | `20261101240000` | Audit action `export_data` cho CSV export |
 | `20261101250000` | Bỏ RLS write `app_settings`; global limit chỉ ghi qua service_role RPC |
+| `20261101260000` | `get_public_plan_limits`: RPC public (anon) trả free/pro/recruiter cho bảng giá landing + upgrade |
 
 **Trạng thái production 2026-10-31 (admin-only unlimited):** migration `20261101150000` đã áp; verify `pg_constraint` trả `profiles_admin_only_unlimited_limit` với `convalidated = true`. A7 audit trước đó trả 0 row non-admin `custom=true, limit=NULL`, nên không cần backfill.
 

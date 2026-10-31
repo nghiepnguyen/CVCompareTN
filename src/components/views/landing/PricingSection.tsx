@@ -5,6 +5,8 @@ import { cn } from '../../../lib/utils';
 import type { LandingLabels } from './types';
 import type { SectionTheme } from './shared';
 import { SectionHeading, SectionBadge } from './shared';
+import { usePublicPlanLimits } from '../../../hooks/usePublicPlanLimits';
+import type { PublicPlanLimits } from '../../../services/publicPlanLimitsService';
 
 type Plan = 'free' | 'pro' | 'recruiter';
 
@@ -16,9 +18,9 @@ type ComparisonRow = {
   recruiter: { value: string; icon: 'check' | 'dash' | 'infinity' };
 };
 
-function buildRows(t: LandingLabels): ComparisonRow[] {
+function buildRows(t: LandingLabels, limits: PublicPlanLimits): ComparisonRow[] {
   return [
-    { key: 'analyses', labelKey: 'pricingAnalyses', free: { value: '5', icon: 'dash' }, pro: { value: '100', icon: 'check' }, recruiter: { value: '500', icon: 'check' } },
+    { key: 'analyses', labelKey: 'pricingAnalyses', free: { value: String(limits.free), icon: 'dash' }, pro: { value: String(limits.pro), icon: 'check' }, recruiter: { value: String(limits.recruiter), icon: 'check' } },
     { key: 'batch', labelKey: 'pricingBatch', free: { value: '1', icon: 'dash' }, pro: { value: '5', icon: 'check' }, recruiter: { value: '50', icon: 'check' } },
     { key: 'campaignCvs', labelKey: 'pricingCampaignCvs', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '50', icon: 'check' } },
     { key: 'campaigns', labelKey: 'pricingCampaigns', free: { value: '—', icon: 'dash' }, pro: { value: '—', icon: 'dash' }, recruiter: { value: '10' + (t.pricingPerMonth || '/ tháng'), icon: 'check' } },
@@ -74,7 +76,8 @@ export function PricingSection({
   theme?: SectionTheme;
 }) {
   const isLight = theme === 'light';
-  const Rows = buildRows(t);
+  const planLimits = usePublicPlanLimits();
+  const Rows = buildRows(t, planLimits);
   const featureLabel = t.pricingColFeature || 'Tính năng';
   const freeLabel = t.planFreeLabel || 'Miễn phí';
   const proLabel = t.planProLabel || 'Pro';
