@@ -41,5 +41,8 @@ graphify-out/*
 !graphify-out/GRAPH_REPORT.md
 .cursor/
 
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+
 # Local R2 migration checkpoints (may identify user records)
 .r2-migration/

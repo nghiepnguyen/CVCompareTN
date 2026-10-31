@@ -2,7 +2,7 @@
 
 ## Trạng thái
 
-Code hỗ trợ R2 cho file tạm, kho CV và recruiter; mặc định tiếp tục upload lên Supabase. Chỉ bật từng luồng sau khi nghiệm thu staging. Supabase vẫn quản lý Auth, metadata và phân quyền. Chưa migrate dữ liệu cũ, chưa bật R2 production.
+Production đã bật canary R2 **chỉ `temp`** ngày 26/10/2026, mốc xác minh 19:01 ICT. Chốt 19:46 ICT ngày 27/10: đã qua hơn 24 giờ, không phát hiện lỗi cleanup trong các snapshot, queue rỗng; lịch heartbeat quan sát đã dừng, pg_cron cleanup vẫn hoạt động. `saved` và `candidate` tiếp tục upload Supabase; Auth, metadata và phân quyền vẫn ở Supabase. Chưa migrate dữ liệu cũ hoặc mở R2 toàn bộ. Canary dùng runtime override của deployment, chưa đổi env chung của project. Trước mở rộng còn cần kiểm signed GET/browser và đánh giá số liệu hiệu năng/lỗi traffic; không coi synthetic test hoặc snapshot rời rạc là đủ bằng chứng toàn bộ 24 giờ. Chi tiết: [tiến độ rollout](r2-rollout-progress-2026-10-26.md).
 
 Final Plan: [2026-10-17-cloudflare-r2-integration-revised.md](superpowers/plans/2026-10-17-cloudflare-r2-integration-revised.md).
 
@@ -217,3 +217,36 @@ Kết quả theo dõi đến 2026-10-18 22:45 UTC: GitHub tạo 3 event `schedul
 - `storage_cleanup_cron_verify.sql` đạt: job `storage-cleanup` active, `authenticated`/`anon` không có quyền execute.
 - Chưa có secret Vault (`vault_secrets_present=0`), nên `invoke_storage_cleanup()` trả `NULL` và chưa gửi request nào. Scheduler chỉ thực sự chạy sau khi tạo 2 secret và có `status_code=200` trong `net._http_response`.
 - Secret Vault đã tạo trên Dashboard. Lần gọi thử đầu trả 401 vì secret dán vào bị thiếu (22 ký tự, server yêu cầu ≥32); sửa thành giá trị đủ 64 ký tự. Lượt gọi thủ công `invoke_storage_cleanup()` lúc 23:07Z trả `200 {"completed":0,"failed":0}`. Lượt cron tự động đầu tiên chạy lúc 23:15:00Z (đúng mốc, `succeeded`), HTTP 200, không timeout; xác minh bằng `storage_cleanup_cron_verify.sql`. pg_cron là scheduler chính; workflow GitHub giữ làm dự phòng.
+
+## Kiểm tra tiếp Phase 1 (2026-10-24)
+
+- Cloudflare Dashboard của `cvfit-temp` hiển thị **Public Access: Disabled**; đã đối chiếu trực tiếp trên trang bucket.
+- Chưa nghiệm thu cửa sổ pg_cron 24 giờ: CLI hiện chưa đăng nhập Supabase nên chưa đọc được dữ liệu production. `storage_cleanup_cron_verify.sql` chỉ trả 5 HTTP response gần nhất của toàn pg_net, không liên kết riêng request cleanup; pg_net giữ response khoảng 6 giờ. Cần thu thập định kỳ trước khi response hết hạn và đối chiếu từng lượt cleanup; không dùng riêng trạng thái cron `succeeded` để kết luận HTTP 200.
+- Baseline upload/download/AI trên Supabase và ngưỡng canary vẫn chưa có số đo, chưa chốt. Giữ thứ tự nghiệm thu scheduler → xác nhận bucket private → baseline và ngưỡng canary; chưa bật ghi R2.
+
+## Chốt theo dõi scheduler (2026-10-25)
+
+Theo yêu cầu người dùng, dừng thu thập và xoá automation theo dõi; không thay đổi cron production. Chấp nhận kết thúc bước quan sát với bằng chứng hiện có, không coi đây là chứng minh đủ mọi lượt HTTP trong 24 giờ.
+
+- 10 snapshot metadata được lưu cục bộ trong `.r2-migration/cron-observation/` (Git ignored); snapshot cuối lúc 12:09:59 ICT ngày 25/10.
+- 82 HTTP response riêng biệt từ 15:15 ngày 24/10 đến 12:00 ngày 25/10 ICT: tất cả HTTP 200, không timeout. Không phát hiện cron run lỗi trong các snapshot; mỗi kiểm tra cửa sổ 24 giờ có 96 lượt succeeded.
+- Thiếu HTTP response tại 00:00 và 00:15 ngày 25/10 do hết retention trước khi thu thập. Metadata HTTP chưa có liên kết request ID riêng với cleanup; không khẳng định attribution tuyệt đối.
+- Bucket `cvfit-temp` đã xác nhận Public Access Disabled trên Dashboard ngày 24/10.
+- Baseline latency/error upload/download/AI trên Supabase và ngưỡng canary vẫn chưa đo/chốt. Phase 1 chưa hoàn tất; chưa bật ghi R2 hoặc migrate dữ liệu.
+
+## Bộ đo baseline (2026-10-25)
+
+Đã thêm `scripts/storage-baseline.ts`: fixture tổng hợp, authenticated upload, backend download/hash/delete, tự cleanup user/object và ghi kết quả local. Báo cáo số đo và giới hạn tại [storage-baseline-2026-10-25.md](storage-baseline-2026-10-25.md). Control nhỏ đủ 30 vòng; upload file lớn gặp timeout trên máy đo nên chưa chốt ngưỡng canary hoặc nghiệm thu baseline file >2 MiB.
+
+## Kiểm chứng tích hợp thật (2026-10-25)
+
+Đã kiểm chứng 12/12 ca HTTP router local + R2/Supabase/Gemini thật (temp/saved/candidate, finalize lặp, owner isolation, ba AI consumer, cleanup và PNG gần 15 MiB), cùng 4/4 ca Chrome CORS PUT/GET/hash/ETag trên hai bucket. Đã dọn tài khoản, campaign và object synthetic. Production vẫn `storageWriteProvider=supabase`; chưa nghiệm thu UI React/Vercel hoặc baseline/canary đủ mẫu. Báo cáo và phạm vi: [r2-flow-verification-2026-10-25.md](r2-flow-verification-2026-10-25.md).
+
+
+## Nghiệm thu UI Vercel preview hoàn tất (2026-10-26)
+
+Đạt các luồng UI thật trên preview R2: PDF text/scan, PNG, DOCX với analyze/parse/rewrite; lưu/đọc/xoá CV; upload/phân tích hai ứng viên; xoá riêng và xoá campaign kèm cleanup tự động; đọc lại CV legacy Supabase. Quan sát object cascade biến mất và queue rỗng lúc 07:40:24 ICT, không chạy cleanup global thủ công; chưa quy nguồn gọi riêng cho pg_cron.
+
+CORS hai bucket đã phục hồi về bốn origin ban đầu, vẫn private. Teardown hoàn tất lúc 12:52:13 ICT: tài khoản synthetic và fixture legacy đã xoá, prefix R2 thử rỗng, credentials local đã gỡ. Production vẫn `supabase`, không promote preview. Báo cáo: [r2-vercel-preview-acceptance-2026-10-25.md](r2-vercel-preview-acceptance-2026-10-25.md).
+
+Chưa mở toàn bộ R2 production: baseline file lớn chưa đạt, chưa chốt ngưỡng bằng mẫu đủ hoặc chạy canary/soak. Có lỗi nhỏ số đếm campaign UI chậm cập nhật sau xoá; metadata và object xoá đúng. Kết quả chức năng preview không thay thế gate hiệu năng hoặc bằng chứng đủ mọi HTTP cleanup trong 24 giờ.
