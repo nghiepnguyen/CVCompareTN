@@ -137,8 +137,11 @@ behavior trong MVP.
 **Mục tiêu:** bổ sung phần authority còn thiếu mà không làm lại Stage
 3.x.
 
-**Trạng thái (01/11/2026):** COMPLETED LOCALLY / BENCHMARK VERIFIED. Nhánh
-`feat/p0-requirement-verification` (chưa push). Authority:
+**Trạng thái (01/11/2026):** DEPLOYED / PRODUCTION VERIFIED ✅.
+PR [#59](https://github.com/nghiepnguyen/CVCompareTN/pull/59) merge
+`bca3174`. Production smoke đã cover đủ ba nhánh `Đạt` / `Không đạt` /
+`Chưa xác minh`, gồm shortfall deterministic và nguyên tắc
+`missing ≠ unmet`. P0 đóng — không cần benchmark/test thêm. Authority:
 `docs/12_canonical_scoring.md` (mục "Requirement verification (P0)").
 
 Kết quả:
@@ -153,6 +156,9 @@ Kết quả:
 -   Unicode sanitizer: SHIPPED. Fence JD/CV: REMOVED (benchmark cho thấy
     calibration shift). Untrusted prose rule: DEFERRED. `systemInstruction`:
     DEFERRED (experiment riêng có calibration benchmark).
+-   Debt chuyển tiếp (không chặn P1A): trust boundary mức prompt
+    (`systemInstruction`) cần benchmark calibration riêng; verifier mới hỗ
+    trợ IELTS + số năm; `met` kế thừa authority `matched` của canonical.
 -   Benchmark PRE `8590a6f` vs final: full set 17 fixture (19 cặp
     sample×ngôn ngữ UI) × 3 run median Δ 0, MAD 1.18, max 3.0, không |Δ|>5;
     focused 12 cặp × 5 run MAD 1.03 so với PRE gộp. Model-generated verification (P0/P0.1) và prose rule bị loại vì
@@ -751,7 +757,7 @@ Interview Prep và Multi-JD Intelligence là expansion sau MVP.
 ## 14. Thứ tự triển khai đề xuất
 
 ``` text
-P0   Authority & Reliability Audit
+P0   Authority & Reliability Audit        ✅ deployed (PR #59)
  ↓
 P1A  Cover Letter
  ↓
