@@ -23,6 +23,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     Sentry.captureException(err, { tags: { route: 'analyze' } });
     console.error('analyze error:', err);
+    // Vercel may freeze the function after the response; send the event first.
+    await Sentry.flush(2000);
     return res.status(500).json({ error: 'Không thể phân tích CV. Vui lòng thử lại.' });
   }
 }

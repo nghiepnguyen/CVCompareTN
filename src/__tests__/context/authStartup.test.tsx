@@ -16,7 +16,7 @@ vi.mock('../../services/userService', () => ({
   getUserProfile: mocks.getProfile, createUserProfile: mocks.createProfile, fetchEffectiveUserPlan: mocks.getPlan,
 }));
 vi.mock('../../lib/ga4', () => ({ trackEvent: vi.fn() }));
-vi.mock('../../lib/sentryUser', () => ({ setSentryUser: vi.fn() }));
+vi.mock('../../lib/sentry', () => ({ setSentryUser: vi.fn() }));
 import { AuthProvider, useAuth } from '../../context/AuthContext';
 
 function deferred<T>() {

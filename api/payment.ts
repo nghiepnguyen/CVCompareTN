@@ -38,6 +38,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (err) {
         Sentry.captureException(err, { tags: { route: 'payment/create' } });
         console.error('payment/create error:', err);
+        // Vercel may freeze the function after the response; send the event first.
+        await Sentry.flush(2000);
         const message = err instanceof Error ? err.message : 'Server error';
         if (message.includes('not configured')) {
           return res.status(503).json({
@@ -61,6 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (err) {
         Sentry.captureException(err, { tags: { route: 'payment/confirm' } });
         console.error('payment/confirm error:', err);
+        await Sentry.flush(2000);
         return res.status(500).json({ error: 'Xác nhận thanh toán thất bại' });
       }
     }
@@ -73,6 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (err) {
         Sentry.captureException(err, { tags: { route: 'payment/webhook' } });
         console.error('payment/webhook error:', err);
+        await Sentry.flush(2000);
         return res.status(500).json({ error: 'Webhook processing failed' });
       }
     }

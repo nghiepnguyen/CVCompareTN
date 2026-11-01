@@ -44,6 +44,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     console.error('admin handler error:', err);
     Sentry.captureException(err);
+    // Vercel may freeze the function after the response; send the event first.
+    await Sentry.flush(2000);
     return res.status(500).json({ error: 'Server error' });
   }
 }

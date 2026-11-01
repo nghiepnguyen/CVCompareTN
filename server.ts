@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
-import { initSentryServer, Sentry } from './_server-lib/sentry';
+// Sentry is initialized by the instrument.ts preload (npm start) before Express loads.
+import { Sentry } from './_server-lib/sentry';
 import cors from 'cors';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
@@ -22,7 +23,6 @@ import parseCvRouter from './server/routes/parseCv';
 import adminRouter from './server/routes/admin';
 
 async function startServer() {
-  initSentryServer();
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 

@@ -407,11 +407,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
                 const settle = parsedJob ? parsedJob.promise : Promise.resolve();
                 void settle.then(() => cleanupTempAnalysisFiles(tempPaths));
               }
-              console.error(`Analysis failed for ${fileOrRef.name}:`, fileErr);
-              captureException(fileErr, {
-                tags: { feature: 'analyze_cv_batch_item' },
-                contexts: { file: { name: fileOrRef.name } },
-              });
+              // No file name here: console output ships to Sentry logs and CV names carry PII.
+              console.error('Analysis failed for batch item:', fileErr);
+              captureException(fileErr, { tags: { feature: 'analyze_cv_batch_item' } });
               failures.push({
                 name: fileOrRef.name,
                 message: fileErr instanceof Error ? fileErr.message : String(fileErr),

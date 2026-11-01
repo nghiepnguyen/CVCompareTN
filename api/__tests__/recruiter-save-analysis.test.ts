@@ -4,7 +4,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 vi.mock('../../_server-lib/sentry.js', () => ({
   initSentryServer: vi.fn(),
-  Sentry: { captureException: vi.fn() },
+  Sentry: { captureException: vi.fn(), flush: vi.fn() },
 }));
 
 vi.mock('../../_server-lib/payment/supabaseAdmin.js', () => ({

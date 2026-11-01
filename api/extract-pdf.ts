@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const result = await runStorageCleanup();
         return res.status(result.failed ? 503 : 200).json(result);
       }
-      catch (err) { Sentry.captureException(err); return res.status(500).json({ error: 'Cleanup failed' }); }
+      catch (err) { Sentry.captureException(err); await Sentry.flush(2000); return res.status(500).json({ error: 'Cleanup failed' }); }
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
     const result = await handleStorage(auth, req.body);
@@ -43,6 +43,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: unknown) {
     Sentry.captureException(error, { tags: { route: 'extract-pdf' } });
     console.error('PDF extraction error:', error);
+    // Vercel may freeze the function after the response; send the event first.
+    await Sentry.flush(2000);
     return res.status(500).json({ error: 'Không thể trích xuất PDF. Vui lòng thử lại.' });
   }
 }

@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const mocks = vi.hoisted(() => ({ storage: vi.fn(), cleanup: vi.fn(), secret: vi.fn() }));
 vi.mock('../../_server-lib/storage/handler.js', () => ({ handleStorage: mocks.storage }));
 vi.mock('../../_server-lib/storage/cleanup.js', () => ({ runStorageCleanup: mocks.cleanup, validCleanupSecret: mocks.secret }));
-vi.mock('../../_server-lib/sentry.js', () => ({ initSentryServer: vi.fn(), Sentry: { captureException: vi.fn() } }));
+vi.mock('../../_server-lib/sentry.js', () => ({ initSentryServer: vi.fn(), Sentry: { captureException: vi.fn(), flush: vi.fn() } }));
 import handler from '../extract-pdf.js';
 function response() { return { setHeader: vi.fn(), status: vi.fn().mockReturnThis(), json: vi.fn() } as unknown as VercelResponse; }
 beforeEach(() => vi.clearAllMocks());

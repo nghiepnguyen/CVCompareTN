@@ -58,7 +58,6 @@ async function loadSentry(): Promise<typeof SentrySdk | null> {
     beforeSendLog: scrubTelemetry,
     tracesSampleRate: 0.1,
     tracePropagationTargets: ['localhost', /^https:\/\/cvfit\.pro\/api/],
-    replaysOnErrorSampleRate: 0,
     denyUrls: [/extensions\//i, /^chrome:\/\//i, /beacon\.min\.js/i],
     beforeSend(event, hint) {
       // Dev-only HMR artifact, never a product bug — see isFastRefreshArtifact
