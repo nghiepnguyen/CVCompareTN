@@ -108,7 +108,35 @@ the cover-letter hourly cap counts):
 - Counts are distinct violations per reason, never the terms/numbers.
 - Full CV queries must filter `guard_metrics ? 'fullCv'` (or `f IS NOT NULL`
   as below); a bare `guard_metrics IS NOT NULL` on `kind='rewrite'` now also
-  matches cover-letter rows.
+  matches cover-letter and application-review rows.
+
+`kind='rewrite'`, P1B application review (`action: 'application_review'`,
+2026-11-02) — one row per request, success or error, with the
+`applicationReview` key. Cover letter and review rows share one hourly
+document cap (`guard_metrics->coverLetter` OR `->applicationReview`, half the
+rewrite limit). See [14_application_review.md](./14_application_review.md).
+
+```json
+{ "v": 1, "applicationReview": {
+    "language": "vi",
+    "outcome": "review",
+    "deterministic": { "unsupportedNumber": 0, "spelledNumber": 0, "rawJd": 0,
+                       "unsupportedTerm": 1, "jdCopy": 0, "strengthClaim": 0 },
+    "severity": { "high": 1, "medium": 1, "low": 0 },
+    "categories": { "unsupportedClaim": 2, "numericClaim": 0, "consistency": 0,
+                    "requirementGap": 0, "relevance": 0, "tone": 0 },
+    "droppedFindings": 0,
+    "revision": "shipped",
+    "geminiCalls": 2 } }
+```
+
+- `outcome`: the verdict (`ready`/`review`) or `error` (with `category`;
+  `error_message` is `[application_review:<category>]`, `geminiCalls` 0/1).
+- `revision`: `not_needed` (verdict ready), `skipped_budget`, `error`,
+  `invalid` (failed the final guard, withheld), `shipped`.
+- `droppedFindings`: reviewer findings the server rejected (unanchored quote,
+  unknown/missing requirement, verbatim-supported, duplicate).
+- Never a finding message, quote, term, letter or revision.
 
 ## NULL vs 0 / false
 
@@ -191,5 +219,12 @@ GROUP BY 1 ORDER BY 2 DESC;
 SELECT guard_metrics->'coverLetter'->>'outcome' AS outcome, status, count(*)
 FROM analysis_log
 WHERE kind = 'rewrite' AND guard_metrics ? 'coverLetter'
+GROUP BY 1, 2 ORDER BY 3 DESC;
+
+-- Application review (P1B): verdicts and revision outcomes
+SELECT guard_metrics->'applicationReview'->>'outcome' AS verdict,
+       guard_metrics->'applicationReview'->>'revision' AS revision, count(*)
+FROM analysis_log
+WHERE kind = 'rewrite' AND guard_metrics ? 'applicationReview'
 GROUP BY 1, 2 ORDER BY 3 DESC;
 ```

@@ -10,6 +10,7 @@ Canonical reference for **which runtime handles each capability**. Từ 2026-06,
 | **Gemini CV analysis** (chấm điểm, sync) | `POST /api/analyze` → `api/analyze.ts` (maxDuration 300s làm trần an toàn, deadline nội bộ 65s) | `POST /api/analyze` → `server/routes/analyze.ts` | `_server-lib/analyze/handler.ts` |
 | **Gemini CV rewrite** (nền, `fullRewrittenCV`) | `POST /api/rewrite-cv` → `api/rewrite-cv.ts` (maxDuration 300s, deadline 65s) | `POST /api/rewrite-cv` → `server/routes/rewriteCv.ts` | `_server-lib/rewriteCv/handler.ts` |
 | **Cover Letter (P1A)** — `action: 'cover_letter'` | `POST /api/rewrite-cv` (cùng function, không thêm route) | `POST /api/rewrite-cv` | `_server-lib/rewriteCv/handler.ts` → `_server-lib/ai/coverLetterService.ts` |
+| **Application Review (P1B)** — `action: 'application_review'` | `POST /api/rewrite-cv` (cùng function, không thêm route) | `POST /api/rewrite-cv` | `_server-lib/rewriteCv/handler.ts` → `_server-lib/ai/applicationReviewService.ts` |
 | **Gemini CV parse** (nền, `parsedCV`) | `POST /api/parse-cv` → `api/parse-cv.ts` (maxDuration 300s, deadline 65s) | `POST /api/parse-cv` → `server/routes/parseCv.ts` | `_server-lib/parseCv/handler.ts` |
 | PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` (Auth: Bearer or reCAPTCHA) | `POST /api/extract-pdf` → `server/routes/pdf.ts` (idem) | `_server-lib/pdf/handler.ts` |
 | reCAPTCHA verify | Không còn route riêng — verify inline trong handler dùng nó (extract-pdf, feedback) | — | `_server-lib/recaptcha.ts` |
