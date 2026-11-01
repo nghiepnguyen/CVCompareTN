@@ -120,6 +120,10 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   // Results whose Full CV was withheld by the server's fidelity check (session only).
   const [fullCVFallbackIds, setFullCVFallbackIds] = useState<Set<string>>(new Set());
   const [parsedCVGeneratingIds, setParsedCVGeneratingIds] = useState<Set<string>>(new Set());
+  // JD each result was analyzed against (session only; history keeps a
+  // truncated jdTitle, not the JD). P1A cover letter reads it.
+  const analysisJdByIdRef = useRef(new Map<string, string>());
+  const getAnalysisJd = useCallback((resultId: string) => analysisJdByIdRef.current.get(resultId), []);
 
   const loadHistory = useCallback(async () => {
     if (user?.id) {
@@ -495,6 +499,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         reportLanguage === 'vi' ? 'Đang tổng hợp kết quả...' : 'Synthesizing results...'
       );
       creepProgress(95, 300);
+      // Before any state update that renders these results (the ref itself
+      // never triggers a render).
+      for (const resultId of workByResultId.keys()) analysisJdByIdRef.current.set(resultId, jd);
       setResults(newResults);
       const historyLimit = effectivePlan === 'free' ? 50 : 500;
       setHistory((prev) => [...newResults, ...prev].slice(0, historyLimit));
@@ -654,6 +661,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         fullCVGeneratingIds,
         fullCVFallbackIds,
         parsedCVGeneratingIds,
+        getAnalysisJd,
       }}
     >
       {children}

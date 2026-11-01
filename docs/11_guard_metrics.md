@@ -86,6 +86,30 @@ only — never requirement, JD or CV text.
   `geminiCalls` may be 2 while tokens cover one call.
 - `latency_ms` on rewrite rows is the summed Gemini time of both calls.
 
+`kind='rewrite'`, P1A cover letter (`action: 'cover_letter'`, 2026-11-01) —
+**every** row, success or error, carries the `coverLetter` key (the `kind`
+CHECK has no `cover_letter`, so this key is what tells the rows apart and what
+the cover-letter hourly cap counts):
+
+```json
+{ "v": 1, "coverLetter": {
+    "language": "en",
+    "outcome": "recovered",
+    "firstPassViolations": { "unsupportedNumber": 0, "spelledNumber": 0, "rawJd": 0,
+                             "unsupportedTerm": 1, "jdCopy": 0, "strengthClaim": 1 },
+    "retryOutcome": "recovered",
+    "geminiCalls": 2 } }
+```
+
+- `outcome`: `valid` (first draft passed), `recovered` (retry passed),
+  `fallback` (no draft passed → empty letter + `fidelityFallback`), `error`
+  (Gemini/timeout/budget; also `category`, and `error_message` is
+  `[cover_letter:<category>]`).
+- Counts are distinct violations per reason, never the terms/numbers.
+- Full CV queries must filter `guard_metrics ? 'fullCv'` (or `f IS NOT NULL`
+  as below); a bare `guard_metrics IS NOT NULL` on `kind='rewrite'` now also
+  matches cover-letter rows.
+
 ## NULL vs 0 / false
 
 - `guard_metrics IS NULL`: telemetry unavailable or not applicable — rows
@@ -160,6 +184,12 @@ WHERE kind = 'rewrite' AND status = 'success' AND f IS NOT NULL;
 -- Retry outcome breakdown
 SELECT guard_metrics->'fullCv'->>'retryOutcome' AS outcome, count(*)
 FROM analysis_log
-WHERE kind = 'rewrite' AND status = 'success' AND guard_metrics IS NOT NULL
+WHERE kind = 'rewrite' AND status = 'success' AND guard_metrics ? 'fullCv'
 GROUP BY 1 ORDER BY 2 DESC;
+
+-- Cover letter (P1A) outcomes
+SELECT guard_metrics->'coverLetter'->>'outcome' AS outcome, status, count(*)
+FROM analysis_log
+WHERE kind = 'rewrite' AND guard_metrics ? 'coverLetter'
+GROUP BY 1, 2 ORDER BY 3 DESC;
 ```

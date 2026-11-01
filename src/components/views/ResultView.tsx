@@ -15,6 +15,7 @@ import { DetailedComparisonTab } from './result/DetailedComparisonTab';
 import { OptimizationTab } from './result/OptimizationTab';
 import { ParsedCVTab } from './result/ParsedCVTab';
 import { FullCVTab } from './result/FullCVTab';
+import { CoverLetterAction } from './result/CoverLetterAction';
 import { RatingSection } from './result/RatingSection';
 import { VN_TIME_ZONE } from '../../lib/vnTime';
 
@@ -91,7 +92,8 @@ export function ResultView() {
                   {results.length > 1 ? t.backToList : t.back}
                 </button>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                  <CoverLetterAction selectedResult={selectedResult} />
                   <div className="text-right hidden sm:block">
                     <div className="text-[10px] font-black text-text-light uppercase tracking-widest mb-1">{t.analysisTime}</div>
                     <div className="text-sm font-bold text-text-main">

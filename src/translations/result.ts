@@ -440,6 +440,74 @@ export const result = {
     vi: "Chưa có danh sách điểm khớp / khoảng trống từ phân tích. Thử chạy phân tích lại; nếu tải từ lịch sử, bản ghi có thể được lưu trước khi có đủ trường JSON.",
     en: "No matching points or gaps in this result. Try analyzing again; history rows saved before schema updates may lack this data.",
   },
+  coverLetterCreate: {
+    vi: "Tạo Cover Letter",
+    en: "Create Cover Letter",
+  },
+  coverLetterTitle: {
+    vi: "Cover Letter",
+    en: "Cover Letter",
+  },
+  coverLetterIntro: {
+    vi: "Thư chỉ dùng thông tin có trong CV của bạn và JD vừa phân tích. Hãy đọc lại trước khi gửi.",
+    en: "The letter only uses facts from your CV and the JD you just analyzed. Review it before sending.",
+  },
+  coverLetterLanguage: {
+    vi: "Ngôn ngữ thư",
+    en: "Letter language",
+  },
+  coverLetterGenerate: {
+    vi: "Tạo thư",
+    en: "Generate",
+  },
+  coverLetterGenerating: {
+    vi: "Đang tạo thư ứng tuyển...",
+    en: "Generating cover letter...",
+  },
+  coverLetterCopy: {
+    vi: "Sao chép",
+    en: "Copy",
+  },
+  coverLetterCopied: {
+    vi: "Đã sao chép",
+    en: "Copied",
+  },
+  coverLetterRegenerate: {
+    vi: "Tạo lại",
+    en: "Regenerate",
+  },
+  coverLetterClose: {
+    vi: "Đóng",
+    en: "Close",
+  },
+  coverLetterFallback: {
+    vi: "Không thể tạo thư ứng tuyển đủ an toàn từ thông tin hiện có. Vui lòng thử lại hoặc kiểm tra nội dung CV.",
+    en: "Could not create a cover letter that is safely grounded in the available information. Please try again or check your CV content.",
+  },
+  coverLetterError: {
+    vi: "Không thể tạo thư ứng tuyển. Vui lòng thử lại.",
+    en: "Could not create the cover letter. Please try again.",
+  },
+  coverLetterTimeout: {
+    vi: "Tạo thư mất quá nhiều thời gian. Vui lòng thử lại.",
+    en: "Generating the letter took too long. Please try again.",
+  },
+  coverLetterRateLimited: {
+    vi: "Bạn đã tạo quá nhiều thư trong giờ qua. Vui lòng thử lại sau.",
+    en: "You have created too many letters in the past hour. Please try again later.",
+  },
+  coverLetterUnavailableHistory: {
+    vi: "Chỉ khả dụng ngay sau khi phân tích (cần JD gốc).",
+    en: "Available right after an analysis (needs the original JD).",
+  },
+  coverLetterWaitingParsedCv: {
+    vi: "Đang chuẩn bị thông tin CV...",
+    en: "Preparing CV data...",
+  },
+  coverLetterNoParsedCv: {
+    vi: "Cần dữ liệu CV đã chuẩn hóa để tạo thư.",
+    en: "Parsed CV data is required to create a letter.",
+  },
   tabParsedCv: {
     vi: "Thông tin CV",
     en: "Parsed CV",

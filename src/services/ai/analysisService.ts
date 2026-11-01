@@ -29,6 +29,36 @@ export async function rewriteFullCV(
   return { fullRewrittenCV: data.fullRewrittenCV || '', fidelityFallback: data.fidelityFallback === true };
 }
 
+export type CoverLetterResponse = { content: string; language: 'vi' | 'en'; fidelityFallback: boolean };
+
+/** Thrown with the HTTP status so the UI can pick a translated message. */
+export class CoverLetterRequestError extends Error {
+  constructor(readonly status: number) {
+    super(`Cover letter failed (HTTP ${status})`);
+  }
+}
+
+/** P1A: POST /api/rewrite-cv action=cover_letter. Never touches the analysis result. */
+export async function generateCoverLetter(
+  jd: string,
+  parsedCV: ParsedCV,
+  language: 'vi' | 'en',
+  authToken?: string
+): Promise<CoverLetterResponse> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  const res = await fetch('/api/rewrite-cv', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ action: 'cover_letter', jd, parsedCV, language }),
+    // Same 65s server deadline as rewrite.
+    signal: AbortSignal.timeout(75_000),
+  });
+  if (!res.ok) throw new CoverLetterRequestError(res.status);
+  const data = (await res.json()) as { content?: string; language?: 'vi' | 'en'; fidelityFallback?: boolean };
+  return { content: data.content || '', language: data.language === 'en' ? 'en' : 'vi', fidelityFallback: data.fidelityFallback === true };
+}
+
 export async function parseCV(
   cvData: string,
   cvMimeType: string,

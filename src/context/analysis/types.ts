@@ -45,6 +45,8 @@ export interface AnalysisRunContextType {
   fullCVGeneratingIds: Set<string>;
   fullCVFallbackIds: Set<string>;
   parsedCVGeneratingIds: Set<string>;
+  /** JD a result from this session was analyzed against; undefined for history rows. */
+  getAnalysisJd: (resultId: string) => string | undefined;
 }
 
 export interface SavedJdContextType {
