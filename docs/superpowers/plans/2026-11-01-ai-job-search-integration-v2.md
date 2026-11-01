@@ -137,30 +137,38 @@ behavior trong MVP.
 **Mục tiêu:** bổ sung phần authority còn thiếu mà không làm lại Stage
 3.x.
 
-**Trạng thái (01/11/2026):** IMPLEMENTED LOCALLY — chưa COMPLETED. Nhánh
-`feat/p0-requirement-verification`. Còn chờ exit criteria "không regression
-canonical scoring" và "không claim mới trong benchmark": phải chạy
-`scripts/benchmark-gemini-analyze.ts` pre/post trước deploy. Chi tiết
-authority: `docs/12_canonical_scoring.md` (mục P0).
+**Trạng thái (01/11/2026):** COMPLETED LOCALLY / BENCHMARK VERIFIED. Nhánh
+`feat/p0-requirement-verification` (chưa push). Authority:
+`docs/12_canonical_scoring.md` (mục "Requirement verification (P0)").
 
-Kết quả audit: factual/numeric/skills/raw-JD guard, full-CV validation +
-retry + fidelity fallback, probability authority đã có từ Stage 3.x → giữ
-nguyên, gỡ khỏi backlog. Gap thật: verification + `jdEvidence` (thêm),
-Unicode sanitizer (thêm), trust boundary (PARTIAL → fence + rule; chuyển sang
-`systemInstruction` để thành debt vì cần benchmark).
+Kết quả:
+
+-   Factual/numeric/skills/raw-JD guard, full-CV validation + retry +
+    fidelity fallback, probability authority đã có từ Stage 3.x → giữ
+    nguyên, gỡ khỏi backlog.
+-   `verification` (met/unmet/unknown) được derive **deterministic sau**
+    canonical Gemini response (`deriveRequirementVerification`), không do
+    model sinh; không đổi status/matchScore/category/probability.
+-   `jdEvidence`: REMOVED (UI dùng requirement + cvEvidence + verification).
+-   Unicode sanitizer: SHIPPED. Fence JD/CV: REMOVED (benchmark cho thấy
+    calibration shift). Untrusted prose rule: DEFERRED. `systemInstruction`:
+    DEFERRED (experiment riêng có calibration benchmark).
+-   Benchmark PRE `8590a6f` vs final: full set 19 sample × 3 run median Δ 0,
+    MAD 1.18, max 3.0, không |Δ|>5; focused 12 sample × 5 run MAD 1.03 so với
+    PRE gộp. Model-generated verification (P0/P0.1) và prose rule bị loại vì
+    làm lệch score.
 
 ### Công việc
 
--   [ ] Chốt baseline CV/JD Việt--Anh và các production fixtures hiện
-    có. *(chưa — cần benchmark có Gemini key)*
+-   [x] Chốt baseline CV/JD Việt--Anh và các production fixtures hiện
+    có. *(`scripts/benchmark-gemini-fixtures.ts`, gồm case P0)*
 -   [x] Audit lại rewrite/analyze guards sau Stage 3.x: factual
     fidelity, numeric, skills, raw-JD, full-CV validation, fallback.
 -   [x] Xóa khỏi backlog các guard đã có authority tương đương.
 -   [x] Bổ sung mandatory-requirement verification bằng field optional,
     không mở rộng union `status`.
--   [x] Candidate field đề xuất:
-    -   `jdEvidence?: string`
-    -   `verification?: 'met' | 'unmet' | 'unknown'`
+-   [x] Candidate field: `verification?: 'met' | 'unmet' | 'unknown'`
+    (deterministic). `jdEvidence` đã thử và bỏ.
 -   [x] Phân biệt rõ:
     -   `missing` = CV chưa match requirement.
     -   `unmet` = có bằng chứng không đạt.

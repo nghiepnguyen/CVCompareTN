@@ -197,65 +197,79 @@ legacy fallback when a stored result has no usable `detailedComparison`. A
 requirement. No schema change, migration, new AI call, score/rubric,
 probability, category-score, rewrite or parse/experience change.
 
-## Requirement verification + trust boundary (P0, 2026-11-01)
+## Requirement verification (P0, 2026-11-01)
 
-Each `detailedComparison` row may carry two optional fields, produced by the
-same canonical analyze call (no extra Gemini round trip):
-
-- `verification?: 'met' | 'unmet' | 'unknown'` — does the CV *prove* the
-  requirement is satisfied? `met` = explicit proof; `unmet` = an explicit CV
-  fact contradicts or falls short (JD "IELTS 6.5", CV "IELTS 6.0"; JD "10+
-  years", CV 8 years); `unknown` = the CV lacks the information. A requirement
-  the CV does not mention is `unknown`, never `unmet`.
-- `jdEvidence?: string` — short verbatim JD excerpt (requested for `required`
-  rows only).
+Each `detailedComparison` row of a new analysis carries
+`verification?: 'met' | 'unmet' | 'unknown'`: does the CV *prove* the
+requirement is satisfied?
 
 ```
 match status (matched | partial | missing)  ≠  requirement verification
 ```
 
-`status` stays the requirement-status authority (Stage 3.12B) and its union is
-unchanged. **Verification does not independently modify canonical
-`matchScore`**, category scores or `passProbability`; the scoring rubric is
-untouched and `scoreVersion` stays `canonical-en-v1`. The prompt forbids
-inferring degree, certification, language, years, work authorization,
-location, availability, domain or management experience from name,
-nationality, address, CV language, job location, company, title, age or
-missing data.
+**Gemini never authors it.** It is derived after the canonical response by the
+pure `deriveRequirementVerification()` (`src/services/ai/requirementVerification.ts`),
+called in `analyzeCV` right after `normalizeDetailedComparison`:
 
-Deterministic bounds (`normalizeComparisonItems`): code can only weaken a
-model claim to `unknown`, never create `met`/`unmet` — `met` requires
-`status: matched` + non-empty `cvEvidence`; `unmet` requires a non-matched
-status + non-empty `cvEvidence` (the contradicting CV fact). Invalid values →
-field absent. On new analyses `groundRequirementVerification()`
-(`analysisService.ts`) also keeps `unmet` only when its `cvEvidence` is a
-case/whitespace/quote-insensitive substring of the CV text the model saw —
-placeholders like "Not mentioned in the CV" and image/scanned CVs become
-`unknown` — and drops a `jdEvidence` that is not a substring of the JD.
-`met` is not text-grounded (paraphrased matches would flip to unverified).
-Missing/partial rows may now quote the shortfall fact in `cvEvidence`.
-Absent fields stay absent: pre-P0 history/recruiter rows render exactly as
-before (no "Chưa xác minh"). `deriveRequirementInsights` ignores both fields,
-so Candidate accordions, Parsed CV chips, CandidatePanel and recruiter Excel
-are unchanged. UI: `DetailedComparisonTab` shows "Xác minh: Đạt / Không đạt /
-Chưa xác minh" and the JD excerpt when present. Persistence is JSONB
-(`history.detailed_comparison`, `candidate_cvs.analysis_result`) — no
-migration. Localization never sees or edits them.
+- `met`: `status === "matched"` with usable `cvEvidence` (non-empty, not a
+  placeholder such as "N/A" / "not mentioned" / "không đề cập"). The canonical
+  match is not re-judged.
+- `unmet`: only a deterministic same-metric shortfall on a non-matched row —
+  IELTS band bound to the word "IELTS", or years of experience whose domain
+  words are identical on both sides (JD "10+ years of product design
+  experience" vs CV "8 years of product design experience"). One value per side;
+  ranges, maxima, open-ended CV values ("8+", "over 8") or conflicting figures
+  are not compared.
+- `unknown`: everything else. Absence of evidence is not failure: `partial` or
+  `missing` alone never means `unmet`; a tool, degree, certification, language
+  test or work authorization the CV does not mention stays `unknown`, even when
+  the CV lists other ones. A `matched` row whose own evidence shows a shortfall
+  becomes `unknown` (status untouched).
 
-Trust boundary: JD and CV text are fenced as `<job_description>` / `<cv>`
-(markers inside the content are removed) and the analyze EN + rewrite VI/EN
-prompts state that fenced content is untrusted data, never instructions.
-`stripInvisibleControls()` (`_server-lib/untrustedText.ts`) removes
-zero-width (U+200B–200D, 2060, FEFF), bidi controls (U+061C, 200E/200F,
-202A–202E, 2066–2069) and Unicode tag characters (U+E0000–E007F) from the JD
-at the analyze/rewrite handler entry (before the empty check, so guards,
-`jdTitle` and logs share it) and from CV *text* before prompting and guards.
-No NFC/NFKC or combining-mark changes — Vietnamese is byte-identical. This
-reduces risk; it is not a sandbox. Inline PDF/image CVs and visible
-instruction-like text rely on the prompt rule, schema and existing guards.
+**Verification never modifies `status`, `matchScore`, category scores,
+`passProbability` or `successProbability`** — the function only receives the
+comparison table and returns a copy with one extra field. No `scoreVersion`
+change. `jdEvidence` was prototyped and removed; the UI explains a row with
+`requirement` + `cvEvidence` + `verification`.
 
-Telemetry: `analysis_log.guard_metrics.requirementVerification` (counts only,
-see `docs/11_guard_metrics.md`).
+Persistence is JSONB (`history.detailed_comparison`,
+`candidate_cvs.analysis_result`) — no migration. Absent stays absent: rows saved
+before P0 render without a verification line (never "Chưa xác minh");
+`normalizeComparisonItems` reads a stored value back only when it is
+consistent with `status`, otherwise it is weakened to `unknown`.
+`deriveRequirementInsights` ignores the field, so Candidate accordions, Parsed
+CV chips, recruiter CandidatePanel and Excel export are unchanged. UI:
+`DetailedComparisonTab` shows "Xác minh: Đạt / Không đạt / Chưa xác minh".
+Localization never sees or edits it. Telemetry:
+`analysis_log.guard_metrics.requirementVerification` (counts only).
+
+### Why not in the Gemini call (benchmark, 2026-11-01)
+
+`scripts/benchmark-gemini-analyze.ts`, fixtures in
+`scripts/benchmark-gemini-fixtures.ts` (incl. P0 cases), PRE = `8590a6f`:
+
+- Model-authored `verification`/`jdEvidence` (P0, P0.1) moved `matchScore`
+  even with identical status (IELTS 6.0 vs 6.5: +7), credited date-derived
+  durations over the stated figure, dropped JD requirements and inferred
+  `unmet` from absent tools.
+- An `UNTRUSTED INPUT` prose rule alone shifted calibration (+3 to +7 on
+  several samples).
+- A `<job_description>`/`<cv>` fence alone kept pooled drift near noise but
+  shifted one sample family systematically and dropped a JD responsibility row.
+
+Final request = PRE request byte-for-byte for clean input; only the
+deterministic sanitizer below runs before it.
+
+### Input sanitizer
+
+`stripInvisibleControls()` (`_server-lib/untrustedText.ts`) removes zero-width
+(U+200B–200D, 2060, FEFF), bidi controls (U+061C, 200E/200F, 202A–202E,
+2066–2069) and Unicode tag characters (U+E0000–E007F) from the JD at the
+analyze/rewrite handler entry (before the empty check, so guards, `jdTitle` and
+logs share it) and from CV *text* before prompting and guards. No NFC/NFKC or
+combining-mark changes — Vietnamese is byte-identical; a no-op on all
+benchmark fixtures. Input hardening only, not a sandbox: inline PDF/image CVs
+and visible instruction-like text are not filtered.
 
 ## Known debt
 
@@ -273,11 +287,15 @@ see `docs/11_guard_metrics.md`).
   disagree with `detailedComparison` (and may invent gaps that are not in the
   JD). They remain for history compatibility and possible future "AI notes"
   use; removing them is a separate cleanup.
-- P0: the instruction text is still a user-turn prompt (rules + fenced data),
-  not `config.systemInstruction`. Moving it would change the scoring request
-  and needs a pre/post benchmark (Stage 3.6: prompt moves shifted MatchScore
-  4–10 points). The P0 additions themselves (verification rules + two schema
-  fields + untrusted-input rule) also need `scripts/benchmark-gemini-analyze.ts`
-  before deploy to confirm no score drift and model compliance.
+- P0 trust boundary: the canonical analyze (and rewrite) prompt has **no**
+  prose "untrusted input" instruction and no JD/CV fence, because both shifted
+  score calibration in benchmarks. JD/CV still sit in the user turn next to the
+  rules. A `systemInstruction` variant is a separate experiment that needs its
+  own PRE-vs-variant calibration benchmark. The injection fixture
+  (`p0-injection`) stays as a regression check (PRE and final both resisted it).
+- P0 verification covers only IELTS and same-domain years; TOEIC/TOEFL/GPA and
+  other thresholds stay `unknown` until a same-metric parser is added. Some real
+  shortfalls phrased loosely by the model ("CV states 8 years of experience"
+  vs a domain-specific requirement) also stay `unknown` by design.
 - `matchScore` is not clamped to 0–100 server-side (probability derivation
   clamps); unchanged by P0.

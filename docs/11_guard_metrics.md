@@ -43,17 +43,12 @@ P0 (2026-11-01) adds, on the same analyze row, `requirementVerification`
 (absent on older rows):
 
 ```json
-"requirementVerification": {
-    "rows": 14,              // detailedComparison rows after normalization
-    "met": 6, "unmet": 1, "unknown": 7,
-    "absent": 0,             // row without a valid verification (model omitted it)
-    "jdEvidence": 9,         // JD excerpts kept (found verbatim in the JD)
-    "jdEvidenceDropped": 1 } // excerpts not found in the JD → removed
+"requirementVerification": { "rows": 14, "met": 6, "unmet": 1, "unknown": 7 }
 ```
 
-`met/unmet/unknown` are counted after the deterministic bound (an unsupported
-`met`/`unmet` is already `unknown`). Counts only — never requirement, JD or CV
-text.
+Counts of the deterministic verification derived after the canonical response
+(`deriveRequirementVerification`, see `docs/12_canonical_scoring.md`). Counts
+only — never requirement, JD or CV text.
 
 - Each dropped suggestion counts once, under the first rule that hit it
   (order: Skills → number → raw-JD). The split is "first reason", not every
