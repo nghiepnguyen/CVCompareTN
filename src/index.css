@@ -5,6 +5,29 @@
    ============================================================ */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Public HTML remains readable until React replaces it, including on slow networks. */
+#seo-static {
+  @apply min-h-screen bg-slate-50 font-sans text-slate-800;
+}
+#seo-static > nav, #seo-static > footer {
+  @apply mx-auto flex max-w-6xl flex-wrap items-center gap-3 border-slate-200 px-6 py-5 text-sm;
+}
+#seo-static > nav { @apply border-b; }
+#seo-static > footer { @apply border-t; }
+#seo-static a {
+  @apply inline-block text-emerald-700 underline underline-offset-4 transition-transform cursor-pointer hover:scale-105 active:scale-95;
+}
+#seo-static main {
+  @apply mx-auto max-w-5xl px-6 py-12 sm:py-20;
+}
+#seo-static h1 {
+  @apply mb-8 text-4xl leading-tight font-bold tracking-tight text-slate-900 sm:text-6xl;
+}
+#seo-static h2 { @apply mt-10 mb-4 text-2xl font-bold tracking-tight; }
+#seo-static p, #seo-static li { @apply mb-4 text-base leading-relaxed; }
+#seo-static ul { @apply list-disc pl-6; }
+#seo-static ol { @apply list-decimal pl-6; }
+
 /* Metric-matched fallback for "Plus Jakarta Sans" — sized/aligned to the
    real font's metrics (via @capsizecss/metrics vs Arial) so the swap from
    fallback to webfont doesn't reflow text and trigger layout shift (CLS). */
