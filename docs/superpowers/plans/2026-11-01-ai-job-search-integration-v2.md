@@ -217,8 +217,10 @@ kèm JD evidence và CV evidence khi có.
 bình.\
 **Ưu tiên:** cao.
 
-**Trạng thái (01/11/2026):** COMPLETED LOCALLY / BENCHMARK VERIFIED (chưa
-push). Authority: `docs/13_cover_letter.md`. `rewrite-cv` + `action:
+**Trạng thái (01/11/2026):** DEPLOYED / PRODUCTION VERIFIED ✅.
+PR [#61](https://github.com/nghiepnguyen/CVCompareTN/pull/61) merge
+`dd0359f`; production smoke trên trình duyệt đạt (VI/EN, copy, regenerate,
+History disable). Authority: `docs/13_cover_letter.md`. `rewrite-cv` + `action:
 'cover_letter'`, CV = `parsedCV` serialize server-side, JD = JD của session
 (History disable), validator deterministic riêng + 1 retry không JD +
 fallback, cap theo giờ riêng (½ bucket rewrite), không migration, function
@@ -767,7 +769,7 @@ Interview Prep và Multi-JD Intelligence là expansion sau MVP.
 ``` text
 P0   Authority & Reliability Audit        ✅ deployed (PR #59)
  ↓
-P1A  Cover Letter                         ✅ local (benchmark verified)
+P1A  Cover Letter                         ✅ deployed (PR #61)
  ↓
 P1B  Optional Application Review
  ↓
