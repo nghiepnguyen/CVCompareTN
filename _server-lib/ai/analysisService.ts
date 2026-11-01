@@ -118,8 +118,10 @@ export async function analyzeCV(
           extractText(new Uint8Array(buffer), { mergePages: true }),
           timeoutPromise,
         ]);
-        if (text && text.trim().length >= 100) {
-          cvText = stripInvisibleControls(text);
+        // Strip before the length check so invisible padding cannot skip the inline-PDF fallback.
+        const visible = text ? stripInvisibleControls(text) : '';
+        if (visible.trim().length >= 100) {
+          cvText = visible;
           parts.push({ text: `CV Content:\n${cvText}` });
           usedText = true;
         }

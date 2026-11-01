@@ -6,7 +6,8 @@ import type { ComparisonItem, DetailedComparison } from "./types.js";
  * Gemini never authors it (P0/P0.1 benchmarks: a model-written verification
  * field shifted matchScore and dropped requirements).
  *
- * - met:     canonical status "matched" with usable CV evidence (no re-judging).
+ * - met:     canonical status "matched" with usable CV evidence that does not
+ *            itself say it is an inference (no re-judging of the match).
  * - unmet:   only a deterministic same-metric shortfall (IELTS band, years of
  *            experience in the same domain) on a non-matched row.
  * - unknown: everything else. Absence of evidence is not failure.
@@ -16,6 +17,9 @@ export type RequirementVerification = NonNullable<ComparisonItem["verification"]
 const PLACEHOLDER_EVIDENCE =
   /^(?:n\/?a|none|nil|-+|not (?:mentioned|stated|shown|found|specified|provided|available)|no (?:evidence|mention|information)|không(?: có)?|chưa(?: có)?)\.?$|does(?:n't| not) (?:mention|state|show)|not mentioned|không đề cập|chưa (?:thể hiện|cho thấy|đề cập)/i;
 
+// Evidence that says it is an inference ("implies location") is not proof.
+const INFERRED_EVIDENCE = /\bimpl(?:y|ies|ied)\b|\binferred\b|\bsuggests?\b|\bassum(?:e|ed|ing)\b|hàm ý|ngụ ý|suy ra/i;
+
 export function hasUsableEvidence(evidence: string | undefined): boolean {
   const text = evidence?.trim() ?? "";
   return /[\p{L}\p{N}]/u.test(text) && !PLACEHOLDER_EVIDENCE.test(text);
@@ -23,6 +27,9 @@ export function hasUsableEvidence(evidence: string | undefined): boolean {
 
 // IELTS band bound to the word IELTS (e.g. "IELTS 6.5+", "IELTS overall band 6.0").
 const IELTS = /\bIELTS\b[^\d\n]{0,20}?(\d(?:\.\d)?)/gi;
+// Another named language test on either side: the requirement may be met
+// through it ("IELTS 6.5 or TOEFL 90"), so an IELTS-only shortfall proves nothing.
+const OTHER_LANGUAGE_TEST = /\b(?:TOEIC|TOEFL|Cambridge|CEFR|VSTEP|PTE|Duolingo|[ABC][12])\b/i;
 // "<n> years|yrs|năm <domain>"; the number must sit directly before the unit.
 const YEARS = /(?<![\d.])(\d{1,2}(?:\.\d)?)\s*(\+)?\s*(?:years?|yrs?|năm)\b([^,.;:()\n]*)/gi;
 const NOT_A_MINIMUM = /\d\s*(?:-|–|to|đến)\s*\d|up to|at most|under|less than|maximum|no more than|tối đa|dưới|không quá/i;
@@ -62,6 +69,7 @@ function yearsFacts(text: string): YearsFact[] {
 export function compareMetric(requirement: string, evidence: string): "shortfall" | "comparable" | null {
   const jdBands = ieltsBands(requirement);
   if (jdBands.length) {
+    if (OTHER_LANGUAGE_TEST.test(requirement) || OTHER_LANGUAGE_TEST.test(evidence)) return null;
     const cvBands = new Set(ieltsBands(evidence));
     if (jdBands.length !== 1 || cvBands.size !== 1) return null;
     return [...cvBands][0] < jdBands[0] ? "shortfall" : "comparable";
@@ -78,7 +86,7 @@ export function compareMetric(requirement: string, evidence: string): "shortfall
 export function deriveItemVerification(item: ComparisonItem): RequirementVerification {
   if (!hasUsableEvidence(item.cvEvidence)) return "unknown";
   const metric = compareMetric(item.requirement, item.cvEvidence!);
-  if (item.status === "matched") return metric === "shortfall" ? "unknown" : "met";
+  if (item.status === "matched") return metric === "shortfall" || INFERRED_EVIDENCE.test(item.cvEvidence!) ? "unknown" : "met";
   return metric === "shortfall" ? "unmet" : "unknown";
 }
 

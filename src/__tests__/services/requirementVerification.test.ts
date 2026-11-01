@@ -35,6 +35,13 @@ describe('deterministic verifier — met', () => {
     expect(v('Figma', 'matched', 'CV không đề cập')).toBe('unknown');
   });
 
+  it('matched with evidence that calls itself an inference → unknown', () => {
+    expect(v('Làm việc tại Hà Nội', 'matched', 'Đại học Thương mại (Hanoi based) and local companies imply location.')).toBe('unknown');
+    expect(v('collaborating with engineers', 'matched', 'Design system adopted by 4 squads (implies cross-functional collaboration).')).toBe('unknown');
+    expect(v('Kinh nghiệm fintech', 'matched', 'Làm tại ví điện tử, hàm ý có kinh nghiệm fintech')).toBe('unknown');
+    expect(v('Stakeholder communication', 'matched', 'Presented revenue summaries to hotel managers every month.')).toBe('met');
+  });
+
   it('matched but a deterministic shortfall in its own evidence → unknown, never met', () => {
     expect(v('IELTS 6.5 or above', 'matched', 'IELTS 6.0 (2023)')).toBe('unknown');
     expect(v('10+ years of product design experience', 'matched', '8 years of product design experience')).toBe('unknown');
@@ -45,6 +52,14 @@ describe('deterministic verifier — unmet only for same-metric shortfalls', () 
   it('IELTS 6.0 vs JD 6.5 → unmet', () => {
     expect(v('IELTS 6.5 or above', 'partial', 'IELTS 6.0 (2023)')).toBe('unmet');
     expect(v('IELTS overall band 6.5', 'missing', 'English — IELTS 6.0')).toBe('unmet');
+    expect(v('IELTS 6.5 or equivalent', 'partial', 'IELTS 6.0')).toBe('unmet');
+  });
+
+  it('IELTS with an alternative test on either side → unknown (may be met another way)', () => {
+    expect(v('IELTS 6.5 or TOEFL 90', 'partial', 'IELTS 6.0, TOEFL 100')).toBe('unknown');
+    expect(v('IELTS 6.5 or TOEFL 90', 'partial', 'IELTS 6.0')).toBe('unknown');
+    expect(v('IELTS 6.5 hoặc tương đương', 'partial', 'IELTS 6.0; TOEIC 850')).toBe('unknown');
+    expect(v('IELTS 6.5 / CEFR B2', 'partial', 'IELTS 6.0')).toBe('unknown');
   });
 
   it('8 years vs JD 10+ in the same domain → unmet', () => {
