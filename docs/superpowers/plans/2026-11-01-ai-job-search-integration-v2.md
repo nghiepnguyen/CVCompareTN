@@ -217,6 +217,14 @@ kèm JD evidence và CV evidence khi có.
 bình.\
 **Ưu tiên:** cao.
 
+**Trạng thái (01/11/2026):** COMPLETED LOCALLY / BENCHMARK VERIFIED (chưa
+push). Authority: `docs/13_cover_letter.md`. `rewrite-cv` + `action:
+'cover_letter'`, CV = `parsedCV` serialize server-side, JD = JD của session
+(History disable), validator deterministic riêng + 1 retry không JD +
+fallback, cap theo giờ riêng (½ bucket rewrite), không migration, function
+count 9. Benchmark 10 fixture × 5: 0 claim cấm/injection, 2 fallback. Chưa
+làm: edit/save (P2A), quota riêng ở DB.
+
 ### Công việc
 
 -   [ ] Thêm `Cover Letter` vào candidate result.
@@ -759,7 +767,7 @@ Interview Prep và Multi-JD Intelligence là expansion sau MVP.
 ``` text
 P0   Authority & Reliability Audit        ✅ deployed (PR #59)
  ↓
-P1A  Cover Letter
+P1A  Cover Letter                         ✅ local (benchmark verified)
  ↓
 P1B  Optional Application Review
  ↓
