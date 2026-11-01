@@ -221,3 +221,11 @@ describe('validateCoverLetter: strength claims', () => {
     expect(v('I would welcome the chance to grow under your leadership and share my expertise.')).toEqual([]);
   });
 });
+
+describe('validateCoverLetter: exemption names (known debt)', () => {
+  it('a verified employer/role name equal to a JD-only skill exempts that exact term (benchmark-gated, not blocked here)', () => {
+    const jd = 'Kubernetes Engineer wanted. Kubernetes required.';
+    const r = validateCoverLetter({ cvText: CV, jd, letter: 'I bring Kubernetes experience.', allowedPhrases: ['Kubernetes'] });
+    expect(r.valid).toBe(true);
+  });
+});

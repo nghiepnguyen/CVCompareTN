@@ -499,6 +499,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         reportLanguage === 'vi' ? 'Đang tổng hợp kết quả...' : 'Synthesizing results...'
       );
       creepProgress(95, 300);
+      // Before any state update that renders these results (the ref itself
+      // never triggers a render).
+      for (const resultId of workByResultId.keys()) analysisJdByIdRef.current.set(resultId, jd);
       setResults(newResults);
       const historyLimit = effectivePlan === 'free' ? 50 : 500;
       setHistory((prev) => [...newResults, ...prev].slice(0, historyLimit));
@@ -514,7 +517,6 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             })
         : Promise.resolve(false);
 
-      for (const resultId of workByResultId.keys()) analysisJdByIdRef.current.set(resultId, jd);
       for (const [resultId, work] of workByResultId) {
         const { result, parseJob } = work;
         const parsedInSnapshot = Boolean(result.parsedCV);
