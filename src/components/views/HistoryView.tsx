@@ -9,6 +9,18 @@ import { useAuth } from '../../context/AuthContext';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell, Tooltip } from 'recharts';
 import { VN_TIME_ZONE, vnStartOfDay } from '../../lib/vnTime';
 import { displayProbability, SCORE_HIGH_MIN, SCORE_MEDIUM_MIN } from '../../services/ai';
+import { deriveCategoryChartData } from './result/categoryChartData';
+
+const CATEGORY_BAR_COLORS: Record<string, string> = {
+  skills: 'bg-accent',
+  softSkills: 'bg-pink-400',
+  hardSkills: 'bg-sky-400',
+  technicalSkills: 'bg-indigo-400',
+  experience: 'bg-success',
+  tools: 'bg-warning',
+  languageSkills: 'bg-teal-400',
+  education: 'bg-purple-400',
+};
 
 export function HistoryView() {
     const { 
@@ -338,38 +350,28 @@ export function HistoryView() {
                         {/* Mini Visual Stats */}
                         <div className="flex items-center gap-8 shrink-0">
                           <div className="hidden lg:flex items-center gap-4">
-                            {item.categoryScores && (
-                              <div 
-                                className="flex gap-1.5 cursor-help" 
-                                title={formatLabel(t.historyCategoryTooltip, {
-                                  skills: item.categoryScores.skills,
-                                  experience: item.categoryScores.experience,
-                                  tools: item.categoryScores.tools,
-                                  education: item.categoryScores.education,
-                                })}
-                              >
-                                {[
-                                  { key: 'skills', label: 'K', color: 'bg-accent' },
-                                  { key: 'experience', label: 'N', color: 'bg-success' },
-                                  { key: 'tools', label: 'C', color: 'bg-warning' },
-                                  { key: 'education', label: 'H', color: 'bg-purple-400' }
-                                ].map((cat) => {
-                                  const score = item.categoryScores[cat.key as keyof typeof item.categoryScores] || 0;
-                                  return (
-                                    <div key={cat.key} className="flex flex-col items-center gap-1">
+                            {(() => {
+                              const cats = deriveCategoryChartData(item, t);
+                              if (cats.length === 0) return null;
+                              return (
+                                <div
+                                  className="flex gap-1.5 cursor-help"
+                                  title={cats.map((c) => `${c.name}: ${c.value}%`).join('\n')}
+                                >
+                                  {cats.map((cat) => (
+                                    <div key={cat.key} className="flex flex-col items-center gap-1" title={`${cat.name}: ${cat.value}%`}>
                                       <div className="w-1.5 h-8 bg-surface-secondary rounded-full overflow-hidden flex flex-col justify-end">
-                                        <motion.div 
+                                        <motion.div
                                           initial={{ height: 0 }}
-                                          animate={{ height: `${score}%` }}
-                                          className={cn("w-full rounded-full", cat.color)}
+                                          animate={{ height: `${cat.value}%` }}
+                                          className={cn("w-full rounded-full", CATEGORY_BAR_COLORS[cat.key])}
                                         />
                                       </div>
-                                      <span className="text-[7px] font-black text-text-light uppercase">{cat.label}</span>
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                                  ))}
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           <div className="flex items-center gap-2">
