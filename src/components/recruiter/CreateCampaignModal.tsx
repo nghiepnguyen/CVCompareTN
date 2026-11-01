@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Upload, ChevronDown } from 'lucide-react';
+import { X, Upload, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { extractJdText, JdExtractError, JD_FILE_ACCEPT } from '../../lib/extractJdText';
 import { useUI } from '../../context/UIContext';
 
 interface CreateCampaignModalProps {
@@ -23,9 +24,12 @@ export function CreateCampaignModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showJdPicker, setShowJdPicker] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const extractRequestRef = useRef(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isExtracting) return;
     if (!title.trim()) {
       setError(t.createCampaignRequiredName);
       return;
@@ -56,19 +60,31 @@ export function CreateCampaignModal({
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      setJdContent(text);
-    };
-    reader.onerror = () => {
-      setError(t.createCampaignJdFileError);
-    };
-    reader.readAsText(file);
+    // A new file replaces the JD: clear the old text so a failed extraction
+    // cannot leave the previous file's content to be submitted.
+    const requestId = ++extractRequestRef.current;
+    setJdContent('');
+    setError(null);
+    setIsExtracting(true);
+    try {
+      const text = await extractJdText(file);
+      if (requestId === extractRequestRef.current) setJdContent(text);
+    } catch (err) {
+      if (requestId === extractRequestRef.current) {
+        setError(
+          err instanceof JdExtractError && err.code === 'unsupported'
+            ? t.jdFileUnsupported
+            : t.createCampaignJdFileError
+        );
+      }
+    } finally {
+      if (requestId === extractRequestRef.current) setIsExtracting(false);
+    }
   };
 
   const handleSelectSavedJd = (jd: { id: string; title: string; content: string }) => {
@@ -139,14 +155,19 @@ export function CreateCampaignModal({
                   className="w-full bg-surface-secondary border border-border rounded-xl px-3 py-2.5 text-sm text-text-main placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none font-mono text-xs"
                 />
                 <div className="flex items-center gap-2">
-                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-surface-secondary border border-border text-text-main cursor-pointer hover:scale-105 active:scale-95 transition-all">
-                    <Upload className="w-3.5 h-3.5" />
+                  <label className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-surface-secondary border border-border text-text-main cursor-pointer hover:scale-105 active:scale-95 transition-all',
+                    isExtracting && 'opacity-50 cursor-not-allowed',
+                  )}>
+                    {isExtracting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                     {t.createCampaignUploadFile}
                     <input
                       type="file"
-                      accept=".txt,.md,.pdf,.doc,.docx"
+                      accept={JD_FILE_ACCEPT}
                       onChange={handleFileUpload}
+                      disabled={isExtracting}
                       className="hidden"
+                      data-testid="jd-file-input"
                     />
                   </label>
 
@@ -200,10 +221,10 @@ export function CreateCampaignModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isExtracting}
                   className={cn(
                     'px-5 py-2 rounded-xl text-sm font-black uppercase tracking-wider bg-accent text-white cursor-pointer hover:scale-105 active:scale-95 transition-all',
-                    isSubmitting && 'opacity-50 cursor-not-allowed',
+                    (isSubmitting || isExtracting) && 'opacity-50 cursor-not-allowed',
                   )}
                 >
                   {isSubmitting ? t.createCampaignSubmitting : t.createCampaignSubmit}

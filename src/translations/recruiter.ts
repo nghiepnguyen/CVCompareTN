@@ -151,6 +151,10 @@ export const recruiter = {
     vi: "Không đọc được file JD",
     en: "Could not read JD file",
   },
+  jdFileUnsupported: {
+    vi: "Định dạng file JD không được hỗ trợ. Dùng .txt, .md, .pdf hoặc .docx",
+    en: "Unsupported JD file type. Use .txt, .md, .pdf or .docx",
+  },
   createCampaignCancel: {
     vi: "Huỷ",
     en: "Cancel",
