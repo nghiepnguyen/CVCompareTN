@@ -197,6 +197,86 @@ legacy fallback when a stored result has no usable `detailedComparison`. A
 requirement. No schema change, migration, new AI call, score/rubric,
 probability, category-score, rewrite or parse/experience change.
 
+## Requirement verification (P0, 2026-11-01)
+
+Each `detailedComparison` row of a new analysis carries
+`verification?: 'met' | 'unmet' | 'unknown'`: does the CV *prove* the
+requirement is satisfied?
+
+```
+match status (matched | partial | missing)  ≠  requirement verification
+```
+
+**Gemini never authors it.** It is derived after the canonical response by the
+pure `deriveRequirementVerification()` (`src/services/ai/requirementVerification.ts`),
+called in `analyzeCV` right after `normalizeDetailedComparison`:
+
+- `met`: `status === "matched"` with usable `cvEvidence` (non-empty, not a
+  placeholder such as "N/A" / "not mentioned" / "không đề cập", and not
+  evidence that calls itself an inference — "implies", "suggests", "hàm ý").
+  The canonical match is not re-judged.
+- `unmet`: only a deterministic same-metric shortfall on a non-matched row —
+  IELTS band bound to the word "IELTS", or years of experience whose domain
+  words are identical on both sides (JD "10+ years of product design
+  experience" vs CV "8 years of product design experience"; words that only
+  say where the CV states it — "stated in Summary" — are ignored). One value per
+  side; ranges, maxima, open-ended CV values ("8+", "over 8"), conflicting
+  figures, or an IELTS requirement/evidence that also names another language
+  test ("IELTS 6.5 or TOEFL 90", "TOEIC 850") are not compared.
+- `unknown`: everything else. Absence of evidence is not failure: `partial` or
+  `missing` alone never means `unmet`; a tool, degree, certification, language
+  test or work authorization the CV does not mention stays `unknown`, even when
+  the CV lists other ones. A `matched` row whose own evidence shows a shortfall
+  becomes `unknown` (status untouched).
+
+**Verification never modifies `status`, `matchScore`, category scores,
+`passProbability` or `successProbability`** — the function only receives the
+comparison table and returns a copy with one extra field. No `scoreVersion`
+change. `jdEvidence` was prototyped and removed; the UI explains a row with
+`requirement` + `cvEvidence` + `verification`.
+
+Persistence is JSONB (`history.detailed_comparison`,
+`candidate_cvs.analysis_result`) — no migration. Absent stays absent: rows saved
+before P0 render without a verification line (never "Chưa xác minh");
+`normalizeComparisonItems` reads a stored value back only when it is
+consistent with `status`, otherwise it is weakened to `unknown`.
+`deriveRequirementInsights` ignores the field, so Candidate accordions, Parsed
+CV chips, recruiter CandidatePanel and Excel export are unchanged. UI:
+`DetailedComparisonTab` shows "Xác minh: Đạt / Không đạt / Chưa xác minh".
+Localization never sees or edits it. Telemetry:
+`analysis_log.guard_metrics.requirementVerification` (counts only).
+
+### Why not in the Gemini call (benchmark, 2026-11-01)
+
+`scripts/benchmark-gemini-analyze.ts`, fixtures in
+`scripts/benchmark-gemini-fixtures.ts` (incl. P0 cases), PRE = `8590a6f`:
+
+- Model-authored `verification`/`jdEvidence` (P0, P0.1) moved `matchScore`
+  even with identical status (IELTS 6.0 vs 6.5: +7), credited date-derived
+  durations over the stated figure, dropped JD requirements and inferred
+  `unmet` from absent tools.
+- An `UNTRUSTED INPUT` prose rule alone shifted calibration (+3 to +7 on
+  several samples).
+- A `<job_description>`/`<cv>` fence alone kept pooled drift near noise but
+  shifted one sample family systematically (en-jd-concept below PRE's 72 in
+  10/20 fenced runs vs 1/30 PRE; back to 72 in 16/16 runs once removed). A
+  coverage signal seen alongside it was within the noise of two identical
+  requests.
+
+Final request = PRE request byte-for-byte for clean input; only the
+deterministic sanitizer below runs before it.
+
+### Input sanitizer
+
+`stripInvisibleControls()` (`_server-lib/untrustedText.ts`) removes zero-width
+(U+200B–200D, 2060, FEFF), bidi controls (U+061C, 200E/200F, 202A–202E,
+2066–2069) and Unicode tag characters (U+E0000–E007F) from the JD at the
+analyze/rewrite handler entry (before the empty check, so guards, `jdTitle` and
+logs share it) and from CV *text* before prompting and guards. No NFC/NFKC or
+combining-mark changes — Vietnamese is byte-identical; a no-op on all
+benchmark fixtures. Input hardening only, not a sandbox: inline PDF/image CVs
+and visible instruction-like text are not filtered.
+
 ## Known debt
 
 - Recruiter campaigns can mix legacy and canonical `match_score` until
@@ -213,3 +293,22 @@ probability, category-score, rewrite or parse/experience change.
   disagree with `detailedComparison` (and may invent gaps that are not in the
   JD). They remain for history compatibility and possible future "AI notes"
   use; removing them is a separate cleanup.
+- P0 trust boundary: the canonical analyze (and rewrite) prompt has **no**
+  prose "untrusted input" instruction and no JD/CV fence, because both shifted
+  score calibration in benchmarks. JD/CV still sit in the user turn next to the
+  rules. A `systemInstruction` variant is a separate experiment that needs its
+  own PRE-vs-variant calibration benchmark. The injection fixture
+  (`p0-injection`) stays as a regression check (PRE and final both resisted it).
+- P0 `met` mirrors the canonical status. An audit of 889 final `met` rows found
+  a few matches the model reached by inference (location from a university,
+  a JD-only "automated reporting" from SQL reports) and requirement rows the
+  model invented ("degree … implied by role"); these are pre-existing
+  canonical-analysis behaviours that "Xác minh: Đạt" now repeats.
+- In Vietnamese, "Đạt" is both the `matched` status label and the `met`
+  verification label (shown after "Xác minh:").
+- P0 verification covers only IELTS and same-domain years; TOEIC/TOEFL/GPA and
+  other thresholds stay `unknown` until a same-metric parser is added. Some real
+  shortfalls phrased loosely by the model ("CV states 8 years of experience"
+  vs a domain-specific requirement) also stay `unknown` by design.
+- `matchScore` is not clamped to 0–100 server-side (probability derivation
+  clamps); unchanged by P0.

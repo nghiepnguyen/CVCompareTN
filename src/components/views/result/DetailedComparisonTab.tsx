@@ -106,7 +106,22 @@ export function DetailedComparisonTab({ selectedResult }: DetailedComparisonTabP
                             {item.status === 'matched' ? t.matched : item.status === 'partial' ? t.partial : t.missing}
                           </div>
                         </div>
-                        
+
+                        {/* P0: verification is a separate dimension from status; absent on older results. */}
+                        {item.verification && (
+                          <div className="mb-6 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.15em]">
+                            <span className="text-text-light">{t.verificationLabel}</span>
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-md border",
+                              item.verification === 'met' ? "border-success/40 text-success" :
+                              item.verification === 'unmet' ? "border-error/40 text-error" :
+                              "border-border text-text-muted"
+                            )}>
+                              {item.verification === 'met' ? t.verificationMet : item.verification === 'unmet' ? t.verificationUnmet : t.verificationUnknown}
+                            </span>
+                          </div>
+                        )}
+
                         {item.cvEvidence && (
                           <div className="mb-6 p-5 bg-white/[0.06] backdrop-blur-sm rounded-2xl border border-white/[0.08] text-[13px] text-text-main leading-relaxed group-hover:bg-white/[0.08] transition-colors">
                             <span className="font-black text-[10px] uppercase tracking-[0.15em] text-accent block mb-3 flex items-center gap-2">

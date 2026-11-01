@@ -6,6 +6,7 @@ import { withTimeout } from '../withTimeout.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
 import { MAX_BATCH_BY_PLAN } from '../../src/lib/planLimits.js';
 import { resolveStorageRef } from '../storage/tempFile.js';
+import { stripInvisibleControls } from '../untrustedText.js';
 import {
   aiFailureCategory,
   ControlledError,
@@ -52,7 +53,8 @@ export async function handleAnalyze(
     batchTotal?: number;
   };
 
-  const jd = b.jd?.trim();
+  // Before the empty check so guards, jdTitle and logs all see the same JD.
+  const jd = b.jd && stripInvisibleControls(b.jd).trim();
   let cvData = b.cvData?.trim();
   const cvMimeType = b.cvMimeType?.trim() || 'text/plain';
   const cvName = b.cvName?.trim() || 'Unnamed CV';
@@ -188,7 +190,7 @@ export async function handleAnalyze(
   }
 
   try {
-    const { result, usage, guardMetrics } = await analyzeCV(
+    const { result, usage, guardMetrics, verificationMetrics } = await analyzeCV(
       jd, cvData as string, cvMimeType, cvName, language, aiDeadline.remainingMs(), cvPdfInlineData
     );
 
@@ -208,7 +210,7 @@ export async function handleAnalyze(
     } catch (err) {
       console.error('increment_usage_count failed:', err);
     }
-    await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics }, deadline);
+    await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics, requirementVerification: verificationMetrics }, deadline);
 
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (analysisError) {

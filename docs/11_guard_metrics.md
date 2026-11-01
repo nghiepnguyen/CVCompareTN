@@ -39,6 +39,17 @@ the row (no extra DB write). Values are counts, booleans and one enum only.
     "factualChecks": true } }
 ```
 
+P0 (2026-11-01) adds, on the same analyze row, `requirementVerification`
+(absent on older rows):
+
+```json
+"requirementVerification": { "rows": 14, "met": 6, "unmet": 1, "unknown": 7 }
+```
+
+Counts of the deterministic verification derived after the canonical response
+(`deriveRequirementVerification`, see `docs/12_canonical_scoring.md`). Counts
+only — never requirement, JD or CV text.
+
 - Each dropped suggestion counts once, under the first rule that hit it
   (order: Skills → number → raw-JD). The split is "first reason", not every
   reason that applied.

@@ -12,11 +12,18 @@ import {
   normalizeStringArray,
 } from '../../src/services/ai/resultPayloadNormalize.js';
 import type { AnalysisResult } from '../../src/services/ai/types.js';
+import { deriveRequirementVerification } from '../../src/services/ai/requirementVerification.js';
 import { buildAnalyzePromptEn } from '../../src/services/ai/prompts.js';
 import { CANONICAL_PROBABILITY_VERSION, derivePassProbability } from '../../src/services/ai/canonicalProbability.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
-import { dropUnsupportedSuggestions, rawJdConcepts, type SuggestionGuardMetrics } from './suggestionGuard.js';
+import {
+  dropUnsupportedSuggestions,
+  rawJdConcepts,
+  type RequirementVerificationMetrics,
+  type SuggestionGuardMetrics,
+} from './suggestionGuard.js';
 import { localizeAnalysis, SCORE_VERSION } from './localizeAnalysis.js';
+import { stripInvisibleControls } from '../untrustedText.js';
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -50,7 +57,12 @@ export async function analyzeCV(
   language: 'vi' | 'en' = 'vi',
   timeoutMs = 45_000,
   cvPdfInlineData?: string
-): Promise<{ result: AnalysisResult; usage: AiCallUsage; guardMetrics: SuggestionGuardMetrics }> {
+): Promise<{
+  result: AnalysisResult;
+  usage: AiCallUsage;
+  guardMetrics: SuggestionGuardMetrics;
+  verificationMetrics: RequirementVerificationMetrics;
+}> {
   const client = getGeminiClient();
 
   // Canonical scoring (Stage 3.7): the same English prompt, JD header and
@@ -58,6 +70,9 @@ export async function analyzeCV(
   // (Stage 3.6: the VI prompt / VI output moved MatchScore 4–10 points).
   // `language` is only the requested presentation language, applied afterwards
   // by localizeAnalysis on presentation strings.
+  // P0: the JD was already stripped of invisible controls by the handler. The
+  // request is otherwise unchanged — a prose trust rule, a JD/CV fence and
+  // model-authored verification each shifted calibration in benchmarks.
   const jdSection = `Job Description (JD):\n${jd}`;
 
   const { y, m } = vnDateParts(new Date());
@@ -103,9 +118,11 @@ export async function analyzeCV(
           extractText(new Uint8Array(buffer), { mergePages: true }),
           timeoutPromise,
         ]);
-        if (text && text.trim().length >= 100) {
-          parts.push({ text: `CV Content:\n${text}` });
-          cvText = text;
+        // Strip before the length check so invisible padding cannot skip the inline-PDF fallback.
+        const visible = text ? stripInvisibleControls(text) : '';
+        if (visible.trim().length >= 100) {
+          cvText = visible;
+          parts.push({ text: `CV Content:\n${cvText}` });
           usedText = true;
         }
       } catch (e) {
@@ -128,8 +145,8 @@ export async function analyzeCV(
         },
       });
     } else {
-      parts.push({ text: `CV Content:\n${cvData}` });
-      cvText = cvData;
+      cvText = stripInvisibleControls(cvData);
+      parts.push({ text: `CV Content:\n${cvText}` });
       // Text extraction already succeeded — also attach the original PDF
       // (when provided and within budget) so Gemini can additionally assess
       // real layout/format for the formatAssessment section.
@@ -176,7 +193,11 @@ export async function analyzeCV(
           : Number(matchScoreRaw) || 0;
 
     const missingGaps = normalizeMissingGaps(parsedResult.missingGaps);
-    const detailedComparison = normalizeDetailedComparison(parsedResult.detailedComparison);
+    // P0: verification is derived from the finished canonical table, never
+    // authored by Gemini; it does not touch status, scores or probability.
+    const { detailedComparison, counts: verificationMetrics } = deriveRequirementVerification(
+      normalizeDetailedComparison(parsedResult.detailedComparison)
+    );
     const suggestionsIn = normalizeRewriteSuggestions(parsedResult.rewriteSuggestions);
     const guardMetrics: SuggestionGuardMetrics = {
       suggestionsIn: suggestionsIn.length,
@@ -243,7 +264,7 @@ export async function analyzeCV(
     };
 
     const canonical = finalResult as AnalysisResult;
-    if (language === 'en') return { result: canonical, usage, guardMetrics };
+    if (language === 'en') return { result: canonical, usage, guardMetrics, verificationMetrics };
     // Presentation only, after the guard, on the same AI deadline; never throws.
     const localized = await localizeAnalysis(canonical, deadline);
     const lang = localized.presentationLanguage;
@@ -255,7 +276,12 @@ export async function analyzeCV(
           latencyMs: usage.latencyMs + localized.usage.latencyMs,
         }
       : usage;
-    return { result: { ...localized.result, language: lang, presentationLanguage: lang }, usage: totalUsage, guardMetrics };
+    return {
+      result: { ...localized.result, language: lang, presentationLanguage: lang },
+      usage: totalUsage,
+      guardMetrics,
+      verificationMetrics,
+    };
   } catch (error: unknown) {
     if (error instanceof ControlledError) throw error;
     console.error('Gemini Analysis Error:', error);

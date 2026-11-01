@@ -8,6 +8,7 @@ import {
   type FullRewriteViolation,
 } from './suggestionGuard.js';
 import { getGeminiClient, GEMINI_REWRITE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
+import { stripInvisibleControls } from '../untrustedText.js';
 
 // Default only for direct callers (benchmarks); the handler passes its AI deadline.
 const REWRITE_TIMEOUT_MS = 50_000;
@@ -233,9 +234,11 @@ export async function generateFullRewrite(
           extractText(new Uint8Array(buffer), { mergePages: true }),
           timeoutPromise,
         ]);
-        if (text && text.trim().length >= 100) {
-          cvParts.push({ text: `CV Content:\n${text}` });
-          cvText = text;
+        // Strip before the length check so invisible padding cannot skip the inline-PDF fallback.
+        const visible = text ? stripInvisibleControls(text) : '';
+        if (visible.trim().length >= 100) {
+          cvText = visible;
+          cvParts.push({ text: `CV Content:\n${cvText}` });
         }
       } catch (e) {
         if (e instanceof Error && e.message.includes('(Timeout)')) throw e;
@@ -250,8 +253,8 @@ export async function generateFullRewrite(
         inlineData: { data: cvData.split(',')[1] || cvData, mimeType: cvMimeType },
       });
     } else {
-      cvParts.push({ text: `CV Content:\n${cvData}` });
-      cvText = cvData;
+      cvText = stripInvisibleControls(cvData);
+      cvParts.push({ text: `CV Content:\n${cvText}` });
     }
 
     // unpdf cannot be cancelled: re-check the budget before starting Gemini.

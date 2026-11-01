@@ -4,6 +4,7 @@ import { withTimeout } from '../withTimeout.js';
 import { checkAiAccess } from '../accountLock.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
 import { resolveStorageRef } from '../storage/tempFile.js';
+import { stripInvisibleControls } from '../untrustedText.js';
 import { GEMINI_REWRITE_MODEL } from '../ai/geminiClient.js';
 import {
   aiFailureCategory,
@@ -36,7 +37,8 @@ export async function handleRewriteCv(
     cvDataStoragePath?: string;
   };
 
-  const jd = b.jd?.trim();
+  // Before the empty check so guards, jdTitle and logs all see the same JD.
+  const jd = b.jd && stripInvisibleControls(b.jd).trim();
   let cvData = b.cvData?.trim();
   const cvMimeType = b.cvMimeType?.trim() || 'text/plain';
   const language: 'vi' | 'en' = b.language === 'en' ? 'en' : 'vi';

@@ -103,6 +103,12 @@ export interface ComparisonItem {
   cvEvidence?: string;
   improvement?: string;
   priority?: 'required' | 'nice-to-have';
+  /**
+   * P0: derived after the canonical analysis by deriveRequirementVerification
+   * (requirementVerification.ts) — never authored by Gemini, never an input to
+   * status or any score. Absent on results analyzed before P0.
+   */
+  verification?: 'met' | 'unmet' | 'unknown';
 }
 
 export interface FormatAssessment {

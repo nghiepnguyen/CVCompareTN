@@ -89,15 +89,36 @@ export function normalizeComparisonItems(raw: unknown): ComparisonItem[] {
       const pr = item.priority;
       const priority =
         typeof pr === "string" && priorities.has(pr) ? (pr as ComparisonItem["priority"]) : undefined;
+      const cvEvidence = typeof item.cvEvidence === "string" ? item.cvEvidence : undefined;
+      const verification = normalizeVerification(item.verification, status, cvEvidence);
       return {
         requirement:
           typeof item.requirement === "string" ? item.requirement : String(item.requirement ?? ""),
         status,
-        cvEvidence: typeof item.cvEvidence === "string" ? item.cvEvidence : undefined,
+        cvEvidence,
         improvement: typeof item.improvement === "string" ? item.improvement : undefined,
         priority,
+        // Absent stays absent: old results must not turn into "unverified".
+        ...(verification ? { verification } : {}),
       };
     });
+}
+
+/**
+ * Stored verification (history / recruiter JSONB) is read back only when it is
+ * consistent with `status`; otherwise it is weakened to "unknown". It never
+ * overrides `status`.
+ */
+function normalizeVerification(
+  raw: unknown,
+  status: ComparisonItem["status"],
+  cvEvidence: string | undefined
+): ComparisonItem["verification"] {
+  if (raw !== "met" && raw !== "unmet" && raw !== "unknown") return undefined;
+  const hasEvidence = Boolean(cvEvidence?.trim());
+  if (raw === "met" && !(status === "matched" && hasEvidence)) return "unknown";
+  if (raw === "unmet" && !(status !== "matched" && hasEvidence)) return "unknown";
+  return raw;
 }
 
 export function normalizeDetailedComparison(raw: unknown): DetailedComparison {

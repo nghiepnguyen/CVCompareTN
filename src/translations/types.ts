@@ -620,6 +620,10 @@ export interface UiLabels {
   tools: string;
   trustedBy: string;
   uploadCV: string;
+  verificationLabel: string;
+  verificationMet: string;
+  verificationUnknown: string;
+  verificationUnmet: string;
   vietnamese: string;
   whyTitle: string;
 
