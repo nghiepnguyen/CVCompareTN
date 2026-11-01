@@ -493,8 +493,8 @@ export const result = {
     en: "Generating the letter took too long. Please try again.",
   },
   coverLetterRateLimited: {
-    vi: "Bạn đã tạo quá nhiều thư trong giờ qua. Vui lòng thử lại sau.",
-    en: "You have created too many letters in the past hour. Please try again later.",
+    vi: "Bạn đã dùng hết lượt tạo thư/kiểm tra trong giờ qua. Vui lòng thử lại sau.",
+    en: "You have used all letter/review requests for the past hour. Please try again later.",
   },
   coverLetterUnavailableHistory: {
     vi: "Chỉ khả dụng ngay sau khi phân tích (cần JD gốc).",

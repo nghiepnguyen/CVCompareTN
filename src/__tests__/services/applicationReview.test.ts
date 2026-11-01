@@ -285,6 +285,14 @@ describe('application_review: reviewer findings are anchored server-side', () =>
     expect(r.findings).toEqual([]);
   });
 
+  it('dedupe matches whole tokens: deterministic "5" or "Go" does not drop unrelated findings', () => {
+    const r = acceptReviewerFindings([
+      { category: 'consistency', quote: 'since 2015', message: 'dates differ' },
+      { category: 'unsupported_claim', support: 'overstated', quote: 'good at Canva', message: 'm' },
+    ], { ...ctx, letter: 'I have worked here since 2015 and I am good at Canva.', cvText: 'x', deterministicConcepts: ['5', 'Go'] });
+    expect(r.findings.map((f) => f.message)).toEqual(['dates differ', 'm']);
+  });
+
   it('verdict: ready allows LOW and requirement-gap MEDIUM; factual MEDIUM or any HIGH → review', () => {
     const f = (category: string, severity: string) => ({ category, severity, message: '', source: 'cover_letter' }) as never;
     expect(verdictFor([f('tone', 'low'), f('requirement_gap', 'medium')])).toBe('ready');

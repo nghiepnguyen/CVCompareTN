@@ -118,6 +118,7 @@ describe('Application review (P1B)', () => {
   });
 
   it('revised letter: copy, then use it in place of the current letter (names kept)', async () => {
+    const before = structuredClone(result);
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
     await withLetter();
@@ -142,6 +143,8 @@ describe('Application review (P1B)', () => {
     await screen.findByTestId('application-review');
     const again = JSON.parse(fetchMock.mock.calls[2][1].body);
     expect(again).toMatchObject({ coverLetter: 'Kính gửi Bộ phận Tuyển dụng,\n\nTôi dùng Canva.', employerName: 'Globex', roleTitle: 'Frontend Engineer' });
+    // Review and "use revised" never touch the analysis result (score, status, verification, parsed CV).
+    expect(result).toEqual(before);
   });
 
   it('errors map to translated messages (429, 504, generic)', async () => {

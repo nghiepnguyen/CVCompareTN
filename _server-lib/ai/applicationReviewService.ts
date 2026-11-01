@@ -187,8 +187,8 @@ export function acceptReviewerFindings(
         dropped++;
         continue;
       }
-      // Already reported by the deterministic guard.
-      if (needsQuote && ctx.deterministicConcepts.some((c) => quote.includes(squash(c)))) {
+      // Already reported by the deterministic guard (token match: "5" must not swallow "2015").
+      if (needsQuote && ctx.deterministicConcepts.some((c) => textContainsPhrase(quote, c))) {
         dropped++;
         continue;
       }
