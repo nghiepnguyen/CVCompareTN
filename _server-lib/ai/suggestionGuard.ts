@@ -208,6 +208,202 @@ export function validateFullRewrite({
 }
 
 // ---------------------------------------------------------------------------
+// Cover letter (P1A). Stricter than the Full CV guard because a letter is
+// prose: rawJdConcepts skips plain Capitalized words (Kubernetes, Docker,
+// Python), so any Capitalized term outside the CV is checked here, wherever
+// it came from (JD or neither). The whole text is scanned — a letter has no
+// contact preamble. Lexical only: a term the CV contains passes even when the
+// CV text itself was an injected instruction ("I worked at Google").
+// ---------------------------------------------------------------------------
+export type CoverLetterViolation = {
+  reason: 'unsupported-number' | 'spelled-number' | 'raw-jd' | 'unsupported-term' | 'jd-copy' | 'strength-claim';
+  concept: string;
+};
+
+// Letter vocabulary that is capitalized by convention (greeting, sign-off,
+// Vietnamese forms of address), compared lowercased. "Manager" is not here:
+// only the greeting phrase is exempt, so "Marketing Manager" is still checked.
+const LETTER_WORDS = new Set([
+  'dear', 'hiring', 'team', 'recruitment', 'recruiting', 'talent', 'acquisition',
+  'human', 'resources', 'hr', 'sincerely', 'regards', 'best', 'kind', 'yours', 'faithfully', 'respectfully',
+  'sir', 'madam', 'mr', 'mrs', 'ms',
+  'kính', 'gửi', 'bộ', 'phận', 'tuyển', 'dụng', 'phòng', 'nhân', 'sự', 'ban', 'lãnh', 'đạo', 'quản', 'lý',
+  'nhà', 'quý', 'công', 'ty', 'anh', 'chị', 'ông', 'bà', 'trân', 'trọng', 'thân', 'ái',
+  // calendar words (a CV "06/2022" written as "June 2022"), currency codes,
+  // generic UI/UX and the country name
+  'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october',
+  'november', 'december', 'vnd', 'usd', 'ui', 'ux', 'vietnam',
+]);
+const GREETING = /\b(?:hiring|recruiting|recruitment|talent acquisition)\s+(?:managers?|team)\b/giu;
+
+// Cross-language equivalents (VI CV ↔ EN letter and back): a letter phrase
+// passes when the CV states any phrase of its group. Seniority (Senior, Lead,
+// Manager, Head) and degree level stay distinct on purpose — no group maps
+// Bachelor to Master or Specialist to Manager. School/company names have no
+// group: translating them is not allowed.
+const EQUIVALENTS: string[][] = [
+  ['english', 'tiếng anh'],
+  ['vietnamese', 'tiếng việt'],
+  ['japanese', 'tiếng nhật'],
+  ['korean', 'tiếng hàn'],
+  ['chinese', 'mandarin', 'tiếng trung', 'tiếng hoa'],
+  ['french', 'tiếng pháp'],
+  ['german', 'tiếng đức'],
+  ['bachelor', 'cử nhân'],
+  ['master', 'thạc sĩ'],
+  ['engineer', 'engineering', 'kỹ sư', 'kỹ thuật'],
+  ['software', 'phần mềm'],
+  ['university', 'đại học'],
+  ['specialist', 'chuyên viên'],
+  ['intern', 'internship', 'thực tập sinh', 'thực tập'],
+  ['developer', 'lập trình viên'],
+];
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const NUMBER_WORDS: Record<string, string> = {
+  two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', ten: '10',
+  eleven: '11', twelve: '12', fifteen: '15', twenty: '20', thirty: '30', fifty: '50', hundred: '100',
+  hai: '2', ba: '3', bốn: '4', năm: '5', sáu: '6', bảy: '7', tám: '8', chín: '9', mười: '10',
+};
+// A number word stating a candidate quantity: "eight years", "tám năm".
+// "one"/"một" are left out: mostly an article ("một người cầu tiến").
+const SPELLED_QUANTITY =
+  /(?<![\p{L}])(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|fifty|hundred)\+?\s+(?:years?|months?|percent|projects?|products?|clients?|people|members?)\b|(?<![\p{L}])(hai|ba|bốn|năm|sáu|bảy|tám|chín|mười)\s+(?:năm|tháng|dự án|sản phẩm|khách hàng)(?![\p{L}])/giu;
+
+// Scale/domain/leadership qualifiers the model added to roughly 30% of
+// letters (benchmark 2026-11-01: "large-scale", "e-commerce", "led" for a CV
+// saying "built", "thương mại điện tử lớn"). Each group passes only when the
+// CV states one of its phrases. A bounded list, not a classifier: other
+// embellishment is left to the P1B reviewer.
+const STRENGTH_CLAIMS: string[][] = [
+  ['large-scale', 'large scale', 'quy mô lớn'],
+  ['high-impact', 'high-traffic', 'mission-critical', 'enterprise-grade'],
+  ['e-commerce', 'ecommerce', 'thương mại điện tử'],
+  ['fintech'],
+  ['millions of', 'hàng triệu'],
+  ['led', 'lead', 'leading', 'spearheaded', 'chủ trì', 'dẫn dắt'],
+  ['extensive', 'extensively'],
+  ['proven track record'],
+];
+
+const JD_COPY_WINDOW = 8;
+
+function ngrams(text: string, n: number): string[] {
+  const tokens = normalizeText(text).trim().split(' ').filter(Boolean);
+  const out: string[] = [];
+  for (let i = 0; i + n <= tokens.length; i++) out.push(tokens.slice(i, i + n).join(' '));
+  return out;
+}
+
+/**
+ * Detect only; the caller retries or withholds the letter. `allowedPhrases`
+ * are the employer/role names the caller verified verbatim in the JD; their
+ * exact occurrences are removed before any check, so naming the employer is
+ * allowed but a JD skill inside the role title is not whitelisted elsewhere.
+ * `cvText` must be the exact CV text the model was given.
+ */
+export function validateCoverLetter({
+  cvText,
+  jd,
+  letter,
+  allowedPhrases = [],
+}: {
+  cvText: string;
+  jd: string;
+  letter: string;
+  allowedPhrases?: string[];
+}): { valid: boolean; violations: CoverLetterViolation[] } {
+  let text = letter.normalize('NFC');
+  for (const p of allowedPhrases) {
+    if (p.trim()) text = text.split(p.normalize('NFC')).join(' ');
+  }
+  const cv = canonicalText(cvText);
+  // Greeting and cross-language equivalents only exempt the term check below.
+  let termText = text.replace(GREETING, ' ');
+  for (const group of EQUIVALENTS) {
+    if (!group.some((phrase) => containsPhrase(cv, phrase))) continue;
+    for (const phrase of group) {
+      termText = termText.replace(new RegExp(`(?<![\\p{L}])${escapeRe(phrase)}(?:['’]s)?(?![\\p{L}])`, 'giu'), ' ');
+    }
+  }
+  const violations: CoverLetterViolation[] = [];
+  const add = (reason: CoverLetterViolation['reason'], concept: string) => {
+    if (!violations.some((v) => v.reason === reason && v.concept === concept)) violations.push({ reason, concept });
+  };
+
+  const cvNumbers = new Set(metricNumbers(cvText, true));
+  for (const n of metricNumbers(text, true)) if (!cvNumbers.has(n)) add('unsupported-number', n);
+  for (const m of text.matchAll(SPELLED_QUANTITY)) {
+    const digit = NUMBER_WORDS[(m[1] ?? m[2]).toLowerCase()];
+    if (!cvNumbers.has(digit)) add('spelled-number', m[0]);
+  }
+
+  const body = canonicalText(text);
+  for (const d of rawJdConcepts(jd, cvText)) if (containsPhrase(body, d.concept)) add('raw-jd', d.concept);
+
+  // Capitalized terms: every token with an uppercase letter except a plain
+  // Capitalized word opening a sentence/line (the language's own rule);
+  // acronyms and mixed-case identifiers are checked even there.
+  // shortcut: a fabricated plain proper noun that opens a sentence is missed;
+  // upgrade to a reviewer (P1B) if benchmarks show it.
+  for (const sentence of termText.split(/(?<=[.!?:;])\s+|\n+/)) {
+    const words = sentence.match(/[\p{L}\p{N}][\p{L}\p{N}+#.&'’-]*/gu) ?? [];
+    words.forEach((raw, i) => {
+      const w = raw.replace(/['’]s$/i, '').replace(/[.'’-]+$/, '');
+      if (!/\p{Lu}/u.test(w) || w.length < 2 || /^i['’]/i.test(w)) return;
+      const plainCapitalized = /^\p{Lu}[\p{Ll}'’-]*$/u.test(w);
+      if (i === 0 && plainCapitalized) return;
+      // "React-based", "SEO-friendly": only the capitalized parts are terms.
+      for (const part of w.includes('-') ? w.split('-').filter((x) => /\p{Lu}/u.test(x)) : [w]) {
+        if (LETTER_WORDS.has(part.toLowerCase()) || containsPhrase(cv, part)) continue;
+        add('unsupported-term', part);
+      }
+    });
+  }
+
+  const termBody = canonicalText(termText);
+  for (const group of STRENGTH_CLAIMS) {
+    if (group.some((phrase) => containsPhrase(cv, phrase))) continue;
+    const hit = group.find((phrase) => containsPhrase(termBody, phrase));
+    if (hit) add('strength-claim', hit);
+  }
+
+  // Long verbatim JD passages (requirements copied as candidate prose, or an
+  // echoed instruction) unless the CV states the same words.
+  const jdGrams = new Set(ngrams(jd, JD_COPY_WINDOW));
+  const cvGrams = new Set(ngrams(cvText, JD_COPY_WINDOW));
+  for (const g of ngrams(text, JD_COPY_WINDOW)) {
+    if (jdGrams.has(g) && !cvGrams.has(g)) {
+      add('jd-copy', g);
+      break;
+    }
+  }
+
+  return { valid: violations.length === 0, violations };
+}
+
+export type CoverLetterViolationCounts = {
+  unsupportedNumber: number;
+  spelledNumber: number;
+  rawJd: number;
+  unsupportedTerm: number;
+  jdCopy: number;
+  strengthClaim: number;
+};
+
+export function countCoverLetterViolations(violations: CoverLetterViolation[]): CoverLetterViolationCounts {
+  const n = (r: CoverLetterViolation['reason']) => violations.filter((v) => v.reason === r).length;
+  return {
+    unsupportedNumber: n('unsupported-number'),
+    spelledNumber: n('spelled-number'),
+    rawJd: n('raw-jd'),
+    unsupportedTerm: n('unsupported-term'),
+    jdCopy: n('jd-copy'),
+    strengthClaim: n('strength-claim'),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Guard telemetry (analysis_log.guard_metrics, v1). Aggregate counters and
 // state only — never a concept, number, CV/JD/suggestion/rewrite text or PII.
 // See docs/11_guard_metrics.md.
@@ -243,9 +439,26 @@ export type FullCvGuardMetrics = {
 /** P0 requirement verification counts (analyze only; absent on older rows). */
 export type RequirementVerificationMetrics = { rows: number; met: number; unmet: number; unknown: number };
 
+/**
+ * P1A cover letter (kind='rewrite' rows; the kind CHECK has no cover_letter).
+ * Present on every cover-letter row, success or error, so they can be told
+ * apart from Full CV rows and counted for their own hourly cap.
+ */
+export type CoverLetterGuardMetrics = {
+  language: 'vi' | 'en';
+  outcome: 'valid' | 'recovered' | 'fallback' | 'error';
+  // Failure category on error rows ("gemini_timeout", ...).
+  category?: string;
+  firstPassViolations?: CoverLetterViolationCounts;
+  retryViolations?: CoverLetterViolationCounts;
+  retryOutcome?: FullCvRetryOutcome;
+  geminiCalls: 0 | 1 | 2;
+};
+
 export type GuardMetrics =
   | { v: 1; suggestionGuard: SuggestionGuardMetrics; requirementVerification?: RequirementVerificationMetrics }
-  | { v: 1; fullCv: FullCvGuardMetrics };
+  | { v: 1; fullCv: FullCvGuardMetrics }
+  | { v: 1; coverLetter: CoverLetterGuardMetrics };
 
 export function countViolations(violations: FullRewriteViolation[]): ViolationCounts {
   return {

@@ -62,26 +62,32 @@ export async function checkAccountAccess(userId: string): Promise<'ok' | 'locked
  * understate it; the actual number of analyze calls is capped here instead.
  * Fails open on lookup errors, matching the existing AI rate-count behavior.
  */
+// Cover letters are logged as kind='rewrite' (the kind CHECK has no
+// cover_letter) and marked by guard_metrics.coverLetter. They get their own
+// cap at half the rewrite bucket; the rewrite count still includes them, so
+// regenerating letters can use at most half of the automatic Full CV budget.
 export async function checkHourlyAiLimit(
   userId: string,
-  kind: 'analyze' | 'rewrite' | 'parse_cv',
+  kind: 'analyze' | 'rewrite' | 'parse_cv' | 'cover_letter',
   plan: 'free' | 'pro' | 'recruiter',
   timeoutMs: number,
   signal?: AbortSignal
 ): Promise<'ok' | 'rate_limited'> {
   try {
-    const query = getSupabaseAdmin()
+    let query = getSupabaseAdmin()
       .from('analysis_log')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .eq('kind', kind)
+      .eq('kind', kind === 'cover_letter' ? 'rewrite' : kind)
       .gte('created_at', new Date(Date.now() - RATE_WINDOW_MS).toISOString());
+    if (kind === 'cover_letter') query = query.contains('guard_metrics', { coverLetter: {} });
     const { count } = await withTimeout(
       (signal ? query.abortSignal(signal) : query) as unknown as Promise<{ count: number | null }>,
       timeoutMs,
       'Rate limit check'
     );
-    return (count ?? 0) >= hourlyAiLimit(plan) ? 'rate_limited' : 'ok';
+    const limit = kind === 'cover_letter' ? Math.ceil(hourlyAiLimit(plan) / 2) : hourlyAiLimit(plan);
+    return (count ?? 0) >= limit ? 'rate_limited' : 'ok';
   } catch (err) {
     console.warn('Rate limit check skipped:', err instanceof Error ? err.message : err);
     return 'ok';
@@ -95,7 +101,7 @@ export async function checkHourlyAiLimit(
  */
 export async function checkAiAccess(
   userId: string,
-  kind: 'rewrite' | 'parse_cv',
+  kind: 'rewrite' | 'parse_cv' | 'cover_letter',
   timeoutMs: number,
   signal?: AbortSignal
 ): Promise<'ok' | 'locked' | 'rate_limited' | 'unavailable'> {
