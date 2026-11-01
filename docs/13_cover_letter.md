@@ -1,5 +1,7 @@
 # Cover Letter (P1A)
 
+Trạng thái: DEPLOYED / PRODUCTION VERIFIED (PR #61, `dd0359f`, 2026-11-01).
+
 Grounded cover letter từ màn Result của Candidate. Cover letter là **document
 generation**, không phải scoring authority: không đọc/ghi `matchScore`,
 category scores, requirement status, `verification`, probability hay
@@ -120,5 +122,4 @@ Kết quả cuối (2026-11-01): 50 run, 48 ship, 2 fallback (đều là chặn 
   IELTS 6.5, "thành thạo Canva" khi CV chỉ liệt kê tool).
 - Audit `PUFFERY` của benchmark trùng phần lớn với `STRENGTH_CLAIMS` nên
   `shippedPuffery: 0` không phải bằng chứng độc lập; đọc tay mới là audit thật.
-- UI chỉ test unit (jsdom); chưa verify trên trình duyệt vì cần phiên đăng nhập + analysis thật.
 - Không có persistence/edit/version (P2A).
