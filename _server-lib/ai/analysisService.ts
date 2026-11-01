@@ -23,7 +23,7 @@ import {
   type SuggestionGuardMetrics,
 } from './suggestionGuard.js';
 import { localizeAnalysis, SCORE_VERSION } from './localizeAnalysis.js';
-import { fenceUntrusted, stripInvisibleControls } from '../untrustedText.js';
+import { stripInvisibleControls } from '../untrustedText.js';
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -70,10 +70,10 @@ export async function analyzeCV(
   // (Stage 3.6: the VI prompt / VI output moved MatchScore 4–10 points).
   // `language` is only the requested presentation language, applied afterwards
   // by localizeAnalysis on presentation strings.
-  // P0 trust boundary: JD and CV text are fenced as data. No prose rule is added
-  // to the canonical prompt (benchmarked: it shifted score calibration); the
-  // JD was already stripped of invisible controls by the handler.
-  const jdSection = `Job Description (JD):\n${fenceUntrusted('job_description', jd)}`;
+  // P0: the JD was already stripped of invisible controls by the handler. The
+  // request is otherwise unchanged — a prose trust rule, a JD/CV fence and
+  // model-authored verification each shifted calibration in benchmarks.
+  const jdSection = `Job Description (JD):\n${jd}`;
 
   const { y, m } = vnDateParts(new Date());
   const currentMonth = `${String(m + 1).padStart(2, '0')}/${y}`;
@@ -120,7 +120,7 @@ export async function analyzeCV(
         ]);
         if (text && text.trim().length >= 100) {
           cvText = stripInvisibleControls(text);
-          parts.push({ text: `CV Content:\n${fenceUntrusted('cv', cvText)}` });
+          parts.push({ text: `CV Content:\n${cvText}` });
           usedText = true;
         }
       } catch (e) {
@@ -144,7 +144,7 @@ export async function analyzeCV(
       });
     } else {
       cvText = stripInvisibleControls(cvData);
-      parts.push({ text: `CV Content:\n${fenceUntrusted('cv', cvText)}` });
+      parts.push({ text: `CV Content:\n${cvText}` });
       // Text extraction already succeeded — also attach the original PDF
       // (when provided and within budget) so Gemini can additionally assess
       // real layout/format for the formatAssessment section.

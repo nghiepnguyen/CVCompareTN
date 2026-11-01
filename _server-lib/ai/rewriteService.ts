@@ -8,7 +8,7 @@ import {
   type FullRewriteViolation,
 } from './suggestionGuard.js';
 import { getGeminiClient, GEMINI_REWRITE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
-import { fenceUntrusted, stripInvisibleControls } from '../untrustedText.js';
+import { stripInvisibleControls } from '../untrustedText.js';
 
 // Default only for direct callers (benchmarks); the handler passes its AI deadline.
 const REWRITE_TIMEOUT_MS = 50_000;
@@ -180,9 +180,8 @@ export async function generateFullRewrite(
   const deadline = createDeadline(timeoutMs);
   const abortSignal = deadline.signal();
 
-  const fencedJd = fenceUntrusted('job_description', jd);
   const jdSection =
-    language === 'vi' ? `Mô tả công việc (JD):\n${fencedJd}` : `Job Description (JD):\n${fencedJd}`;
+    language === 'vi' ? `Mô tả công việc (JD):\n${jd}` : `Job Description (JD):\n${jd}`;
   const buildPrompt = language === 'vi' ? buildRewritePromptVi : buildRewritePromptEn;
 
   type GeminiPart = { text: string } | { inlineData: { data: string; mimeType: string } };
@@ -237,7 +236,7 @@ export async function generateFullRewrite(
         ]);
         if (text && text.trim().length >= 100) {
           cvText = stripInvisibleControls(text);
-          cvParts.push({ text: `CV Content:\n${fenceUntrusted('cv', cvText)}` });
+          cvParts.push({ text: `CV Content:\n${cvText}` });
         }
       } catch (e) {
         if (e instanceof Error && e.message.includes('(Timeout)')) throw e;
@@ -253,7 +252,7 @@ export async function generateFullRewrite(
       });
     } else {
       cvText = stripInvisibleControls(cvData);
-      cvParts.push({ text: `CV Content:\n${fenceUntrusted('cv', cvText)}` });
+      cvParts.push({ text: `CV Content:\n${cvText}` });
     }
 
     // unpdf cannot be cancelled: re-check the budget before starting Gemini.
