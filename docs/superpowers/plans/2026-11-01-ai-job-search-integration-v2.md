@@ -153,9 +153,9 @@ Kết quả:
 -   Unicode sanitizer: SHIPPED. Fence JD/CV: REMOVED (benchmark cho thấy
     calibration shift). Untrusted prose rule: DEFERRED. `systemInstruction`:
     DEFERRED (experiment riêng có calibration benchmark).
--   Benchmark PRE `8590a6f` vs final: full set 19 sample × 3 run median Δ 0,
-    MAD 1.18, max 3.0, không |Δ|>5; focused 12 sample × 5 run MAD 1.03 so với
-    PRE gộp. Model-generated verification (P0/P0.1) và prose rule bị loại vì
+-   Benchmark PRE `8590a6f` vs final: full set 17 fixture (19 cặp
+    sample×ngôn ngữ UI) × 3 run median Δ 0, MAD 1.18, max 3.0, không |Δ|>5;
+    focused 12 cặp × 5 run MAD 1.03 so với PRE gộp. Model-generated verification (P0/P0.1) và prose rule bị loại vì
     làm lệch score.
 
 ### Công việc
