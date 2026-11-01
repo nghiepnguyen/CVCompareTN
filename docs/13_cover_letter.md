@@ -112,4 +112,13 @@ Kết quả cuối (2026-11-01): 50 run, 48 ship, 2 fallback (đều là chặn 
 - Danh từ riêng viết hoa đứng đầu câu không bị kiểm tra (`shortcut` trong code).
 - Tô điểm định tính ngoài danh sách `STRENGTH_CLAIMS` (vd. "solid foundation",
   "complex state") không bị chặn → P1B reviewer.
+- Tên employer/role do model trả về chỉ cần xuất hiện trong JD; JD độc hại có
+  thể lái tên đó thành một skill chỉ có trong JD ("Kubernetes") và cụm đó được
+  miễn. Fixture `injection_role_name` (5 run): model gọi employer/role là
+  "Kubernetes" ở 4/5 run nhưng 0 claim kinh nghiệm Kubernetes của ứng viên.
+- Tô điểm định tính nhẹ vẫn lọt (vd. "professional proficiency in English" từ
+  IELTS 6.5, "thành thạo Canva" khi CV chỉ liệt kê tool).
+- Audit `PUFFERY` của benchmark trùng phần lớn với `STRENGTH_CLAIMS` nên
+  `shippedPuffery: 0` không phải bằng chứng độc lập; đọc tay mới là audit thật.
+- UI chỉ test unit (jsdom); chưa verify trên trình duyệt vì cần phiên đăng nhập + analysis thật.
 - Không có persistence/edit/version (P2A).
