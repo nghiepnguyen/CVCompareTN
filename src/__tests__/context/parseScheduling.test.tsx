@@ -60,7 +60,7 @@ vi.mock('../../services/analyticsQuotaService', () => ({
 
 vi.mock('../../lib/ga4', () => ({ trackEvent: mocks.trackEvent }));
 
-vi.mock('@sentry/react', () => ({ captureException: vi.fn() }));
+vi.mock('../../lib/sentry', () => ({ captureException: vi.fn() }));
 
 vi.mock('../../context/UIContext', () => ({
   useUI: () => ({ reportLanguage: 'en', t: {}, navigateToUpgrade: vi.fn() }),
