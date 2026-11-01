@@ -6,11 +6,11 @@ import { useAnalysis } from '../../context/AnalysisContext';
 import { isStoredCVRef } from '../../services/cvService';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { extractJdText, JdExtractError, JD_FILE_ACCEPT } from '../../lib/extractJdText';
 import { cn } from '../../lib/utils';
 
 export function AnalysisInputView() {
-  const { user } = useAuth();
+  const { user, setError } = useAuth();
   const { executeRecaptcha } = useGoogleReCaptcha();
   const {
     jd, setJd,
@@ -39,59 +39,17 @@ export function AnalysisInputView() {
     setIsExtractingJDFile(true);
     setExtractedJDFileName(null);
     try {
-      const isDocx = file.name.endsWith('.docx');
-      const isDoc = file.name.endsWith('.doc');
-      const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
-      
-      let extractedText = '';
-      if (isPdf) {
-        const reader = new FileReader();
-        const pdfBase64 = await new Promise<string>((resolve) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
-        });
-
-        const { data: { session } } = await supabase.auth.getSession();
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        let recaptchaToken: string | undefined;
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`;
-        } else if (executeRecaptcha) {
-          recaptchaToken = await executeRecaptcha('extract_pdf');
-        }
-
-        const response = await fetch('/api/extract-pdf', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ base64Data: pdfBase64, recaptchaToken }),
-        });
-        if (!response.ok) {
-          let errorMsg = `HTTP ${response.status}`;
-          try {
-            const errorData = await response.json();
-            if (errorData.error) errorMsg = errorData.error;
-          } catch { /* ignore parse errors */ }
-          throw new Error(errorMsg);
-        }
-        const extractData = await response.json();
-        extractedText = extractData.text;
-      } else if (isDocx || isDoc) {
-        const arrayBuffer = await file.arrayBuffer();
-        const mammoth = (await import('mammoth')).default;
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        extractedText = result.value;
-      } else {
-        extractedText = await file.text();
-      }
-      
-      if (!extractedText.trim()) {
-        throw new Error('Không thể trích xuất nội dung từ file này.');
-      }
+      const extractedText = await extractJdText(file, executeRecaptcha);
       setJd(extractedText);
       setExtractedJDFileName(file.name);
     } catch (err: unknown) {
-      console.error('JD file extraction error:', err);
+      console.error('JD file extraction error:', err instanceof Error ? err.name : 'error');
       setExtractedJDFileName(null);
+      setError(
+        err instanceof JdExtractError && err.code === 'unsupported'
+          ? t.jdFileUnsupported
+          : t.createCampaignJdFileError
+      );
     } finally {
       setIsExtractingJDFile(false);
       if (jdFileInputRef.current) jdFileInputRef.current.value = '';
@@ -165,7 +123,7 @@ export function AnalysisInputView() {
                 onClick={() => jdFileInputRef.current?.click()}
                 disabled={isExtractingJDFile}
                 className="h-9 px-4 rounded-xl bg-accent/10 text-accent border border-accent/20 hover:bg-accent/15 transition-all flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                title={reportLanguage === 'vi' ? 'Tải lên file JD (PDF, DOCX, TXT, IMG)' : 'Upload JD file (PDF, DOCX, TXT, IMG)'}
+                title={reportLanguage === 'vi' ? 'Tải lên file JD (PDF, DOCX, TXT, MD)' : 'Upload JD file (PDF, DOCX, TXT, MD)'}
               >
                 {isExtractingJDFile ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -227,7 +185,7 @@ export function AnalysisInputView() {
             type="file"
             ref={jdFileInputRef}
             className="hidden"
-            accept=".pdf,.doc,.docx,.txt,image/*"
+            accept={JD_FILE_ACCEPT}
             onChange={handleJDFileChange}
           />
         </section>

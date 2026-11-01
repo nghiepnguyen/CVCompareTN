@@ -792,6 +792,7 @@ export interface UiLabels {
   createCampaignError: string;
   createCampaignLimitError: string;
   createCampaignJdFileError: string;
+  jdFileUnsupported: string;
   createCampaignCancel: string;
   createCampaignSubmit: string;
   createCampaignSubmitting: string;
