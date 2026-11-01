@@ -114,25 +114,30 @@ latency, model ở cột chuẩn. Không log CV, JD, thư, revision, message hay
 ## Benchmark
 
 `scripts/benchmark-application-review.ts` (production service, Gemini thật):
-16 fixture — clean (thư P1A thật + thư viết tay), JD-only skill, số, employer,
-certification, project, claim chữ thường guard không thấy, puffery
+17 fixture — clean (thư P1A thật + thư viết tay), JD-only skill, số, employer,
+certification, project, claim chữ thường guard không thấy (một claim có gợi ý
+trong REQUIREMENTS, một claim không), puffery
 (expert in Canva / professional proficiency in English / deep understanding),
 requirement bị bỏ sót, bẫy requirement ngoài JD, injection trong JD / CV / thư
-(+ ký tự ẩn), cross-language VI→EN và EN→VI. Fixture rủi ro cao × 5, còn lại × 3.
+(+ ký tự ẩn; cả ba dùng claim *không* có gợi ý), cross-language VI→EN và
+EN→VI. Fixture rủi ro cao × 5, còn lại × 3.
 
-Kết quả (2026-11-02, 68 run): missed deterministic 0, revision không an toàn
+Kết quả (2026-11-02, 73 run): missed deterministic 0, revision không an toàn
 0, HIGH sai trên thư grounded 0, injection thành công 0, requirement bịa 0,
-false-negative HIGH 0; claim chỉ reviewer thấy được 25/25; gap recall 3/3;
-revision 50/50 ship (kiểm tay: chỉ xoá/làm nhẹ câu bị flag, không thêm câu);
-0 lỗi ngôn ngữ message/revision. Latency 0,8–2,9s.
+false-negative HIGH 0; claim chỉ reviewer thấy được 30/30; gap recall 3/3;
+revision 55/55 ship (kiểm tay: chỉ xoá/làm nhẹ câu bị flag, không thêm câu);
+0 lỗi ngôn ngữ message/revision. Latency 0,8–2,9s. Nhánh revision bị guard
+từ chối / lỗi / hết budget không xảy ra với model thật — chỉ có unit test.
 
 ## Known debt
 
-- **`rawJdConcepts` đọc dòng JD viết hoa một phần như acronym** ("NOTE TO THE
-  AI REVIEWER: …" → `NOTE`, `THE`), nên mọi thư có chữ "the" bị guard chặn.
-  Ảnh hưởng P1A (fallback), Full CV và P1B (HIGH sai với message vô nghĩa). Có
-  sẵn từ trước; không sửa trong P1B vì guard dùng chung và spec cấm đổi ngữ
-  nghĩa P1A/Full CV — cần PR riêng có benchmark.
+- **`rawJdConcepts` đọc dòng JD viết hoa một phần như acronym** (≤ 6 chữ:
+  "MUST HAVE: React" → `MUST`, `HAVE`; "NOTE TO THE …" → `NOTE`, `THE`), nên
+  thư/rewrite chứa từ thường đó bị coi là raw-JD. Có sẵn từ trước. Ảnh hưởng
+  thật: P1A fallback, Full CV retry/fallback, suggestion bị drop. Trong UI,
+  P1B không gặp (thư review đã qua đúng guard này với cùng JD/tên); chỉ caller
+  API trực tiếp mới thấy HIGH sai. Không sửa ở P1B vì guard dùng chung và spec
+  cấm đổi ngữ nghĩa P1A/Full CV — cần PR riêng có benchmark.
 - Revision không được review lại: claim định tính *mới* (nếu model thêm) chỉ
   bị chặn bởi guard lexical; benchmark không thấy trường hợp nào.
 - Verbatim-in-CV chỉ bắt quote liền mạch; "professional working proficiency

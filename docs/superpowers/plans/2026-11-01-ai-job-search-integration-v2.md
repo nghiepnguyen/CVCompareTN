@@ -274,7 +274,7 @@ matched/partial) + bảng severity + verdict `ready|review` do server tính → 
 đa 1 revision không raw JD → guard P1A lại. Tối đa 2 call, deadline chung,
 cap theo giờ chung với cover letter, không migration, function count 9.
 Revision được sinh trong cùng request nhưng chỉ áp dụng khi user bấm "Dùng bản
-đã chỉnh". Benchmark 16 fixture / 68 run: 4 gate = 0.
+đã chỉnh". Benchmark 17 fixture / 73 run: 4 gate = 0.
 
 ### Công việc
 
