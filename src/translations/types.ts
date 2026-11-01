@@ -349,7 +349,6 @@ export interface UiLabels {
   high: string;
   history: string;
   historyAnalyzeNow: string;
-  historyCategoryTooltip: string;
   historyChartHigh: string;
   historyChartLow: string;
   historyChartMedium: string;

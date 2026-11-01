@@ -10,7 +10,7 @@ import {
   fetchEffectiveUserPlan,
 } from '../services/userService';
 import { trackEvent } from '../lib/ga4';
-import { setSentryUser } from '../lib/sentryUser';
+import { setSentryUser } from '../lib/sentry';
 
 const SESSION_INIT_TIMEOUT_MS = 6000;
 const PROFILE_LOAD_TIMEOUT_MS = 8000;

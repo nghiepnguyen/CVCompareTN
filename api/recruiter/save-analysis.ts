@@ -70,6 +70,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     Sentry.captureException(err, { tags: { route: 'recruiter/save-analysis' } });
     console.error('recruiter/save-analysis error:', err);
+    // Vercel may freeze the function after the response; send the event first.
+    await Sentry.flush(2000);
     return res.status(500).json({ error: 'Server error' });
   }
 }

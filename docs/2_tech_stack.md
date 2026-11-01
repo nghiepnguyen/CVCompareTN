@@ -10,7 +10,7 @@
 -   **Analytics:**
     -   [Vercel Analytics](https://vercel.com/analytics) — pageview / Web Vitals (luôn bật, `<Analytics />`).
     -   **GA4** — custom events qua `src/lib/ga4.ts`, chỉ sau cookie consent. Chi tiết: [`docs/8_analytics.md`](8_analytics.md).
--   **Error Tracking:** [Sentry](https://sentry.io/) (`@sentry/react`) — PII scrubbed trong `beforeSend`; user tracked bằng ID ẩn danh (`src/lib/sentryUser.ts`).
+-   **Error Tracking:** [Sentry](https://sentry.io/) (`@sentry/react`) — PII scrubbed trong `beforeSend`; user tracked bằng ID ẩn danh (`setSentryUser` trong `src/lib/sentry.ts`).
 -   **State Management:** React Context — `AuthContext`, `UIContext`, `AnalysisProvider` (`src/context/analysis/`). Shim: `src/context/AnalysisContext.tsx`.
 
 ## Backend (Modular Express)

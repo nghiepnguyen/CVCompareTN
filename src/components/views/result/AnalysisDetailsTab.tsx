@@ -13,6 +13,7 @@ import {
   SCORE_MEDIUM_MIN,
 } from '../../../services/ai';
 import { getMatchingCategoryLabel } from './matchingCategoryLabels';
+import { deriveCategoryChartData } from './categoryChartData';
 import { FormatAssessmentCard } from './FormatAssessmentCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 
@@ -43,36 +44,11 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
     [selectedResult.detailedComparison, selectedResult.matchingPoints, selectedResult.missingGaps]
   );
 
-  // Single source of truth for both charts: AI's own categoryScores, so the bar
-  // and radar always agree and share the same category set/order.
-  const categoryChartData = React.useMemo(() => {
-    const CATEGORY_KEYS: { key: keyof NonNullable<AnalysisResult['categoryScores']>; category: string }[] = [
-      { key: 'skills', category: 'Skills' },
-      { key: 'softSkills', category: 'Soft Skills' },
-      { key: 'hardSkills', category: 'Hard Skills' },
-      { key: 'technicalSkills', category: 'Technical Skills' },
-      { key: 'experience', category: 'Experience' },
-      { key: 'tools', category: 'Tools' },
-      { key: 'languageSkills', category: 'Language Skills' },
-      { key: 'education', category: 'Education' },
-    ];
-
-    const hasEvidence = new Set<string>();
-    [...requirementInsights.matched, ...requirementInsights.partial, ...requirementInsights.missing]
-      .forEach((item) => item.category && hasEvidence.add(item.category));
-
-    return CATEGORY_KEYS.map(({ key, category }) => {
-      const score = selectedResult.categoryScores?.[key];
-      // A 0 with no matching/missing evidence means the AI never assessed this
-      // category (e.g. JD has no language requirement) — not an actual score of 0.
-      const evaluated = (typeof score === 'number' && score > 0) || hasEvidence.has(category);
-      return {
-        name: getMatchingCategoryLabel(category, t),
-        value: typeof score === 'number' ? score : 0,
-        evaluated,
-      };
-    }).filter((d) => d.evaluated);
-  }, [selectedResult.categoryScores, requirementInsights, t]);
+  // Shared with the history list mini bars so both views show the same categories.
+  const categoryChartData = React.useMemo(
+    () => deriveCategoryChartData(selectedResult, t, requirementInsights),
+    [selectedResult, requirementInsights, t]
+  );
 
   return (
     <div id="analysis-content" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 scroll-mt-24">
