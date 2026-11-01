@@ -126,7 +126,9 @@ export function HeroSection({
           <img
             src="https://data.cvfit.pro/img/cvfit.jpg"
             alt={t.seoTitle || 'CV Matcher & Optimizer Dashboard'}
-            className="relative z-10 w-full rounded-[1.5rem] md:rounded-[2.25rem] shadow-lg transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-[1.005]"
+            width={2188}
+            height={884}
+            className="relative z-10 h-auto w-full rounded-[1.5rem] md:rounded-[2.25rem] shadow-lg transition-transform duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:scale-[1.005]"
             referrerPolicy="no-referrer"
             loading="lazy"
             onError={(e) => {
