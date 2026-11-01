@@ -1,6 +1,10 @@
-import * as Sentry from '@sentry/react';
+import type * as SentryTypes from '@sentry/react';
+import type * as SentrySdk from './sentrySdk';
 
 import { scrubTelemetry } from './scrubTelemetry';
+
+let sdk: Promise<typeof SentrySdk | null> | undefined;
+let currentUserId: string | null = null;
 
 /**
  * Vite's Fast Refresh re-evaluates a module on edit. When a context module is
@@ -10,16 +14,38 @@ import { scrubTelemetry } from './scrubTelemetry';
  * `/@react-refresh` (the dev-only refresh runtime), and production ships a
  * static bundle with no HMR, so anything carrying that frame is not actionable.
  */
-export function isFastRefreshArtifact(event: Sentry.Event, isDev = import.meta.env.DEV): boolean {
+export function isFastRefreshArtifact(event: SentryTypes.Event, isDev = import.meta.env.DEV): boolean {
   if (!isDev) return false;
   const frames = event.exception?.values?.flatMap((value) => value.stacktrace?.frames ?? []) ?? [];
   return frames.some((frame) => (frame.filename ?? frame.abs_path ?? '').includes('/@react-refresh'));
 }
 
-export function initSentry() {
-  const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
-  if (!dsn) return;
+/**
+ * Loads the SDK in its own chunk so it never delays first paint. Idempotent;
+ * every capture waits on the same promise so nothing reaches an uninitialized SDK.
+ * shortcut: uncaught window errors thrown before the chunk loads are not reported;
+ * add a pre-init queue if early-startup crashes go missing.
+ */
+export function initSentry(): Promise<typeof SentrySdk | null> {
+  sdk ??= loadSentry();
+  return sdk;
+}
 
+/** Does not trigger the SDK load; the id is applied once init runs. */
+export function setSentryUser(userId: string | null) {
+  currentUserId = userId;
+  void sdk?.then((Sentry) => Sentry?.setUser(userId ? { id: userId } : null));
+}
+
+export function captureException(...args: Parameters<typeof SentrySdk.captureException>) {
+  void initSentry().then((Sentry) => Sentry?.captureException(...args));
+}
+
+async function loadSentry(): Promise<typeof SentrySdk | null> {
+  const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+  if (!dsn) return null;
+
+  const Sentry = await import('./sentrySdk');
   Sentry.init({
     dsn,
     environment: import.meta.env.MODE,
@@ -84,4 +110,6 @@ export function initSentry() {
       return scrubTelemetry(event);
     },
   });
+  if (currentUserId) Sentry.setUser({ id: currentUserId });
+  return Sentry;
 }

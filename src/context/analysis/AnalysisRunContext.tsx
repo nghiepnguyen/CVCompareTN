@@ -1,6 +1,6 @@
 // @refresh reset — provider and hooks share this module; see UIContext.tsx.
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import * as Sentry from '@sentry/react';
+import { captureException } from '../../lib/sentry';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
 import { formatLabel } from '../../translations';
@@ -408,7 +408,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
                 void settle.then(() => cleanupTempAnalysisFiles(tempPaths));
               }
               console.error(`Analysis failed for ${fileOrRef.name}:`, fileErr);
-              Sentry.captureException(fileErr, {
+              captureException(fileErr, {
                 tags: { feature: 'analyze_cv_batch_item' },
                 contexts: { file: { name: fileOrRef.name } },
               });
@@ -578,7 +578,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       creepProgress(100, 300);
     } catch (err: unknown) {
       console.error(err);
-      Sentry.captureException(err, {
+      captureException(err, {
         tags: { feature: 'analyze_cv' },
         contexts: {
           analysis: {

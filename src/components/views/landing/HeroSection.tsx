@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'motion/react';
+import { motion, useScroll, useTransform, useReducedMotion } from 'motion/react';
 import { ArrowRight, Sparkles, Zap } from 'lucide-react';
 import type { MotionValue } from 'motion/react';
 import type { LandingLabels } from './types';
@@ -17,6 +17,7 @@ export function HeroSection({
   scale: MotionValue<number>;
 }) {
   const heroRef = useRef<HTMLDivElement>(null);
+  const shouldReduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const parallaxY = useTransform(scrollYProgress, [0, 1], [0, 150]);
 
@@ -32,11 +33,11 @@ export function HeroSection({
       <div className="pointer-events-none absolute inset-0 overflow-hidden bg-noise-light">
         {/* Drifting mint color blobs — flow motion */}
         <div
-          className="absolute -top-24 -left-24 h-[32rem] w-[32rem] rounded-full opacity-50 blur-[110px] animate-[mintDrift_18s_ease-in-out_infinite]"
+          className="absolute -top-24 -left-24 h-[32rem] w-[32rem] rounded-full opacity-50 blur-[110px] motion-safe:animate-[mintDrift_18s_ease-in-out_infinite]"
           style={{ background: '#A8F0DC' }}
         />
         <div
-          className="absolute -bottom-32 -right-16 h-[36rem] w-[36rem] rounded-full opacity-60 blur-[120px] animate-[mintDrift_22s_ease-in-out_infinite_reverse]"
+          className="absolute -bottom-32 -right-16 h-[36rem] w-[36rem] rounded-full opacity-60 blur-[120px] motion-safe:animate-[mintDrift_22s_ease-in-out_infinite_reverse]"
           style={{ background: '#147A5F' }}
         />
 
@@ -59,10 +60,7 @@ export function HeroSection({
         </SectionBadge>
 
         {/* Headline */}
-        <motion.h1
-          initial={{ opacity: 0, y: 60, filter: 'blur(10px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+        <h1
           className="font-sans text-5xl sm:text-7xl md:text-8xl lg:text-[7rem] font-bold tracking-[-0.03em] text-[#122A22] leading-[1.1] pb-2 text-balance"
         >
           {t.heroTitle}{' '}
@@ -77,23 +75,17 @@ export function HeroSection({
           >
             {t.badgeHeroHighlight}
           </span>
-        </motion.h1>
+        </h1>
 
         {/* Subtitle */}
-        <motion.p
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+        <p
           className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-[#33544A] sm:text-xl lg:text-2xl font-light text-balance"
         >
           {t.heroDesc}
-        </motion.p>
+        </p>
 
         {/* CTAs */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+        <div
           className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row px-4 w-full sm:px-0"
         >
           <AccentButton onClick={login} icon={Zap} iconPosition="left">
@@ -108,32 +100,29 @@ export function HeroSection({
           >
             {t.forEmployers}
           </OutlineButton>
-        </motion.div>
+        </div>
 
         {/* Free badge */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1, duration: 0.6 }}
+        <p
           className="mt-6 text-sm font-medium text-[#4A6A61] uppercase tracking-wider"
         >
           {t.heroSub}
-        </motion.p>
+        </p>
       </motion.div>
 
       {/* ---- Floating Dashboard Preview ---- */}
       <motion.div
-        initial={{ opacity: 0, y: 120 }}
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 120 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1.2, delay: 0.6, type: 'spring', stiffness: 50, damping: 20 }}
-        style={{ y: parallaxY }}
+        style={{ y: shouldReduceMotion ? 0 : parallaxY }}
         className="relative z-10 w-full max-w-6xl px-4 pb-16"
       >
         <div className="group relative overflow-hidden rounded-[2rem] md:rounded-[3rem] border border-[rgba(203,213,225,0.6)] bg-white/85 p-2 md:p-3 shadow-2xl backdrop-blur-2xl transition-all duration-700 hover:border-accent/25 hover:shadow-accent/10">
           {/* Reflection highlight */}
           <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
           {/* Scan line */}
-          <div className="absolute left-0 right-0 z-20 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent animate-scan pointer-events-none" />
+          <div className="absolute left-0 right-0 z-20 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent motion-safe:animate-scan pointer-events-none" />
           <img
             src="https://data.cvfit.pro/img/cvfit.jpg"
             alt={t.seoTitle || 'CV Matcher & Optimizer Dashboard'}
@@ -147,8 +136,8 @@ export function HeroSection({
         </div>
 
         {/* Floating decoration */}
-        <div className="absolute -top-8 -right-8 h-40 w-40 rounded-full bg-accent/10 blur-3xl animate-glow pointer-events-none" />
-        <div className="absolute -bottom-8 -left-8 h-40 w-40 rounded-full bg-accent/5 blur-3xl animate-glow pointer-events-none" style={{ animationDelay: '2s' }} />
+        <div className="absolute -top-8 -right-8 h-40 w-40 rounded-full bg-accent/10 blur-3xl motion-safe:animate-glow pointer-events-none" />
+        <div className="absolute -bottom-8 -left-8 h-40 w-40 rounded-full bg-accent/5 blur-3xl motion-safe:animate-glow pointer-events-none" style={{ animationDelay: '2s' }} />
       </motion.div>
 
       {/* Bottom gradient fade — blend into the next (white) section */}

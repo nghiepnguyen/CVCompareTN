@@ -49,3 +49,14 @@ graphify-out/*
 .ignore
 create-prd.md
 generate-tasks.md
+
+# Local-only plan scratch (tracked plans live under docs/superpowers/plans/)
+docs/superpowers/plans/2026-10-24-ai-job-search-integration.md
+
+# Generated code-mirror docs — regenerate with the local graft tool, never hand-edit
+graft/
+
+# One-off R2 storage verification harnesses (documented in docs/r2-flow-*.md, docs/r2-rollout-progress-*.md)
+scripts/storage-baseline.ts
+scripts/verify-r2-browser.ts
+scripts/verify-r2-flow.ts
