@@ -91,7 +91,6 @@ export function normalizeComparisonItems(raw: unknown): ComparisonItem[] {
         typeof pr === "string" && priorities.has(pr) ? (pr as ComparisonItem["priority"]) : undefined;
       const cvEvidence = typeof item.cvEvidence === "string" ? item.cvEvidence : undefined;
       const verification = normalizeVerification(item.verification, status, cvEvidence);
-      const jdEvidence = typeof item.jdEvidence === "string" ? item.jdEvidence.trim() : "";
       return {
         requirement:
           typeof item.requirement === "string" ? item.requirement : String(item.requirement ?? ""),
@@ -101,15 +100,14 @@ export function normalizeComparisonItems(raw: unknown): ComparisonItem[] {
         priority,
         // Absent stays absent: old results must not turn into "unverified".
         ...(verification ? { verification } : {}),
-        ...(jdEvidence ? { jdEvidence } : {}),
       };
     });
 }
 
 /**
- * Verification never overrides `status`: code may only weaken a model claim to
- * "unknown", never create "met"/"unmet". "met" needs a matched row with CV
- * evidence; "unmet" needs a non-matched row citing the contradicting CV fact.
+ * Stored verification (history / recruiter JSONB) is read back only when it is
+ * consistent with `status`; otherwise it is weakened to "unknown". It never
+ * overrides `status`.
  */
 function normalizeVerification(
   raw: unknown,

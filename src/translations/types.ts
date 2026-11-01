@@ -392,7 +392,6 @@ export interface UiLabels {
   inAppBrowserAction: string;
   inAppBrowserWarning: string;
   jdDesc: string;
-  jdEvidence: string;
   jdStore: string;
   jdStoreClose: string;
   jdStoreDeleteTitle: string;

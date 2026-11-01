@@ -104,14 +104,11 @@ export interface ComparisonItem {
   improvement?: string;
   priority?: 'required' | 'nice-to-have';
   /**
-   * P0: whether the CV proves the requirement is satisfied — a separate
-   * dimension from `status`, never an input to any score. `missing` + `unknown`
-   * = the CV says nothing; `unmet` needs a contradicting CV fact. Absent on
-   * results analyzed before P0.
+   * P0: derived after the canonical analysis by deriveRequirementVerification
+   * (requirementVerification.ts) — never authored by Gemini, never an input to
+   * status or any score. Absent on results analyzed before P0.
    */
   verification?: 'met' | 'unmet' | 'unknown';
-  /** Short verbatim JD excerpt stating the requirement (required rows). */
-  jdEvidence?: string;
 }
 
 export interface FormatAssessment {

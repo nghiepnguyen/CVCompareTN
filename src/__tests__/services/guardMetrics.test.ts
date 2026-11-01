@@ -42,7 +42,7 @@ const SAFE = '# Name\n\n## Experience\n- Improved conversion by 20%';
 const UNSAFE = '# Name\n\n## Experience\n- Improved conversion by 35% with self-serve dashboards';
 
 // No detailedComparison rows in analyzeReply → P0 verification counts are all zero.
-const NO_ROWS = { rows: 0, met: 0, unmet: 0, unknown: 0, absent: 0, jdEvidence: 0, jdEvidenceDropped: 0 };
+const NO_ROWS = { rows: 0, met: 0, unmet: 0, unknown: 0 };
 const loggedRow = () => insert.mock.calls.at(-1)![0] as Record<string, unknown>;
 const analyze = (cvData: string, cvMimeType = 'text/plain') =>
   handleAnalyze('Bearer t', { jd: JD, cvData, cvMimeType, language: 'en' });

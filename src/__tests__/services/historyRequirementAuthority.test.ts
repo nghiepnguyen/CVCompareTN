@@ -32,7 +32,7 @@ const rows = vi.hoisted(() => [
       skills: [{ requirement: 'SQL', status: 'matched', priority: 'required' }],
       education: [{
         requirement: 'IELTS 6.5', status: 'missing', priority: 'required',
-        verification: 'unknown', jdEvidence: 'IELTS 6.5 or above',
+        verification: 'unknown',
       }],
     },
   },
@@ -78,14 +78,11 @@ it('keeps the legacy fallback for rows without a usable canonical table', async 
   expect(insights.missing.map((i) => i.requirement)).toEqual(['Legacy gap']);
 });
 
-it('P0: verification/jdEvidence round-trip through history; pre-P0 rows stay without them', async () => {
+it('P0: verification round-trips through history; pre-P0 rows stay without it', async () => {
   const [, , canonical] = await getUserHistory('user-1', 'pro');
-  expect(canonical.detailedComparison.education[0]).toMatchObject({
-    verification: 'unknown', jdEvidence: 'IELTS 6.5 or above',
-  });
+  expect(canonical.detailedComparison.education[0]).toMatchObject({ verification: 'unknown' });
   // Rows saved before P0 must not be shown as "unverified".
   expect(canonical.detailedComparison.skills[0]).not.toHaveProperty('verification');
-  expect(canonical.detailedComparison.skills[0]).not.toHaveProperty('jdEvidence');
   // Requirement-status authority unchanged: unknown is still listed as missing, not a new bucket.
   const insights = deriveRequirementInsights(canonical.detailedComparison);
   expect(insights.missing.map((i) => i.requirement)).toEqual(['IELTS 6.5']);

@@ -11,7 +11,8 @@ import {
   normalizeRewriteSuggestions,
   normalizeStringArray,
 } from '../../src/services/ai/resultPayloadNormalize.js';
-import type { AnalysisResult, DetailedComparison } from '../../src/services/ai/types.js';
+import type { AnalysisResult } from '../../src/services/ai/types.js';
+import { deriveRequirementVerification } from '../../src/services/ai/requirementVerification.js';
 import { buildAnalyzePromptEn } from '../../src/services/ai/prompts.js';
 import { CANONICAL_PROBABILITY_VERSION, derivePassProbability } from '../../src/services/ai/canonicalProbability.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
@@ -23,57 +24,6 @@ import {
 } from './suggestionGuard.js';
 import { localizeAnalysis, SCORE_VERSION } from './localizeAnalysis.js';
 import { fenceUntrusted, stripInvisibleControls } from '../untrustedText.js';
-
-const looseText = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
-const looseQuote = (s: string) => looseText(s.replace(/^["'“”]+|["'“”]+$/g, ''));
-
-/**
- * P0: keep a row's jdEvidence only when it is really in the JD, and an "unmet"
- * only when its cvEvidence is really in the CV text (case/whitespace/quote-
- * insensitive) — "Not mentioned in the CV" or an image CV is "unknown", never
- * a failure. Only downgrades; counts states for telemetry. Verification never
- * feeds matchScore, categoryScores or probability.
- */
-export function groundRequirementVerification(
-  dc: DetailedComparison,
-  jd: string,
-  cvText: string | undefined
-): { detailedComparison: DetailedComparison; metrics: RequirementVerificationMetrics } {
-  const jdLoose = looseText(jd);
-  const cvLoose = cvText === undefined ? undefined : looseText(cvText);
-  const metrics: RequirementVerificationMetrics = {
-    rows: 0, met: 0, unmet: 0, unknown: 0, absent: 0, jdEvidence: 0, jdEvidenceDropped: 0,
-  };
-  const ground = (items: DetailedComparison[keyof DetailedComparison]) =>
-    items.map((row) => {
-      const shortfall = row.verification === 'unmet' ? looseQuote(row.cvEvidence ?? '') : '';
-      const item: typeof row =
-        row.verification === 'unmet' && !(shortfall && cvLoose?.includes(shortfall))
-          ? { ...row, verification: 'unknown' }
-          : row;
-      metrics.rows++;
-      metrics[item.verification ?? 'absent']++;
-      if (!item.jdEvidence) return item;
-      const quote = looseQuote(item.jdEvidence);
-      if (quote && jdLoose.includes(quote)) {
-        metrics.jdEvidence++;
-        return item;
-      }
-      metrics.jdEvidenceDropped++;
-      const { jdEvidence: _dropped, ...rest } = item;
-      return rest;
-    });
-  return {
-    detailedComparison: {
-      skills: ground(dc.skills),
-      experience: ground(dc.experience),
-      tools: ground(dc.tools),
-      education: ground(dc.education),
-      keywords: ground(dc.keywords),
-    },
-    metrics,
-  };
-}
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -120,8 +70,9 @@ export async function analyzeCV(
   // (Stage 3.6: the VI prompt / VI output moved MatchScore 4–10 points).
   // `language` is only the requested presentation language, applied afterwards
   // by localizeAnalysis on presentation strings.
-  // P0 trust boundary: JD and CV text are fenced as untrusted data (prompt
-  // rule in buildAnalyzePromptEn); the JD was already stripped by the handler.
+  // P0 trust boundary: JD and CV text are fenced as data. No prose rule is added
+  // to the canonical prompt (benchmarked: it shifted score calibration); the
+  // JD was already stripped of invisible controls by the handler.
   const jdSection = `Job Description (JD):\n${fenceUntrusted('job_description', jd)}`;
 
   const { y, m } = vnDateParts(new Date());
@@ -240,10 +191,10 @@ export async function analyzeCV(
           : Number(matchScoreRaw) || 0;
 
     const missingGaps = normalizeMissingGaps(parsedResult.missingGaps);
-    const { detailedComparison, metrics: verificationMetrics } = groundRequirementVerification(
-      normalizeDetailedComparison(parsedResult.detailedComparison),
-      jd,
-      cvText
+    // P0: verification is derived from the finished canonical table, never
+    // authored by Gemini; it does not touch status, scores or probability.
+    const { detailedComparison, counts: verificationMetrics } = deriveRequirementVerification(
+      normalizeDetailedComparison(parsedResult.detailedComparison)
     );
     const suggestionsIn = normalizeRewriteSuggestions(parsedResult.rewriteSuggestions);
     const guardMetrics: SuggestionGuardMetrics = {

@@ -122,13 +122,6 @@ export function DetailedComparisonTab({ selectedResult }: DetailedComparisonTabP
                           </div>
                         )}
 
-                        {item.jdEvidence && (
-                          <p className="mb-4 text-[12px] text-text-muted leading-relaxed">
-                            <span className="font-black text-[10px] uppercase tracking-[0.15em] text-text-light mr-2">{t.jdEvidence}</span>
-                            <span className="italic">"{item.jdEvidence}"</span>
-                          </p>
-                        )}
-
                         {item.cvEvidence && (
                           <div className="mb-6 p-5 bg-white/[0.06] backdrop-blur-sm rounded-2xl border border-white/[0.08] text-[13px] text-text-main leading-relaxed group-hover:bg-white/[0.08] transition-colors">
                             <span className="font-black text-[10px] uppercase tracking-[0.15em] text-accent block mb-3 flex items-center gap-2">

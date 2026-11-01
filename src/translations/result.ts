@@ -252,10 +252,6 @@ export const result = {
     vi: "Minh chứng trong CV",
     en: "Evidence in CV",
   },
-  jdEvidence: {
-    vi: "Yêu cầu trong JD",
-    en: "In the JD",
-  },
   verificationLabel: {
     vi: "Xác minh",
     en: "Verification",

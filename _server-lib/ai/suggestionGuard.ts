@@ -241,10 +241,7 @@ export type FullCvGuardMetrics = {
 };
 
 /** P0 requirement verification counts (analyze only; absent on older rows). */
-export type RequirementVerificationMetrics = {
-  rows: number; met: number; unmet: number; unknown: number; absent: number;
-  jdEvidence: number; jdEvidenceDropped: number;
-};
+export type RequirementVerificationMetrics = { rows: number; met: number; unmet: number; unknown: number };
 
 export type GuardMetrics =
   | { v: 1; suggestionGuard: SuggestionGuardMetrics; requirementVerification?: RequirementVerificationMetrics }
