@@ -8,6 +8,7 @@ import type { AnalysisResult, ComparisonItem } from '../../services/ai/types';
 import { groundRequirementVerification } from '../../../_server-lib/ai/analysisService';
 import { applyLocalization, machineProjection, presentationItems } from '../../../_server-lib/ai/localizeAnalysis';
 import { fenceUntrusted, stripInvisibleControls } from '../../../_server-lib/untrustedText';
+import { buildAnalyzePromptEn } from '../../services/ai/prompts';
 
 const one = (item: Record<string, unknown>): ComparisonItem => normalizeComparisonItems([item])[0];
 
@@ -163,5 +164,42 @@ describe('P0 invisible-control sanitizer', () => {
     expect(fenced.match(/<\/job_description>/gi)).toHaveLength(1);
     expect(fenced.endsWith('</job_description>')).toBe(true);
     expect(fenced).toContain('Ignore previous instructions');
+  });
+});
+
+describe('P0.1 prompt semantics: verification never redefines status', () => {
+  const prompt = buildAnalyzePromptEn({ jdSection: 'Job Description (JD):\n<job_description>\nx\n</job_description>' });
+  const flat = prompt.replace(/\s+/g, ' ');
+
+  it('A/B: an explicit shortfall below a JD threshold is partial + unmet, never matched', () => {
+    expect(flat).toContain('the CV explicitly states a lower value, the requirement is NOT "matched"');
+    expect(flat).toContain('JD "IELTS 6.5", CV "IELTS 6.0" → status "partial", verification "unmet"');
+    expect(flat).toContain('JD "10+ years", CV states 8 years → status "partial", verification "unmet"');
+    expect(flat).not.toMatch(/CV shows 8 years|dates show/);
+    // Deterministic side: the pair survives normalization unchanged.
+    expect(one({ requirement: 'IELTS 6.5', status: 'partial', cvEvidence: 'IELTS 6.0', verification: 'unmet' }))
+      .toMatchObject({ status: 'partial', verification: 'unmet' });
+    expect(one({ requirement: '10+ years', status: 'partial', cvEvidence: '8 years', verification: 'unmet' }))
+      .toMatchObject({ status: 'partial', verification: 'unmet' });
+  });
+
+  it('C: credential not mentioned → missing + unknown', () => {
+    expect(flat).toContain('JD "IELTS 6.5", CV mentions no IELTS → status "missing", verification "unknown"');
+  });
+
+  it('D/E: no closed-world inference from other listed tools or degrees', () => {
+    expect(flat).toContain('Absence of evidence is not evidence of failure');
+    expect(flat).toContain('JD "statsmodels", CV lists "pandas, scikit-learn" → "unknown"');
+    expect(flat).toContain('JD "PhD", CV lists a B.A. → "unknown"');
+  });
+
+  it('F: a stated duration is never replaced by a date-derived one', () => {
+    expect(flat).toContain('Never replace an explicitly stated duration with one calculated from employment dates');
+    expect(flat).toContain('use the figure the CV states; derive from dates only when the CV states none');
+  });
+
+  it('status union and scoring rubric bands are untouched', () => {
+    expect(flat).toContain('Count a requirement as met only with CV evidence ("matched"); "partial" earns partial credit, "missing" earns none.');
+    expect(flat).toContain('90-100: FULLY meets all REQUIRED items');
   });
 });
