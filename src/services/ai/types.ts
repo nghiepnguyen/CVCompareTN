@@ -103,6 +103,15 @@ export interface ComparisonItem {
   cvEvidence?: string;
   improvement?: string;
   priority?: 'required' | 'nice-to-have';
+  /**
+   * P0: whether the CV proves the requirement is satisfied — a separate
+   * dimension from `status`, never an input to any score. `missing` + `unknown`
+   * = the CV says nothing; `unmet` needs a contradicting CV fact. Absent on
+   * results analyzed before P0.
+   */
+  verification?: 'met' | 'unmet' | 'unknown';
+  /** Short verbatim JD excerpt stating the requirement (required rows). */
+  jdEvidence?: string;
 }
 
 export interface FormatAssessment {

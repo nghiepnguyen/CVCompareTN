@@ -22,6 +22,20 @@ const rows = vi.hoisted(() => [
     missing_gaps: [{ category: 'Skills', content: 'Legacy gap' }],
     detailed_comparison: {},
   },
+  {
+    id: 'p0-1',
+    analysis_id: 'p0-1',
+    timestamp: '2026-11-01T00:00:00Z',
+    matching_points: [],
+    missing_gaps: [],
+    detailed_comparison: {
+      skills: [{ requirement: 'SQL', status: 'matched', priority: 'required' }],
+      education: [{
+        requirement: 'IELTS 6.5', status: 'missing', priority: 'required',
+        verification: 'unknown', jdEvidence: 'IELTS 6.5 or above',
+      }],
+    },
+  },
 ]);
 
 vi.mock('../../lib/supabase', () => ({
@@ -62,4 +76,17 @@ it('keeps the legacy fallback for rows without a usable canonical table', async 
   expect(insights.source).toBe('legacy');
   expect(insights.matched.map((i) => i.requirement)).toEqual(['Legacy strength']);
   expect(insights.missing.map((i) => i.requirement)).toEqual(['Legacy gap']);
+});
+
+it('P0: verification/jdEvidence round-trip through history; pre-P0 rows stay without them', async () => {
+  const [, , canonical] = await getUserHistory('user-1', 'pro');
+  expect(canonical.detailedComparison.education[0]).toMatchObject({
+    verification: 'unknown', jdEvidence: 'IELTS 6.5 or above',
+  });
+  // Rows saved before P0 must not be shown as "unverified".
+  expect(canonical.detailedComparison.skills[0]).not.toHaveProperty('verification');
+  expect(canonical.detailedComparison.skills[0]).not.toHaveProperty('jdEvidence');
+  // Requirement-status authority unchanged: unknown is still listed as missing, not a new bucket.
+  const insights = deriveRequirementInsights(canonical.detailedComparison);
+  expect(insights.missing.map((i) => i.requirement)).toEqual(['IELTS 6.5']);
 });

@@ -41,6 +41,8 @@ const rewriteReply = (fullRewrittenCV: string) => ({
 const SAFE = '# Name\n\n## Experience\n- Improved conversion by 20%';
 const UNSAFE = '# Name\n\n## Experience\n- Improved conversion by 35% with self-serve dashboards';
 
+// No detailedComparison rows in analyzeReply → P0 verification counts are all zero.
+const NO_ROWS = { rows: 0, met: 0, unmet: 0, unknown: 0, absent: 0, jdEvidence: 0, jdEvidenceDropped: 0 };
 const loggedRow = () => insert.mock.calls.at(-1)![0] as Record<string, unknown>;
 const analyze = (cvData: string, cvMimeType = 'text/plain') =>
   handleAnalyze('Bearer t', { jd: JD, cvData, cvMimeType, language: 'en' });
@@ -72,6 +74,7 @@ describe('suggestion guard metrics (analyze)', () => {
     expect(loggedRow().guard_metrics).toEqual({
       v: 1,
       suggestionGuard: { suggestionsIn: 4, droppedTotal: 3, skills: 0, numeric: 2, rawJd: 1, factualChecks: true },
+      requirementVerification: NO_ROWS,
     });
   });
 
@@ -81,6 +84,7 @@ describe('suggestion guard metrics (analyze)', () => {
     expect(loggedRow().guard_metrics).toEqual({
       v: 1,
       suggestionGuard: { suggestionsIn: 1, droppedTotal: 0, skills: 0, numeric: 0, rawJd: 0, factualChecks: true },
+      requirementVerification: NO_ROWS,
     });
   });
 
@@ -90,6 +94,7 @@ describe('suggestion guard metrics (analyze)', () => {
     expect(loggedRow().guard_metrics).toEqual({
       v: 1,
       suggestionGuard: { suggestionsIn: 2, droppedTotal: 1, skills: 1, numeric: 0, rawJd: 0, factualChecks: false },
+      requirementVerification: NO_ROWS,
     });
   });
 });

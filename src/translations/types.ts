@@ -392,6 +392,7 @@ export interface UiLabels {
   inAppBrowserAction: string;
   inAppBrowserWarning: string;
   jdDesc: string;
+  jdEvidence: string;
   jdStore: string;
   jdStoreClose: string;
   jdStoreDeleteTitle: string;
@@ -620,6 +621,10 @@ export interface UiLabels {
   tools: string;
   trustedBy: string;
   uploadCV: string;
+  verificationLabel: string;
+  verificationMet: string;
+  verificationUnknown: string;
+  verificationUnmet: string;
   vietnamese: string;
   whyTitle: string;
 

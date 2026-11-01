@@ -11,12 +11,69 @@ import {
   normalizeRewriteSuggestions,
   normalizeStringArray,
 } from '../../src/services/ai/resultPayloadNormalize.js';
-import type { AnalysisResult } from '../../src/services/ai/types.js';
+import type { AnalysisResult, DetailedComparison } from '../../src/services/ai/types.js';
 import { buildAnalyzePromptEn } from '../../src/services/ai/prompts.js';
 import { CANONICAL_PROBABILITY_VERSION, derivePassProbability } from '../../src/services/ai/canonicalProbability.js';
 import { vnDateParts } from '../../src/lib/vnTime.js';
-import { dropUnsupportedSuggestions, rawJdConcepts, type SuggestionGuardMetrics } from './suggestionGuard.js';
+import {
+  dropUnsupportedSuggestions,
+  rawJdConcepts,
+  type RequirementVerificationMetrics,
+  type SuggestionGuardMetrics,
+} from './suggestionGuard.js';
 import { localizeAnalysis, SCORE_VERSION } from './localizeAnalysis.js';
+import { fenceUntrusted, stripInvisibleControls } from '../untrustedText.js';
+
+const looseText = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+const looseQuote = (s: string) => looseText(s.replace(/^["'“”]+|["'“”]+$/g, ''));
+
+/**
+ * P0: keep a row's jdEvidence only when it is really in the JD, and an "unmet"
+ * only when its cvEvidence is really in the CV text (case/whitespace/quote-
+ * insensitive) — "Not mentioned in the CV" or an image CV is "unknown", never
+ * a failure. Only downgrades; counts states for telemetry. Verification never
+ * feeds matchScore, categoryScores or probability.
+ */
+export function groundRequirementVerification(
+  dc: DetailedComparison,
+  jd: string,
+  cvText: string | undefined
+): { detailedComparison: DetailedComparison; metrics: RequirementVerificationMetrics } {
+  const jdLoose = looseText(jd);
+  const cvLoose = cvText === undefined ? undefined : looseText(cvText);
+  const metrics: RequirementVerificationMetrics = {
+    rows: 0, met: 0, unmet: 0, unknown: 0, absent: 0, jdEvidence: 0, jdEvidenceDropped: 0,
+  };
+  const ground = (items: DetailedComparison[keyof DetailedComparison]) =>
+    items.map((row) => {
+      const shortfall = row.verification === 'unmet' ? looseQuote(row.cvEvidence ?? '') : '';
+      const item: typeof row =
+        row.verification === 'unmet' && !(shortfall && cvLoose?.includes(shortfall))
+          ? { ...row, verification: 'unknown' }
+          : row;
+      metrics.rows++;
+      metrics[item.verification ?? 'absent']++;
+      if (!item.jdEvidence) return item;
+      const quote = looseQuote(item.jdEvidence);
+      if (quote && jdLoose.includes(quote)) {
+        metrics.jdEvidence++;
+        return item;
+      }
+      metrics.jdEvidenceDropped++;
+      const { jdEvidence: _dropped, ...rest } = item;
+      return rest;
+    });
+  return {
+    detailedComparison: {
+      skills: ground(dc.skills),
+      experience: ground(dc.experience),
+      tools: ground(dc.tools),
+      education: ground(dc.education),
+      keywords: ground(dc.keywords),
+    },
+    metrics,
+  };
+}
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -50,7 +107,12 @@ export async function analyzeCV(
   language: 'vi' | 'en' = 'vi',
   timeoutMs = 45_000,
   cvPdfInlineData?: string
-): Promise<{ result: AnalysisResult; usage: AiCallUsage; guardMetrics: SuggestionGuardMetrics }> {
+): Promise<{
+  result: AnalysisResult;
+  usage: AiCallUsage;
+  guardMetrics: SuggestionGuardMetrics;
+  verificationMetrics: RequirementVerificationMetrics;
+}> {
   const client = getGeminiClient();
 
   // Canonical scoring (Stage 3.7): the same English prompt, JD header and
@@ -58,7 +120,9 @@ export async function analyzeCV(
   // (Stage 3.6: the VI prompt / VI output moved MatchScore 4–10 points).
   // `language` is only the requested presentation language, applied afterwards
   // by localizeAnalysis on presentation strings.
-  const jdSection = `Job Description (JD):\n${jd}`;
+  // P0 trust boundary: JD and CV text are fenced as untrusted data (prompt
+  // rule in buildAnalyzePromptEn); the JD was already stripped by the handler.
+  const jdSection = `Job Description (JD):\n${fenceUntrusted('job_description', jd)}`;
 
   const { y, m } = vnDateParts(new Date());
   const currentMonth = `${String(m + 1).padStart(2, '0')}/${y}`;
@@ -104,8 +168,8 @@ export async function analyzeCV(
           timeoutPromise,
         ]);
         if (text && text.trim().length >= 100) {
-          parts.push({ text: `CV Content:\n${text}` });
-          cvText = text;
+          cvText = stripInvisibleControls(text);
+          parts.push({ text: `CV Content:\n${fenceUntrusted('cv', cvText)}` });
           usedText = true;
         }
       } catch (e) {
@@ -128,8 +192,8 @@ export async function analyzeCV(
         },
       });
     } else {
-      parts.push({ text: `CV Content:\n${cvData}` });
-      cvText = cvData;
+      cvText = stripInvisibleControls(cvData);
+      parts.push({ text: `CV Content:\n${fenceUntrusted('cv', cvText)}` });
       // Text extraction already succeeded — also attach the original PDF
       // (when provided and within budget) so Gemini can additionally assess
       // real layout/format for the formatAssessment section.
@@ -176,7 +240,11 @@ export async function analyzeCV(
           : Number(matchScoreRaw) || 0;
 
     const missingGaps = normalizeMissingGaps(parsedResult.missingGaps);
-    const detailedComparison = normalizeDetailedComparison(parsedResult.detailedComparison);
+    const { detailedComparison, metrics: verificationMetrics } = groundRequirementVerification(
+      normalizeDetailedComparison(parsedResult.detailedComparison),
+      jd,
+      cvText
+    );
     const suggestionsIn = normalizeRewriteSuggestions(parsedResult.rewriteSuggestions);
     const guardMetrics: SuggestionGuardMetrics = {
       suggestionsIn: suggestionsIn.length,
@@ -243,7 +311,7 @@ export async function analyzeCV(
     };
 
     const canonical = finalResult as AnalysisResult;
-    if (language === 'en') return { result: canonical, usage, guardMetrics };
+    if (language === 'en') return { result: canonical, usage, guardMetrics, verificationMetrics };
     // Presentation only, after the guard, on the same AI deadline; never throws.
     const localized = await localizeAnalysis(canonical, deadline);
     const lang = localized.presentationLanguage;
@@ -255,7 +323,12 @@ export async function analyzeCV(
           latencyMs: usage.latencyMs + localized.usage.latencyMs,
         }
       : usage;
-    return { result: { ...localized.result, language: lang, presentationLanguage: lang }, usage: totalUsage, guardMetrics };
+    return {
+      result: { ...localized.result, language: lang, presentationLanguage: lang },
+      usage: totalUsage,
+      guardMetrics,
+      verificationMetrics,
+    };
   } catch (error: unknown) {
     if (error instanceof ControlledError) throw error;
     console.error('Gemini Analysis Error:', error);

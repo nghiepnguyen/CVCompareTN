@@ -11,8 +11,11 @@ const comparisonItemSchema = {
     cvEvidence: { type: 'STRING' },
     improvement: { type: 'STRING' },
     priority: { type: 'STRING', enum: ['required', 'nice-to-have'] },
+    // P0: separate from status, never scored (normalizeComparisonItems bounds it).
+    verification: { type: 'STRING', enum: ['met', 'unmet', 'unknown'] },
+    jdEvidence: { type: 'STRING' },
   },
-  required: ['requirement', 'status'],
+  required: ['requirement', 'status', 'verification'],
 };
 
 export const ANALYSIS_RESPONSE_SCHEMA = {
