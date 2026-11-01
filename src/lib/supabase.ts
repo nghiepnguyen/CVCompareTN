@@ -1,47 +1,57 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 let supabaseClient: SupabaseClient | undefined;
+let initialization: Promise<boolean> | undefined;
 
 export function isSupabaseReady(): boolean {
   return supabaseClient !== undefined;
 }
 
-function createSupabaseClient(url: string, anonKey: string): SupabaseClient {
-  return createClient(url, anonKey);
-}
-
-/** Load Supabase from Vite env (build) or /api/config (Vercel runtime). */
-export async function bootstrapSupabase(): Promise<boolean> {
-  if (supabaseClient) return true;
-
-  const viteUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
-  const viteKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? '';
-
-  if (viteUrl && viteKey) {
-    supabaseClient = createSupabaseClient(viteUrl, viteKey);
-    return true;
-  }
-
-  // Bounded so a hung request can't hold the app on the init splash screen.
+async function initializeSupabase(): Promise<boolean> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error('Supabase initialization timed out'));
+    }, 8000);
+  });
+
   try {
-    const res = await fetch('/api/config', { signal: controller.signal });
-    if (!res.ok) return false;
-    const data = (await res.json()) as Record<string, string | undefined>;
-    const url = (data.VITE_SUPABASE_URL || data.SUPABASE_URL || '').trim();
-    const key = (data.VITE_SUPABASE_ANON_KEY || data.SUPABASE_ANON_KEY || '').trim();
-    if (url && key) {
-      supabaseClient = createSupabaseClient(url, key);
-      return true;
-    }
+    const viteUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
+    const viteKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? '';
+    const config = viteUrl && viteKey
+      ? Promise.resolve({ url: viteUrl, key: viteKey })
+      : fetch('/api/config', { signal: controller.signal }).then(async (res) => {
+          if (!res.ok) return { url: '', key: '' };
+          const data = (await res.json()) as Record<string, string | undefined>;
+          return {
+            url: (data.VITE_SUPABASE_URL || data.SUPABASE_URL || '').trim(),
+            key: (data.VITE_SUPABASE_ANON_KEY || data.SUPABASE_ANON_KEY || '').trim(),
+          };
+        });
+
+    // Public content can render while the SDK and runtime config load together.
+    const [{ createClient }, { url, key }] = await Promise.race([
+      Promise.all([import('@supabase/supabase-js'), config]),
+      deadline,
+    ]);
+    if (!url || !key) return false;
+    supabaseClient = createClient(url, key);
+    return true;
   } catch (err) {
-    console.error('[Supabase] Không tải được /api/config:', err);
+    console.error('[Supabase] Không thể khởi tạo:', err);
+    return false;
   } finally {
     clearTimeout(timer);
   }
+}
 
-  return false;
+/** Load once after first render; share in-flight work across StrictMode effects. */
+export async function bootstrapSupabase(): Promise<boolean> {
+  if (supabaseClient) return true;
+  initialization ??= initializeSupabase().finally(() => { initialization = undefined; });
+  return initialization;
 }
 
 export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {

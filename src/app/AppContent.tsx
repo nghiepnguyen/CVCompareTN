@@ -69,7 +69,7 @@ const PaymentCancelView = React.lazy(() =>
 );
 
 export function AppContent() {
-  const { user, userProfile, error, setError, isAuthInitialized, isRedirectChecked, isSupabaseConfigured, isLoadingProfile, refreshUserProfile } = useAuth();
+  const { user, userProfile, error, setError, isAuthInitialized, isRedirectChecked, isSupabaseConfigured, isLoadingProfile, refreshUserProfile, authModalMode, closeAuthModal } = useAuth();
   const {
     activeTab,
     setActiveTab,
@@ -216,6 +216,18 @@ export function AppContent() {
   const isAuthPending = !isAuthInitialized || !isRedirectChecked;
   const isAccountPending = !isPublicPage && (
     (isAuthPending && activeTab !== 'analyze') || (!!user && !userProfile)
+  );
+
+  const authLoadingNotice = (
+    <div role="status" aria-label={isAuthPending ? t.appCheckingSession : t.appLoadingContent}
+      className="fixed top-24 right-4 left-4 z-[150] mx-auto flex max-w-md items-center gap-3 rounded-xl border border-border bg-surface p-4 text-sm font-bold text-text-main">
+      <Loader2 aria-hidden="true" className="h-5 w-5 shrink-0 text-accent motion-safe:animate-spin" />
+      <span className="flex-1">{isAuthPending ? t.appCheckingSession : t.appLoadingContent}</span>
+      <button type="button" onClick={closeAuthModal} aria-label={t.cvStoreClose}
+        className="rounded-lg p-1 transition-transform cursor-pointer hover:scale-105 active:scale-95">
+        <X aria-hidden="true" className="h-4 w-4" />
+      </button>
+    </div>
   );
 
   return (
@@ -430,11 +442,13 @@ export function AppContent() {
           }}
         />
 
-          {!user && !isAuthPending && isSupabaseConfigured === true && (
+          {!user && authModalMode && (
             <ChunkLoadErrorBoundary>
-              <React.Suspense fallback={null}>
-                <AuthModal />
-              </React.Suspense>
+              {isAuthPending || isSupabaseConfigured !== true ? authLoadingNotice : (
+                <React.Suspense fallback={authLoadingNotice}>
+                  <AuthModal />
+                </React.Suspense>
+              )}
             </ChunkLoadErrorBoundary>
           )}
 

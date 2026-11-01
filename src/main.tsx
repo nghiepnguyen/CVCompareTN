@@ -5,7 +5,6 @@ import { initSentry } from './lib/sentry.ts';
 import './index.css';
 
 function startApp() {
-  initSentry();
   const rootEl = document.getElementById('root');
   if (!rootEl) return;
 
@@ -15,6 +14,11 @@ function startApp() {
       <App />
     </StrictMode>
   );
+
+  // Error reporting is not needed to paint; load its chunk once the browser is idle.
+  const start = () => void initSentry();
+  if ('requestIdleCallback' in window) window.requestIdleCallback(start, { timeout: 3000 });
+  else setTimeout(start, 1500);
 }
 
 startApp();

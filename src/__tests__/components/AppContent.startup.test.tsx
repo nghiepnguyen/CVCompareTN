@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
-import { render, screen, cleanup, act } from '@testing-library/react';
+import { render, screen, cleanup, act, fireEvent } from '@testing-library/react';
 
 const state = vi.hoisted(() => ({
   auth: { user: null as { id: string } | null, userProfile: null as { role: string; hasPermission?: boolean } | null,
     isAuthInitialized: false, isRedirectChecked: true, isSupabaseConfigured: null as boolean | null,
-    isLoadingProfile: true, error: null, setError: vi.fn(), refreshUserProfile: vi.fn() },
+    isLoadingProfile: true, authModalMode: null as string | null, closeAuthModal: vi.fn(), error: null, setError: vi.fn(), refreshUserProfile: vi.fn() },
   tab: 'analyze', setActiveTab: vi.fn(),
 }));
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => state.auth }));
@@ -34,7 +34,7 @@ import { AppContent } from '../../app/AppContent';
 beforeEach(() => {
   state.tab = 'analyze';
   Object.assign(state.auth, { user: null, userProfile: null, isAuthInitialized: false,
-    isLoadingProfile: true, isSupabaseConfigured: null });
+    isLoadingProfile: true, isSupabaseConfigured: null, authModalMode: null });
   vi.clearAllMocks();
 });
 afterEach(cleanup);
@@ -76,4 +76,23 @@ it('never renders private content when profile is missing or restricted', async 
   Object.assign(state.auth, { userProfile: { role: 'user', hasPermission: false } });
   await act(async () => view.rerender(<AppContent />));
   expect(screen.queryByText('NoPermissionView')).not.toBeNull();
+});
+
+it('acknowledges an auth request while initialization is pending and allows dismissal', () => {
+  state.auth.authModalMode = 'signIn';
+  render(<AppContent />);
+  expect(screen.getByRole('status', { name: 'appCheckingSession' })).toBeTruthy();
+  expect(screen.queryByText('AuthModal')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'cvStoreClose' }));
+  expect(state.auth.closeAuthModal).toHaveBeenCalledOnce();
+});
+
+it('does not load the auth modal until the user asks to sign in', async () => {
+  Object.assign(state.auth, { isAuthInitialized: true, isSupabaseConfigured: true });
+  let view!: ReturnType<typeof render>;
+  await act(async () => { view = render(<AppContent />); });
+  expect(screen.queryByText('AuthModal')).toBeNull();
+  state.auth.authModalMode = 'signIn';
+  await act(async () => view.rerender(<AppContent />));
+  expect(screen.queryByText('AuthModal')).not.toBeNull();
 });
