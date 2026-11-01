@@ -50,6 +50,9 @@ describe('deterministic verifier — unmet only for same-metric shortfalls', () 
   it('8 years vs JD 10+ in the same domain → unmet', () => {
     expect(v('10+ years of product design experience', 'partial', '8 years of product design experience')).toBe('unmet');
     expect(v('10+ years experience', 'partial', '8 years experience')).toBe('unmet');
+    // Meta wording about where the CV states it does not change the domain.
+    expect(v('10+ years of product design experience', 'partial', '8 years of product design experience stated in Summary.')).toBe('unmet');
+    expect(v('10+ years of product design experience', 'partial', 'CV states 8 years of experience.')).toBe('unknown');
   });
 
   it('different or unknown domain → unknown', () => {

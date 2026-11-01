@@ -31,6 +31,8 @@ const DOMAIN_STOP = new Set([
   "of", "in", "with", "as", "a", "an", "the", "and", "experience", "experiences", "professional", "total",
   "work", "working", "relevant", "related", "hands", "on", "minimum", "least", "at", "proven", "solid",
   "kinh", "nghiệm", "làm", "việc", "trong", "về", "lĩnh", "vực", "tối", "thiểu",
+  // Model phrasing about where the CV says it, not what the experience is.
+  "cv", "stated", "states", "explicitly", "listed", "mentioned", "summary", "profile",
 ]);
 
 const domainTokens = (tail: string) =>
