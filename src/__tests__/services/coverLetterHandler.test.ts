@@ -20,7 +20,7 @@ vi.mock('../../../_server-lib/payment/supabaseAdmin.js', () => {
     const b: Record<string, unknown> = {};
     const record = (name: string) => (...args: unknown[]) => { filters.push([name, ...args]); return b; };
     Object.assign(b, {
-      select: () => b, eq: record('eq'), gte: () => b, contains: record('contains'), abortSignal: () => b,
+      select: () => b, eq: record('eq'), gte: () => b, contains: record('contains'), or: record('or'), abortSignal: () => b,
       maybeSingle: async () => ({ data: state.profile, error: null }),
       then: (res: (v: unknown) => unknown) => {
         if (table === 'analysis_log') state.countFilters.push(filters);
@@ -95,10 +95,10 @@ beforeEach(() => {
 });
 
 describe('cover_letter: contract', () => {
-  it('EN: returns { content, language } and logs a coverLetter row', async () => {
+  it('EN: returns { content, language, verified names } and logs a coverLetter row', async () => {
     generateContent.mockResolvedValue(reply(GOOD_EN));
     const res = await call();
-    expect(res).toEqual({ status: 200, body: { content: GOOD_EN, language: 'en' } });
+    expect(res).toEqual({ status: 200, body: { content: GOOD_EN, language: 'en', employerName: 'Globex', roleTitle: 'Senior Frontend Engineer' } });
     expect(lastRow()).toMatchObject({
       kind: 'rewrite', status: 'success', model: 'gemini-3-flash-preview',
       guard_metrics: { v: 1, coverLetter: { language: 'en', outcome: 'valid', geminiCalls: 1 } },
@@ -108,7 +108,7 @@ describe('cover_letter: contract', () => {
   it('VI: output language follows the request', async () => {
     generateContent.mockResolvedValue(reply(GOOD_VI));
     const res = await call({ language: 'vi' });
-    expect(res.body).toEqual({ content: GOOD_VI, language: 'vi' });
+    expect(res.body).toMatchObject({ content: GOOD_VI, language: 'vi' });
     expect(promptOf(0).system).toContain('written entirely in Vietnamese');
   });
 
@@ -156,14 +156,14 @@ describe('cover_letter: contract', () => {
 });
 
 describe('cover_letter: quota', () => {
-  it('uses its own hourly cap: kind=rewrite rows marked coverLetter, half the rewrite limit', async () => {
-    state.count = 5; // free: rewrite limit 10 → cover letter limit 5
+  it('uses the shared document cap: kind=rewrite rows marked coverLetter or applicationReview, half the rewrite limit', async () => {
+    state.count = 5; // free: rewrite limit 10 → document limit 5
     const res = await call();
     expect(res.status).toBe(429);
     expect(generateContent).not.toHaveBeenCalled();
     expect(state.countFilters[0]).toEqual(expect.arrayContaining([
       ['eq', 'kind', 'rewrite'],
-      ['contains', 'guard_metrics', { coverLetter: {} }],
+      ['or', 'guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null'],
     ]));
   });
 
@@ -184,7 +184,7 @@ describe('cover_letter: grounding pipeline', () => {
   it('invalid first draft → retry without the raw JD → recovered', async () => {
     generateContent.mockResolvedValueOnce(reply(BAD)).mockResolvedValueOnce(reply(GOOD_EN));
     const res = await call();
-    expect(res.body).toEqual({ content: GOOD_EN, language: 'en' });
+    expect(res.body).toMatchObject({ content: GOOD_EN, language: 'en' });
     expect(promptOf(0).user).toContain('Kubernetes');
     expect(promptOf(1).user).not.toContain('Kubernetes');
     expect(promptOf(1).user).toContain('Role: Senior Frontend Engineer');

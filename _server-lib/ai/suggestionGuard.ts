@@ -92,6 +92,11 @@ function containsPhrase(canonicalHay: string, phrase: string): boolean {
   return canonicalHay.includes(canonicalText(phrase));
 }
 
+/** `phrase` occurs in `text` under the same normalization the guards use. */
+export function textContainsPhrase(text: string, phrase: string): boolean {
+  return containsPhrase(canonicalText(text), phrase);
+}
+
 // The surface form in `text` that matched `phrase` (debug provenance only).
 function matchedForm(text: string, phrase: string): string | undefined {
   const tokens = normalizeText(text).trim().split(' ');
@@ -455,10 +460,38 @@ export type CoverLetterGuardMetrics = {
   geminiCalls: 0 | 1 | 2;
 };
 
+export type ReviewSeverityCounts = { high: number; medium: number; low: number };
+export type ReviewCategoryCounts = {
+  unsupportedClaim: number;
+  numericClaim: number;
+  consistency: number;
+  requirementGap: number;
+  relevance: number;
+  tone: number;
+};
+
+/**
+ * P1B application review (kind='rewrite' rows, one per request). Counts and
+ * states only. `droppedFindings` = reviewer findings the server rejected
+ * (quote not in the letter, unknown requirement, verbatim-supported claim).
+ */
+export type ApplicationReviewGuardMetrics = {
+  language: 'vi' | 'en';
+  outcome: 'ready' | 'review' | 'error';
+  category?: string;
+  deterministic?: CoverLetterViolationCounts;
+  severity?: ReviewSeverityCounts;
+  categories?: ReviewCategoryCounts;
+  droppedFindings?: number;
+  revision?: 'not_needed' | 'skipped_budget' | 'error' | 'invalid' | 'shipped';
+  geminiCalls: 0 | 1 | 2;
+};
+
 export type GuardMetrics =
   | { v: 1; suggestionGuard: SuggestionGuardMetrics; requirementVerification?: RequirementVerificationMetrics }
   | { v: 1; fullCv: FullCvGuardMetrics }
-  | { v: 1; coverLetter: CoverLetterGuardMetrics };
+  | { v: 1; coverLetter: CoverLetterGuardMetrics }
+  | { v: 1; applicationReview: ApplicationReviewGuardMetrics };
 
 export function countViolations(violations: FullRewriteViolation[]): ViolationCounts {
   return {

@@ -6,8 +6,9 @@ import { logAnalysisAttempt } from '../analysisLog.js';
 import { resolveStorageRef } from '../storage/tempFile.js';
 import { stripInvisibleControls } from '../untrustedText.js';
 import { GEMINI_REWRITE_MODEL } from '../ai/geminiClient.js';
-import { generateCoverLetter, MAX_COVER_LETTER_CV_CHARS, serializeParsedCvForCoverLetter } from '../ai/coverLetterService.js';
-import type { CoverLetterGuardMetrics } from '../ai/suggestionGuard.js';
+import { generateCoverLetter, MAX_COVER_LETTER_CV_CHARS, serializeParsedCvForCoverLetter, verifiedName } from '../ai/coverLetterService.js';
+import { MAX_REVIEW_LETTER_CHARS, reviewApplication, sanitizeRequirements } from '../ai/applicationReviewService.js';
+import type { ApplicationReviewGuardMetrics, CoverLetterGuardMetrics } from '../ai/suggestionGuard.js';
 import {
   aiFailureCategory,
   ControlledError,
@@ -26,7 +27,7 @@ type Access = { ok: true; userId: string } | { ok: false; result: HandlerResult 
 
 async function authorize(
   authHeader: string | undefined,
-  kind: 'rewrite' | 'cover_letter',
+  kind: 'rewrite' | 'cover_letter' | 'application_review',
   deadline: ReturnType<typeof createDeadline>
 ): Promise<Access> {
   const user = await withTimeout(
@@ -50,7 +51,8 @@ async function authorize(
 
 /**
  * POST /api/rewrite-cv. `action` absent or 'rewrite' = Full CV rewrite
- * (unchanged contract); 'cover_letter' = P1A cover letter; anything else 400.
+ * (unchanged contract); 'cover_letter' = P1A cover letter;
+ * 'application_review' = P1B review; anything else 400.
  */
 export async function handleRewriteCv(
   authHeader: string | undefined,
@@ -58,6 +60,7 @@ export async function handleRewriteCv(
 ): Promise<HandlerResult> {
   const action = (body as { action?: unknown } | null)?.action;
   if (action === 'cover_letter') return handleCoverLetter(authHeader, body);
+  if (action === 'application_review') return handleApplicationReview(authHeader, body);
   if (action !== undefined && action !== 'rewrite') return { status: 400, body: { error: 'Invalid action' } };
   return handleFullRewrite(authHeader, body);
 }
@@ -179,9 +182,14 @@ async function handleCoverLetter(authHeader: string | undefined, body: unknown):
   }
 
   try {
-    const { content, usage, fidelityFallback, guardMetrics } = await generateCoverLetter(jd, cvText, language, aiDeadline.remainingMs());
+    const { content, employerName, roleTitle, usage, fidelityFallback, guardMetrics } = await generateCoverLetter(jd, cvText, language, aiDeadline.remainingMs());
     await logAnalysisAttempt(userId, 'success', 'rewrite', undefined, usage, { v: 1, coverLetter: guardMetrics }, deadline);
-    return { status: 200, body: fidelityFallback ? { content: '', language, fidelityFallback } : { content, language } };
+    // employerName/roleTitle: the JD-verified names the letter was validated
+    // with; the client sends them back for P1B review.
+    return {
+      status: 200,
+      body: fidelityFallback ? { content: '', language, fidelityFallback } : { content, language, employerName: employerName ?? '', roleTitle: roleTitle ?? '' },
+    };
   } catch (err) {
     console.error('Cover letter failed:', err instanceof Error ? err.name : 'error');
     const category = aiFailureCategory(err);
@@ -190,6 +198,75 @@ async function handleCoverLetter(authHeader: string | undefined, body: unknown):
     return {
       status: isTimeout ? 504 : 500,
       body: { error: isTimeout ? COVER_LETTER_TIMEOUT_MESSAGE : 'Không thể tạo thư ứng tuyển. Vui lòng thử lại.', retryable: isTimeout },
+    };
+  }
+}
+
+const REVIEW_TIMEOUT_MESSAGE = 'Application review is taking too long. Please try again. (Timeout)';
+
+/**
+ * P1B application review: advisory findings on CV + JD + cover letter. The
+ * letter, names and requirement context are client input (sanitized, bounded,
+ * names re-verified against the JD). Same auth/lock/deadline as P1A, the
+ * shared document cap, one analysis_log row per request carrying
+ * guard_metrics.applicationReview. Nothing is persisted; no analysis field is
+ * read for authority or written.
+ */
+async function handleApplicationReview(authHeader: string | undefined, body: unknown): Promise<HandlerResult> {
+  const deadline = createDeadline(TOTAL_BUDGET_MS);
+  const aiDeadline = deadline.reserve(POST_RESERVE_MS);
+  const b = (body ?? {}) as {
+    jd?: unknown; parsedCV?: unknown; coverLetter?: unknown; language?: unknown;
+    employerName?: unknown; roleTitle?: unknown; requirements?: unknown;
+  };
+  const jd = typeof b.jd === 'string' ? stripInvisibleControls(b.jd).trim() : '';
+  const letter = typeof b.coverLetter === 'string' ? stripInvisibleControls(b.coverLetter).trim() : '';
+  const language: 'vi' | 'en' = b.language === 'en' ? 'en' : 'vi';
+  const cvText = serializeParsedCvForCoverLetter(b.parsedCV);
+
+  if (!jd) return { status: 400, body: { error: 'Missing jd' } };
+  if (!cvText) return { status: 400, body: { error: 'Missing parsedCV' } };
+  if (!letter) return { status: 400, body: { error: 'Missing coverLetter' } };
+  if (cvText.length > MAX_COVER_LETTER_CV_CHARS || letter.length > MAX_REVIEW_LETTER_CHARS) {
+    return { status: 413, body: { error: 'Payload too large' } };
+  }
+
+  const access = await authorize(authHeader, 'application_review', deadline);
+  if ('result' in access) return access.result;
+  const userId = access.userId;
+
+  const clean = (s: unknown) => (typeof s === 'string' ? stripInvisibleControls(s) : s);
+  const allowedPhrases = [verifiedName(clean(b.employerName), jd), verifiedName(clean(b.roleTitle), jd)].filter(Boolean);
+  const requirements = sanitizeRequirements(b.requirements, stripInvisibleControls);
+
+  const logFailure = (category: string, geminiCalls: ApplicationReviewGuardMetrics['geminiCalls'], withModel: boolean) =>
+    logAnalysisAttempt(
+      userId, 'error', 'rewrite', `[application_review:${category}]`,
+      withModel ? { model: GEMINI_REWRITE_MODEL } : undefined,
+      { v: 1, applicationReview: { language, outcome: 'error', category, geminiCalls } },
+      deadline
+    );
+
+  if (aiDeadline.remainingMs() < MIN_GEMINI_BUDGET_MS) {
+    await logFailure('request_budget_exhausted', 0, false);
+    return { status: 504, body: { error: REVIEW_TIMEOUT_MESSAGE, retryable: true } };
+  }
+
+  try {
+    const { verdict, findings, revisedCoverLetter, usage, guardMetrics } = await reviewApplication(
+      { cvText, jd, letter, language, requirements, allowedPhrases },
+      aiDeadline
+    );
+    await logAnalysisAttempt(userId, 'success', 'rewrite', undefined, usage, { v: 1, applicationReview: guardMetrics }, deadline);
+    return { status: 200, body: { verdict, findings, language, ...(revisedCoverLetter && { revisedCoverLetter }) } };
+  } catch (err) {
+    console.error('Application review failed:', err instanceof Error ? err.name : 'error');
+    const category = aiFailureCategory(err);
+    const isTimeout = category !== 'gemini_error';
+    await logFailure(category, category === 'request_budget_exhausted' ? 0 : 1, category !== 'request_budget_exhausted');
+    return {
+      status: isTimeout ? 504 : 500,
+      body: { error: isTimeout ? REVIEW_TIMEOUT_MESSAGE : 'Không thể kiểm tra hồ sơ. Vui lòng thử lại.', retryable: isTimeout },
     };
   }
 }
