@@ -19,9 +19,15 @@ BEGIN
  ASSERT NOT (SELECT prosecdef FROM pg_proc WHERE oid='public.enforce_account_unlocked()'::regprocedure), 'guard must preserve execution role';
  ASSERT NOT has_function_privilege('authenticated','public.enforce_account_unlocked()','EXECUTE'), 'guard callable by authenticated';
  ASSERT NOT has_function_privilege('anon','public.enforce_account_unlocked()','EXECUTE'), 'guard callable by anon';
- ASSERT (SELECT count(*) FROM pg_trigger WHERE tgname='account_unlocked' AND NOT tgisinternal)=7, 'public write guards missing';
+ ASSERT (SELECT count(*) FROM pg_trigger WHERE tgname='account_unlocked' AND NOT tgisinternal)=8, 'public write guards missing';
  ASSERT (SELECT count(*) FROM pg_trigger WHERE tgname IN ('account_unlocked_insert','account_unlocked_update','account_unlocked_delete') AND tgrelid='storage.objects'::regclass)=3, 'storage write guards missing';
- ASSERT (SELECT count(*) FROM pg_policy WHERE polname='account_unlocked_read' AND NOT polpermissive AND polcmd='r')=8, 'restrictive read policies missing';
+ ASSERT (SELECT count(*) FROM pg_policy WHERE polname='account_unlocked_read' AND NOT polpermissive AND polcmd='r')=9, 'restrictive read policies missing';
+ -- Explicit protected-table list (counts alone hide a swap).
+ ASSERT NOT EXISTS (SELECT 1 FROM unnest(ARRAY['public.history','public.saved_jds','public.saved_cvs','public.recruitment_campaigns','public.candidate_cvs',
+   'public.applications','public.application_documents','public.application_events']::regclass[]) AS t(rel)
+   WHERE NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='account_unlocked' AND tgrelid=t.rel)
+      OR NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname='account_unlocked_read' AND polrelid=t.rel AND NOT polpermissive AND polcmd='r')),
+   'a user table lacks the account lock trigger or restrictive read policy';
  ASSERT NOT EXISTS(SELECT 1 FROM pg_class WHERE oid IN ('public.history'::regclass,'public.saved_jds'::regclass,'public.saved_cvs'::regclass,'public.recruitment_campaigns'::regclass,'public.candidate_cvs'::regclass,'storage.objects'::regclass) AND NOT relrowsecurity), 'ownership RLS disabled';
 END $$;
 DO $$

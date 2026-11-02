@@ -1,0 +1,15 @@
+{
+  "statuses": ["drafted", "applied", "interview", "offer", "hired", "rejected", "no_response", "offer_declined", "withdrawn"],
+  "final": ["hired", "rejected", "no_response", "offer_declined", "withdrawn"],
+  "transitions": {
+    "drafted": ["applied", "withdrawn"],
+    "applied": ["drafted", "interview", "rejected", "no_response", "withdrawn"],
+    "interview": ["applied", "offer", "rejected", "no_response", "withdrawn"],
+    "offer": ["interview", "hired", "rejected", "offer_declined", "withdrawn"],
+    "hired": ["offer"],
+    "rejected": ["applied", "interview", "offer"],
+    "no_response": ["applied", "interview", "rejected"],
+    "offer_declined": ["offer"],
+    "withdrawn": ["drafted", "applied", "interview", "offer"]
+  }
+}
