@@ -11,14 +11,15 @@ chưa áp lên production.
 | Application | `applications` | mutable workflow (P2B thêm đổi status) |
 | Application Document | `application_documents` | **immutable** snapshot |
 
-`source_analysis_id` = `AnalysisResult.id` lúc lưu, **chỉ là provenance** (không FK: history bị purge/xoá, `history.id` khác kiểu trên production). Không đọc lại `history`/`analysis_log` để hiển thị application.
+**P2A không có canonical analysis-record identity.** `AnalysisResult.id` chỉ tồn tại ở client và trong `history` (client ghi, bị purge/giới hạn); `analysis_log` không lưu id này. Vì vậy `source_analysis_id` là **provenance tùy chọn do client khẳng định**: không FK, không xác minh, không dùng cho phân quyền, idempotency hay render. Snapshot là authority lịch sử. P2A không đọc `history`/`analysis_log` ở bất kỳ đâu.
 
 ## Schema
 
-`applications`: `id, user_id → auth.users (cascade), source_analysis_id, company_name?, role_title?, language vi|en, status, created_at, updated_at`.
+`applications`: `id, user_id → auth.users (cascade), idempotency_key, source_analysis_id?, company_name?, role_title?, language vi|en, status, created_at, updated_at`.
 - `status CHECK IN ('drafted')` — dùng status authority của roadmap P2B; `drafted` = mở, **chưa nộp**. Save ≠ Applied. P2B mở rộng CHECK.
-- `UNIQUE (user_id, source_analysis_id)` → save idempotent theo analysis.
+- `UNIQUE (user_id, idempotency_key)` → retry-safe. Không index/unique trên `source_analysis_id`.
 - Index `(user_id, created_at DESC)`.
+- Không có trần số lượng application: không plan/quota canonical nào định nghĩa. Nếu cần chống lạm dụng → quyết định sản phẩm riêng qua plan/quota.
 
 `application_documents`: `id, application_id, user_id, document_type cv|jd|cover_letter, content jsonb, metadata jsonb, created_at`.
 - FK tổ hợp `(application_id, user_id) → applications(id, user_id) ON DELETE CASCADE` → không thể lệch owner.
@@ -37,45 +38,40 @@ chưa áp lên production.
 - Optimized CV (`fullRewrittenCV`) **không** được snapshot: "CV submitted" ở P2A = CV gốc đã parse.
 - Score/requirements: chỉ đóng băng giá trị tại thời điểm lưu (requirement, status, priority, cvEvidence, verification), không copy toàn bộ payload, không tạo scoring thứ hai.
 - `role_title` = `roleTitle` đã verify của Cover Letter, hoặc `jobTitle` của analysis (bỏ literal fallback `'Job Position'`). `company_name` chỉ có khi Cover Letter có `employerName` đã verify; không đoán.
-- Không có Cover Letter → không tạo. Lưu rồi tạo/chỉnh thư sau → snapshot cũ **không đổi**; Save lần nữa trả `created:false` và UI báo "Đã lưu trước đó — giữ nguyên tài liệu tại thời điểm lưu".
+- Không có Cover Letter → không tạo. Lưu rồi tạo/chỉnh thư sau → snapshot cũ **không đổi**, thư mới không tự gắn vào application đã lưu (cần workflow "cập nhật tài liệu" tương lai).
+- Metadata score/requirements là bối cảnh lịch sử mô tả, **không** phải authority hiện tại; không tính lại, không gọi model.
 
 ## Write path
 
 Một RPC: `public.save_application(...)` → `{ id, created }`, gọi trực tiếp từ client (`src/services/applicationService.ts`). Không thêm Vercel function (vẫn 9), không gọi Gemini, không trừ quota.
 
 - `SECURITY DEFINER`, `search_path = ''`, owner = `auth.uid()` (không nhận `user_id` từ client); `REVOKE` anon, `GRANT EXECUTE` authenticated. Lint "SECURITY DEFINER executable by authenticated" là **chấp nhận có chủ đích**: đây là đường ghi duy nhất.
-- Validate: analysis id 1–100 ký tự, `language`, parsedCV là object khác rỗng ≤ 200 KB, JD không rỗng ≤ 50 000 ký tự, analysis có `matchScore` number + `requirements` array ≤ 60 KB, letter ≤ 10 000 ký tự + language hợp lệ. Lỗi → `22023 invalid_application` (UI chỉ hiện thông báo chung).
-- `source_analysis_id` có trong `history` của user khác → `42501 not_allowed`. Không bắt buộc history row tồn tại (history insert của client là fire-and-forget) — vì vậy id là **provenance do client khẳng định, không được xác minh** (không có bản ghi server-side nào giữ analysis id).
-- Đã lưu analysis này → trả `{id, created:false}`, không ghi gì.
-- Trần chống lạm dụng 500 application/user (`42501 application_limit_reached`, advisory lock theo user). Không phải plan limit; P2B quyết định cap theo plan.
+- Validate: `idempotency_key` bắt buộc, `source_analysis_id` null hoặc 1–100 ký tự, `language`, parsedCV là object khác rỗng ≤ 200 KB, JD không rỗng ≤ 50 000 ký tự, analysis có `matchScore` number + `requirements` array ≤ 60 KB, letter ≤ 10 000 ký tự + language hợp lệ. Lỗi → `22023 invalid_application` (UI chỉ hiện thông báo chung).
+- Idempotency: key do client sinh (UUID) cho **một Save intent**, scope `auth.uid() + key`. Cùng key (double click, network/RPC retry, `withAuthRetry`) → cùng application, `created:false`, không ghi gì, snapshot gốc giữ nguyên **kể cả khi payload replay khác**. Gọi song song cùng key: lần hai chờ unique index rồi trả về application của lần một (không lộ lỗi unique). Save intent mới (key mới) từ cùng analysis → application mới: không dedupe theo provenance.
 - Một function plpgsql = một transaction: lỗi bất kỳ (kể cả letter sai sau khi CV/JD hợp lệ) → không còn row nào.
 
-## Trước khi áp production
+## Production schema preflight (read-only, 02/11/2026, `pgchcnmpuknbgyljdlyp`, PG 17.6)
 
-RPC đọc `public.history(analysis_id, user_id)`; production `history` có drift so với migration. Kiểm tra read-only trước:
-
-```sql
-SELECT column_name, data_type FROM information_schema.columns
-WHERE table_schema='public' AND table_name='history' AND column_name IN ('analysis_id','user_id');
--- kỳ vọng: analysis_id text, user_id uuid
-```
+Migration chỉ phụ thuộc: `auth.users(id)`, `auth.uid()`, `auth.role()`, `public.profiles(id uuid, role text, has_permission boolean)`, `public.enforce_account_unlocked()` (SECURITY INVOKER, `search_path=""`), roles `anon/authenticated/service_role`, `gen_random_uuid()`. Tất cả đã xác minh tồn tại trên production; `applications`, `application_documents`, `save_application` chưa tồn tại. Không phụ thuộc `history`/`analysis_log` (đã bỏ). Không có mutation production.
 
 ## Quyền
 
 - `authenticated`: `SELECT, DELETE` trên `applications` (của mình); `SELECT` trên `application_documents` (của mình). Không INSERT/UPDATE trực tiếp.
-- Trigger `application_documents_immutable` chặn UPDATE với **mọi role** (kể cả service_role).
+- Trigger `application_documents_immutable` chặn UPDATE với **mọi role** (kể cả service_role) — invariant DB nghiêm ngặt, có chủ đích. Phục hồi vận hành chỉ qua migration được review, chạy bằng table owner: `ALTER TABLE public.application_documents DISABLE TRIGGER application_documents_immutable; … ENABLE TRIGGER …` (đường này có test).
 - Account lock: trigger `account_unlocked` + policy RESTRICTIVE `account_unlocked_read` như các bảng user khác.
 - Xoá application → documents cascade. Xoá account (`auth.users`) → cả hai cascade. Xoá history → không ảnh hưởng.
 
 ## UI
 
-`Lưu ứng tuyển / Save application` cạnh `Tạo Cover Letter` trên header Result (`SaveApplicationAction`). States: idle → saving (chặn double click bằng ref + disabled) → saved (`Đã lưu ứng tuyển`) / error. Không dùng chữ "nộp". Từ History: unavailable (thiếu JD gốc), cùng lý do như Cover Letter. Chưa có màn Applications (P2B).
+`Lưu ứng tuyển / Save application` cạnh `Tạo Cover Letter` trên header Result (`SaveApplicationAction`). States: idle → saving (chặn double click bằng ref + disabled) → saved (`Đã lưu ứng tuyển`, giữ `applicationId`) / error. Một key cho mỗi result trong session; giữ nguyên khi lỗi (không chắc đã commit hay chưa) nên bấm lại là replay an toàn — nếu lần đầu đã commit, trả application đó với snapshot gốc. Kết quả đã lưu giữ trạng thái khi chuyển qua lại giữa các result. Không dùng chữ "nộp". Từ History: unavailable (thiếu JD gốc), cùng lý do như Cover Letter. Chưa có màn Applications (P2B).
 
 Telemetry: GA `application_saved { created, has_cover_letter }`; Sentry chỉ nhận lỗi, không có nội dung.
 
 ## Tests
 
-- SQL: `supabase/tests/applications.test.sql` (`supabase/tests/local/run.sh "$PWD" /repo/tests/applications.test.sql`) — quyền, owner, spoof, foreign analysis, immutability (owner + service_role), cross-user, idempotency, atomicity/rollback, locked account, history delete, cascade, account delete.
+- SQL: `supabase/tests/applications.test.sql` — quyền, owner, spoof, provenance tùy chọn, RPC không đọc history, immutability (owner + service_role + đường migration), cross-user, replay cùng key (payload khác không đổi snapshot), save intent riêng, rollback khi lỗi ở cv/jd/cover_letter, locked account, history delete, không có cap ẩn (600+ application), cascade, account delete.
+- SQL song song: `supabase/tests/applications_concurrency.test.sql` (dblink, 2 session cùng key → 1 application, 2 documents, snapshot A).
+- Chạy: `supabase/tests/local/run.sh "$PWD" /repo/tests/applications.test.sql /repo/tests/applications_concurrency.test.sql`.
 - Client: `SaveApplicationAction.test.tsx`, `CoverLetterAction.test.tsx` (letter propagation).
 
 ## Future

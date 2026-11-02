@@ -8,14 +8,17 @@
 -- no INSERT/UPDATE on either table, so an application can never exist without
 -- its required snapshots and a snapshot can never be edited. Owners may read
 -- their rows and delete an application (documents cascade).
--- source_analysis_id is provenance only (history rows are purged/deleted and
--- history.id differs on production); snapshots never re-read history.
+-- P2A has no canonical analysis-record identity: source_analysis_id is optional,
+-- client-asserted provenance (no FK, no authorization, no idempotency). The
+-- snapshots themselves are the historical authority; nothing here reads history.
+-- Retries are deduplicated by a client-generated idempotency_key per Save intent.
 BEGIN;
 
 CREATE TABLE public.applications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
-  source_analysis_id text NOT NULL CHECK (char_length(source_analysis_id) BETWEEN 1 AND 100),
+  idempotency_key uuid NOT NULL,
+  source_analysis_id text CHECK (char_length(source_analysis_id) BETWEEN 1 AND 100),
   company_name text CHECK (char_length(company_name) BETWEEN 1 AND 200),
   role_title text CHECK (char_length(role_title) BETWEEN 1 AND 200),
   language text NOT NULL CHECK (language IN ('vi', 'en')),
@@ -23,8 +26,8 @@ CREATE TABLE public.applications (
   status text NOT NULL DEFAULT 'drafted' CHECK (status IN ('drafted')),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  -- One application per analysis: retries / double clicks are idempotent.
-  CONSTRAINT applications_user_analysis_unique UNIQUE (user_id, source_analysis_id),
+  -- One application per Save intent: double clicks / network or RPC retries reuse the key.
+  CONSTRAINT applications_user_idempotency_unique UNIQUE (user_id, idempotency_key),
   -- Target of the composite FK below (keeps documents.user_id consistent).
   CONSTRAINT applications_id_user_unique UNIQUE (id, user_id)
 );
@@ -48,11 +51,15 @@ CREATE TABLE public.application_documents (
 COMMENT ON TABLE public.applications IS
   'P2A candidate application (mutable workflow state). Written only via save_application().';
 COMMENT ON COLUMN public.applications.source_analysis_id IS
-  'AnalysisResult.id the application was saved from. Provenance only, not an FK: history rows may be purged.';
+  'Client-asserted AnalysisResult.id. Provenance only: not verified, not an FK, never used for auth, idempotency or rendering.';
+COMMENT ON COLUMN public.applications.idempotency_key IS
+  'Client-generated per Save intent; (user_id, idempotency_key) makes retries return the same application.';
 COMMENT ON TABLE public.application_documents IS
   'P2A immutable CV/JD/cover-letter snapshots. No UPDATE for anyone; deleted only with the application.';
 
--- Snapshots are evidence: reject UPDATE for every role, service_role included.
+-- Snapshots are evidence: reject UPDATE for every role, service_role included
+-- (strict DB invariant). Operational recovery is a reviewed schema migration run
+-- as the table owner: ALTER TABLE ... DISABLE TRIGGER application_documents_immutable.
 CREATE FUNCTION public.application_documents_immutable()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -94,9 +101,11 @@ GRANT SELECT, DELETE ON public.applications TO authenticated;
 GRANT SELECT ON public.application_documents TO authenticated;
 GRANT ALL ON public.applications, public.application_documents TO service_role;
 
--- Atomic save. Returns {id, created}; created=false means this analysis was
--- already saved and nothing was written (the earlier snapshots stay as they are).
+-- Atomic save. Returns {id, created}; created=false means this idempotency key
+-- was already used: nothing is written and the earlier snapshots stay as they
+-- are, even if the replayed payload differs.
 CREATE FUNCTION public.save_application(
+  p_idempotency_key uuid,
   p_source_analysis_id text,
   p_language text,
   p_role_title text,
@@ -124,7 +133,8 @@ BEGIN
     RAISE EXCEPTION 'not_authenticated' USING ERRCODE = '42501';
   END IF;
 
-  IF p_source_analysis_id IS NULL OR char_length(p_source_analysis_id) NOT BETWEEN 1 AND 100
+  IF p_idempotency_key IS NULL
+     OR char_length(p_source_analysis_id) NOT BETWEEN 1 AND 100
      OR p_language IS NULL OR p_language NOT IN ('vi', 'en')
      OR char_length(v_role) > 200 OR char_length(v_company) > 200
      OR p_cv_parsed IS NULL OR jsonb_typeof(p_cv_parsed) <> 'object' OR p_cv_parsed = '{}'::jsonb
@@ -139,37 +149,15 @@ BEGIN
     RAISE EXCEPTION 'invalid_application' USING ERRCODE = '22023';
   END IF;
 
-  -- The id may not belong to another user's analysis. Not required to exist:
-  -- the client's history insert is fire-and-forget and may not have landed.
-  IF EXISTS (
-    SELECT 1 FROM public.history AS h
-    WHERE h.analysis_id = p_source_analysis_id AND h.user_id <> v_uid
-  ) THEN
-    RAISE EXCEPTION 'not_allowed' USING ERRCODE = '42501';
-  END IF;
-
-  SELECT a.id INTO v_id FROM public.applications AS a
-  WHERE a.user_id = v_uid AND a.source_analysis_id = p_source_analysis_id;
-  IF v_id IS NOT NULL THEN
-    RETURN jsonb_build_object('id', v_id, 'created', false);
-  END IF;
-
-  -- source_analysis_id is client-asserted, so bound what one account can store
-  -- (~750 KB max per application). Abuse ceiling, not a plan limit: equals the
-  -- paid history retention (500). Lock so concurrent saves cannot overshoot.
-  PERFORM pg_advisory_xact_lock(hashtextextended('applications:' || v_uid::text, 0));
-  IF (SELECT count(*) FROM public.applications AS a WHERE a.user_id = v_uid) >= 500 THEN
-    RAISE EXCEPTION 'application_limit_reached' USING ERRCODE = '42501';
-  END IF;
-
-  INSERT INTO public.applications (user_id, source_analysis_id, company_name, role_title, language)
-  VALUES (v_uid, p_source_analysis_id, v_company, v_role, p_language)
-  ON CONFLICT ON CONSTRAINT applications_user_analysis_unique DO NOTHING
+  -- A concurrent call with the same key waits on the unique index, then lands here.
+  INSERT INTO public.applications (user_id, idempotency_key, source_analysis_id, company_name, role_title, language)
+  VALUES (v_uid, p_idempotency_key, p_source_analysis_id, v_company, v_role, p_language)
+  ON CONFLICT ON CONSTRAINT applications_user_idempotency_unique DO NOTHING
   RETURNING id INTO v_id;
 
   IF v_id IS NULL THEN
     SELECT a.id INTO v_id FROM public.applications AS a
-    WHERE a.user_id = v_uid AND a.source_analysis_id = p_source_analysis_id;
+    WHERE a.user_id = v_uid AND a.idempotency_key = p_idempotency_key;
     RETURN jsonb_build_object('id', v_id, 'created', false);
   END IF;
 
@@ -190,7 +178,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.save_application(text, text, text, text, jsonb, text, text, jsonb, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.save_application(text, text, text, text, jsonb, text, text, jsonb, text, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.save_application(uuid, text, text, text, text, jsonb, text, text, jsonb, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.save_application(uuid, text, text, text, text, jsonb, text, text, jsonb, text, text) TO authenticated;
 
 COMMIT;

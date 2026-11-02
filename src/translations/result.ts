@@ -524,10 +524,6 @@ export const result = {
     vi: "Đã lưu ứng tuyển",
     en: "Application saved",
   },
-  saveApplicationAlreadySaved: {
-    vi: "Đã lưu trước đó — giữ nguyên tài liệu tại thời điểm lưu.",
-    en: "Already saved — the materials from that save are kept.",
-  },
   saveApplicationError: {
     vi: "Không lưu được ứng tuyển. Vui lòng thử lại.",
     en: "Could not save the application. Please try again.",

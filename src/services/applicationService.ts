@@ -10,6 +10,8 @@ export interface CurrentCoverLetter {
 }
 
 export interface SaveApplicationInput {
+  /** One per Save intent; retries of that intent must reuse it. */
+  idempotencyKey: string;
   result: AnalysisResult;
   parsedCV: ParsedCV;
   jd: string;
@@ -29,15 +31,17 @@ export function requirementSnapshotOf(result: AnalysisResult) {
 
 /**
  * P2A: one atomic RPC creates the application and its immutable CV/JD(/letter)
- * snapshots. Idempotent per analysis: `created: false` means it was already
+ * snapshots. Idempotent per key: `created: false` means this intent was already
  * saved and the earlier snapshots were kept unchanged. No AI call, no quota.
+ * `result.id` is sent as provenance only (not verified, not identity).
  */
-export async function saveApplication({ result, parsedCV, jd, coverLetter }: SaveApplicationInput): Promise<{ id: string; created: boolean }> {
+export async function saveApplication({ idempotencyKey, result, parsedCV, jd, coverLetter }: SaveApplicationInput): Promise<{ id: string; created: boolean }> {
   // analyze falls back to this literal when the model returns no title.
   const role = coverLetter?.roleTitle || (result.jobTitle !== 'Job Position' ? result.jobTitle : '');
   const { data, error } = await withAuthRetry(() =>
     supabase.rpc('save_application', {
-      p_source_analysis_id: result.id,
+      p_idempotency_key: idempotencyKey,
+      p_source_analysis_id: result.id || null,
       p_language: result.presentationLanguage || result.language || 'vi',
       p_role_title: role?.slice(0, 200) || null,
       p_company_name: coverLetter?.employerName.slice(0, 200) || null,

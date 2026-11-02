@@ -10,54 +10,63 @@ import type { AnalysisResult } from '../../../services/ai';
 type State =
   | { kind: 'idle' }
   | { kind: 'saving' }
-  | { kind: 'saved'; created: boolean }
+  | { kind: 'saved'; applicationId: string }
   | { kind: 'error' };
 
 /**
  * P2A "Save application": snapshots the CV/JD (and the letter currently shown,
  * if any) of a session result. History rows lack the full JD, so Save is
  * unavailable there instead of reconstructing a document.
+ *
+ * Idempotency: one key per Save intent (per result, this session). Double
+ * clicks and retries after an error reuse it, so if a failed-looking request
+ * actually committed, the retry returns that application (created:false) with
+ * its original snapshots. A saved result stays saved; a letter generated later
+ * is not attached to it.
  */
 export function SaveApplicationAction({ selectedResult, coverLetter }: { selectedResult: AnalysisResult; coverLetter: CurrentCoverLetter | null }) {
   const { t } = useUI();
   const { getAnalysisJd, parsedCVGeneratingIds } = useAnalysis();
-  const [state, setState] = React.useState<State>({ kind: 'idle' });
-  const inFlight = React.useRef(false);
+  const [states, setStates] = React.useState<Record<string, State>>({});
+  const keys = React.useRef(new Map<string, string>());
+  // Ref, not state: two clicks in one tick both see the old state.
+  const inFlight = React.useRef(new Set<string>());
 
-  const jd = getAnalysisJd(selectedResult.id);
+  const resultId = selectedResult.id;
+  const state = states[resultId] ?? { kind: 'idle' };
+  const jd = getAnalysisJd(resultId);
   const parsedCV = selectedResult.parsedCV;
   const disabledReason = !jd
     ? t.coverLetterUnavailableHistory
     : !parsedCV
-      ? parsedCVGeneratingIds.has(selectedResult.id) ? t.coverLetterWaitingParsedCv : t.saveApplicationNoParsedCv
+      ? parsedCVGeneratingIds.has(resultId) ? t.coverLetterWaitingParsedCv : t.saveApplicationNoParsedCv
       : null;
 
-  const currentId = React.useRef(selectedResult.id);
-  currentId.current = selectedResult.id;
-  React.useEffect(() => setState({ kind: 'idle' }), [selectedResult.id]);
-
   const save = async () => {
-    // Ref, not state: two clicks in one tick both see the old state.
-    if (!jd || !parsedCV || inFlight.current) return;
-    inFlight.current = true;
-    const resultId = selectedResult.id;
-    setState({ kind: 'saving' });
+    if (!jd || !parsedCV || inFlight.current.has(resultId) || state.kind === 'saved') return;
+    inFlight.current.add(resultId);
+    let idempotencyKey = keys.current.get(resultId);
+    if (!idempotencyKey) {
+      idempotencyKey = crypto.randomUUID();
+      keys.current.set(resultId, idempotencyKey);
+    }
+    const set = (next: State) => setStates((prev) => ({ ...prev, [resultId]: next }));
+    set({ kind: 'saving' });
     try {
-      const { created } = await saveApplication({ result: selectedResult, parsedCV, jd, coverLetter });
+      const { id, created } = await saveApplication({ idempotencyKey, result: selectedResult, parsedCV, jd, coverLetter });
       trackEvent('application_saved', { created, has_cover_letter: !!coverLetter });
-      if (resultId === currentId.current) setState({ kind: 'saved', created });
+      set({ kind: 'saved', applicationId: id });
     } catch (err) {
       // No content in logs: snapshots carry CV/JD/letter text.
       captureException(err, { tags: { feature: 'save_application' } });
-      if (resultId === currentId.current) setState({ kind: 'error' });
+      set({ kind: 'error' });
     } finally {
-      inFlight.current = false;
+      inFlight.current.delete(resultId);
     }
   };
 
   const saved = state.kind === 'saved';
-  const note = disabledReason
-    ?? (state.kind === 'error' ? t.saveApplicationError : saved && !state.created ? t.saveApplicationAlreadySaved : null);
+  const note = disabledReason ?? (state.kind === 'error' ? t.saveApplicationError : null);
 
   return (
     <div className="flex flex-col items-end gap-1">

@@ -613,7 +613,6 @@ export interface UiLabels {
   saveApplicationHint: string;
   saveApplicationSaving: string;
   saveApplicationSaved: string;
-  saveApplicationAlreadySaved: string;
   saveApplicationError: string;
   saveApplicationNoParsedCv: string;
   reviewAction: string;

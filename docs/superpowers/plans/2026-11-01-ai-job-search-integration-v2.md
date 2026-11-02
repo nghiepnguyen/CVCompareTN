@@ -325,7 +325,7 @@ Known debt còn lại:
 **Trạng thái (02/11/2026):** LOCAL IMPLEMENTATION — chưa push, migration
 `20261103000000_applications_snapshots.sql` chưa áp production. Authority:
 `docs/15_applications.md`. RPC `save_application` (SECURITY DEFINER, atomic,
-idempotent theo analysis), snapshot CV (`parsedCV`) + JD + Cover Letter tùy
+idempotency key theo Save intent; analysis id chỉ là provenance, không đọc history), snapshot CV (`parsedCV`) + JD + Cover Letter tùy
 chọn, status `drafted`, không thêm function (9), 0 AI call. Chưa làm: R2 copy
 file gốc (không cần cho MVP), snapshot Optimized CV, `application_events` (P2B).
 
