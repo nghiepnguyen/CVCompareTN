@@ -221,6 +221,23 @@ const NON_CONCEPT_ACRONYMS = new Set([
   'APAC', 'EMEA', 'USA', 'HCM', 'CEO', 'CTO', 'CFO', 'COO', 'EEO', 'FAQ', 'ASAP', 'JD', 'CV', 'NB',
 ]);
 
+// Upper-case JD structure, not domain concepts: heading and function words a
+// JD writes in capitals ("MUST HAVE:", "NICE TO HAVE", "SKILLS:", "ABOUT
+// YOU", "NOTE TO THE …", VI "KINH NGHIỆM:"). Matching downstream is
+// case-insensitive, so as "acronyms" they flagged every "have"/"the". Only
+// 3–6 letter words can reach the acronym pattern; longer headings
+// (REQUIREMENTS) never could. Domain words (API, SQL, REST) are not here.
+const STRUCTURAL_JD_WORDS = new Set([
+  'must', 'have', 'nice', 'the', 'and', 'for', 'you', 'your', 'our', 'are', 'will', 'can', 'with', 'not',
+  'what', 'who', 'why', 'how', 'about', 'note', 'plus', 'bonus', 'job', 'role', 'team', 'skills', 'key',
+  'main', 'apply', 'join', 'perks', 'offer', 'duties', 'tasks', 'goals', 'salary', 'work', 'kinh',
+]);
+const isStructuralJdWord = (w: string) => STRUCTURAL_JD_WORDS.has(w.toLowerCase());
+// List labels whose all-caps value part is still read ("MUST HAVE: AWS, SQL").
+// Other all-caps lines stay headings in full ("LOCATION: HO CHI MINH CITY").
+const JD_LIST_LABEL = /^(?:must[\s-]+have|nice[\s-]+to[\s-]+have|required|preferred|requirements|qualifications|(?:key\s+)?skills|tech\s+stack|technologies|tools|bonus|plus|yêu\s+cầu|ưu\s+tiên|kỹ\s+năng|bắt\s+buộc|kinh\s+nghiệm|công\s+nghệ)$/iu;
+const ACRONYM = /(?<![\p{L}\p{N}])[A-Z][A-Z0-9]{1,5}(?![\p{L}\p{N}])/gu;
+
 export function rawJdConcepts(jd: string, cvText: string): DeniedConcept[] {
   const cv = canonicalText(cvText);
   const out = new Map<string, DeniedConcept>();
@@ -229,23 +246,33 @@ export function rawJdConcepts(jd: string, cvText: string): DeniedConcept[] {
     const key = normalizeText(term).trim();
     if (key && !out.has(key)) out.set(key, { concept: term, source: 'raw-jd' });
   };
+  const acronyms = (text: string, skipGeneric: boolean) => {
+    // Letter-aware boundaries: "NGHI" in "NGHIỆM" is not a token.
+    for (const m of text.matchAll(ACRONYM)) {
+      const term = m[0];
+      if (NON_CONCEPT_ACRONYMS.has(term) || isStructuralJdWord(term)) continue;
+      if (skipGeneric && (isGeneric(term) || isStop(term))) continue;
+      if (term.length < 3 && !/\d/.test(term)) continue; // AI, BI, UX… too ambiguous
+      add(term);
+    }
+  };
   for (const line of jd.split(/\n/)) {
-    // All-caps lines are headings ("REQUIREMENTS"), not content.
+    // All-caps lines are headings ("REQUIREMENTS"), not content — except the
+    // value of a list label, where capitals are ordinary words or acronyms.
     const letters = line.replace(/[^\p{L}]/gu, '');
-    if (letters.length > 3 && letters === letters.toUpperCase()) continue;
+    if (letters.length > 3 && letters === letters.toUpperCase()) {
+      const list = line.match(/^\W*([^:—–]+?)\s*[:—–]\s*(.+)$/u);
+      if (list && JD_LIST_LABEL.test(list[1].trim())) acronyms(list[2], true);
+      continue;
+    }
     for (const m of line.matchAll(/\p{L}+(?:-\p{L}+)+/gu)) {
       const term = m[0];
       const parts = term.toLowerCase().split('-');
       if (STYLE_HYPHENATED.has(term.toLowerCase())) continue;
-      if (parts.every((p) => isGeneric(p) || isStop(p))) continue;
+      if (parts.every((p) => isGeneric(p) || isStop(p) || isStructuralJdWord(p))) continue;
       add(term);
     }
-    for (const m of line.matchAll(/\b[A-Z][A-Z0-9]{1,5}\b/g)) {
-      const term = m[0];
-      if (NON_CONCEPT_ACRONYMS.has(term)) continue;
-      if (term.length < 3 && !/\d/.test(term)) continue; // AI, BI, UX… too ambiguous
-      add(term);
-    }
+    acronyms(line, false);
     // Mixed-case identifiers: take each word, then test for a lower→upper
     // transition. A single pattern with overlapping quantifiers backtracks
     // polynomially on long JD input (CodeQL js/polynomial-redos).
