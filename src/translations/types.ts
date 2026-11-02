@@ -5,7 +5,10 @@ export type FaqItem = {
   a: string;
 };
 
-export interface UiLabels {
+/** P2B tracker keys, derived from the section so the two cannot drift. */
+type ApplicationsLabels = { [K in keyof typeof import('./applications').applications]: string };
+
+export interface UiLabels extends ApplicationsLabels {
   // admin
   admin: string;
   adminColActions: string;

@@ -1,9 +1,9 @@
 # Kế hoạch tích hợp ý tưởng từ ai-job-search vào cvFit
 
 -   Ngày lập ban đầu: 24/10/2026.
--   Cập nhật: 02/11/2026.
+-   Cập nhật: 03/11/2026.
 -   Trạng thái: P0, P1A, P1B (+ P1B.1), P1C, P2A DEPLOYED / PRODUCTION
-    VERIFIED; tiếp theo P2B. Triển khai theo từng stage, không port nguyên stack
+    VERIFIED; P2B IMPLEMENTED LOCALLY / READY FOR REVIEW (chưa deploy). Triển khai theo từng stage, không port nguyên stack
     upstream.
 -   Repo tham khảo: https://github.com/ai-job-search-dev/ai-job-search
     (nhánh `master`).
@@ -406,6 +406,34 @@ Analyze trả về. Cần theo dõi vì độ lệch lớn hơn rõ so với spr
 
 **Mức tác động:** Backend/DB/UI cao.\
 **Đây là stage làm thay đổi IA rõ nhất.**
+
+**Trạng thái (03/11/2026):** IMPLEMENTED LOCALLY / READY FOR REVIEW. Branch
+`feat/p2b-application-tracker` (base `9d57fa7`); migration
+`20261104000000_application_tracker.sql` **chưa** áp production; chưa
+push/PR/deploy. Authority: `docs/15_applications.md` (mục P2B). Tóm tắt:
+`application_events` append-only (created / status_changed / note /
+details_updated), 3 RPC SECURITY DEFINER (transition có CAS
+`expected_status`, note, details) + `save_application` ghi `created` event
+trong cùng transaction, backfill created event cho application P2A, matrix
+transition một nguồn (`supabase/application_status_transitions.json`, SQL test
+81 cặp), final status sửa được bằng event mới (UI xác nhận), idempotency key
+theo intent, tab Applications (list `.range()` + detail Overview / Documents /
+Timeline), 0 AI call, 9 function.
+
+Chênh lệch so với yêu cầu roadmap (có chủ đích):
+
+-   **Tạo tay: DEFERRED** — exit criterion "tạo từ result hoặc nhập tay" mới
+    đạt phần "từ result"; không nới snapshot CV/JD bắt buộc.
+-   **Next action/follow-up indicator: DEFERRED → P2C.**
+-   **Last contact** → hiển thị "Last activity" (`updated_at`, bump bởi mọi
+    mutation P2B); event contact thuộc P2C.
+-   Events `interview/offer/rejected/withdrawn/submitted` = `status_changed`
+    với `to_status` tương ứng (không tạo event type riêng); `follow-up` → P2C.
+-   `no_response` chỉ chọn thủ công; không sweep tự động.
+-   P2B.1 (pre-PR hardening, local): `applied_at` = "Nộp lần đầu / First
+    applied" (lịch sử, không đổi khi sửa status); sửa thông tin có optimistic
+    concurrency (`expected_updated_at` → `stale_application`, replay thắng
+    CAS); timeline phân trang 50/trang. Detail chưa có deep link (debt chấp nhận).
 
 ### Score policy (P2A.2)
 
@@ -839,7 +867,7 @@ P1C  rawJdConcepts structural fix         ✅ deployed (PR #66)
  ↓
 P2A  Save Application + Snapshot          ✅ deployed (PR #67)
  ↓
-P2B  Application Tracker                  ← tiếp theo
+P2B  Application Tracker                  ⏳ local, chờ review
  ↓
 P2C  Follow-up
  ↓

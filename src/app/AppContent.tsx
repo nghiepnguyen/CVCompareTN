@@ -31,6 +31,9 @@ const AdminView = React.lazy(() =>
 const HistoryView = React.lazy(() =>
   import('../components/views/HistoryView').then((m) => ({ default: m.HistoryView }))
 );
+const ApplicationsView = React.lazy(() =>
+  import('../components/views/ApplicationsView').then((m) => ({ default: m.ApplicationsView }))
+);
 const NoPermissionView = React.lazy(() =>
   import('../components/views/NoPermissionView').then((m) => ({ default: m.NoPermissionView }))
 );
@@ -310,6 +313,8 @@ export function AppContent() {
               <DashboardView />
             ) : activeTab === 'history' ? (
               <HistoryView />
+            ) : activeTab === 'applications' ? (
+              <ApplicationsView />
             ) : activeTab === 'profile' ? (
               <ProfileView />
             ) : activeTab === 'recruiter' ? (
@@ -333,6 +338,7 @@ export function AppContent() {
             labels={{
               analyze: t.analyze || 'Phân tích',
               history: t.history || 'Lịch sử',
+              applications: t.trackerTab,
               mobileJdStore: t.mobileJdStore,
               admin: t.admin,
               recruiter: t.recruiterTab,
