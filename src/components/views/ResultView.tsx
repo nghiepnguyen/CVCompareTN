@@ -16,6 +16,8 @@ import { OptimizationTab } from './result/OptimizationTab';
 import { ParsedCVTab } from './result/ParsedCVTab';
 import { FullCVTab } from './result/FullCVTab';
 import { CoverLetterAction } from './result/CoverLetterAction';
+import { SaveApplicationAction } from './result/SaveApplicationAction';
+import type { CurrentCoverLetter } from '../../services/applicationService';
 import { RatingSection } from './result/RatingSection';
 import { VN_TIME_ZONE } from '../../lib/vnTime';
 
@@ -30,6 +32,8 @@ export function ResultView() {
   } = useAnalysis();
 
   const topAnchorRef = React.useRef<HTMLDivElement>(null);
+  // Letter shown in the Cover Letter dialog; Save application snapshots it.
+  const [coverLetter, setCoverLetter] = React.useState<CurrentCoverLetter | null>(null);
 
   // Optimized Scroll to Top of Content on Tab Change
   React.useEffect(() => {
@@ -92,8 +96,9 @@ export function ResultView() {
                   {results.length > 1 ? t.backToList : t.back}
                 </button>
                 
-                <div className="flex items-center gap-4">
-                  <CoverLetterAction selectedResult={selectedResult} />
+                <div className="flex flex-wrap items-center justify-end gap-4">
+                  <CoverLetterAction selectedResult={selectedResult} onLetterChange={setCoverLetter} />
+                  <SaveApplicationAction selectedResult={selectedResult} coverLetter={coverLetter} />
                   <div className="text-right hidden sm:block">
                     <div className="text-[10px] font-black text-text-light uppercase tracking-widest mb-1">{t.analysisTime}</div>
                     <div className="text-sm font-bold text-text-main">

@@ -14,11 +14,12 @@ import {
   type ApplicationReviewResponse,
 } from '../../../services/ai';
 import { ApplicationReviewPanel } from './ApplicationReviewPanel';
+import type { CurrentCoverLetter } from '../../../services/applicationService';
 
 type State =
   | { kind: 'idle' }
   | { kind: 'generating' }
-  | { kind: 'success'; content: string; employerName: string; roleTitle: string }
+  | { kind: 'success'; content: string; language: 'vi' | 'en'; employerName: string; roleTitle: string }
   | { kind: 'error'; message: string };
 
 type Review =
@@ -62,7 +63,14 @@ function requirementsOf(result: AnalysisResult) {
  * dialog (the letter exists nowhere else), and "use revised" replaces it in
  * memory only.
  */
-export function CoverLetterAction({ selectedResult }: { selectedResult: AnalysisResult }) {
+export function CoverLetterAction({
+  selectedResult,
+  onLetterChange,
+}: {
+  selectedResult: AnalysisResult;
+  /** P2A: the letter currently shown (null when none), for Save application. */
+  onLetterChange?: (letter: CurrentCoverLetter | null) => void;
+}) {
   const { t, reportLanguage } = useUI();
   const { getAnalysisJd, parsedCVGeneratingIds } = useAnalysis();
   const [open, setOpen] = React.useState(false);
@@ -90,6 +98,12 @@ export function CoverLetterAction({ selectedResult }: { selectedResult: Analysis
     setLanguage(selectedResult.language ?? reportLanguage);
   }, [selectedResult.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  React.useEffect(() => {
+    onLetterChange?.(state.kind === 'success'
+      ? { content: state.content, language: state.language, employerName: state.employerName, roleTitle: state.roleTitle }
+      : null);
+  }, [state, onLetterChange]);
+
   const close = () => {
     if (state.kind !== 'generating' && review.kind !== 'reviewing') setOpen(false);
   };
@@ -107,7 +121,7 @@ export function CoverLetterAction({ selectedResult }: { selectedResult: Analysis
       if (request !== requestRef.current) return;
       setState(res.fidelityFallback || !res.content
         ? { kind: 'error', message: t.coverLetterFallback }
-        : { kind: 'success', content: res.content, employerName: res.employerName, roleTitle: res.roleTitle });
+        : { kind: 'success', content: res.content, language, employerName: res.employerName, roleTitle: res.roleTitle });
     } catch (err) {
       if (request !== requestRef.current) return;
       setState({ kind: 'error', message: errorMessage(err, t) });

@@ -609,6 +609,12 @@ export interface UiLabels {
   coverLetterUnavailableHistory: string;
   coverLetterWaitingParsedCv: string;
   coverLetterNoParsedCv: string;
+  saveApplication: string;
+  saveApplicationHint: string;
+  saveApplicationSaving: string;
+  saveApplicationSaved: string;
+  saveApplicationError: string;
+  saveApplicationNoParsedCv: string;
   reviewAction: string;
   reviewIntro: string;
   reviewChecking: string;

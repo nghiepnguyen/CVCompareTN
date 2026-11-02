@@ -134,4 +134,22 @@ describe('CoverLetterAction', () => {
     expect((screen.getByRole('button', { name: UI_LABELS.vi.coverLetterCreate }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(UI_LABELS.vi.coverLetterWaitingParsedCv)).toBeTruthy();
   });
+
+  it('reports the letter currently shown for Save application (P2A)', async () => {
+    const onLetterChange = vi.fn();
+    fetchMock.mockResolvedValueOnce(ok({ content: 'Thư A.', language: 'en', employerName: 'Globex', roleTitle: 'Frontend Engineer' }));
+    render(<CoverLetterAction selectedResult={result} onLetterChange={onLetterChange} />);
+    expect(onLetterChange).toHaveBeenLastCalledWith(null);
+    openDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'en' }));
+    fireEvent.click(screen.getByRole('button', { name: /Tạo thư/ }));
+    await waitFor(() => expect(onLetterChange).toHaveBeenLastCalledWith({ content: 'Thư A.', language: 'en', employerName: 'Globex', roleTitle: 'Frontend Engineer' }));
+    // Toggling language after generation does not relabel the existing letter.
+    fireEvent.click(screen.getByRole('button', { name: 'vi' }));
+    expect(onLetterChange).toHaveBeenLastCalledWith(expect.objectContaining({ language: 'en' }));
+    // Failed regenerate: no letter is shown any more, so none is saved.
+    fetchMock.mockResolvedValueOnce(fail(500));
+    fireEvent.click(screen.getByRole('button', { name: UI_LABELS.vi.coverLetterRegenerate }));
+    await waitFor(() => expect(onLetterChange).toHaveBeenLastCalledWith(null));
+  });
 });
