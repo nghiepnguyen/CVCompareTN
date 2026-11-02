@@ -126,6 +126,45 @@ Kết quả cuối (2026-11-01): 50 run, 48 ship, 2 fallback (đều là chặn 
 - Audit `PUFFERY` của benchmark trùng phần lớn với `STRENGTH_CLAIMS` nên
   `shippedPuffery: 0` không phải bằng chứng độc lập; đọc tay mới là audit thật.
 - Không có persistence/edit/version (P2A).
-- `rawJdConcepts` đọc dòng JD viết hoa một phần ("MUST HAVE: React") như
-  acronym (`MUST`, `HAVE`), nên thư chứa từ thường đó bị chặn → fallback. Phát
-  hiện khi benchmark P1B; xem [14_application_review.md](./14_application_review.md).
+- ~~`rawJdConcepts` partial-caps false positive~~ — đã sửa ở P1C (mục dưới).
+
+## Raw-JD concepts (P1C)
+
+`rawJdConcepts` là guard dùng chung: P1A (`validateCoverLetter`), precheck
+P1B, Full CV (`validateFullRewrite`) và drop suggestion của analyze. So khớp
+phía sau không phân biệt hoa thường (`canonicalText`), nên một "acronym" như
+`HAVE` chặn mọi chữ "have".
+
+Trước P1C: regex acronym `\b[A-Z][A-Z0-9]{1,5}\b` lấy cả từ heading viết hoa
+trong dòng *viết hoa một phần* ("MUST HAVE: React" → `MUST`, `HAVE`; "NOTE TO
+THE …"; "SKILLS:"; VI "KINH NGHIỆM:" → `KINH`), và `\b` chỉ hiểu ASCII nên
+cắt mảnh từ tiếng Việt ("NGHI" từ "NGHIỆM"). Dòng viết hoa *toàn bộ* bị bỏ
+qua hẳn, nên "MUST HAVE: AWS" không bảo vệ gì.
+
+Sau P1C:
+
+- `STRUCTURAL_JD_WORDS` — danh sách nhỏ từ heading/chức năng 3–6 chữ (must,
+  have, nice, the, you, skills, about, note, bonus, kinh…) không bao giờ là
+  acronym, cũng không làm một compound gạch nối thành concept ("MUST-HAVE").
+  Không có từ domain (API, SQL, REST); heading dài (REQUIREMENTS) vốn không
+  khớp pattern.
+- Biên token theo Unicode (`(?<![\p{L}\p{N}])…(?![\p{L}\p{N}])`).
+- Dòng viết hoa toàn bộ vẫn là heading, **trừ** phần giá trị sau một nhãn
+  liệt kê đã biết (`JD_LIST_LABEL`: MUST HAVE, NICE TO HAVE, REQUIRED,
+  PREFERRED, SKILLS, TECH STACK, YÊU CẦU, ƯU TIÊN, KỸ NĂNG, KINH NGHIỆM…): ở đó
+  acronym được đọc, bỏ từ generic/stop ("MUST HAVE: 3 YEARS OF AWS" → `AWS`).
+  Dòng viết hoa khác (chức danh, "LOCATION: HO CHI MINH CITY") vẫn bỏ qua.
+- Không đổi: hyphen/mixed-case rule, numeric guard, Skills policy, metric.
+- Giới hạn còn lại: acronym 2 ký tự (CI/CD, AI, BI) và "Node.js"/"C++" chưa
+  bao giờ là concept; "IGNORE" trong heading độc hại vẫn thành concept (chỉ
+  chặn chữ "ignore", vô hại).
+
+Benchmark P1A (5 fixture P1C × 5, cùng fixture chạy trên `origin/main` để so
+sánh): trước 15/25 fallback, 35 violation trên từ heading (`HAVE` 20, `KINH`
+10, `YOU` 5); sau 1/25 fallback (strength-claim "led", chặn đúng), 0 violation
+heading, 0 claim cấm lọt, 0 lỗi ngôn ngữ. Full CV (`benchmark-full-cv-structural`,
+5 fixture × 5, gồm CV tiếng Việt): trước và sau đều 0 violation heading, 0
+fallback, 0 rò rỉ — CV viết lại hiếm dùng "have"/"you" và CV tiếng Việt tự
+chứa "kinh nghiệm" (CV evidence wins). Model không viết concept chỉ có trong JD
+ở run nào, nên phần "vẫn bắt AWS/Kubernetes" được chứng minh bằng unit test
+(`rawJdStructural.test.ts`).
