@@ -2,8 +2,8 @@
 
 -   Ngày lập ban đầu: 24/10/2026.
 -   Cập nhật: 02/11/2026.
--   Trạng thái: P0, P1A, P1B (+ P1B.1) DEPLOYED / PRODUCTION VERIFIED;
-    tiếp theo P2A. Triển khai theo từng stage, không port nguyên stack
+-   Trạng thái: P0, P1A, P1B (+ P1B.1), P1C, P2A DEPLOYED / PRODUCTION
+    VERIFIED; tiếp theo P2B. Triển khai theo từng stage, không port nguyên stack
     upstream.
 -   Repo tham khảo: https://github.com/ai-job-search-dev/ai-job-search
     (nhánh `master`).
@@ -322,9 +322,11 @@ Known debt còn lại:
 **Mức tác động:** Backend/DB trung bình--cao, UI trung bình.\
 **Đây là bridge giữa analyzer và tracker.**
 
-**Trạng thái (02/11/2026):** PR REVIEW — chưa merge/deploy, migration
-`20261103000000_applications_snapshots.sql` chưa áp production. Authority:
-`docs/15_applications.md`. RPC `save_application` (SECURITY DEFINER, atomic,
+**Trạng thái (02/11/2026):** DEPLOYED / PRODUCTION VERIFIED ✅. PR
+[#67](https://github.com/nghiepnguyen/CVCompareTN/pull/67) squash merge
+`171e8a8` (production `171e8a8`); migration
+`20261103000000_applications_snapshots.sql` áp trước khi deploy app;
+production smoke case 1–8 PASS. Authority: `docs/15_applications.md`. RPC `save_application` (SECURITY DEFINER, atomic,
 idempotency key theo Save intent; analysis id chỉ là provenance, không đọc history), snapshot CV (`parsedCV`) + JD + Cover Letter tùy
 chọn, status `drafted`, không thêm function (9), 0 AI call. Chưa làm: R2 copy
 file gốc (không cần cho MVP), snapshot Optimized CV, `application_events` (P2B).
@@ -387,6 +389,16 @@ Có thể tạo application ở trạng thái `drafted`.
 -   Snapshot tồn tại độc lập với history.
 -   Xóa history không phá application.
 -   Xóa account không để orphaned files.
+
+------------------------------------------------------------------------
+
+### Quan sát ngoài phạm vi P2A — Analyze variance (ứng viên điều tra)
+
+Trong production smoke P2A, cùng một CV + JD tổng hợp cho `matchScore` 88 và
+72 ở hai lần analyze (lệch 16 điểm). Không do P2A gây ra: Save chỉ lưu điểm
+Analyze trả về. Cần theo dõi vì độ lệch lớn hơn rõ so với spread benchmark P0
+(median Δ 0, max 3). Hành động: điều tra riêng trước khi đổi scoring/prompt.
+Đây là quan sát, chưa có root cause.
 
 ------------------------------------------------------------------------
 
@@ -809,9 +821,11 @@ P1A  Cover Letter                         ✅ deployed (PR #61)
  ↓
 P1B  Optional Application Review          ✅ deployed (PR #63, #64)
  ↓
-P2A  Save Application + Snapshot
+P1C  rawJdConcepts structural fix         ✅ deployed (PR #66)
  ↓
-P2B  Application Tracker
+P2A  Save Application + Snapshot          ✅ deployed (PR #67)
+ ↓
+P2B  Application Tracker                  ← tiếp theo
  ↓
 P2C  Follow-up
  ↓

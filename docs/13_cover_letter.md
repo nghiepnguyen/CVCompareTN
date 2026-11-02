@@ -42,7 +42,8 @@ Request: `{ action: 'cover_letter', jd: string, parsedCV: ParsedCV, language: 'v
   legacy là dữ liệu từ JD).
 - **JD = JD của session** mà result được phân tích (`getAnalysisJd`). History
   chỉ lưu `jdTitle` (cắt 100 ký tự) nên result mở từ History bị disable nút
-  (P2A snapshot sẽ giải quyết).
+  (P2A không đổi điều này: snapshot JD chỉ có cho application đã lưu, xem
+  `docs/15_applications.md`).
 - `stripInvisibleControls` áp cho JD và CV serialize trước model.
 
 ## Prompt & trust boundary
@@ -125,7 +126,8 @@ Kết quả cuối (2026-11-01): 50 run, 48 ship, 2 fallback (đều là chặn 
   IELTS 6.5, "thành thạo Canva" khi CV chỉ liệt kê tool).
 - Audit `PUFFERY` của benchmark trùng phần lớn với `STRENGTH_CLAIMS` nên
   `shippedPuffery: 0` không phải bằng chứng độc lập; đọc tay mới là audit thật.
-- Không có persistence/edit/version (P2A).
+- Không có edit/version. Lưu thư: chỉ qua snapshot bất biến khi Save
+  Application (P2A, `docs/15_applications.md`).
 - ~~`rawJdConcepts` partial-caps false positive~~ — đã sửa ở P1C (mục dưới).
 
 ## Raw-JD concepts (P1C)
