@@ -166,7 +166,8 @@ Trạng thái: **DEPLOYED / PRODUCTION VERIFIED** (03/11/2026). PR
 | Dry-run `supabase db push --linked --dry-run` | đúng 1 migration: `20261104000000_application_tracker.sql` |
 | Áp migration | `supabase db push --linked`, 2026-11-02T23:34:53Z (UTC) |
 | Verify DB (read-only) | PASS: status CHECK 9 giá trị; `deadline date`, `applied_at timestamptz`; constraints/index/RLS/policy RESTRICTIVE/trigger immutable + account lock trên `application_events`; 3 RPC DEFINER + `search_path=""`, anon không EXECUTE; helper không cho client; `authenticated` không UPDATE applications, không INSERT/UPDATE/DELETE events; backfill 2 `created` (khớp `created_at`), 0 orphan/trùng/lệch owner; fingerprint applications + documents **không đổi** |
-| Merge + deploy | squash `fa1a45f`; Vercel production success; cvfit.pro phục vụ chunk `ApplicationsView` |
+| Merge + deploy | squash `fa1a45f`; Vercel production success (GitHub deployment `7506246116`); cvfit.pro phục vụ chunk `ApplicationsView` |
+| Function / AI | Vercel function 9 (PR không đổi `api/`; build PASS — không phải đếm từ Vercel). AI call của P2B: 0 (smoke dùng 1 lần Analyze có sẵn để tạo application mới, không phải call của P2B) |
 
 ## Production smoke (tài khoản thật, dữ liệu tổng hợp)
 
@@ -179,16 +180,25 @@ Trạng thái: **DEPLOYED / PRODUCTION VERIFIED** (03/11/2026). PR
 | interview → rejected → interview: hộp xác nhận rời trạng thái kết thúc; event cũ giữ nguyên | PASS |
 | Sửa company/role/deadline; xoá deadline; no-op không tạo event | PASS |
 | Hai tab: tab A lưu, tab B lưu bản cũ → `stale_application` VI, dữ liệu mới tải lại, tab A không bị ghi đè, 0 event của tab B | PASS |
-| Ghi chú (có `<b>`) hiển thị dạng text, status không đổi | PASS |
+| Ghi chú (có `<b>`) hiển thị dạng text, status không đổi | PASS. Riêng tư: tracker không gửi analytics event; Sentry chỉ nhận thông báo chung cho lỗi không xác định (theo code + test); console cuối sạch. Không chặn/kiểm tra lưu lượng mạng độc lập khi gửi ghi chú |
 | Timeline: 4 loại event, câu có nghĩa, không JSON/không giá trị DB thô | PASS |
 | Sort: chỉ allowlist, không score; mặc định hoạt động gần nhất | PASS |
 | Mobile 375 px (phiên thật, tài khoản thường 5 mục nav): list, detail, 3 tab, form status/details/note — không tràn ngang | PASS |
-| Lỗi runtime | Lần tải cuối: 0 lỗi console, mọi request đọc tracker 200. Kết quả các mutation (status, correction, details, note, stale của tab B — 4xx dự kiến) xác minh qua UI + timeline DB, không qua log mạng |
+| Lỗi runtime | Smoke owner: 0 lỗi RLS/RPC ngoài dự kiến. Lần tải cuối: 0 lỗi console, mọi request đọc tracker 200. Kết quả các mutation (status, correction, details, note, stale của tab B — 4xx dự kiến) xác minh qua UI + timeline DB, không qua log mạng |
 | Integrity sau smoke: 3 application, 7 document, 11 event; orphan/trùng/lệch owner 0; snapshot P2A không đổi; timeline smoke khớp đúng thao tác | PASS |
 
-Chưa smoke trên production: cross-user (một tài khoản; dựa vào SQL test + RLS/catalog production), nav 6 mục của admin ở 375 px và header 1024 px với badge Pro/Recruiter (chỉ đo bằng harness local). Application smoke (`P2B Smoke Corp`, status `interview`) được giữ lại để đối chiếu.
+Smoke chỉ đi qua một số transition tiêu biểu; authority cho toàn bộ 29 cạnh / 81 cặp là SQL test.
 
-**Rollback từ nay:** production đã có status khác `drafted` ⇒ chỉ rollback app, giữ nguyên schema/event P2B (xem Rollback).
+Bảo mật đã xác minh trên production (catalog, read-only): cấu hình RLS, grant RPC, SECURITY DEFINER, `search_path` rỗng, chặn ghi trực tiếp, trigger bất biến, cấu hình account lock.
+
+**Khoảng trống xác minh (rủi ro thấp, không phải lỗi chức năng):**
+- Cross-user isolation: covered by SQL tests and verified production policy/grant configuration; not independently smoke-tested with a second production account.
+- Nav mobile 6 mục của admin ở 375 px: chưa smoke production (chỉ đo bằng harness local).
+- Header 1024 px của admin có badge Pro/Recruiter: chưa smoke production.
+
+Application smoke (`P2B Smoke Corp`, status `interview`) được giữ lại để đối chiếu.
+
+**Rollback từ nay:** production đã có status khác `drafted` ⇒ app rollback = promote/redeploy build trước đó (tương thích P2A); giữ nguyên schema additive và lịch sử event P2B. Không khôi phục status CHECK cũ, không `DROP application_events`.
 
 ## Phạm vi đã chốt
 
@@ -318,7 +328,7 @@ App và schema rollback **tách biệt**:
 - Lỗi ứng dụng ⇒ rollback deployment app; **để schema P2B ở trạng thái ngủ** (additive, app P2A không dùng tới). `save_application` mới vẫn tương thích app P2A.
 - Không tự động `DROP application_events`, thu hẹp status CHECK hay xoá timeline sau khi user đã có dữ liệu P2B: khi đã có status khác `drafted`, CHECK P2A **không thể** khôi phục an toàn.
 - Chỉ revert riêng phần tích hợp `save_application`: `supabase/rollback/20261104000000_save_application_p2a.sql` (thân P2A nguyên văn, đã chạy thử local: P2A tests PASS sau khi áp). Save sau đó sẽ không có created event.
-- Gỡ toàn bộ chỉ khi **chưa** có dữ liệu P2B (0 event ngoài `created`, mọi status = `drafted`): `DROP FUNCTION` 3 RPC (`update_application_details(uuid, timestamptz, text, text, date, uuid)`) + 2 helper + `application_events_immutable()`; áp rollback script trên; `DROP TABLE public.application_events`; `ALTER TABLE public.applications DROP COLUMN deadline, DROP COLUMN applied_at`; khôi phục CHECK `IN ('drafted')`; `DROP INDEX applications_user_updated_idx`.
+- *(Không còn áp dụng từ 03/11/2026: production đã có dữ liệu P2B.)* Gỡ toàn bộ chỉ khi **chưa** có dữ liệu P2B (0 event ngoài `created`, mọi status = `drafted`): `DROP FUNCTION` 3 RPC (`update_application_details(uuid, timestamptz, text, text, date, uuid)`) + 2 helper + `application_events_immutable()`; áp rollback script trên; `DROP TABLE public.application_events`; `ALTER TABLE public.applications DROP COLUMN deadline, DROP COLUMN applied_at`; khôi phục CHECK `IN ('drafted')`; `DROP INDEX applications_user_updated_idx`.
 
 ## Known debt (P2B)
 
@@ -328,4 +338,5 @@ App và schema rollback **tách biệt**:
 - ~~Timeline tối đa 200 event~~ — P2B.1: phân trang 50/trang.
 - ~~Details không có CAS~~ — P2B.1: `p_expected_updated_at` + `stale_application`.
 - Version của details là cả row: một ghi chú/đổi status ở tab khác cũng làm bản sửa thông tin đang mở thành stale (an toàn, user xem lại rồi lưu).
-- Chưa smoke UI có đăng nhập thật (chỉ đo layout 375 px bằng harness tạm + unit test); cần trong production smoke.
+- ~~Chưa smoke UI có đăng nhập thật~~ — đã smoke production 03/11/2026 (xem Production smoke; khoảng trống xác minh liệt kê riêng ở đó).
+- `no_response` tự động: không triển khai (chỉ user chọn).

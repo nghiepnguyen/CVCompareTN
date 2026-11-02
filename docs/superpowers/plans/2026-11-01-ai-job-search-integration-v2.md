@@ -434,6 +434,9 @@ Chênh lệch so với yêu cầu roadmap (có chủ đích):
     applied" (lịch sử, không đổi khi sửa status); sửa thông tin có optimistic
     concurrency (`expected_updated_at` → `stale_application`, replay thắng
     CAS); timeline phân trang 50/trang. Detail chưa có deep link (debt chấp nhận).
+-   Score: chỉ là bối cảnh lịch sử ("Điểm khi lưu / Score at save time"),
+    không xếp hạng/sort/so sánh. P2B **không** giải quyết Analyze variance;
+    gate ANALYZE STABILIZATION của P4A vẫn còn nguyên.
 
 ### Score policy (P2A.2)
 
