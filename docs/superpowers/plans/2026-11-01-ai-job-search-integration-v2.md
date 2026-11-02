@@ -3,7 +3,7 @@
 -   Ngày lập ban đầu: 24/10/2026.
 -   Cập nhật: 03/11/2026.
 -   Trạng thái: P0, P1A, P1B (+ P1B.1), P1C, P2A DEPLOYED / PRODUCTION
-    VERIFIED; P2B IMPLEMENTED LOCALLY / READY FOR REVIEW (chưa deploy). Triển khai theo từng stage, không port nguyên stack
+    VERIFIED; P2B DEPLOYED / PRODUCTION VERIFIED (PR #70, `fa1a45f`). Triển khai theo từng stage, không port nguyên stack
     upstream.
 -   Repo tham khảo: https://github.com/ai-job-search-dev/ai-job-search
     (nhánh `master`).
@@ -407,10 +407,10 @@ Analyze trả về. Cần theo dõi vì độ lệch lớn hơn rõ so với spr
 **Mức tác động:** Backend/DB/UI cao.\
 **Đây là stage làm thay đổi IA rõ nhất.**
 
-**Trạng thái (03/11/2026):** IMPLEMENTED LOCALLY / READY FOR REVIEW. Branch
-`feat/p2b-application-tracker` (base `9d57fa7`); migration
-`20261104000000_application_tracker.sql` **chưa** áp production; chưa
-push/PR/deploy. Authority: `docs/15_applications.md` (mục P2B). Tóm tắt:
+**Trạng thái (03/11/2026):** DEPLOYED / PRODUCTION VERIFIED ✅. PR
+[#70](https://github.com/nghiepnguyen/CVCompareTN/pull/70) squash merge
+`fa1a45f`; migration `20261104000000_application_tracker.sql` áp production
+trước merge; production smoke PASS (docs/15). Authority: `docs/15_applications.md` (mục P2B). Tóm tắt:
 `application_events` append-only (created / status_changed / note /
 details_updated), 3 RPC SECURITY DEFINER (transition có CAS
 `expected_status`, note, details) + `save_application` ghi `created` event
@@ -434,6 +434,9 @@ Chênh lệch so với yêu cầu roadmap (có chủ đích):
     applied" (lịch sử, không đổi khi sửa status); sửa thông tin có optimistic
     concurrency (`expected_updated_at` → `stale_application`, replay thắng
     CAS); timeline phân trang 50/trang. Detail chưa có deep link (debt chấp nhận).
+-   Score: chỉ là bối cảnh lịch sử ("Điểm khi lưu / Score at save time"),
+    không xếp hạng/sort/so sánh. P2B **không** giải quyết Analyze variance;
+    gate ANALYZE STABILIZATION của P4A vẫn còn nguyên.
 
 ### Score policy (P2A.2)
 
@@ -867,7 +870,7 @@ P1C  rawJdConcepts structural fix         ✅ deployed (PR #66)
  ↓
 P2A  Save Application + Snapshot          ✅ deployed (PR #67)
  ↓
-P2B  Application Tracker                  ⏳ local, chờ review
+P2B  Application Tracker                  ✅ deployed (PR #70)
  ↓
 P2C  Follow-up
  ↓
