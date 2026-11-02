@@ -97,6 +97,76 @@ export function textContainsPhrase(text: string, phrase: string): boolean {
   return containsPhrase(canonicalText(text), phrase);
 }
 
+// Requirement wording that is not a concept: thresholds, proficiency words,
+// "building … applications". Compared lowercased, after GENERIC/STOPWORDS.
+const REQUIREMENT_FILLER = new Set([
+  'experience', 'experienced', 'proficiency', 'proficient', 'familiar', 'hands-on', 'working', 'ability',
+  'degree', 'field', 'nice', 'have', 'must', 'present', 'month', 'months', 'application', 'applications',
+  'app', 'apps', 'development', 'developing', 'building', 'modern', 'web', 'writing', 'write',
+  'kinh', 'nghiệm', 'năm', 'tháng', 'kỹ', 'năng', 'thành', 'thạo', 'hiểu', 'biết', 'khả', 'tốt', 'vững',
+]);
+const isRequirementFiller = (w: string) => isGeneric(w) || isStop(w) || REQUIREMENT_FILLER.has(w.toLowerCase());
+const isNumeric = (w: string) => /^\d+(?:[.,]\d+)?[+%]?$/.test(w);
+
+// Named concepts (React, TypeScript, WCAG, Next.js): tokens with an
+// uppercase letter, except a plain Capitalized word opening a sentence —
+// ambiguous ("React" vs "Component tests"); `firstWord` reports it apart.
+function namedTerms(text: string): { terms: string[]; firstWord?: string } {
+  const terms: string[] = [];
+  let firstWord: string | undefined;
+  text.split(/(?<=[.!?:;(])\s*|\n+/).forEach((sentence, s) => {
+    const words = sentence.match(/[\p{L}\p{N}][\p{L}\p{N}+#.&'’/-]*/gu) ?? [];
+    words.forEach((raw, i) => {
+      const w = raw.replace(/['’]s$/i, '').replace(/[.'’-]+$/, '');
+      if (!/\p{Lu}/u.test(w) || w.length < 2 || isNumeric(w) || isRequirementFiller(w)) return;
+      if (i === 0 && /^\p{Lu}[\p{Ll}'’-]*$/u.test(w)) {
+        if (s === 0) firstWord = w;
+        return;
+      }
+      if (!terms.includes(w)) terms.push(w);
+    });
+  });
+  return { terms, firstWord };
+}
+
+function alternativeCovered(alt: string, letter: string): boolean | 'unnamed' {
+  const { terms, firstWord } = namedTerms(alt);
+  const has = (w: string) => containsPhrase(letter, w);
+  // Named concepts decide; a capitalized first word in a list of names
+  // ("React and TypeScript") is required with them.
+  if (terms.length) return [...terms, ...(firstWord ? [firstWord] : [])].every(has);
+  const words = normalizeText(alt).trim().split(' ').filter((w) => w.length > 1 && !isNumeric(w));
+  let required = words.filter((w) => !isRequirementFiller(w));
+  // Only generic words ("design systems"): the phrase itself must be there.
+  if (!required.length) required = words.filter((w) => !isStop(w) && !REQUIREMENT_FILLER.has(w));
+  if (!required.length) return false;
+  return required.every(has) || 'unnamed';
+}
+
+/**
+ * P1B: does the cover letter address this (matched/partial) requirement?
+ * Coverage, not satisfaction: "React" covers "3+ years of React" (the letter
+ * need not restate the threshold). Deterministic and conservative:
+ *   - "or" alternatives: one is enough;
+ *   - named concepts (capitalized/acronym/mixed-case) must ALL be in the letter;
+ *   - otherwise every non-generic content word must be; generic overlap
+ *     ("application development", "design") never counts;
+ *   - only when the requirement names no concept, the canonical cvEvidence's
+ *     named concepts may bridge ("Component tests" ← evidence "tests with
+ *     Jest" ← letter "testing with Jest"). Evidence alone never covers.
+ * Whole tokens under the guard normalization; no translation.
+ */
+export function requirementCoveredByLetter(req: { requirement: string; cvEvidence?: string }, letter: string): boolean {
+  const body = canonicalText(letter);
+  const alternatives = req.requirement.split(/\s+(?:or|hoặc)\s+|\s*,\s*or\s+/i);
+  const results = alternatives.map((alt) => alternativeCovered(alt, body));
+  if (results.includes(true)) return true;
+  // Evidence bridge only for requirements that name no concept at all.
+  if (!req.cvEvidence || !alternatives.every((alt) => !namedTerms(alt).terms.length)) return false;
+  const evidence = namedTerms(req.cvEvidence).terms.filter((t) => t.toLowerCase() !== 'present');
+  return evidence.length > 0 && evidence.every((t) => containsPhrase(body, t));
+}
+
 // The surface form in `text` that matched `phrase` (debug provenance only).
 function matchedForm(text: string, phrase: string): string | undefined {
   const tokens = normalizeText(text).trim().split(' ');

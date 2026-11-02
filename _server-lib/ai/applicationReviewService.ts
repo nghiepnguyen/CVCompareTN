@@ -1,6 +1,7 @@
 import { ControlledError, MIN_GEMINI_BUDGET_MS, type Deadline } from '../deadline.js';
 import {
   countCoverLetterViolations,
+  requirementCoveredByLetter,
   textContainsPhrase,
   validateCoverLetter,
   type ApplicationReviewGuardMetrics,
@@ -24,7 +25,13 @@ const MAX_MESSAGE_CHARS = 300;
 export type ReviewCategory = 'unsupported_claim' | 'numeric_claim' | 'consistency' | 'requirement_gap' | 'relevance' | 'tone';
 export type ReviewSeverity = 'high' | 'medium' | 'low';
 export type ReviewFinding = { category: ReviewCategory; severity: ReviewSeverity; message: string; source: 'cover_letter' | 'cv' };
-export type ReviewRequirement = { requirement: string; status: 'matched' | 'partial' | 'missing'; priority?: 'required' | 'nice-to-have' };
+export type ReviewRequirement = {
+  requirement: string;
+  status: 'matched' | 'partial' | 'missing';
+  priority?: 'required' | 'nice-to-have';
+  // Canonical CV quote for this requirement; only bridges gap coverage.
+  cvEvidence?: string;
+};
 
 const FACTUAL: ReadonlySet<ReviewCategory> = new Set(['unsupported_claim', 'numeric_claim', 'consistency']);
 const CATEGORIES: ReviewCategory[] = ['unsupported_claim', 'numeric_claim', 'consistency', 'requirement_gap', 'relevance', 'tone'];
@@ -67,7 +74,8 @@ export function sanitizeRequirements(v: unknown, clean: (s: string) => string): 
     const requirement = typeof r.requirement === 'string' ? clean(r.requirement).trim().slice(0, MAX_REQUIREMENT_CHARS) : '';
     if (!requirement || (r.status !== 'matched' && r.status !== 'partial' && r.status !== 'missing')) continue;
     const priority = r.priority === 'required' || r.priority === 'nice-to-have' ? r.priority : undefined;
-    out.push({ requirement, status: r.status, ...(priority && { priority }) });
+    const cvEvidence = typeof r.cvEvidence === 'string' ? clean(r.cvEvidence).trim().slice(0, MAX_REQUIREMENT_CHARS) : '';
+    out.push({ requirement, status: r.status, ...(priority && { priority }), ...(cvEvidence && { cvEvidence }) });
   }
   return out;
 }
@@ -171,8 +179,8 @@ export function acceptReviewerFindings(
     }
     if (category === 'requirement_gap') {
       const req = Number.isInteger(f.requirementId) ? ctx.requirements[f.requirementId as number] : undefined;
-      // Unknown, "missing" (the letter must not claim it) or already named in the letter.
-      if (!req || req.status === 'missing' || textContainsPhrase(ctx.letter, req.requirement)) {
+      // Unknown, "missing" (the letter must not claim it) or already addressed by the letter.
+      if (!req || req.status === 'missing' || requirementCoveredByLetter(req, ctx.letter)) {
         dropped++;
         continue;
       }

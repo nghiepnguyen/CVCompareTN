@@ -83,7 +83,7 @@ describe('Application review (P1B)', () => {
       employerName: 'Globex',
       roleTitle: 'Frontend Engineer',
       requirements: [
-        { requirement: 'React', status: 'matched', priority: 'required' },
+        { requirement: 'React', status: 'matched', priority: 'required', cvEvidence: 'React' },
         { requirement: '5 years', status: 'partial' },
       ],
     });
