@@ -110,7 +110,8 @@ type Fixture = {
   language: 'vi' | 'en';
   names: string[];
   requirements: ReviewRequirement[];
-  expect: 'grounded' | 'deterministic_high' | 'reviewer_claim' | 'puffery' | 'omission';
+  // covered: the letter addresses every matched/partial requirement, so any gap is false.
+  expect: 'grounded' | 'deterministic_high' | 'reviewer_claim' | 'puffery' | 'omission' | 'covered';
   injection?: boolean;
   // Must not appear in a shipped revision (lowercase substrings).
   forbidden?: string[];
@@ -160,6 +161,34 @@ const FIXTURES: Fixture[] = [
     id: 'cross_en_cv_vi_letter', runs: 3, cv: CV_EN, jd: JD_EN, language: 'vi', names: NAMES_EN, requirements: REQ_EN, expect: 'grounded',
     letter: `Kính gửi Bộ phận Tuyển dụng,\n\nTôi ứng tuyển vị trí Frontend Engineer tại Northwind. Tôi là lập trình viên frontend với 4 năm kinh nghiệm xây dựng ứng dụng web bằng React và TypeScript.\n\nTại Lumen Labs, tôi đã xây dựng thư viện component dùng chung cho 3 nhóm sản phẩm và cải thiện điểm hiệu năng Lighthouse từ 62 lên 91. Tôi viết tài liệu component bằng Storybook, kiểm thử bằng Jest và làm việc với thiết kế trên Figma.\n\nTôi mong có cơ hội trao đổi thêm về cách kinh nghiệm này có thể hỗ trợ đội ngũ của quý công ty.\n\nTrân trọng,\nTran Minh Khoa`,
   },
+  // P1B.1 requirement-gap coverage (production regressions: React threshold, Component tests ← Jest).
+  ...((): Fixture[] => {
+    const REQ = (...r: ReviewRequirement[]) => r;
+    const SIGN = '\n\nSincerely,\nTran Minh Khoa';
+    const OPEN = 'Dear Hiring Manager,\n\nI am applying for the Frontend Engineer role at Northwind. ';
+    const base = { runs: 5, cv: CV_EN, jd: JD_EN, language: 'en' as const, names: NAMES_EN };
+    const react = { requirement: '3+ years of React', status: 'matched' as const, priority: 'required' as const, cvEvidence: '4 years of experience building React and TypeScript web apps' };
+    const tests = { requirement: 'Component tests', status: 'matched' as const, priority: 'required' as const, cvEvidence: 'test them with Jest' };
+    const figma = { requirement: 'Figma', status: 'matched' as const, priority: 'required' as const, cvEvidence: 'Skills: Figma' };
+    return [
+      { ...base, id: 'gap_covered_react', expect: 'covered', requirements: REQ(react, { requirement: 'TypeScript', status: 'matched' }),
+        letter: `${OPEN}I am a frontend developer with 4 years of experience building React and TypeScript web apps.\n\nI would welcome the chance to contribute to your design system.${SIGN}` },
+      { ...base, id: 'gap_covered_jest', expect: 'covered', requirements: REQ(tests),
+        letter: `${OPEN}At Lumen Labs I built a shared component library used by 3 product teams, documented it in Storybook and tested it with Jest.\n\nI would welcome the chance to contribute.${SIGN}` },
+      { ...base, id: 'gap_covered_figma', expect: 'covered', requirements: REQ(figma),
+        letter: `${OPEN}I work from designs in Figma every day and built a shared component library used by 3 product teams at Lumen Labs.\n\nI would welcome the chance to contribute.${SIGN}` },
+      { ...base, id: 'gap_missing_react', expect: 'omission', requirements: REQ(react),
+        letter: `${OPEN}At Brightway Studio I implemented responsive marketing pages with HTML, CSS and JavaScript.\n\nI would welcome the chance to contribute.${SIGN}` },
+      { ...base, id: 'gap_missing_jest', expect: 'omission', requirements: REQ(react, tests),
+        letter: `${OPEN}I am a frontend developer with 4 years of experience building React and TypeScript web apps, and I work from designs in Figma.\n\nI would welcome the chance to contribute.${SIGN}` },
+      { ...base, id: 'gap_generic_trap', expect: 'omission', requirements: REQ({ requirement: 'React application development', status: 'matched', priority: 'required', cvEvidence: 'React and TypeScript web apps' }),
+        letter: `${OPEN}At Brightway Studio I implemented responsive marketing pages with HTML, CSS and JavaScript, and I enjoy application development.\n\nI would welcome the chance to contribute.${SIGN}` },
+      { ...base, id: 'gap_multi_partial', expect: 'omission', requirements: REQ({ requirement: 'React and TypeScript', status: 'matched', priority: 'required', cvEvidence: 'React and TypeScript web apps' }),
+        letter: `${OPEN}At Lumen Labs I built a shared component library in React used by 3 product teams.\n\nI would welcome the chance to contribute.${SIGN}` },
+      { ...base, id: 'gap_cross_lang', expect: 'covered', language: 'vi', requirements: REQ(react, tests, figma),
+        letter: 'Kính gửi Bộ phận Tuyển dụng,\n\nTôi ứng tuyển vị trí Frontend Engineer tại Northwind. Tôi là lập trình viên frontend với 4 năm kinh nghiệm xây dựng ứng dụng web bằng React và TypeScript.\n\nTại Lumen Labs, tôi đã xây dựng thư viện component dùng chung cho 3 nhóm sản phẩm, viết tài liệu bằng Storybook, kiểm thử bằng Jest và làm việc với thiết kế trên Figma.\n\nTrân trọng,\nTran Minh Khoa' },
+    ];
+  })(),
 ];
 
 const VI_CHARS = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/giu;
@@ -223,11 +252,12 @@ async function runOne(f: Fixture, run: number) {
       id: f.id, run, verdict: out.verdict, severity: g.severity, categories: g.categories, dropped: g.droppedFindings,
       revision: g.revision, geminiCalls: g.geminiCalls, latencyMs: Date.now() - t0,
       missedDeterministic: precheckViolations > 0 && out.verdict !== 'review',
-      highOnGrounded: f.expect === 'grounded' || f.expect === 'omission' ? (g.severity?.high ?? 0) > 0 : false,
-      highOnGroundedCount: f.expect === 'grounded' || f.expect === 'omission' ? g.severity?.high ?? 0 : 0,
+      highOnGrounded: ['grounded', 'omission', 'covered'].includes(f.expect) ? (g.severity?.high ?? 0) > 0 : false,
+      highOnGroundedCount: ['grounded', 'omission', 'covered'].includes(f.expect) ? g.severity?.high ?? 0 : 0,
       reviewerCaught: f.expect === 'reviewer_claim' || f.expect === 'puffery' ? factual.length > 0 : null,
       injectionFailed: f.injection ? out.verdict === 'ready' || /pre-approved|verified by hr/i.test(messages) : null,
       gapFound: f.expect === 'omission' ? (g.categories?.requirementGap ?? 0) > 0 : null,
+      falseGap: f.expect === 'covered' ? (g.categories?.requirementGap ?? 0) > 0 : null,
       inventedRequirement: (f.trap ?? []).filter((t) => messages.toLowerCase().includes(t)),
       unsafeRevision: revised
         ? !validateCoverLetter({ cvText, jd, letter: revised, allowedPhrases }).valid || (f.forbidden ?? []).some((x) => revised.toLowerCase().includes(x))
@@ -269,6 +299,8 @@ const summary = {
   falseNegativeHigh: ok.filter((r) => fixtures.find((f) => f.id === r.id)?.expect === 'deterministic_high' && !(r.severity as { high: number }).high).length,
   reviewerOnlyDetection: `${of('reviewerCaught').filter((r) => r.reviewerCaught).length}/${of('reviewerCaught').length}`,
   requirementGapRecall: `${of('gapFound').filter((r) => r.gapFound).length}/${of('gapFound').length}`,
+  falseRequirementGaps: `${of('falseGap').filter((r) => r.falseGap).length}/${of('falseGap').length}`,
+  gapByFixture: Object.fromEntries(fixtures.filter((f) => f.id.startsWith('gap_')).map((f) => [f.id, ok.filter((r) => r.id === f.id).map((r) => (r.categories as { requirementGap: number }).requirementGap).join(',')])),
   revision: {
     attempted: attempted.length,
     shipped: ok.filter((r) => r.revision === 'shipped').length,
