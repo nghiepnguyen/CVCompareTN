@@ -235,6 +235,11 @@ BEGIN
  PERFORM pg_temp.fails(format($q$SELECT pg_temp.details(%L,repeat('x',201),NULL,NULL,'det-long')$q$, app), '22023', 'invalid_details');
  PERFORM pg_temp.fails(format($q$SELECT pg_temp.details(%L,NULL,repeat('x',201),NULL,'det-long2')$q$, app), '22023', 'invalid_details');
  PERFORM pg_temp.fails(format($q$SELECT pg_temp.details(%L,NULL,NULL,'1999-12-31','det-old')$q$, app), '22023', 'invalid_details');
+ -- Worst-case JSON escaping of max-length values still fits the event metadata bound.
+ PERFORM pg_temp.details(app, repeat(chr(1),200), repeat(chr(2),200), NULL, 'det-escape-1');
+ r := pg_temp.details(app, repeat(chr(3),200), repeat(chr(4),200), NULL, 'det-escape-2');
+ ASSERT (SELECT octet_length(metadata::text) > 4096 FROM public.application_events WHERE id=(r->>'event_id')::uuid), 'escape case not exercised';
+ PERFORM pg_temp.details(app, NULL, NULL, NULL, 'det-escape-clear');
  ASSERT (SELECT a2.status=before_app.status AND a2.applied_at=before_app.applied_at AND a2.language=before_app.language
    AND a2.idempotency_key=before_app.idempotency_key AND a2.created_at=before_app.created_at
    AND a2.source_analysis_id IS NOT DISTINCT FROM before_app.source_analysis_id FROM public.applications a2 WHERE id=app), 'details touched non-detail columns';

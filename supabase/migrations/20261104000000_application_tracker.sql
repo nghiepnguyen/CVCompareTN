@@ -64,7 +64,8 @@ CREATE TABLE public.application_events (
   from_status text CHECK (from_status IN ('drafted', 'applied', 'interview', 'offer', 'hired', 'rejected', 'no_response', 'offer_declined', 'withdrawn')),
   to_status text CHECK (to_status IN ('drafted', 'applied', 'interview', 'offer', 'hired', 'rejected', 'no_response', 'offer_declined', 'withdrawn')),
   note text CHECK (char_length(note) BETWEEN 1 AND 2000),
-  metadata jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(metadata) = 'object' AND octet_length(metadata::text) <= 4096),
+  -- 16 KB: details metadata holds at most 4 x 200-char values, which JSON escaping can grow ~6x.
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(metadata) = 'object' AND octet_length(metadata::text) <= 16384),
   occurred_at timestamptz NOT NULL,
   idempotency_key uuid NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),

@@ -29,12 +29,14 @@ export function ApplicationsView() {
   const [hasMore, setHasMore] = React.useState(false);
   const [status, setStatus] = React.useState<'loading' | 'ready' | 'error'>('loading');
   const [loadingMore, setLoadingMore] = React.useState(false);
+  const [moreError, setMoreError] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const request = React.useRef(0);
 
   const load = React.useCallback(async (nextPage: number) => {
     const id = ++request.current;
     if (nextPage === 0) setStatus('loading'); else setLoadingMore(true);
+    setMoreError(false);
     try {
       const res = await listApplications({ sort, page: nextPage });
       if (id !== request.current) return; // a newer sort / reload won
@@ -43,7 +45,8 @@ export function ApplicationsView() {
       setPage(nextPage);
       setStatus('ready');
     } catch {
-      if (id === request.current) setStatus('error');
+      // A failed "load more" keeps the rows already shown.
+      if (id === request.current) { if (nextPage === 0) setStatus('error'); else setMoreError(true); }
     } finally {
       if (id === request.current) setLoadingMore(false);
     }
@@ -117,6 +120,7 @@ export function ApplicationsView() {
               </li>
             ))}
           </ul>
+          {moreError && <p role="alert" className="text-center text-xs text-error">{t.trackerLoadError}</p>}
           {hasMore && (
             <div className="text-center">
               <button

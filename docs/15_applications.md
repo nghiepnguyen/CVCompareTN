@@ -203,7 +203,7 @@ Mọi cạnh đi **vào** một final đều có cạnh hoàn tác ngược lạ
 `applied_at` = `occurred_at` của **lần đầu** chuyển sang `applied` (set khi `applied_at IS NULL`); không bao giờ ghi đè khi sửa trạng thái. Vì vậy có thể tồn tại `drafted` + `applied_at` (vd `drafted→applied→withdrawn→drafted`): đó là ngày nộp lịch sử, **không** phải tín hiệu "đang nộp". UI gọi là **"Nộp lần đầu / First applied"** (list, Overview, sort); Overview có một dòng chú thích nhỏ hiển thị sẵn (không chỉ hover, vì mobile không có hover): "Ngày ứng tuyển được ghi nhận lần đầu. Không thay đổi khi trạng thái được chỉnh sửa." / "The first recorded application date. It does not change when the status is corrected later." (P2B.1, quyết định của product: giữ nguyên hành vi DB). P2C không được dùng `applied_at` một mình để quyết định follow-up. Client không ghi trực tiếp.
 
 `application_events` (append-only):
-`id, application_id, user_id, event_type created|status_changed|note|details_updated, from_status?, to_status?, note? (1–2000), metadata jsonb object ≤ 4 KB, occurred_at, idempotency_key uuid, created_at`.
+`id, application_id, user_id, event_type created|status_changed|note|details_updated, from_status?, to_status?, note? (1–2000), metadata jsonb object ≤ 16 KB (đủ cho 4 giá trị 200 ký tự kể cả escape JSON tệ nhất), occurred_at, idempotency_key uuid, created_at`.
 - FK tổ hợp `(application_id, user_id) → applications(id, user_id) ON DELETE CASCADE`.
 - `UNIQUE (user_id, idempotency_key)`; partial unique `(application_id) WHERE event_type='created'` (đúng 1 created/app).
 - CHECK hình dạng theo loại: `status_changed` có from/to khác nhau; `note` có note; `details_updated` có `metadata.changedFields` array; `created` không có from/to/note.
@@ -266,7 +266,15 @@ Mỗi intent (đổi status / ghi chú / sửa thông tin) một `crypto.randomU
 
 ## Rollout (chưa làm — cần review)
 
-1. Preflight read-only production: `applications_status_check` tồn tại đúng tên; không có `application_events`; các RPC mới chưa tồn tại; số application hiện có.
+1. Preflight **read-only** production (mọi mục phải đúng; sai ⇒ dừng, không áp):
+   - `supabase_migrations.schema_migrations` chưa có version `20261104000000`.
+   - `pg_get_constraintdef` của `public.applications.applications_status_check` = `CHECK ((status = 'drafted'::text))` (tên đúng, định nghĩa P2A); `SELECT DISTINCT status FROM public.applications` chỉ có `drafted`.
+   - `public.applications` có các cột P2A (`id, user_id, idempotency_key, source_analysis_id, company_name, role_title, language, status, created_at, updated_at`), **chưa** có `deadline`, `applied_at`; constraint `applications_user_idempotency_unique` (dùng bởi `ON CONFLICT ON CONSTRAINT`) và `applications_id_user_unique` (đích FK tổ hợp) tồn tại; index `applications_user_updated_idx` chưa tồn tại.
+   - `public.application_documents` tồn tại; trigger `application_documents_immutable` enabled.
+   - `to_regclass('public.application_events') IS NULL`; các hàm `application_status_transition_allowed(text,text)`, `application_events_immutable()`, `application_tracker_caller()`, `transition_application_status(...)`, `add_application_note(...)`, `update_application_details(...)` chưa tồn tại.
+   - `public.save_application(uuid,text,text,text,text,jsonb,text,text,jsonb,text,text)` tồn tại, SECURITY DEFINER, thân = bản P2A (so với `supabase/rollback/20261104000000_save_application_p2a.sql`).
+   - Phụ thuộc: `public.enforce_account_unlocked()` (INVOKER), `public.profiles(id, role, has_permission)`, `auth.uid()`, `auth.role()`, roles `anon/authenticated/service_role`, `gen_random_uuid()`, `hashtextextended()` (PG ≥ 11; production PG 17.6).
+   - Ghi lại `SELECT count(*) FROM public.applications` để so với số `created` event sau backfill.
 2. Áp `20261104000000_application_tracker.sql` (`BEGIN/COMMIT`) **trước** deploy app (app cũ vẫn chạy: chỉ thêm cột/bảng; `save_application` giữ signature).
 3. Verify read-only: số `created` event = số application; `has_function_privilege` anon=false / authenticated=true cho 3 RPC; authenticated không INSERT/UPDATE/DELETE events, không UPDATE applications; trigger `application_events_immutable` enabled.
 4. Merge + deploy app; smoke production: list (2 app smoke P2A hiện có, company/role NULL fallback), detail 3 tab, đổi status drafted→applied (applied_at), ghi chú, sửa deadline, final correction có xác nhận, mobile 375 px, `/vi/applications` reload.

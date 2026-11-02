@@ -92,6 +92,25 @@ describe('ApplicationsView list', () => {
     expect(screen.queryByRole('button', { name: UI_LABELS.vi.trackerLoadMore })).toBeNull();
   });
 
+  it('a failed "load more" keeps the loaded rows and can be retried', async () => {
+    let failNext = false;
+    db.respond = (_t, calls) => {
+      const [from] = rangeOf(calls);
+      if (from > 0 && failNext) return { data: null, error: { message: 'boom' } };
+      return { data: from === 0 ? Array.from({ length: 21 }, (_, i) => row(i)) : [row(100)], error: null };
+    };
+    render(<ApplicationsView />);
+    await screen.findByText('Role 0');
+    failNext = true;
+    fireEvent.click(screen.getByRole('button', { name: UI_LABELS.vi.trackerLoadMore }));
+    expect(await screen.findByText(UI_LABELS.vi.trackerLoadError)).toBeTruthy();
+    expect(screen.getByText('Role 0')).toBeTruthy();
+    failNext = false;
+    fireEvent.click(screen.getByRole('button', { name: UI_LABELS.vi.trackerLoadMore }));
+    expect(await screen.findByText('Role 100')).toBeTruthy();
+    expect(screen.queryByText(UI_LABELS.vi.trackerLoadError)).toBeNull();
+  });
+
   it('sort options are the allowlist only (no score); changing sort reloads from page 0', async () => {
     db.respond = () => ({ data: [row(1)], error: null });
     render(<ApplicationsView />);
