@@ -1,12 +1,16 @@
 # Analyze score variance (P2A.2 diagnostic, 02/11/2026)
 
+Status: accepted. **MODEL_VARIANCE, severity MEDIUM, decision MONITOR, does not block P2B.**
+
 Diagnostic only. No scoring, prompt, model or config change. Script:
 `scripts/diagnose-analyze-variance.ts` (production `analyzeCV`, fetch intercepted
 in the script process only to hash requests and capture the raw response).
 
-## Trigger
+## Historical observation (trigger, not proof)
 
-P2A production smoke: the same synthetic CV + JD scored **88** then **72**.
+P2A production smoke: the same synthetic CV + JD scored **88** then **72** (Δ16).
+This pair alone is not definitive proof of anything: historical CV byte
+identity cannot be proven.
 
 - JD: byte-identical (application snapshot SHA-256 of both saves is the same,
   and equals the fixture JD hash).
@@ -36,7 +40,7 @@ presentation strings. Analyze does **not** consume `parsedCV`. No retry or
 fallback inside analyze. Client (`src/services/ai/analysisService.ts`) returns the
 `/api/analyze` JSON as-is: no automatic retry, no score rewrite.
 
-## Controlled runs
+## Controlled reproduction (authority for the finding)
 
 Fixture = the smoke JD (hash-proven) and the smoke CV as typed (equivalent
 with high confidence, see above). Sequential, UI `vi`. All calls local with
@@ -66,26 +70,44 @@ the project key; production DB was read-only.
 
 ## Classification
 
-**MODEL_VARIANCE**: identical inputs and config, deterministic post-model
-pipeline, materially different model responses. Fixture-sensitive: the
+**MODEL_VARIANCE**, based on the controlled reproduction: the same effective
+Analyze request ×20 (same prompt hash, same generation config, one model call,
+no retry, no fallback) gave scores 75–88 (range 13) with High/Medium band
+instability, while the post-model pipeline is deterministic. Fixture-sensitive: the
 smoke fixture sits on a band boundary (nice-to-have tools Next.js/Jest); the
 control fixture is much tighter. The historical 72 is below the controlled
 minimum (75) but consistent with the same tail.
 
-P0 "max Δ 3" is **not comparable**: it compared medians of 3 runs between two
-code versions per fixture, not run-to-run spread.
+P0 comparison: P0 "max Δ≈3" compared medians between code versions. P0 did
+not measure the run-to-run distribution of identical requests. Therefore this
+result does not establish a regression from P0.
 
 ## Not changed
 
 Scoring, prompts, model, temperature, thinking budget, schema, requirement and
 verification authority, guards, retries, production config.
 
-## Impact on roadmap
+## P2B constraint
 
-- Severity MEDIUM: controlled Δ13 on identical input, High↔Medium flip in 15%
-  of runs on this fixture.
-- Does not block P2B as long as P2B does not rank or compare applications by
-  `matchScore`; any screen showing the frozen score labels it as the score at
-  save time.
-- Gates P4A (multi-JD ranking ranks on the canonical score): stabilize Analyze
-  first, with a calibration benchmark (P0 showed request changes shift scores).
+P2B may display the saved `matchScore` as historical context, labelled as the
+**score at save time**. The frozen score stays: it is valid evidence of what
+the user saw when saving.
+
+P2B MUST NOT use `matchScore` / `passProbability` to:
+
+- rank applications;
+- recommend which application is better;
+- sort by quality by default;
+- calculate application success;
+- aggregate candidate quality;
+- present score changes between applications as meaningful improvement or regression.
+
+Reason: identical Analyze requests currently show material model variance.
+
+## Analyze stabilization gate
+
+**ANALYZE STABILIZATION — required before P4A multi-JD ranking** (P4A ranks on
+the canonical score). Investigation candidates only, none selected: explicit
+temperature, seed, multi-run aggregation / median, deterministic score
+derivation. Every proposal needs a calibration benchmark first, because
+request/model changes may shift score distributions (P0 precedent).

@@ -407,6 +407,15 @@ Analyze trả về. Cần theo dõi vì độ lệch lớn hơn rõ so với spr
 **Mức tác động:** Backend/DB/UI cao.\
 **Đây là stage làm thay đổi IA rõ nhất.**
 
+### Score policy (P2A.2)
+
+P2B chỉ được hiển thị `matchScore` đã lưu như bối cảnh lịch sử ("điểm lúc
+lưu" / "score at save time"). Không xếp hạng, không gợi ý application nào tốt
+hơn, không mặc định sort theo score, không tính tỷ lệ thành công, không tổng
+hợp chất lượng ứng viên, không coi chênh lệch score giữa các application là
+tiến bộ/thụt lùi. Lý do: cùng một request Analyze cho điểm 75–88
+(`docs/16_analyze_score_variance.md`).
+
 ### Status authority
 
 Canonical status:
@@ -541,6 +550,11 @@ Chỉ triển khai sau khi P2 snapshot ổn định.
 ------------------------------------------------------------------------
 
 ## P4A --- Multi-JD Intelligence
+
+**Gate:** cần ANALYZE STABILIZATION trước (`docs/16_analyze_score_variance.md`):
+MODEL_VARIANCE trên request giống hệt. Phương án (temperature, seed, median
+nhiều lần chạy, score deterministic) mới là ứng viên điều tra; phương án nào
+cũng phải qua calibration benchmark.
 
 **Mức tác động:** Backend/DB/UI cao.
 
