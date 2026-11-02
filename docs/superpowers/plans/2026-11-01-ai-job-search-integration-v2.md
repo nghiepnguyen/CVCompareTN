@@ -1,9 +1,10 @@
 # Kế hoạch tích hợp ý tưởng từ ai-job-search vào cvFit
 
 -   Ngày lập ban đầu: 24/10/2026.
--   Cập nhật: 01/11/2026.
--   Trạng thái: Backlog ưu tiên --- triển khai theo từng stage, không
-    port nguyên stack upstream.
+-   Cập nhật: 02/11/2026.
+-   Trạng thái: P0, P1A, P1B (+ P1B.1) DEPLOYED / PRODUCTION VERIFIED;
+    tiếp theo P2A. Triển khai theo từng stage, không port nguyên stack
+    upstream.
 -   Repo tham khảo: https://github.com/ai-job-search-dev/ai-job-search
     (nhánh `master`).
 -   Revision nghiên cứu ban đầu:
@@ -223,41 +224,40 @@ PR [#61](https://github.com/nghiepnguyen/CVCompareTN/pull/61) merge
 History disable). Authority: `docs/13_cover_letter.md`. `rewrite-cv` + `action:
 'cover_letter'`, CV = `parsedCV` serialize server-side, JD = JD của session
 (History disable), validator deterministic riêng + 1 retry không JD +
-fallback, cap theo giờ riêng (½ bucket rewrite), không migration, function
-count 9. Benchmark 10 fixture × 5: 0 claim cấm/injection, 2 fallback. Chưa
+fallback, không migration, function count 9. Cap theo giờ: từ P1B dùng chung
+document cap với Application Review (`ceil(hourlyAiLimit/2)` request, free
+5/giờ). Benchmark 10 fixture × 5: 0 claim cấm/injection, 2 fallback. Chưa
 làm: edit/save (P2A), quota riêng ở DB.
 
 ### Công việc
 
--   [ ] Thêm `Cover Letter` vào candidate result.
--   [ ] Dùng CV/JD đã có trong analysis context.
--   [ ] Hỗ trợ Việt/Anh theo ngôn ngữ phù hợp với application.
--   [ ] Grounding rule giống Full CV: chỉ dùng facts có source.
--   [ ] Cho phép edit, copy, regenerate và save.
--   [ ] Không tự thêm metric, certification, company knowledge hoặc
+-   [x] Thêm `Cover Letter` vào candidate result.
+-   [x] Dùng CV/JD đã có trong analysis context (session; History disable).
+-   [x] Hỗ trợ Việt/Anh theo ngôn ngữ phù hợp với application.
+-   [x] Grounding rule giống Full CV: chỉ dùng facts có source.
+-   [ ] Cho phép edit, copy, regenerate và save. *(copy + regenerate đã có;
+    edit/save → P2A)*
+-   [x] Không tự thêm metric, certification, company knowledge hoặc
     achievement không có source.
--   [ ] Reuse handler hiện có, ví dụ `rewrite-cv` với
-    `action: 'cover-letter'`.
--   [ ] Không tạo Vercel function mới chỉ cho cover letter.
--   [ ] Chốt quota riêng cho cover letter; không vô tình thừa hưởng miễn
-    quota của rewrite hiện tại.
--   [ ] Log latency/model/guard metrics tương tự AI actions khác.
--   [ ] Timeout/retry phải idempotent ở tầng persistence.
+-   [x] Reuse handler hiện có: `rewrite-cv` với `action: 'cover_letter'`.
+-   [x] Không tạo Vercel function mới chỉ cho cover letter.
+-   [x] Chốt quota riêng cho cover letter; không vô tình thừa hưởng miễn
+    quota của rewrite hiện tại. *(document cap theo giờ, chung với P1B)*
+-   [x] Log latency/model/guard metrics tương tự AI actions khác.
+-   [ ] Timeout/retry phải idempotent ở tầng persistence. *(chưa có
+    persistence → P2A)*
 
 ### UI
 
-Result navigation dự kiến:
-
-`Overview | Requirements | Suggestions | Optimized CV | Cover Letter`
-
-Không thay upload/analyze flow.
+Đã ship: nút `Tạo Cover Letter` ở header Result mở dialog (ngôn ngữ thư
+VI/EN, copy, tạo lại) thay vì tab riêng. Không thay upload/analyze flow.
 
 ### Exit criteria
 
--   Cover letter tạo được từ analysis hiện tại.
--   Có thể sửa/copy/lưu.
--   Không có unsupported claims trong benchmark.
--   Lỗi AI không ảnh hưởng analysis result đã có.
+-   [x] Cover letter tạo được từ analysis hiện tại.
+-   [ ] Có thể sửa/copy/lưu. *(copy ✅; sửa/lưu → P2A)*
+-   [x] Không có unsupported claims trong benchmark.
+-   [x] Lỗi AI không ảnh hưởng analysis result đã có.
 
 ------------------------------------------------------------------------
 
@@ -271,7 +271,8 @@ Không thay upload/analyze flow.
 `310e59e`). P1B.1 — DEPLOYED / PRODUCTION VERIFIED ✅ (PR
 [#64](https://github.com/nghiepnguyen/CVCompareTN/pull/64) merge `b962502`:
 requirement-gap anchoring; production smoke trước fix có gap sai 3/3, sau fix
-React/Jest không còn báo gap, gap thật (Figma) vẫn giữ). Authority: `docs/14_application_review.md`. `rewrite-cv` + `action:
+React/Jest không còn báo gap, gap thật (Figma) vẫn giữ). Authority:
+`docs/14_application_review.md`. `rewrite-cv` + `action:
 'application_review'`; precheck = guard P1A (không đổi) → reviewer Gemini →
 server anchor findings (quote phải có trong thư, gap phải trỏ requirement
 matched/partial) + bảng severity + verdict `ready|review` do server tính → tối
@@ -293,24 +294,26 @@ Known debt còn lại:
 
 ### Công việc
 
--   [ ] Thêm action `Kiểm tra bản viết lại`.
--   [ ] Reviewer chạy request riêng sau khi draft đã có.
--   [ ] Review:
+-   [x] Thêm action `Kiểm tra hồ sơ ứng tuyển` (trong dialog Cover Letter).
+-   [x] Reviewer chạy request riêng sau khi draft đã có.
+-   [x] Review:
     -   unsupported claims;
     -   requirement chưa được phản ánh;
     -   claim quá mạnh;
     -   nội dung chung chung;
     -   inconsistency giữa CV và cover letter.
--   [ ] Reviewer chỉ trả critique/structured findings.
--   [ ] Revision chỉ chạy khi user yêu cầu áp dụng.
--   [ ] Không kéo reviewer vào critical path của Analyze.
--   [ ] Có guard chống reviewer tự bổ sung facts mới.
+-   [x] Reviewer chỉ trả critique/structured findings.
+-   [x] Revision chỉ áp dụng khi user yêu cầu. *(bản chỉnh được sinh trong
+    cùng request review — tối đa 1 lần — nhưng chỉ thay thư khi user bấm
+    "Dùng bản đã chỉnh")*
+-   [x] Không kéo reviewer vào critical path của Analyze.
+-   [x] Có guard chống reviewer tự bổ sung facts mới.
 
 ### Exit criteria
 
--   Analyze latency không đổi vì reviewer.
--   Review có thể retry độc lập.
--   Revision vẫn qua factual guard.
+-   [x] Analyze latency không đổi vì reviewer.
+-   [x] Review có thể retry độc lập.
+-   [x] Revision vẫn qua factual guard.
 
 ------------------------------------------------------------------------
 
@@ -621,13 +624,12 @@ Không bắt user vào tracker rồi nhập lại dữ liệu.
 
 Không tạo một API file cho mỗi feature.
 
-Ưu tiên action routing trong handler hiện có, ví dụ:
+Ưu tiên action routing trong handler hiện có. Đã ship trên `rewrite-cv`:
 
--   `rewrite-cv`
-    -   `rewrite`
-    -   `cover-letter`
-    -   `review`
-    -   `revise-after-review`
+-   `rewrite` (hoặc không có `action`) --- Full CV
+-   `cover_letter` --- P1A
+-   `application_review` --- P1B (review + tối đa 1 revision trong cùng
+    request; không có action `revise-after-review` riêng)
 
 Application CRUD ưu tiên route/handler phù hợp với architecture hiện tại
 hoặc Supabase RPC/direct client khi RLS đủ an toàn; phải audit function
@@ -689,13 +691,15 @@ Không tự "làm đẹp" bằng số liệu giả.
 
 ## 10. Quota và chi phí
 
-Trước P1 phải chốt policy:
+Policy đã chốt (02/11/2026):
 
--   Analyze: giữ policy hiện tại.
--   Rewrite CV: audit policy hiện tại.
--   Cover Letter: quota riêng hoặc cùng nhóm generation.
+-   Analyze: giữ policy hiện tại (monthly quota + cap theo giờ).
+-   Rewrite CV: cap theo giờ hiện tại, đếm mọi row `kind='rewrite'`.
+-   Cover Letter + Review: chung một document cap theo giờ
+    `ceil(hourlyAiLimit/2)` request (free 5/giờ), không monthly quota.
 -   Review: chỉ tính khi user chủ động chạy.
--   Revision: xác định có tính như generation mới hay bundled.
+-   Revision: bundled trong request review (1 request = tối đa 2 Gemini
+    call).
 -   Interview Prep: quota riêng sau P3.
 
 Không để việc reuse handler vô tình đồng nghĩa reuse quota behavior.
@@ -796,7 +800,7 @@ P0   Authority & Reliability Audit        ✅ deployed (PR #59)
  ↓
 P1A  Cover Letter                         ✅ deployed (PR #61)
  ↓
-P1B  Optional Application Review        ✅ deployed (PR #63, #64)
+P1B  Optional Application Review          ✅ deployed (PR #63, #64)
  ↓
 P2A  Save Application + Snapshot
  ↓
