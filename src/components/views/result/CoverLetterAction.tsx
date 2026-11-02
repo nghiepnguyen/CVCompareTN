@@ -51,7 +51,7 @@ function requirementsOf(result: AnalysisResult) {
   if (!d) return [];
   return [d.skills, d.experience, d.tools, d.education, d.keywords]
     .flatMap((items) => items ?? [])
-    .map(({ requirement, status, priority }) => ({ requirement, status, ...(priority && { priority }) }));
+    .map(({ requirement, status, priority, cvEvidence }) => ({ requirement, status, ...(priority && { priority }), ...(cvEvidence && { cvEvidence }) }));
 }
 
 /**

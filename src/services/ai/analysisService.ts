@@ -97,7 +97,7 @@ export async function reviewApplication(
     language: 'vi' | 'en';
     employerName: string;
     roleTitle: string;
-    requirements: { requirement: string; status: string; priority?: string }[];
+    requirements: { requirement: string; status: string; priority?: string; cvEvidence?: string }[];
   },
   authToken?: string
 ): Promise<ApplicationReviewResponse> {
