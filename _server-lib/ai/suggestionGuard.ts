@@ -108,23 +108,32 @@ const REQUIREMENT_FILLER = new Set([
 const isRequirementFiller = (w: string) => isGeneric(w) || isStop(w) || REQUIREMENT_FILLER.has(w.toLowerCase());
 const isNumeric = (w: string) => /^\d+(?:[.,]\d+)?[+%]?$/.test(w);
 
-// Named concepts (React, TypeScript, WCAG, Next.js): tokens with an
-// uppercase letter, except a plain Capitalized word opening a sentence —
-// ambiguous ("React" vs "Component tests"); `firstWord` reports it apart.
-function namedTerms(text: string): { terms: string[]; firstWord?: string } {
+// Named concepts (React, TypeScript, WCAG, Next.js, Google Analytics):
+// tokens with an uppercase letter. GENERIC words stay inside a requirement's
+// names ("Analytics" in "Google Analytics") but are dropped from evidence
+// quotes ("Listed in Skills: Figma"). A plain Capitalized word opening a
+// sentence is a name only when a list follows it ("React and TypeScript",
+// "Google Analytics"); "Deep understanding of React" or "Am hiểu React" is not.
+// Case-sensitive on purpose: with the i flag \p{Lu} also matches lowercase.
+const LIST_CONNECTOR = /^\s*(?:,|&|\/|[Aa]nd\b|[Vv]à(?![\p{L}])|\p{Lu})/u;
+function namedTerms(text: string, dropGeneric = false): { terms: string[]; firstWord?: string } {
   const terms: string[] = [];
   let firstWord: string | undefined;
-  text.split(/(?<=[.!?:;(])\s*|\n+/).forEach((sentence, s) => {
-    const words = sentence.match(/[\p{L}\p{N}][\p{L}\p{N}+#.&'’/-]*/gu) ?? [];
-    words.forEach((raw, i) => {
-      const w = raw.replace(/['’]s$/i, '').replace(/[.'’-]+$/, '');
-      if (!/\p{Lu}/u.test(w) || w.length < 2 || isNumeric(w) || isRequirementFiller(w)) return;
-      if (i === 0 && /^\p{Lu}[\p{Ll}'’-]*$/u.test(w)) {
-        if (s === 0) firstWord = w;
-        return;
+  const skip = (w: string) => isNumeric(w) || isStop(w) || REQUIREMENT_FILLER.has(w.toLowerCase()) || (dropGeneric && isGeneric(w));
+  // A period only ends a sentence before whitespace ("Next.js" stays one token).
+  const sentences = text.split(/(?<=[.!?:;])\s+|(?<=\()|\n+/);
+  sentences.forEach((sentence, s) => {
+    // After a label ("Skills: Figma") the first word is a list item, not a sentence start.
+    const afterLabel = s > 0 && /:\s*$/.test(sentences[s - 1]);
+    for (const m of sentence.matchAll(/[\p{L}\p{N}][\p{L}\p{N}+#.&'’/-]*/gu)) {
+      const w = m[0].replace(/['’]s$/i, '').replace(/[.'’-]+$/, '');
+      if (!/\p{Lu}/u.test(w) || w.length < 2 || skip(w)) continue;
+      if (!afterLabel && m.index === sentence.search(/[\p{L}\p{N}]/u) && /^\p{Lu}[\p{Ll}'’-]*$/u.test(w)) {
+        if (s === 0 && LIST_CONNECTOR.test(sentence.slice(m.index + m[0].length))) firstWord = w;
+        continue;
       }
       if (!terms.includes(w)) terms.push(w);
-    });
+    }
   });
   return { terms, firstWord };
 }
@@ -163,7 +172,7 @@ export function requirementCoveredByLetter(req: { requirement: string; cvEvidenc
   if (results.includes(true)) return true;
   // Evidence bridge only for requirements that name no concept at all.
   if (!req.cvEvidence || !alternatives.every((alt) => !namedTerms(alt).terms.length)) return false;
-  const evidence = namedTerms(req.cvEvidence).terms.filter((t) => t.toLowerCase() !== 'present');
+  const evidence = namedTerms(req.cvEvidence, true).terms;
   return evidence.length > 0 && evidence.every((t) => containsPhrase(body, t));
 }
 

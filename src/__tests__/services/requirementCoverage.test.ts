@@ -62,6 +62,7 @@ describe('requirementCoveredByLetter: real gaps stay', () => {
     expect(covered('Jest', 'I build React and TypeScript web apps.')).toBe(false);
     expect(covered('Figma', 'I work with React, TypeScript and Jest.')).toBe(false);
     expect(covered('Next.js', 'I build React apps with Nest and Node.')).toBe(false);
+    expect(covered('Biết Next.js', 'I build React apps.')).toBe(false);
   });
 
   it('concept without a technology name', () => {
@@ -118,3 +119,25 @@ describe('requirementCoveredByLetter: languages', () => {
     expect(covered('Kinh nghiệm với Jest', 'I write React components.')).toBe(false);
   });
 });
+
+describe('requirementCoveredByLetter: product names and leading qualifiers (P1B.1 review)', () => {
+  it('a two-word product name needs both words (no partial-name coverage)', () => {
+    expect(covered('Google Analytics', 'I run Google Ads campaigns.')).toBe(false);
+    expect(covered('Google Analytics', 'I report weekly results in Google Analytics.')).toBe(true);
+    expect(covered('Data Studio', 'I use Android Studio.')).toBe(false);
+  });
+
+  it('a leading qualifier is not a required concept (EN and VI)', () => {
+    expect(covered('Deep understanding of React', 'I build React apps.')).toBe(true);
+    expect(covered('Practical experience with Docker', 'I deploy services with Docker.')).toBe(true);
+    expect(covered('Am hiểu React', 'Tôi xây dựng ứng dụng bằng React.')).toBe(true);
+    expect(covered('Nắm vững TypeScript', 'I write TypeScript every day.')).toBe(true);
+    expect(covered('Ưu tiên ứng viên biết Next.js', 'I build Next.js apps.')).toBe(true);
+    expect(covered('Deep understanding of React', 'I build Vue apps.')).toBe(false);
+  });
+
+  it('evidence quotes ignore generic section words', () => {
+    expect(covered('Design tools', 'I prototype in Figma.', 'Listed in Skills: Figma')).toBe(true);
+  });
+});
+
