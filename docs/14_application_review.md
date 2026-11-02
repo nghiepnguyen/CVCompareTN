@@ -16,7 +16,8 @@ Request:
 ```json
 { "action": "application_review", "jd": "...", "parsedCV": {}, "coverLetter": "...",
   "language": "vi", "employerName": "...", "roleTitle": "...",
-  "requirements": [{ "requirement": "...", "status": "matched", "priority": "required" }] }
+  "requirements": [{ "requirement": "...", "status": "matched", "priority": "required",
+                    "cvEvidence": "..." }] }
 ```
 
 - `employerName`/`roleTitle`: tên P1A đã xác minh trong JD và dùng làm ngoại lệ
@@ -83,16 +84,20 @@ không gọi Gemini. Coverage ≠ satisfaction: không đổi status/verificatio
 quyết định gap reviewer đề xuất có bị bỏ không.
 
 - Tách alternative theo "or"/"hoặc": một alternative đủ là covered.
-- **Concept có tên** (token có chữ hoa: React, TypeScript, WCAG, Next.js) →
-  tất cả phải có trong thư (whole token, normalization của guard). Từ viết hoa
-  đứng đầu requirement đi kèm danh sách tên ("React and TypeScript") cũng bắt
-  buộc → multi-concept cần đủ.
+- **Concept có tên** (token có chữ hoa: React, TypeScript, WCAG, Next.js,
+  Google Analytics) → tất cả phải có trong thư (whole token, normalization của
+  guard; từ generic *trong* tên vẫn giữ, nên "Google Ads" không cover "Google
+  Analytics"). Từ viết hoa đứng đầu requirement chỉ bắt buộc khi theo sau là
+  danh sách (`and`/`và`/`,`/`&`/`/` hoặc một từ viết hoa): "React and
+  TypeScript" cần cả hai; "Deep understanding of React", "Am hiểu React" chỉ
+  cần React. Dấu chấm chỉ kết thúc câu khi có khoảng trắng sau ("Next.js").
 - Không có concept có tên → mọi content word không generic phải có; chỉ có từ
   generic ("design systems") thì cụm đó phải có. Threshold số ("3+ years"),
   từ proficiency/"experience"/"application development" bị bỏ qua — thư không
   cần nhắc lại threshold, nhưng overlap generic không bao giờ là coverage.
 - **cvEvidence bridge** chỉ khi requirement không có concept có tên: concept có
-  tên trong `cvEvidence` canonical phải *đều* có trong thư ("Component tests" ←
+  tên trong `cvEvidence` canonical (bỏ từ generic như "Skills"; từ sau nhãn
+  "Skills: Figma" được tính) phải *đều* có trong thư ("Component tests" ←
   evidence "wrote tests with Jest" ← thư "testing with Jest"). Evidence một mình
   không bao giờ covered. Client gửi kèm `cvEvidence` (≤ 200 ký tự, sanitize).
 - Không dịch: tên công nghệ tự khớp cross-language; requirement chỉ có từ
@@ -160,9 +165,13 @@ từ chối / lỗi / hết budget không xảy ra với model thật — chỉ 
 P1B.1 (+8 fixture gap × 5: covered React / Jest-qua-evidence / Figma /
 cross-language VI, missing React / Jest, bẫy generic, multi-concept): full run
 25 fixture / 113 run — 4 gate = 0, gap sai 0/20 (reviewer vẫn *đề xuất* gap sai
-ở phần lớn run covered; server bỏ hết), recall gap 23/23; run riêng phần gap
-20/23 (3 lần sót ở multi-concept do reviewer không đề xuất, server không bỏ).
-Gộp recall 43/46.
+ở phần lớn run covered; server bỏ hết), recall gap 23/23. Sau khi siết quy tắc
+từ đầu/tên nhiều từ: run lại phần gap (9 fixture / 43 run) — gap sai 0/20,
+recall 22/23; mọi lần sót (kể cả 3 lần ở run gap đầu tiên) là reviewer không
+đề xuất, server không bỏ gap thật nào. Các ca lexical (Google Analytics vs
+Google Ads, Data Studio vs Android Studio, qualifier EN/VI) được unit test.
+Gap là MEDIUM không factual → không đổi verdict/revision, nên 4 gate an toàn
+không phụ thuộc thay đổi này.
 
 ## Known debt
 
