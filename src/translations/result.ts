@@ -508,6 +508,34 @@ export const result = {
     vi: "Cần dữ liệu CV đã chuẩn hóa để tạo thư.",
     en: "Parsed CV data is required to create a letter.",
   },
+  saveApplication: {
+    vi: "Lưu ứng tuyển",
+    en: "Save application",
+  },
+  saveApplicationHint: {
+    vi: "Lưu bản chụp CV, JD và Cover Letter hiện tại (nếu có). Chưa đánh dấu là đã nộp đơn.",
+    en: "Saves a snapshot of the current CV, JD and Cover Letter (if any). Not marked as submitted.",
+  },
+  saveApplicationSaving: {
+    vi: "Đang lưu...",
+    en: "Saving...",
+  },
+  saveApplicationSaved: {
+    vi: "Đã lưu ứng tuyển",
+    en: "Application saved",
+  },
+  saveApplicationAlreadySaved: {
+    vi: "Đã lưu trước đó — giữ nguyên tài liệu tại thời điểm lưu.",
+    en: "Already saved — the materials from that save are kept.",
+  },
+  saveApplicationError: {
+    vi: "Không lưu được ứng tuyển. Vui lòng thử lại.",
+    en: "Could not save the application. Please try again.",
+  },
+  saveApplicationNoParsedCv: {
+    vi: "Cần dữ liệu CV đã chuẩn hóa để lưu ứng tuyển.",
+    en: "Parsed CV data is required to save the application.",
+  },
   reviewAction: {
     vi: "Kiểm tra hồ sơ ứng tuyển",
     en: "Review Application",
