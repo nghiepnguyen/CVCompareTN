@@ -12,7 +12,12 @@ P2A production smoke: the same synthetic CV + JD scored **88** then **72**.
   and equals the fixture JD hash).
 - CV: raw text is not persisted (pasted text), so historical byte identity
   **cannot be proven**. Strong indirect evidence: identical `parse_cv` input
-  tokens (494 / 494) and identical parsedCV snapshot hash.
+  tokens (494 / 494), identical parsedCV snapshot hash, and a local `parse_cv`
+  of the fixture CV also reports 494 input tokens.
+- `analysis_log`: exactly one successful `analyze` row per run, no error rows,
+  so neither run was a retry. Its token totals (4665 / 4549) include the VI
+  localization call, whose input depends on the model output, so they cannot
+  prove prompt identity (the analyze prompt alone is 3829 tokens locally).
 - Both runs: `gemini-3-flash-preview`, `canonical-en-v1`, `canonical-score-v1`,
   UI `vi`, one analyze call, no retry/fallback. The 72 run had Tools 60 vs 85
   and one requirement `partial` instead of `matched`.
@@ -28,11 +33,14 @@ recompute) → `passProbability = derivePassProbability(matchScore)` (≥80 High
 ≥60 Medium). `categoryScores` are separate model numbers, not inputs to
 `matchScore`. VI adds a second call (`localizeAnalysis`) that only rewrites
 presentation strings. Analyze does **not** consume `parsedCV`. No retry or
-fallback inside analyze.
+fallback inside analyze. Client (`src/services/ai/analysisService.ts`) returns the
+`/api/analyze` JSON as-is: no automatic retry, no score rewrite.
 
 ## Controlled runs
 
-Fixture = the exact smoke CV/JD. Sequential, UI `vi`.
+Fixture = the smoke JD (hash-proven) and the smoke CV as typed (equivalent
+with high confidence, see above). Sequential, UI `vi`. All calls local with
+the project key; production DB was read-only.
 
 | | N | scores | range | median | mean | stdev | P25/P75 |
 |---|---|---|---|---|---|---|---|
@@ -45,8 +53,9 @@ Fixture = the exact smoke CV/JD. Sequential, UI `vi`.
   input and generation config). One analyze call per run, no retry/fallback,
   raw model score = final score in 20/20.
 - Probability band: High 17, Medium 3 (band flips in 15% of runs).
-- Category driving the range: Tools 60–90 (range 30); every run ≤ 82 had
-  Tools ≤ 70. Skills/Technical/Hard/Experience vary ±5–10.
+- Tools (60–90, range 30) co-varies with the score: every run ≤ 82 had
+  Tools ≤ 70. Category scores are not inputs to `matchScore`, so this is
+  correlation, not cause. Skills/Technical/Hard/Experience vary ±5–10.
 - Requirement table: core requirements stable (React/TS, years, Figma, collaboration
   matched 20/20; Next.js missing 20/20). Unstable: "reusable UI component
   libraries" matched vs partial, and how the model splits rows across
@@ -70,3 +79,13 @@ code versions per fixture, not run-to-run spread.
 
 Scoring, prompts, model, temperature, thinking budget, schema, requirement and
 verification authority, guards, retries, production config.
+
+## Impact on roadmap
+
+- Severity MEDIUM: controlled Δ13 on identical input, High↔Medium flip in 15%
+  of runs on this fixture.
+- Does not block P2B as long as P2B does not rank or compare applications by
+  `matchScore`; any screen showing the frozen score labels it as the score at
+  save time.
+- Gates P4A (multi-JD ranking ranks on the canonical score): stabilize Analyze
+  first, with a calibration benchmark (P0 showed request changes shift scores).
