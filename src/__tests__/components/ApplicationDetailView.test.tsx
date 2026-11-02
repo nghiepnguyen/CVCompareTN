@@ -81,6 +81,9 @@ describe('Documents', () => {
     expect(panel.textContent).toContain(`${vi_.trackerScoreAtSave}: 72/100`);
     expect(panel.textContent).toContain(vi_.trackerScoreAtSaveHint);
     expect(panel.textContent).toContain(vi_.trackerDocsReadOnly);
+    fireEvent.click(within(panel).getByText(new RegExp(vi_.trackerRequirementsAtSave)));
+    expect(panel.textContent).toContain(`Go — ${vi_.matched} · ${vi_.verificationMet}`);
+    expect(panel.textContent).not.toMatch(/\b(matched|partial|missing|met|unmet|unknown)\b/);
     expect(within(panel).queryAllByRole('button')).toHaveLength(0);
     expect(within(panel).queryAllByRole('textbox')).toHaveLength(0);
     // Snapshot is the authority: no analysis / history reads.
@@ -169,14 +172,19 @@ describe('Status change', () => {
     expect(k3).not.toBe(k1);
   });
 
-  it('stale_status: localized message, reloads, nothing reported to Sentry; definite rejection mints a new key', async () => {
-    db.rpc.mockResolvedValue({ data: null, error: { message: 'stale_status', details: 'Failing row contains (secret)' } });
+  it('stale_status: message survives the reload to the new status; options follow it; nothing to Sentry', async () => {
+    // Another tab moved it to applied meanwhile.
+    db.rpc.mockImplementation(async () => { app.status = 'applied'; return { data: null, error: { message: 'stale_status', details: 'Failing row contains (secret)' } }; });
     await renderDetail();
     const before = appFetches();
     click(vi_.trackerChangeStatus);
     click(vi_.trackerSave);
-    expect(await screen.findByText(vi_.trackerErrStale)).toBeTruthy();
     await waitFor(() => expect(appFetches()).toBeGreaterThan(before));
+    await waitFor(() => expect(within(screen.getByRole('tabpanel')).getAllByText(vi_.trackerStatusApplied).length).toBeGreaterThan(0));
+    expect(screen.getByText(vi_.trackerErrStale)).toBeTruthy();
+    const select = screen.getByLabelText(vi_.trackerNewStatus) as HTMLSelectElement;
+    expect([...select.options].map((o) => o.value)).toEqual(['drafted', 'interview', 'rejected', 'no_response', 'withdrawn']);
+    expect(select.value).toBe('drafted');
     expect(document.body.textContent).not.toContain('secret');
     expect(sentry.captureException).not.toHaveBeenCalled();
   });

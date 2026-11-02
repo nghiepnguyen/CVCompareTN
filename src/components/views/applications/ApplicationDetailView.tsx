@@ -137,7 +137,7 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
               </button>
             ))}
           </div>
-          {panel === 'status' && <StatusChangeForm key={app.status} application={app} onDone={() => void load()} onClose={closePanel} />}
+          {panel === 'status' && <StatusChangeForm application={app} onDone={() => void load()} onClose={closePanel} />}
           {panel === 'details' && <DetailsForm application={app} onDone={() => void load()} onClose={closePanel} />}
           {panel === 'note' && <NoteForm applicationId={app.id} onDone={() => void load()} onClose={closePanel} />}
         </div>
@@ -152,6 +152,14 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
 const textOf = (doc: ApplicationDocument | undefined) => (typeof doc?.content.text === 'string' ? doc.content.text : '');
 
 interface SavedRequirement { requirement?: unknown; status?: unknown; verification?: unknown }
+
+// Same labels as the result view's requirement list; values frozen at save time, never recomputed.
+function requirementLabel(t: UiLabels, r: SavedRequirement): string {
+  const status = r.status === 'matched' ? t.matched : r.status === 'partial' ? t.partial : t.missing;
+  const verification = r.verification === 'met' ? t.verificationMet : r.verification === 'unmet' ? t.verificationUnmet
+    : r.verification === 'unknown' ? t.verificationUnknown : null;
+  return verification ? `${status} · ${verification}` : status;
+}
 
 function DocumentsTab({ documents, t }: { documents: ApplicationDocument[]; t: UiLabels }) {
   const cv = documents.find((d) => d.type === 'cv');
@@ -180,7 +188,7 @@ function DocumentsTab({ documents, t }: { documents: ApplicationDocument[]; t: U
               <ul className="mt-2 space-y-1">
                 {requirements.map((r, i) => (
                   <li key={i} className="break-words text-xs text-text-main">
-                    {String(r.requirement ?? '')} <span className="text-text-light">— {String(r.status ?? '')}{r.verification ? ` / ${String(r.verification)}` : ''}</span>
+                    {String(r.requirement ?? '')} <span className="text-text-light">— {requirementLabel(t, r)}</span>
                   </li>
                 ))}
               </ul>

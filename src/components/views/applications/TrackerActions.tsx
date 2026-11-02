@@ -31,7 +31,9 @@ const occurredAtFor = (ymd: string) => (ymd === vnTodayYmd() ? null : `${ymd}T12
 export function StatusChangeForm({ application, onDone, onClose }: { application: ApplicationDetail; onDone: () => void; onClose: () => void }) {
   const { t } = useUI();
   const options = allowedTransitions(application.status);
-  const [to, setTo] = React.useState<ApplicationStatus>(options[0]);
+  const [picked, setTo] = React.useState<ApplicationStatus>(options[0]);
+  // The form survives a reload (so a stale_status message stays visible); keep the choice valid for the fresh status.
+  const to = options.includes(picked) ? picked : options[0];
   const [date, setDate] = React.useState(vnTodayYmd());
   const [note, setNote] = React.useState('');
   const [confirming, setConfirming] = React.useState(false);
