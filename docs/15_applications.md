@@ -54,6 +54,18 @@ Một RPC: `public.save_application(...)` → `{ id, created }`, gọi trực ti
 
 Migration chỉ phụ thuộc: `auth.users(id)`, `auth.uid()`, `auth.role()`, `public.profiles(id uuid, role text, has_permission boolean)`, `public.enforce_account_unlocked()` (SECURITY INVOKER, `search_path=""`), roles `anon/authenticated/service_role`, `gen_random_uuid()`. Tất cả đã xác minh tồn tại trên production; `applications`, `application_documents`, `save_application` chưa tồn tại. Không phụ thuộc `history`/`analysis_log` (đã bỏ). Không có mutation production.
 
+## Rollout / rollback
+
+Thứ tự (app gọi RPC chưa tồn tại → mọi lần Save báo lỗi):
+
+1. Áp `20261103000000_applications_snapshots.sql` lên production (`BEGIN/COMMIT`, sau review).
+2. Verify read-only: 2 bảng tồn tại + RLS bật; `has_function_privilege('anon', 'public.save_application(uuid,text,text,text,text,jsonb,text,text,jsonb,text,text)', 'EXECUTE') = false`, `authenticated = true`; `authenticated` không có INSERT/UPDATE trên 2 bảng; trigger `application_documents_immutable` enabled.
+3. Merge + deploy app.
+
+Preview deploy dùng Supabase production → Save trên preview lỗi cho tới bước 1; đây là dự kiến, không phải lỗi CI.
+
+Rollback: revert app trước; sau đó `DROP FUNCTION public.save_application(uuid, text, text, text, text, jsonb, text, text, jsonb, text, text); DROP TABLE public.application_documents; DROP TABLE public.applications; DROP FUNCTION public.application_documents_immutable();` — chỉ xoá dữ liệu P2A, không đụng bảng/hàm khác.
+
 ## Quyền
 
 - `authenticated`: `SELECT, DELETE` trên `applications` (của mình); `SELECT` trên `application_documents` (của mình). Không INSERT/UPDATE trực tiếp.
