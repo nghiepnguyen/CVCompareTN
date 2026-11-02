@@ -137,9 +137,8 @@ phía sau không phân biệt hoa thường (`canonicalText`), nên một "acron
 
 Trước P1C: regex acronym `\b[A-Z][A-Z0-9]{1,5}\b` lấy cả từ heading viết hoa
 trong dòng *viết hoa một phần* ("MUST HAVE: React" → `MUST`, `HAVE`; "NOTE TO
-THE …"; "SKILLS:"; VI "KINH NGHIỆM:" → `KINH`), và `\b` chỉ hiểu ASCII nên
-cắt mảnh từ tiếng Việt ("NGHI" từ "NGHIỆM"). Dòng viết hoa *toàn bộ* bị bỏ
-qua hẳn, nên "MUST HAVE: AWS" không bảo vệ gì.
+THE …"; "SKILLS:"; VI "KINH NGHIỆM: 3 năm" → `KINH`), và `\b` chỉ hiểu ASCII
+nên cắt mảnh từ tiếng Việt ("NGHI" từ "NGHIỆM").
 
 Sau P1C:
 
@@ -149,22 +148,22 @@ Sau P1C:
   Không có từ domain (API, SQL, REST); heading dài (REQUIREMENTS) vốn không
   khớp pattern.
 - Biên token theo Unicode (`(?<![\p{L}\p{N}])…(?![\p{L}\p{N}])`).
-- Dòng viết hoa toàn bộ vẫn là heading, **trừ** phần giá trị sau một nhãn
-  liệt kê đã biết (`JD_LIST_LABEL`: MUST HAVE, NICE TO HAVE, REQUIRED,
-  PREFERRED, SKILLS, TECH STACK, YÊU CẦU, ƯU TIÊN, KỸ NĂNG, KINH NGHIỆM…): ở đó
-  acronym được đọc, bỏ từ generic/stop ("MUST HAVE: 3 YEARS OF AWS" → `AWS`).
-  Dòng viết hoa khác (chức danh, "LOCATION: HO CHI MINH CITY") vẫn bỏ qua.
-- Không đổi: hyphen/mixed-case rule, numeric guard, Skills policy, metric.
-- Giới hạn còn lại: acronym 2 ký tự (CI/CD, AI, BI) và "Node.js"/"C++" chưa
-  bao giờ là concept; "IGNORE" trong heading độc hại vẫn thành concept (chỉ
-  chặn chữ "ignore", vô hại).
+- Không đổi: dòng viết hoa *toàn bộ* vẫn bị bỏ qua cả dòng; hyphen/mixed-case
+  rule; numeric guard; Skills policy; metric.
+- Giới hạn còn lại (có sẵn từ trước): acronym trên dòng viết hoa toàn bộ
+  ("MUST HAVE: AWS, SQL") không được bảo vệ — P1A vẫn bắt qua
+  `unsupported-term`, Full CV và drop suggestion thì không. Đọc riêng phần giá
+  trị của các dòng này đã thử và bỏ vì biến từ thường thành concept ("YÊU CẦU:
+  TIẾNG ANH GIAO TIẾP" → `ANH`, `GIAO`; "DEGREE"). Acronym 2 ký tự (CI/CD, AI)
+  và "Node.js"/"C++" chưa bao giờ là concept. "IGNORE" trong heading độc hại
+  vẫn thành concept (chỉ chặn chữ "ignore", vô hại).
 
-Benchmark P1A (5 fixture P1C × 5, cùng fixture chạy trên `origin/main` để so
-sánh): trước 15/25 fallback, 35 violation trên từ heading (`HAVE` 20, `KINH`
-10, `YOU` 5); sau 1/25 fallback (strength-claim "led", chặn đúng), 0 violation
-heading, 0 claim cấm lọt, 0 lỗi ngôn ngữ. Full CV (`benchmark-full-cv-structural`,
-5 fixture × 5, gồm CV tiếng Việt): trước và sau đều 0 violation heading, 0
-fallback, 0 rò rỉ — CV viết lại hiếm dùng "have"/"you" và CV tiếng Việt tự
-chứa "kinh nghiệm" (CV evidence wins). Model không viết concept chỉ có trong JD
-ở run nào, nên phần "vẫn bắt AWS/Kubernetes" được chứng minh bằng unit test
+Benchmark P1A (5 fixture P1C × 5; cùng fixture chạy trên `origin/main` để so):
+trước 15/25 fallback, 35 violation trên từ heading (`HAVE` 20, `KINH` 10, `YOU`
+5); sau 0/25 fallback, 0 violation heading, 0 claim cấm lọt, 0 lỗi ngôn ngữ.
+Full CV (`benchmark-full-cv-structural`, 5 fixture × 5, gồm CV tiếng Việt):
+trước và sau đều 0 violation heading, 0 fallback, 0 rò rỉ — không đo được khác
+biệt (CV viết lại hiếm dùng "have"/"you"; CV tiếng Việt tự chứa "kinh nghiệm"
+nên CV evidence thắng). Model không viết concept chỉ có trong JD ở run nào, nên
+"vẫn bắt AWS/Kubernetes/WCAG" và drop suggestion được chứng minh bằng unit test
 (`rawJdStructural.test.ts`).
