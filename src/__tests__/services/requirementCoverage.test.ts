@@ -48,6 +48,8 @@ describe('requirementCoveredByLetter: covered', () => {
     const req = 'Experience with design systems or component libraries';
     expect(covered(req, 'I built a shared component library used by 3 product teams.')).toBe(true);
     expect(covered(req, 'I would welcome the chance to contribute to your design system.')).toBe(true);
+    expect(covered('React or Vue', 'I build Vue apps.')).toBe(true);
+    expect(covered('React or Vue', 'I build Angular apps.')).toBe(false);
   });
 
   it('cvEvidence bridge only for requirements without a named technology', () => {
