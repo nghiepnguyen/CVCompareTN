@@ -175,13 +175,8 @@ không phụ thuộc thay đổi này.
 
 ## Known debt
 
-- **`rawJdConcepts` đọc dòng JD viết hoa một phần như acronym** (≤ 6 chữ:
-  "MUST HAVE: React" → `MUST`, `HAVE`; "NOTE TO THE …" → `NOTE`, `THE`), nên
-  thư/rewrite chứa từ thường đó bị coi là raw-JD. Có sẵn từ trước. Ảnh hưởng
-  thật: P1A fallback, Full CV retry/fallback, suggestion bị drop. Trong UI,
-  P1B không gặp (thư review đã qua đúng guard này với cùng JD/tên); chỉ caller
-  API trực tiếp mới thấy HIGH sai. Không sửa ở P1B vì guard dùng chung và spec
-  cấm đổi ngữ nghĩa P1A/Full CV — cần PR riêng có benchmark.
+- ~~`rawJdConcepts` partial-caps false positive~~ — **đã sửa ở P1C** (xem
+  [13_cover_letter.md](./13_cover_letter.md) mục "Raw-JD concepts (P1C)").
 - Revision không được review lại: claim định tính *mới* (nếu model thêm) chỉ
   bị chặn bởi guard lexical; benchmark không thấy trường hợp nào.
 - Verbatim-in-CV chỉ bắt quote liền mạch; "professional working proficiency

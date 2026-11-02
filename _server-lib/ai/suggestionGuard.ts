@@ -221,6 +221,20 @@ const NON_CONCEPT_ACRONYMS = new Set([
   'APAC', 'EMEA', 'USA', 'HCM', 'CEO', 'CTO', 'CFO', 'COO', 'EEO', 'FAQ', 'ASAP', 'JD', 'CV', 'NB',
 ]);
 
+// Upper-case JD structure, not domain concepts: heading and function words a
+// JD writes in capitals ("MUST HAVE:", "NICE TO HAVE", "SKILLS:", "ABOUT
+// YOU", "NOTE TO THE …", VI "KINH NGHIỆM:"). Matching downstream is
+// case-insensitive, so as "acronyms" they flagged every "have"/"the". Only
+// 3–6 letter words can reach the acronym pattern; longer headings
+// (REQUIREMENTS) never could. Domain words (API, SQL, REST) are not here.
+const STRUCTURAL_JD_WORDS = new Set([
+  'must', 'have', 'nice', 'the', 'and', 'for', 'you', 'your', 'our', 'are', 'will', 'can', 'with', 'not',
+  'what', 'who', 'why', 'how', 'about', 'note', 'plus', 'bonus', 'job', 'role', 'team', 'skills', 'key',
+  'main', 'apply', 'join', 'perks', 'offer', 'duties', 'tasks', 'goals', 'salary', 'work', 'kinh',
+]);
+const isStructuralJdWord = (w: string) => STRUCTURAL_JD_WORDS.has(w.toLowerCase());
+const ACRONYM = /(?<![\p{L}\p{N}])[A-Z][A-Z0-9]{1,5}(?![\p{L}\p{N}])/gu;
+
 export function rawJdConcepts(jd: string, cvText: string): DeniedConcept[] {
   const cv = canonicalText(cvText);
   const out = new Map<string, DeniedConcept>();
@@ -231,18 +245,22 @@ export function rawJdConcepts(jd: string, cvText: string): DeniedConcept[] {
   };
   for (const line of jd.split(/\n/)) {
     // All-caps lines are headings ("REQUIREMENTS"), not content.
+    // shortcut: acronyms on a fully upper-case line ("MUST HAVE: AWS") are not
+    // protected; reading only their value part flagged Vietnamese/English
+    // words ("TIẾNG ANH" → ANH), so it needs its own benchmarked change.
     const letters = line.replace(/[^\p{L}]/gu, '');
     if (letters.length > 3 && letters === letters.toUpperCase()) continue;
     for (const m of line.matchAll(/\p{L}+(?:-\p{L}+)+/gu)) {
       const term = m[0];
       const parts = term.toLowerCase().split('-');
       if (STYLE_HYPHENATED.has(term.toLowerCase())) continue;
-      if (parts.every((p) => isGeneric(p) || isStop(p))) continue;
+      if (parts.every((p) => isGeneric(p) || isStop(p) || isStructuralJdWord(p))) continue;
       add(term);
     }
-    for (const m of line.matchAll(/\b[A-Z][A-Z0-9]{1,5}\b/g)) {
+    // Letter-aware boundaries: "NGHI" in "NGHIỆM" is not a token.
+    for (const m of line.matchAll(ACRONYM)) {
       const term = m[0];
-      if (NON_CONCEPT_ACRONYMS.has(term)) continue;
+      if (NON_CONCEPT_ACRONYMS.has(term) || isStructuralJdWord(term)) continue;
       if (term.length < 3 && !/\d/.test(term)) continue; // AI, BI, UX… too ambiguous
       add(term);
     }
