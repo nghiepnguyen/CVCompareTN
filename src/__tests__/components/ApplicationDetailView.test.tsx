@@ -64,7 +64,7 @@ describe('Overview', () => {
     await renderDetail();
     const panel = screen.getByRole('tabpanel');
     expect(panel.textContent).toContain(lang === 'vi' ? 'Nộp lần đầu' : 'First applied');
-    expect(screen.getByLabelText(L.trackerAppliedDateHint)).toBeTruthy();
+    expect(within(panel).getByText(L.trackerAppliedDateHint)).toBeTruthy();
     expect(L.trackerAppliedDateHint).toBe(lang === 'vi'
       ? 'Ngày ứng tuyển được ghi nhận lần đầu. Không thay đổi khi trạng thái được chỉnh sửa.'
       : 'The first recorded application date. It does not change when the status is corrected later.');
@@ -280,14 +280,13 @@ describe('Notes', () => {
 });
 
 describe('Details concurrency', () => {
-  it('sends the version the form opened with; on success shows the returned server row', async () => {
-    db.rpc.mockImplementationOnce(async () => {
-      app.company_name = 'Beta'; // server persisted it
-      app.updated_at = '2026-11-03T00:00:00.5+00:00';
-      return { data: { event_id: 'e6', changed: true, replayed: false,
-        application: { company_name: 'Beta', role_title: 'Backend Engineer', deadline: null, updated_at: '2026-11-03T00:00:00.5+00:00' } }, error: null };
-    });
+  it('sends the version the form opened with; on success shows the returned server row before any reload', async () => {
+    db.rpc.mockResolvedValueOnce({ data: { event_id: 'e6', changed: true, replayed: false,
+      application: { company_name: 'Beta', role_title: 'Backend Engineer', deadline: null, updated_at: '2026-11-03T00:00:00.5+00:00' } }, error: null });
     await renderDetail();
+    // From here on the reload hangs: only the RPC's returned row can show "Beta".
+    const respond = db.respond;
+    db.respond = (table, calls) => (table === 'applications' ? new Promise(() => {}) : respond(table, calls));
     click(vi_.trackerEditDetails);
     fireEvent.change(screen.getByLabelText(vi_.trackerCompanyLabel), { target: { value: 'Beta' } });
     click(vi_.trackerSave);
@@ -422,6 +421,10 @@ describe('Details', () => {
     await waitFor(() => expect(db.rpc).toHaveBeenCalledTimes(2));
     const [k1, k2] = keysOf('update_application_details');
     expect(k2).toBe(k1);
+    // Same intent = same key AND same base version.
+    const [c1, c2] = db.rpc.mock.calls.map((c) => c[1]);
+    expect(c2.p_expected_updated_at).toBe(c1.p_expected_updated_at);
+    expect(c2).toEqual(c1);
   });
 
   it('edits only the deadline', async () => {

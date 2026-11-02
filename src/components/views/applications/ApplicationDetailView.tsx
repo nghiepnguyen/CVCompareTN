@@ -23,11 +23,10 @@ export const roleOrFallback = (t: UiLabels, a: Pick<ApplicationDetail, 'roleTitl
 function Field({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="min-w-0 rounded-xl border border-border bg-surface p-3">
-      <dt className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-text-light">
-        {label}
-        {hint && <Info className="h-3 w-3 shrink-0" aria-label={hint}><title>{hint}</title></Info>}
-      </dt>
+      <dt className="text-[10px] font-black uppercase tracking-wider text-text-light">{label}</dt>
       <dd className="mt-1 break-words text-sm font-bold text-text-main">{value}</dd>
+      {/* Visible, not hover-only: touch devices have no tooltip. */}
+      {hint && <dd className="mt-1 text-[10px] leading-snug text-text-light">{hint}</dd>}
     </div>
   );
 }
