@@ -322,7 +322,7 @@ Known debt còn lại:
 **Mức tác động:** Backend/DB trung bình--cao, UI trung bình.\
 **Đây là bridge giữa analyzer và tracker.**
 
-**Trạng thái (02/11/2026):** LOCAL IMPLEMENTATION — chưa push, migration
+**Trạng thái (02/11/2026):** PR REVIEW — chưa merge/deploy, migration
 `20261103000000_applications_snapshots.sql` chưa áp production. Authority:
 `docs/15_applications.md`. RPC `save_application` (SECURITY DEFINER, atomic,
 idempotency key theo Save intent; analysis id chỉ là provenance, không đọc history), snapshot CV (`parsedCV`) + JD + Cover Letter tùy

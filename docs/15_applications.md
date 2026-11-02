@@ -1,6 +1,6 @@
 # Applications (P2A — Save Application + immutable snapshots)
 
-Trạng thái: **P2A local implementation** — migration `20261103000000_applications_snapshots.sql`
+Trạng thái: **P2A — PR review** — migration `20261103000000_applications_snapshots.sql`
 chưa áp lên production.
 
 ## Authority
@@ -63,9 +63,9 @@ Migration chỉ phụ thuộc: `auth.users(id)`, `auth.uid()`, `auth.role()`, `p
 
 ## UI
 
-`Lưu ứng tuyển / Save application` cạnh `Tạo Cover Letter` trên header Result (`SaveApplicationAction`). States: idle → saving (chặn double click bằng ref + disabled) → saved (`Đã lưu ứng tuyển`, giữ `applicationId`) / error. Một key cho mỗi result trong session; giữ nguyên khi lỗi (không chắc đã commit hay chưa) nên bấm lại là replay an toàn — nếu lần đầu đã commit, trả application đó với snapshot gốc. Kết quả đã lưu giữ trạng thái khi chuyển qua lại giữa các result. Không dùng chữ "nộp". Từ History: unavailable (thiếu JD gốc), cùng lý do như Cover Letter. Chưa có màn Applications (P2B).
+`Lưu ứng tuyển / Save application` cạnh `Tạo Cover Letter` trên header Result (`SaveApplicationAction`). States: idle → saving (chặn double click bằng ref + disabled) → saved (`Đã lưu ứng tuyển`, giữ `applicationId`) / error. Một key cho mỗi result trong phiên trang (Map ở module scope, sống qua việc unmount Result khi mở History/Profile; reload trang thì mất); giữ nguyên khi lỗi (không chắc đã commit hay chưa) nên bấm lại là replay an toàn — nếu lần đầu đã commit, trả application đó với snapshot gốc. Kết quả đã lưu giữ trạng thái khi chuyển qua lại giữa các result. Không dùng chữ "nộp". Từ History: unavailable (thiếu JD gốc), cùng lý do như Cover Letter. Chưa có màn Applications (P2B).
 
-Telemetry: GA `application_saved { created, has_cover_letter }`; Sentry chỉ nhận lỗi, không có nội dung.
+Telemetry: GA `application_saved { created, has_cover_letter }`; Sentry chỉ nhận `save_application failed: <code>` (không gửi object lỗi PostgREST vì `details` có thể lặp lại giá trị row).
 
 ## Tests
 

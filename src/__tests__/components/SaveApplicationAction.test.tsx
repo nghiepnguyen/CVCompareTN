@@ -19,20 +19,24 @@ vi.mock('../../lib/supabase', () => ({
   supabase: { rpc },
   withAuthRetry: (fn: () => unknown) => fn(),
 }));
-vi.mock('../../lib/sentry', () => ({ captureException: vi.fn() }));
+const sentry = vi.hoisted(() => ({ captureException: vi.fn() }));
+vi.mock('../../lib/sentry', () => sentry);
 vi.mock('../../lib/ga4', () => ({ trackEvent: vi.fn() }));
 
 import { SaveApplicationAction } from '../../components/views/result/SaveApplicationAction';
 
 const parsedCV = { personal_information: { full_name: 'Nguyen Van A', contact: {}, summary: 'Dev' } } as unknown as ParsedCV;
 const result = {
-  id: 'r1', matchScore: 72, passProbability: 'Cao', jobTitle: 'Backend Engineer', cvName: 'cv.pdf', language: 'vi',
+  id: 'r0', matchScore: 72, passProbability: 'Cao', jobTitle: 'Backend Engineer', cvName: 'cv.pdf', language: 'vi',
   parsedCV,
   detailedComparison: { skills: [{ requirement: 'Go', status: 'matched', cvEvidence: 'Go 3y', verification: 'met' }] },
 } as unknown as AnalysisResult;
 const letter = { content: 'Kính gửi Acme,\n\nThư A.', language: 'vi' as const, employerName: 'Acme', roleTitle: 'Backend Engineer' };
 
+let seq = 0;
 beforeEach(() => {
+  // Save intents live for the page session (module scope): fresh ids per test.
+  result.id = `r${++seq}`;
   ui.lang = 'vi';
   analysis.jd = 'Backend Engineer at Acme. Go, Postgres.';
   analysis.generating = new Set();
@@ -59,7 +63,7 @@ describe('SaveApplicationAction', () => {
     const [fn, args] = rpc.mock.calls[0];
     expect(fn).toBe('save_application');
     expect(args).toMatchObject({
-      p_source_analysis_id: 'r1', p_language: 'vi', p_role_title: 'Backend Engineer', p_company_name: null,
+      p_source_analysis_id: result.id, p_language: 'vi', p_role_title: 'Backend Engineer', p_company_name: null,
       p_cv_parsed: parsedCV, p_cv_file_name: 'cv.pdf', p_jd_text: analysis.jd,
       p_cover_letter_text: null, p_cover_letter_language: null,
     });
@@ -101,7 +105,7 @@ describe('SaveApplicationAction', () => {
 
   it('one key per result; saved state survives switching results', async () => {
     rpc.mockResolvedValue({ data: { id: 'app1', created: true }, error: null });
-    const other = { ...result, id: 'r2' } as AnalysisResult;
+    const other = { ...result, id: `${result.id}-other` } as AnalysisResult;
     const { rerender } = render(<SaveApplicationAction selectedResult={result} coverLetter={null} />);
     fireEvent.click(button());
     await screen.findByRole('button', { name: UI_LABELS.vi.saveApplicationSaved });
@@ -109,9 +113,32 @@ describe('SaveApplicationAction', () => {
     fireEvent.click(button());
     await screen.findByRole('button', { name: UI_LABELS.vi.saveApplicationSaved });
     expect(rpc.mock.calls[1][1].p_idempotency_key).not.toBe(rpc.mock.calls[0][1].p_idempotency_key);
-    expect(rpc.mock.calls[1][1].p_source_analysis_id).toBe('r2');
+    expect(rpc.mock.calls[1][1].p_source_analysis_id).toBe(other.id);
     // Back to r1 with a new letter: still saved, the letter is not attached.
     rerender(<SaveApplicationAction selectedResult={result} coverLetter={letter} />);
+    expect((screen.getByRole('button', { name: UI_LABELS.vi.saveApplicationSaved }) as HTMLButtonElement).disabled).toBe(true);
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it('unmount/remount (e.g. History and back) keeps the key and the saved state', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '08006', message: 'Failing row contains (secret CV text)' } });
+    const first = render(<SaveApplicationAction selectedResult={result} coverLetter={null} />);
+    fireEvent.click(button());
+    await screen.findByRole('alert');
+    // Sentry gets the code only, never PostgREST details that may echo row values.
+    const reported = sentry.captureException.mock.calls.at(-1)?.[0] as Error;
+    expect(reported.message).toBe('save_application failed: 08006');
+    expect(JSON.stringify(sentry.captureException.mock.calls)).not.toContain('secret CV text');
+    first.unmount();
+
+    rpc.mockResolvedValueOnce({ data: { id: 'app1', created: false }, error: null });
+    const second = render(<SaveApplicationAction selectedResult={result} coverLetter={null} />);
+    fireEvent.click(button());
+    await screen.findByRole('button', { name: UI_LABELS.vi.saveApplicationSaved });
+    expect(rpc.mock.calls[1][1].p_idempotency_key).toBe(rpc.mock.calls[0][1].p_idempotency_key);
+    second.unmount();
+
+    render(<SaveApplicationAction selectedResult={result} coverLetter={null} />);
     expect((screen.getByRole('button', { name: UI_LABELS.vi.saveApplicationSaved }) as HTMLButtonElement).disabled).toBe(true);
     expect(rpc).toHaveBeenCalledTimes(2);
   });
@@ -132,11 +159,11 @@ describe('SaveApplicationAction', () => {
   });
 
   it('parsed CV still generating / missing: unavailable', () => {
-    analysis.generating = new Set(['r1']);
+    analysis.generating = new Set([result.id]);
     const { rerender } = render(<SaveApplicationAction selectedResult={{ ...result, parsedCV: undefined }} coverLetter={null} />);
     expect(screen.getByText(UI_LABELS.vi.coverLetterWaitingParsedCv)).toBeTruthy();
     analysis.generating = new Set();
-    rerender(<SaveApplicationAction selectedResult={{ ...result, id: 'r2', parsedCV: undefined }} coverLetter={null} />);
+    rerender(<SaveApplicationAction selectedResult={{ ...result, id: `${result.id}-b`, parsedCV: undefined }} coverLetter={null} />);
     expect(screen.getByText(UI_LABELS.vi.saveApplicationNoParsedCv)).toBeTruthy();
     expect(rpc).not.toHaveBeenCalled();
   });

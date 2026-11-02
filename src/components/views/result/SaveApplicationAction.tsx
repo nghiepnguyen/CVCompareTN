@@ -13,6 +13,13 @@ type State =
   | { kind: 'saved'; applicationId: string }
   | { kind: 'error' };
 
+// Save intents per result for this page session. Module scope, not component
+// state: Result unmounts when the user opens History/Profile, and a remount must
+// not mint a new key (a retry after an uncertain failure could duplicate) or
+// forget a completed save. Result ids are server UUIDs, so another analysis
+// never reuses a key. A page reload clears it.
+const intents = new Map<string, { key: string; applicationId?: string }>();
+
 /**
  * P2A "Save application": snapshots the CV/JD (and the letter currently shown,
  * if any) of a session result. History rows lack the full JD, so Save is
@@ -28,12 +35,12 @@ export function SaveApplicationAction({ selectedResult, coverLetter }: { selecte
   const { t } = useUI();
   const { getAnalysisJd, parsedCVGeneratingIds } = useAnalysis();
   const [states, setStates] = React.useState<Record<string, State>>({});
-  const keys = React.useRef(new Map<string, string>());
   // Ref, not state: two clicks in one tick both see the old state.
   const inFlight = React.useRef(new Set<string>());
 
   const resultId = selectedResult.id;
-  const state = states[resultId] ?? { kind: 'idle' };
+  const savedId = intents.get(resultId)?.applicationId;
+  const state: State = states[resultId] ?? (savedId ? { kind: 'saved', applicationId: savedId } : { kind: 'idle' });
   const jd = getAnalysisJd(resultId);
   const parsedCV = selectedResult.parsedCV;
   const disabledReason = !jd
@@ -45,20 +52,22 @@ export function SaveApplicationAction({ selectedResult, coverLetter }: { selecte
   const save = async () => {
     if (!jd || !parsedCV || inFlight.current.has(resultId) || state.kind === 'saved') return;
     inFlight.current.add(resultId);
-    let idempotencyKey = keys.current.get(resultId);
-    if (!idempotencyKey) {
-      idempotencyKey = crypto.randomUUID();
-      keys.current.set(resultId, idempotencyKey);
+    let intent = intents.get(resultId);
+    if (!intent) {
+      intent = { key: crypto.randomUUID() };
+      intents.set(resultId, intent);
     }
     const set = (next: State) => setStates((prev) => ({ ...prev, [resultId]: next }));
     set({ kind: 'saving' });
     try {
-      const { id, created } = await saveApplication({ idempotencyKey, result: selectedResult, parsedCV, jd, coverLetter });
+      const { id, created } = await saveApplication({ idempotencyKey: intent.key, result: selectedResult, parsedCV, jd, coverLetter });
+      intent.applicationId = id;
       trackEvent('application_saved', { created, has_cover_letter: !!coverLetter });
       set({ kind: 'saved', applicationId: id });
     } catch (err) {
-      // No content in logs: snapshots carry CV/JD/letter text.
-      captureException(err, { tags: { feature: 'save_application' } });
+      // Code only: PostgREST error details can echo row values (CV/JD/letter text).
+      const code = (err as { code?: unknown } | null)?.code;
+      captureException(new Error(`save_application failed${typeof code === 'string' ? `: ${code}` : ''}`), { tags: { feature: 'save_application' } });
       set({ kind: 'error' });
     } finally {
       inFlight.current.delete(resultId);
