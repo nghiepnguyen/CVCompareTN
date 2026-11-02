@@ -1,7 +1,60 @@
 # Applications (P2A — Save Application + immutable snapshots)
 
-Trạng thái: **P2A — PR review** — migration `20261103000000_applications_snapshots.sql`
-chưa áp lên production.
+Trạng thái: **DEPLOYED / PRODUCTION VERIFIED** (02/11/2026). PR #67, squash merge
+`171e8a8` (production chạy `171e8a8`). Migration `20261103000000_applications_snapshots.sql`
+đã áp production **trước** khi deploy app. Production smoke: PASS (case 1–8).
+
+## Contract đã ship
+
+| Mục | Giá trị |
+|---|---|
+| Bảng | `applications` + `application_documents` (immutable) |
+| CV snapshot | bắt buộc |
+| JD snapshot | bắt buộc |
+| Cover Letter snapshot | tùy chọn |
+| Status | `drafted` — Save ≠ Applied |
+| Atomic save | có (một RPC, một transaction) |
+| Idempotency | có, key UUID theo Save intent |
+| Phụ thuộc History | không |
+| Trần số application | không |
+| AI call khi Save | 0 |
+| Vercel function mới | 0 (tổng 9) |
+
+Snapshot là authority lịch sử, không phụ thuộc History còn tồn tại.
+
+## Production verification (02/11/2026)
+
+Smoke trên cvfit.pro bằng tài khoản thường + CV/JD tổng hợp:
+
+| Case | Kết quả |
+|---|---|
+| 1. Basic Save (cv + jd, không thư) | PASS |
+| 2. Toàn vẹn snapshot CV/JD (JD đủ, không phải 100 ký tự `jdTitle`; metadata khớp UI) | PASS |
+| 3. Remount (History → mở lại result) / idempotency: vẫn "Đã lưu", không trùng | PASS |
+| 4. Cover Letter snapshot = đúng thư đang hiển thị (so SHA-256) | PASS |
+| 5. Immutability (catalog: không có quyền UPDATE, trigger enabled) | PASS |
+| 6. Save ≠ Applied (wording VI/EN, status `drafted`) | PASS |
+| 7. History: Save disable kèm lý do | PASS |
+| 8. Mobile 375 px: nút wrap, không tràn ngang | PASS |
+
+Toàn vẹn dữ liệu: orphan 0, trùng `document_type` 0, application trùng ngoài ý muốn 0.
+
+Bảo mật xác minh trên production (catalog, read-only): RLS chỉ owner; `anon` không
+EXECUTE `save_application`; `authenticated` chỉ ghi qua RPC (không INSERT/UPDATE
+trực tiếp, không DELETE document); không có `user_id` do caller cung cấp; account
+lock giữ nguyên (trigger + policy restrictive); trigger UPDATE bất biến enabled.
+
+Dữ liệu smoke tổng hợp có thể giữ tạm để đối chiếu, hoặc owner xoá qua luồng xoá
+application thông thường; không dùng migration/script đặc quyền.
+
+## Known debt
+
+- Không copy file CV gốc.
+- Không snapshot Optimized CV (`fullRewrittenCV`).
+- `application_events` / tracker thuộc P2B.
+- Ghi chú disabled trên result History bị lặp ở 2 nút (LOW).
+- `r2_storage.test.sql` lỗi sẵn trên base, không liên quan P2A.
+- Sentry sanitization lỗi save mới có unit test, chưa gặp lỗi thật trên production.
 
 ## Authority
 

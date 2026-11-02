@@ -185,7 +185,8 @@ không phụ thuộc thay đổi này.
 - Severity `unsupported` vs `overstated` do model chọn → cùng một puffery có
   run HIGH, có run MEDIUM (verdict giống nhau).
 - Tên employer/role JD-steered (debt P1A) vẫn áp dụng cho exemption.
-- Không sửa/nhập thư thủ công; chỉ review thư P1A trong session (P2A).
+- Không sửa/nhập thư thủ công; chỉ review thư P1A trong session (P2A chỉ lưu
+  snapshot thư đang hiển thị, không thêm edit).
 - Smoke production 2026-11-02: luồng VI/EN, verdict, cap 429, History đạt;
   "Dùng bản đã chỉnh"/copy bản chỉnh trên UI chưa bấm thử (chỉ unit test).
 - **Đã thấy trên production:** reviewer bỏ sót tô điểm định tính trong thư P1A
