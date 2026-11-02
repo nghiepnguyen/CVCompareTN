@@ -1,8 +1,8 @@
 # Applications (P2A — Save Application + immutable snapshots; P2B — Tracker)
 
-> P2B (Application Tracker + `application_events`): **IMPLEMENTED LOCALLY / READY FOR REVIEW**
-> (03/11/2026, branch `feat/p2b-application-tracker`). Migration chưa áp production. Xem
-> mục [P2B](#p2b--application-tracker--application_events) bên dưới.
+> P2B (Application Tracker + `application_events`): **DEPLOYED / PRODUCTION VERIFIED**
+> (03/11/2026). PR #70 squash merge `fa1a45f`; migration `20261104000000` áp production
+> trước khi merge. Xem mục [P2B](#p2b--application-tracker--application_events) bên dưới.
 
 Trạng thái: **DEPLOYED / PRODUCTION VERIFIED** (02/11/2026). PR #67, squash merge
 `171e8a8` (production chạy `171e8a8`). Migration `20261103000000_applications_snapshots.sql`
@@ -153,9 +153,42 @@ Telemetry: GA `application_saved { created, has_cover_letter }`; Sentry chỉ nh
 
 # P2B — Application Tracker + `application_events`
 
-Trạng thái: **IMPLEMENTED LOCALLY / READY FOR REVIEW** (03/11/2026). Branch
-`feat/p2b-application-tracker`, base `origin/main` `9d57fa7`. **Chưa** áp migration
-production, chưa push/PR/deploy.
+Trạng thái: **DEPLOYED / PRODUCTION VERIFIED** (03/11/2026). PR
+[#70](https://github.com/nghiepnguyen/CVCompareTN/pull/70) squash merge `fa1a45f`
+(production chạy `fa1a45f`, Vercel deployment `7506246116` success).
+
+## Production rollout (03/11/2026, `pgchcnmpuknbgyljdlyp`, PG 17.6)
+
+| Bước | Kết quả |
+|---|---|
+| CI PR #70 (Lint/Test/Build, CodeQL ×3, GitGuardian, Vercel ×2) | 7/7 PASS, HEAD `5ef1262` |
+| Preflight read-only | PASS: `20261104000000` chưa ghi; `applications_status_check = CHECK ((status = 'drafted'::text))`; 2 application (đều `drafted`), 5 document; cột/constraint P2A đủ; chưa có `deadline`/`applied_at`/`application_events`/6 hàm P2B; trigger documents enabled; thân `save_application` md5 = bản P2A; phụ thuộc đủ |
+| Dry-run `supabase db push --linked --dry-run` | đúng 1 migration: `20261104000000_application_tracker.sql` |
+| Áp migration | `supabase db push --linked`, 2026-11-02T23:34:53Z (UTC) |
+| Verify DB (read-only) | PASS: status CHECK 9 giá trị; `deadline date`, `applied_at timestamptz`; constraints/index/RLS/policy RESTRICTIVE/trigger immutable + account lock trên `application_events`; 3 RPC DEFINER + `search_path=""`, anon không EXECUTE; helper không cho client; `authenticated` không UPDATE applications, không INSERT/UPDATE/DELETE events; backfill 2 `created` (khớp `created_at`), 0 orphan/trùng/lệch owner; fingerprint applications + documents **không đổi** |
+| Merge + deploy | squash `fa1a45f`; Vercel production success; cvfit.pro phục vụ chunk `ApplicationsView` |
+
+## Production smoke (tài khoản thật, dữ liệu tổng hợp)
+
+| Case | Kết quả |
+|---|---|
+| List VI/EN, reload `/vi/applications`, `/en/applications` | PASS |
+| Application P2A cũ: Overview / Documents (snapshot, "Điểm khi lưu: 72/100" + giải thích) / Timeline (`created` backfill) | PASS |
+| Analyze tổng hợp → Lưu ứng tuyển: `drafted`, cv + jd, JD đầy đủ, đúng 1 `created` | PASS |
+| drafted → applied (Nộp lần đầu được ghi) → interview (applied_at giữ nguyên) | PASS |
+| interview → rejected → interview: hộp xác nhận rời trạng thái kết thúc; event cũ giữ nguyên | PASS |
+| Sửa company/role/deadline; xoá deadline; no-op không tạo event | PASS |
+| Hai tab: tab A lưu, tab B lưu bản cũ → `stale_application` VI, dữ liệu mới tải lại, tab A không bị ghi đè, 0 event của tab B | PASS |
+| Ghi chú (có `<b>`) hiển thị dạng text, status không đổi | PASS |
+| Timeline: 4 loại event, câu có nghĩa, không JSON/không giá trị DB thô | PASS |
+| Sort: chỉ allowlist, không score; mặc định hoạt động gần nhất | PASS |
+| Mobile 375 px (phiên thật, tài khoản thường 5 mục nav): list, detail, 3 tab, form status/details/note — không tràn ngang | PASS |
+| Lỗi runtime | Lần tải cuối: 0 lỗi console, mọi request đọc tracker 200. Kết quả các mutation (status, correction, details, note, stale của tab B — 4xx dự kiến) xác minh qua UI + timeline DB, không qua log mạng |
+| Integrity sau smoke: 3 application, 7 document, 11 event; orphan/trùng/lệch owner 0; snapshot P2A không đổi; timeline smoke khớp đúng thao tác | PASS |
+
+Chưa smoke trên production: cross-user (một tài khoản; dựa vào SQL test + RLS/catalog production), nav 6 mục của admin ở 375 px và header 1024 px với badge Pro/Recruiter (chỉ đo bằng harness local). Application smoke (`P2B Smoke Corp`, status `interview`) được giữ lại để đối chiếu.
+
+**Rollback từ nay:** production đã có status khác `drafted` ⇒ chỉ rollback app, giữ nguyên schema/event P2B (xem Rollback).
 
 ## Phạm vi đã chốt
 
