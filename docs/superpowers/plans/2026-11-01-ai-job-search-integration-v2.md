@@ -266,6 +266,16 @@ Không thay upload/analyze flow.
 **Mức tác động:** Backend trung bình, DB thấp, UI thấp--trung bình.\
 **Nguyên tắc:** không chạy mặc định.
 
+**Trạng thái (02/11/2026):** COMPLETED LOCALLY / BENCHMARK VERIFIED (chưa
+push). Authority: `docs/14_application_review.md`. `rewrite-cv` + `action:
+'application_review'`; precheck = guard P1A (không đổi) → reviewer Gemini →
+server anchor findings (quote phải có trong thư, gap phải trỏ requirement
+matched/partial) + bảng severity + verdict `ready|review` do server tính → tối
+đa 1 revision không raw JD → guard P1A lại. Tối đa 2 call, deadline chung,
+cap theo giờ chung với cover letter, không migration, function count 9.
+Revision được sinh trong cùng request nhưng chỉ áp dụng khi user bấm "Dùng bản
+đã chỉnh". Benchmark 17 fixture / 73 run: 4 gate = 0.
+
 ### Công việc
 
 -   [ ] Thêm action `Kiểm tra bản viết lại`.
@@ -771,7 +781,7 @@ P0   Authority & Reliability Audit        ✅ deployed (PR #59)
  ↓
 P1A  Cover Letter                         ✅ deployed (PR #61)
  ↓
-P1B  Optional Application Review
+P1B  Optional Application Review        ✅ local (benchmark verified)
  ↓
 P2A  Save Application + Snapshot
  ↓

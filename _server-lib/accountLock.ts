@@ -62,31 +62,34 @@ export async function checkAccountAccess(userId: string): Promise<'ok' | 'locked
  * understate it; the actual number of analyze calls is capped here instead.
  * Fails open on lookup errors, matching the existing AI rate-count behavior.
  */
-// Cover letters are logged as kind='rewrite' (the kind CHECK has no
-// cover_letter) and marked by guard_metrics.coverLetter. They get their own
-// cap at half the rewrite bucket; the rewrite count still includes them, so
-// regenerating letters can use at most half of the automatic Full CV budget.
+// Cover letters (P1A) and application reviews (P1B) are logged as
+// kind='rewrite' (the kind CHECK has neither) and marked by
+// guard_metrics.coverLetter / .applicationReview. Both share one document cap
+// at half the rewrite bucket; the rewrite count still includes them, so
+// documents can use at most half of the automatic Full CV budget. One row per
+// request: a review is up to 2 Gemini calls (reviewer + revision).
 export async function checkHourlyAiLimit(
   userId: string,
-  kind: 'analyze' | 'rewrite' | 'parse_cv' | 'cover_letter',
+  kind: 'analyze' | 'rewrite' | 'parse_cv' | 'cover_letter' | 'application_review',
   plan: 'free' | 'pro' | 'recruiter',
   timeoutMs: number,
   signal?: AbortSignal
 ): Promise<'ok' | 'rate_limited'> {
   try {
+    const document = kind === 'cover_letter' || kind === 'application_review';
     let query = getSupabaseAdmin()
       .from('analysis_log')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .eq('kind', kind === 'cover_letter' ? 'rewrite' : kind)
+      .eq('kind', document ? 'rewrite' : kind)
       .gte('created_at', new Date(Date.now() - RATE_WINDOW_MS).toISOString());
-    if (kind === 'cover_letter') query = query.contains('guard_metrics', { coverLetter: {} });
+    if (document) query = query.or('guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null');
     const { count } = await withTimeout(
       (signal ? query.abortSignal(signal) : query) as unknown as Promise<{ count: number | null }>,
       timeoutMs,
       'Rate limit check'
     );
-    const limit = kind === 'cover_letter' ? Math.ceil(hourlyAiLimit(plan) / 2) : hourlyAiLimit(plan);
+    const limit = document ? Math.ceil(hourlyAiLimit(plan) / 2) : hourlyAiLimit(plan);
     return (count ?? 0) >= limit ? 'rate_limited' : 'ok';
   } catch (err) {
     console.warn('Rate limit check skipped:', err instanceof Error ? err.message : err);
@@ -101,7 +104,7 @@ export async function checkHourlyAiLimit(
  */
 export async function checkAiAccess(
   userId: string,
-  kind: 'rewrite' | 'parse_cv' | 'cover_letter',
+  kind: 'rewrite' | 'parse_cv' | 'cover_letter' | 'application_review',
   timeoutMs: number,
   signal?: AbortSignal
 ): Promise<'ok' | 'locked' | 'rate_limited' | 'unavailable'> {

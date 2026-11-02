@@ -22,8 +22,10 @@ Request: `{ action: 'cover_letter', jd: string, parsedCV: ParsedCV, language: 'v
 - `language` là **ngôn ngữ output** của thư (khác Full CV: ở đó `language`
   chỉ chọn ngôn ngữ instruction, output theo ngôn ngữ CV). UI mặc định theo
   ngôn ngữ của analysis, có toggle VI/EN.
-- Response 200: `{ content, language }`, hoặc `{ content: '', language,
-  fidelityFallback: true }` khi không draft nào qua validator.
+- Response 200: `{ content, language, employerName, roleTitle }` (tên đã xác
+  minh trong JD mà validator dùng làm ngoại lệ — client gửi lại cho P1B
+  review), hoặc `{ content: '', language, fidelityFallback: true }` khi không
+  draft nào qua validator.
 - Lỗi: 400 (thiếu `jd`/`parsedCV`), 401, 403 (locked), 413 (CV > 30k ký tự),
   429 (cap theo giờ), 503 (không xác minh được account), 504 (timeout,
   `retryable`), 500 (Gemini). Client map status → translation key, không
@@ -80,8 +82,9 @@ term) → fallback rỗng. Draft fail không bao giờ được trả về.
 ## Quota
 
 Không có monthly quota (giống Full CV; monthly quota chỉ cho analyze). Cap
-theo giờ riêng: đếm `analysis_log` `kind='rewrite'` có
-`guard_metrics @> {"coverLetter":{}}`, giới hạn `ceil(hourlyAiLimit(plan)/2)`
+theo giờ **chung với P1B review** (từ 2026-11-02): đếm `analysis_log`
+`kind='rewrite'` có `guard_metrics->coverLetter` hoặc
+`guard_metrics->applicationReview`, giới hạn `ceil(hourlyAiLimit(plan)/2)`
 (free: 5/giờ). Cap Full CV vẫn đếm mọi row `kind='rewrite'` (kể cả cover
 letter), nên regenerate thư dùng tối đa nửa ngân sách Full CV tự động. Không
 cần migration (CHECK của `kind` không có `cover_letter`).
@@ -123,3 +126,6 @@ Kết quả cuối (2026-11-01): 50 run, 48 ship, 2 fallback (đều là chặn 
 - Audit `PUFFERY` của benchmark trùng phần lớn với `STRENGTH_CLAIMS` nên
   `shippedPuffery: 0` không phải bằng chứng độc lập; đọc tay mới là audit thật.
 - Không có persistence/edit/version (P2A).
+- `rawJdConcepts` đọc dòng JD viết hoa một phần ("MUST HAVE: React") như
+  acronym (`MUST`, `HAVE`), nên thư chứa từ thường đó bị chặn → fallback. Phát
+  hiện khi benchmark P1B; xem [14_application_review.md](./14_application_review.md).

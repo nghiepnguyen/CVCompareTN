@@ -160,7 +160,7 @@ function retryJdBlock(employerName: string, roleTitle: string, violations: Cover
 
 // A name is kept only when it appears verbatim in the JD; otherwise the
 // letter must not get an exemption for it.
-function verifiedName(name: unknown, jd: string): string {
+export function verifiedName(name: unknown, jd: string): string {
   const n = str(name);
   return n && n.length <= MAX_NAME_CHARS && jd.toLowerCase().includes(n.toLowerCase()) ? n : '';
 }
@@ -205,6 +205,10 @@ const logViolations = (pass: 'first' | 'retry', violations: CoverLetterViolation
 
 export type CoverLetterOutcome = {
   content: string;
+  // JD-verified names the letter was validated with; P1B re-sends them so
+  // its review applies the same exemptions.
+  employerName?: string;
+  roleTitle?: string;
   usage: AiCallUsage;
   fidelityFallback?: true;
   guardMetrics: CoverLetterGuardMetrics;
@@ -261,7 +265,7 @@ export async function generateCoverLetter(
     const first = await call(jdBlockFor(jd));
     const firstCheck = check(first.draft);
     if (firstCheck.valid) {
-      return { content: first.draft.coverLetter, usage: first.usage, guardMetrics: { language, outcome: 'valid', retryOutcome: 'not_needed', geminiCalls: 1 } };
+      return { content: first.draft.coverLetter, employerName: first.draft.employerName, roleTitle: first.draft.roleTitle, usage: first.usage, guardMetrics: { language, outcome: 'valid', retryOutcome: 'not_needed', geminiCalls: 1 } };
     }
     logViolations('first', firstCheck.violations);
     const failed = { language, firstPassViolations: countCoverLetterViolations(firstCheck.violations) };
@@ -286,7 +290,7 @@ export async function generateCoverLetter(
     const usage = addUsage(first.usage, retry.usage);
     const retryCheck = check(retry.draft);
     if (retryCheck.valid) {
-      return { content: retry.draft.coverLetter, usage, guardMetrics: { ...failed, outcome: 'recovered', retryOutcome: 'recovered', geminiCalls: 2 } };
+      return { content: retry.draft.coverLetter, employerName: retry.draft.employerName, roleTitle: retry.draft.roleTitle, usage, guardMetrics: { ...failed, outcome: 'recovered', retryOutcome: 'recovered', geminiCalls: 2 } };
     }
     logViolations('retry', retryCheck.violations);
     return fallback(usage, { retryOutcome: 'invalid', retryViolations: countCoverLetterViolations(retryCheck.violations), geminiCalls: 2 });

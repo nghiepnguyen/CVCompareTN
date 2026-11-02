@@ -493,8 +493,8 @@ export const result = {
     en: "Generating the letter took too long. Please try again.",
   },
   coverLetterRateLimited: {
-    vi: "Bạn đã tạo quá nhiều thư trong giờ qua. Vui lòng thử lại sau.",
-    en: "You have created too many letters in the past hour. Please try again later.",
+    vi: "Bạn đã dùng hết lượt tạo thư/kiểm tra trong giờ qua. Vui lòng thử lại sau.",
+    en: "You have used all letter/review requests for the past hour. Please try again later.",
   },
   coverLetterUnavailableHistory: {
     vi: "Chỉ khả dụng ngay sau khi phân tích (cần JD gốc).",
@@ -507,6 +507,70 @@ export const result = {
   coverLetterNoParsedCv: {
     vi: "Cần dữ liệu CV đã chuẩn hóa để tạo thư.",
     en: "Parsed CV data is required to create a letter.",
+  },
+  reviewAction: {
+    vi: "Kiểm tra hồ sơ ứng tuyển",
+    en: "Review Application",
+  },
+  reviewIntro: {
+    vi: "Đối chiếu thư với CV và JD: phát hiện thông tin không có trong CV, cách diễn đạt quá mức và yêu cầu quan trọng còn bỏ sót. Đây không phải điểm số hay dự đoán kết quả.",
+    en: "Checks the letter against your CV and the JD: claims your CV does not support, overstated wording and important requirements left out. This is not a score or an outcome prediction.",
+  },
+  reviewChecking: {
+    vi: "Đang kiểm tra hồ sơ...",
+    en: "Reviewing your application...",
+  },
+  reviewReady: {
+    vi: "Sẵn sàng",
+    en: "Ready",
+  },
+  reviewReadyNote: {
+    vi: "Không phát hiện vấn đề về tính xác thực hay nhất quán. Điều này không đảm bảo kết quả ứng tuyển.",
+    en: "No factual or consistency problem was detected. This does not guarantee an outcome.",
+  },
+  reviewNeedsReview: {
+    vi: "Cần kiểm tra",
+    en: "Needs review",
+  },
+  reviewNeedsReviewNote: {
+    vi: "Có điểm nên xem lại trước khi gửi.",
+    en: "Some points deserve a look before you submit.",
+  },
+  reviewSeverityHigh: {
+    vi: "Cao",
+    en: "High",
+  },
+  reviewSeverityMedium: {
+    vi: "Trung bình",
+    en: "Medium",
+  },
+  reviewSeverityLow: {
+    vi: "Thấp",
+    en: "Low",
+  },
+  reviewRevisedTitle: {
+    vi: "Bản đã chỉnh",
+    en: "Revised version",
+  },
+  reviewUseRevised: {
+    vi: "Dùng bản đã chỉnh",
+    en: "Use revised version",
+  },
+  reviewNoRevision: {
+    vi: "Chưa tạo được bản chỉnh an toàn. Hãy tự sửa các điểm trên trước khi gửi.",
+    en: "No safe revision could be produced. Please fix the points above before you submit.",
+  },
+  reviewError: {
+    vi: "Không thể kiểm tra hồ sơ. Vui lòng thử lại.",
+    en: "Could not review the application. Please try again.",
+  },
+  reviewTimeout: {
+    vi: "Kiểm tra hồ sơ mất quá nhiều thời gian. Vui lòng thử lại.",
+    en: "The review took too long. Please try again.",
+  },
+  reviewRateLimited: {
+    vi: "Bạn đã dùng hết lượt tạo thư/kiểm tra trong giờ qua. Vui lòng thử lại sau.",
+    en: "You have used all letter/review requests for the past hour. Please try again later.",
   },
   tabParsedCv: {
     vi: "Thông tin CV",

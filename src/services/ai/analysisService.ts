@@ -29,7 +29,14 @@ export async function rewriteFullCV(
   return { fullRewrittenCV: data.fullRewrittenCV || '', fidelityFallback: data.fidelityFallback === true };
 }
 
-export type CoverLetterResponse = { content: string; language: 'vi' | 'en'; fidelityFallback: boolean };
+export type CoverLetterResponse = {
+  content: string;
+  language: 'vi' | 'en';
+  fidelityFallback: boolean;
+  // JD-verified names the letter was validated with; sent back for review.
+  employerName: string;
+  roleTitle: string;
+};
 
 /** Thrown with the HTTP status so the UI can pick a translated message. */
 export class CoverLetterRequestError extends Error {
@@ -55,8 +62,60 @@ export async function generateCoverLetter(
     signal: AbortSignal.timeout(75_000),
   });
   if (!res.ok) throw new CoverLetterRequestError(res.status);
-  const data = (await res.json()) as { content?: string; language?: 'vi' | 'en'; fidelityFallback?: boolean };
-  return { content: data.content || '', language: data.language === 'en' ? 'en' : 'vi', fidelityFallback: data.fidelityFallback === true };
+  const data = (await res.json()) as { content?: string; language?: 'vi' | 'en'; fidelityFallback?: boolean; employerName?: string; roleTitle?: string };
+  return {
+    content: data.content || '',
+    language: data.language === 'en' ? 'en' : 'vi',
+    fidelityFallback: data.fidelityFallback === true,
+    employerName: data.employerName || '',
+    roleTitle: data.roleTitle || '',
+  };
+}
+
+export type ApplicationReviewFinding = {
+  category: 'unsupported_claim' | 'numeric_claim' | 'consistency' | 'requirement_gap' | 'relevance' | 'tone';
+  severity: 'high' | 'medium' | 'low';
+  message: string;
+  source: 'cover_letter' | 'cv';
+};
+export type ApplicationReviewResponse = {
+  verdict: 'ready' | 'review';
+  findings: ApplicationReviewFinding[];
+  revisedCoverLetter?: string;
+};
+
+/**
+ * P1B: POST /api/rewrite-cv action=application_review. Advisory only; the
+ * requirement list is context for omissions, never sent back or changed.
+ * Errors reuse CoverLetterRequestError (status only).
+ */
+export async function reviewApplication(
+  input: {
+    jd: string;
+    parsedCV: ParsedCV;
+    coverLetter: string;
+    language: 'vi' | 'en';
+    employerName: string;
+    roleTitle: string;
+    requirements: { requirement: string; status: string; priority?: string }[];
+  },
+  authToken?: string
+): Promise<ApplicationReviewResponse> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  const res = await fetch('/api/rewrite-cv', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ action: 'application_review', ...input }),
+    signal: AbortSignal.timeout(75_000),
+  });
+  if (!res.ok) throw new CoverLetterRequestError(res.status);
+  const data = (await res.json()) as Partial<ApplicationReviewResponse>;
+  return {
+    verdict: data.verdict === 'ready' ? 'ready' : 'review',
+    findings: Array.isArray(data.findings) ? data.findings : [],
+    ...(data.revisedCoverLetter && { revisedCoverLetter: data.revisedCoverLetter }),
+  };
 }
 
 export async function parseCV(
