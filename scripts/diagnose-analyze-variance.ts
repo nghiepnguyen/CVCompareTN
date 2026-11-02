@@ -77,7 +77,7 @@ let replayBody: string | undefined; // when set, analyze requests get this respo
 const realFetch = globalThis.fetch;
 globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input instanceof Request ? input.url : input);
-  if (!url.includes('generativelanguage.googleapis.com')) return realFetch(input, init);
+  if (new URL(url).hostname !== 'generativelanguage.googleapis.com') return realFetch(input, init);
   const body = typeof init?.body === 'string' ? init.body : '';
   // The analyze request is the only one carrying the analysis schema (matchScore).
   const analyze = body.includes('"matchScore"');
