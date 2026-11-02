@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { LayoutDashboard, History as HistoryIcon, Bookmark, Settings, Briefcase } from 'lucide-react';
+import { LayoutDashboard, History as HistoryIcon, Bookmark, Settings, Briefcase, ClipboardList } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { Tab } from '../context/UIContext';
 import type { AnalysisResult } from '../services/ai';
@@ -16,6 +16,7 @@ export interface MobileBottomNavProps {
   labels: {
     analyze: string;
     history: string;
+    applications: string;
     mobileJdStore: string;
     admin: string;
     recruiter: string;
@@ -33,10 +34,11 @@ export function MobileBottomNav({
   labels,
 }: MobileBottomNavProps) {
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-xl border-t border-border px-4 py-2 flex items-center justify-around pb-safe">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-xl border-t border-border px-2 py-2 flex items-center justify-around pb-safe">
       {(
         [
           { tab: 'analyze' as const, icon: LayoutDashboard, label: labels.analyze },
+          { tab: 'applications' as const, icon: ClipboardList, label: labels.applications },
           { tab: 'history' as const, icon: HistoryIcon, label: labels.history },
         ] as const
       ).map((item) => (
@@ -48,7 +50,7 @@ export function MobileBottomNav({
             setSelectedResult(null);
           }}
           className={cn(
-            'flex flex-col items-center gap-1 p-2 min-w-[64px] transition-all active:scale-90 cursor-pointer hover:scale-105',
+            'flex flex-col items-center gap-1 px-1 py-2 min-w-[56px] transition-all active:scale-90 cursor-pointer hover:scale-105',
             activeTab === item.tab && !selectedResult ? 'text-accent' : 'text-text-light'
           )}
         >
@@ -67,7 +69,7 @@ export function MobileBottomNav({
       <button
         type="button"
         onClick={onOpenSavedJds}
-        className="flex flex-col items-center gap-1 p-2 min-w-[64px] transition-all active:scale-90 cursor-pointer hover:scale-105 text-text-light"
+        className="flex flex-col items-center gap-1 px-1 py-2 min-w-[56px] transition-all active:scale-90 cursor-pointer hover:scale-105 text-text-light"
       >
         <Bookmark className="w-6 h-6 stroke-2" />
         <span className="text-[10px] font-bold uppercase tracking-tight">{labels.mobileJdStore}</span>
@@ -80,7 +82,7 @@ export function MobileBottomNav({
             setSelectedResult(null);
           }}
           className={cn(
-            'flex flex-col items-center gap-1 p-2 min-w-[64px] transition-all active:scale-90 cursor-pointer hover:scale-105',
+            'flex flex-col items-center gap-1 px-1 py-2 min-w-[56px] transition-all active:scale-90 cursor-pointer hover:scale-105',
             activeTab === 'recruiter' && !selectedResult ? 'text-accent' : 'text-text-light'
           )}
         >
@@ -104,7 +106,7 @@ export function MobileBottomNav({
             setSelectedResult(null);
           }}
           className={cn(
-            'flex flex-col items-center gap-1 p-2 min-w-[64px] transition-all active:scale-90 cursor-pointer hover:scale-105',
+            'flex flex-col items-center gap-1 px-1 py-2 min-w-[56px] transition-all active:scale-90 cursor-pointer hover:scale-105',
             activeTab === 'admin' ? 'text-accent' : 'text-text-light'
           )}
         >

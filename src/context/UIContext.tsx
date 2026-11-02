@@ -8,6 +8,7 @@ import { UI_LABELS } from '../translations';
 export type Tab =
   | 'analyze'
   | 'history'
+  | 'applications'
   | 'admin'
   | 'recruiter'
   | 'profile'
@@ -28,6 +29,7 @@ function tabFromPath(path: string, params: URLSearchParams): Tab {
     if (path.includes('/support')) return 'support';
     if (path.includes('/about')) return 'about';
   if (path.includes('/history')) return 'history';
+  if (path.includes('/applications')) return 'applications';
   if (path.includes('/recruiter')) return 'recruiter';
   if (path.includes('/admin')) return 'admin';
   if (params.get('policy') === 'true' || params.get('privacy') === 'true') return 'privacy';
@@ -162,6 +164,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     else if (activeTab === 'upgrade') subPath = '/upgrade';
     else if (activeTab === 'about') subPath = '/about';
     else if (activeTab === 'history') subPath = '/history';
+    else if (activeTab === 'applications') subPath = '/applications';
     else if (activeTab === 'recruiter') subPath = '/recruiter';
     else if (activeTab === 'admin') subPath = '/admin';
 

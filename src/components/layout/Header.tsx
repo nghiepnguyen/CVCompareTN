@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutDashboard, History as HistoryIcon, ShieldCheck, Briefcase, LogOut, LogIn, Loader2, ExternalLink, User as UserIcon, Sparkles, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, History as HistoryIcon, ShieldCheck, Briefcase, LogOut, LogIn, Loader2, ExternalLink, User as UserIcon, Sparkles, Sun, Moon } from 'lucide-react';
 import { Logo } from '../icons/Logo';
 import { useAuth } from '../../context/AuthContext';
 import { formatPlanExpiryDate, isProPlan, isRecruiterPlan } from '../../lib/planLimits';
@@ -85,6 +85,16 @@ export function Header() {
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span className="hidden md:inline">{t.analyze}</span>
+              </button>
+              <button
+                onClick={() => { setActiveTab('applications'); setSelectedResult(null); }}
+                className={cn(
+                  "flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer",
+                  activeTab === 'applications' && !selectedResult ? "dark:bg-white/[0.06] bg-surface text-accent" : "text-text-muted hover:text-text-main"
+                )}
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span className="hidden md:inline">{t.trackerTab}</span>
               </button>
               <button 
                 onClick={() => { 
