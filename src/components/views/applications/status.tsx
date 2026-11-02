@@ -40,6 +40,7 @@ export function StatusBadge({ status, t }: { status: ApplicationStatus; t: UiLab
 export function trackerErrorMessage(t: UiLabels, code: TrackerErrorCode): string {
   switch (code) {
     case 'stale_status': return t.trackerErrStale;
+    case 'stale_application': return t.trackerErrStaleApplication;
     case 'invalid_transition': return t.trackerErrInvalidTransition;
     case 'application_not_found': return t.trackerErrNotFound;
     case 'account_locked': return t.trackerErrLocked;

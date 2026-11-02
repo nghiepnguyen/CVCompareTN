@@ -200,14 +200,14 @@ Mọi cạnh đi **vào** một final đều có cạnh hoàn tác ngược lạ
 - Index `(user_id, updated_at DESC, id DESC)` cho list mặc định.
 - Không thêm cột score.
 
-`applied_at` = `occurred_at` của **lần đầu** chuyển sang `applied` (set khi `applied_at IS NULL`); không bao giờ ghi đè khi sửa trạng thái. Vì vậy có thể tồn tại `drafted` + `applied_at` (vd `drafted→applied→withdrawn→drafted`): đó là ngày nộp lịch sử, **không** phải tín hiệu "đang nộp". Overview hiển thị kèm tooltip giải thích. P2C không được dùng `applied_at` một mình để quyết định follow-up. Client không ghi trực tiếp.
+`applied_at` = `occurred_at` của **lần đầu** chuyển sang `applied` (set khi `applied_at IS NULL`); không bao giờ ghi đè khi sửa trạng thái. Vì vậy có thể tồn tại `drafted` + `applied_at` (vd `drafted→applied→withdrawn→drafted`): đó là ngày nộp lịch sử, **không** phải tín hiệu "đang nộp". UI gọi là **"Nộp lần đầu / First applied"** (list, Overview, sort) kèm icon info nhỏ: "Ngày ứng tuyển được ghi nhận lần đầu. Không thay đổi khi trạng thái được chỉnh sửa." / "The first recorded application date. It does not change when the status is corrected later." (P2B.1, quyết định của product: giữ nguyên hành vi DB). P2C không được dùng `applied_at` một mình để quyết định follow-up. Client không ghi trực tiếp.
 
 `application_events` (append-only):
 `id, application_id, user_id, event_type created|status_changed|note|details_updated, from_status?, to_status?, note? (1–2000), metadata jsonb object ≤ 4 KB, occurred_at, idempotency_key uuid, created_at`.
 - FK tổ hợp `(application_id, user_id) → applications(id, user_id) ON DELETE CASCADE`.
 - `UNIQUE (user_id, idempotency_key)`; partial unique `(application_id) WHERE event_type='created'` (đúng 1 created/app).
 - CHECK hình dạng theo loại: `status_changed` có from/to khác nhau; `note` có note; `details_updated` có `metadata.changedFields` array; `created` không có from/to/note.
-- Index timeline `(application_id, occurred_at DESC, created_at DESC)`.
+- Index timeline `(application_id, occurred_at DESC, created_at DESC, id DESC)` = đúng thứ tự trang timeline.
 - Trigger `application_events_immutable` chặn UPDATE với **mọi** role (giống documents). DELETE chỉ qua cascade khi xoá application/account.
 
 Backfill: `INSERT … SELECT` một `created` event cho mỗi application có sẵn (`occurred_at = created_at = applications.created_at`, key = `applications.idempotency_key`), `ON CONFLICT (application_id) WHERE event_type='created' DO NOTHING` → chạy lại không trùng. Không đổi id/status/snapshot; `applied_at`/`deadline` = NULL. Không hardcode id production.
@@ -219,7 +219,7 @@ Backfill: `INSERT … SELECT` một `created` event cho mỗi application có s�
 | `save_application(...)` (signature P2A giữ nguyên) | Thêm `created` event trong cùng transaction. Replay cùng key: cùng app, `created:false`, không thêm document/event. |
 | `transition_application_status(p_application_id, p_expected_status, p_to_status, p_occurred_at, p_note, p_idempotency_key)` | Thứ tự: caller (auth + account lock) → validate input → `pg_advisory_xact_lock(user,key)` → replay lookup → `FOR UPDATE` theo owner → CAS `expected_status` → matrix → UPDATE status/`updated_at`/`applied_at` + INSERT `status_changed` (from_status lấy từ server). |
 | `add_application_note(p_application_id, p_note, p_idempotency_key)` | Trim, 1–2000 ký tự; bump `updated_at`; không đổi status. |
-| `update_application_details(p_application_id, p_company_name, p_role_title, p_deadline, p_idempotency_key)` | Thay toàn bộ 3 trường (blank/NULL = xoá), ≤ 200 ký tự, deadline là `date`. No-op → `changed:false`, không event, không bump. Metadata chỉ trường đổi: `{"changedFields":["deadline"],"deadline":{"from":null,"to":"2026-11-15"}}`. Không đụng `source_analysis_id, language, idempotency_key, created_at, applied_at, status`. |
+| `update_application_details(p_application_id, p_expected_updated_at, p_company_name, p_role_title, p_deadline, p_idempotency_key)` | Optimistic concurrency (P2B.1): caller → validate (version bắt buộc) → advisory lock → **replay** → `FOR UPDATE` theo owner → so `updated_at = p_expected_updated_at`, khác ⇒ `stale_application`, không update, không event. Version = cả row (mọi mutation P2B — sửa thông tin, đổi status, ghi chú — đều bump `updated_at`), không versioning theo field. Trả về `application {company_name, role_title, deadline, updated_at}` hiện tại. Thay toàn bộ 3 trường (blank/NULL = xoá), ≤ 200 ký tự, deadline là `date`. No-op → `changed:false`, không event, không bump. Metadata chỉ trường đổi: `{"changedFields":["deadline"],"deadline":{"from":null,"to":"2026-11-15"}}`. Không đụng `source_analysis_id, language, idempotency_key, created_at, applied_at, status`. |
 
 Helper nội bộ (không cấp cho client): `application_tracker_caller()` (INVOKER: `not_authenticated` / `account_locked` kiểm tra **trước** mọi lookup, nên user bị khoá không biết app tồn tại hay intent đã ghi), `application_status_transition_allowed()`.
 
@@ -231,14 +231,15 @@ Error vocabulary (message = code; UI map sang VI/EN, không hiện SQL/constrain
 |---|---|
 | `not_authenticated`, `account_locked` | 42501 |
 | `application_not_found` | P0002 |
-| `stale_status`, `invalid_transition` (matrix) | P0001 (không dùng 40001 để client không coi là retryable) |
+| `stale_status`, `stale_application`, `invalid_transition` (matrix) | P0001 (không dùng 40001 để client không coi là retryable) |
 | `invalid_transition` (status lạ), `invalid_occurred_at`, `invalid_note`, `invalid_details` | 22023 |
 
 ## Idempotency
 
 Mỗi intent (đổi status / ghi chú / sửa thông tin) một `crypto.randomUUID()`, scope `auth.uid() + key` trong `application_events`. Không dùng content hash hay app+status.
-- Server: advisory lock theo (user, key) **trước** replay lookup ⇒ retry sau khi lần đầu đã commit (kể cả `expected_status` đã cũ) trả về kết quả gốc (`replayed:true`) thay vì `stale_status`; hai request song song cùng key ⇒ một event, không lộ lỗi unique. Payload replay khác ⇒ giữ kết quả gốc.
+- Server: advisory lock theo (user, key) **trước** replay lookup ⇒ retry sau khi lần đầu đã commit (kể cả `expected_status` đã cũ) trả về kết quả gốc (`replayed:true`) thay vì `stale_status` / `stale_application` (replay luôn thắng CAS); hai request song song cùng key ⇒ một event, không lộ lỗi unique. Payload replay khác ⇒ giữ kết quả gốc.
 - Client (`useTrackerMutation`): key ở module scope theo `action:applicationId` (sống qua remount); giữ khi lỗi không chắc chắn (`unknown`: network/5xx) ⇒ bấm lại = replay an toàn; xoá khi thành công, khi server từ chối dứt khoát (mọi code trong vocabulary — không có gì đã commit) và khi user bấm Hủy. Double click bị chặn bằng ref + disabled. Nếu user sửa nội dung rồi retry sau lỗi không chắc chắn và lần đầu thật ra đã commit, server trả bản gốc; timeline sau reload cho thấy bản đã ghi.
+- Sửa thông tin (P2B.1): form giữ `updatedAt` lúc mở làm version kỳ vọng (gửi nguyên chuỗi server, không qua `Date` để không mất micro giây). Thành công ⇒ áp ngay row server trả về rồi reload. `stale_application` ⇒ key bị xoá (bị từ chối dứt khoát, không phải retry mạng), reload, form thay giá trị bằng dữ liệu mới nhất + version mới và hiện "Ứng tuyển này đã được cập nhật ở nơi khác. Dữ liệu mới nhất đã được tải lại, vui lòng kiểm tra và thử lại." / EN tương ứng; bản sửa bị từ chối không được gửi lại. Lần lưu tiếp theo (user chủ động sau khi xem) = intent mới, key mới. Lỗi mạng vẫn giữ key cũ.
 
 ## Quyền / RLS / account lock
 
@@ -251,14 +252,14 @@ Mỗi intent (đổi status / ghi chú / sửa thông tin) một `crypto.randomU
 
 - Tab `applications`: `/vi/applications`, `/en/applications` (reload trực tiếp OK — rewrite SPA sẵn có). Desktop header + MobileBottomNav (nav mobile thu nhỏ `min-w` 64→56px để 6 mục của admin vừa 375px; đã đo: 375/375).
 - List (`ApplicationsView`): card công ty / vị trí (fallback "Chưa có công ty / Company not set", "Chưa có vị trí / Role not set"), status (nhãn bản địa, không hiện giá trị DB thô), hạn nộp, ngày ứng tuyển, hoạt động gần nhất. Không Kanban. Phân trang `.range()` 20/trang (+1 dòng look-ahead), "Tải thêm". Sort allowlist: `updated_at` (mặc định, desc) / `created_at` / `applied_at` (desc) / `deadline` (asc) / `company_name` (A–Z); NULL cuối; tie-break `id`. `status` không có trong sort (thứ tự chữ cái của giá trị DB vô nghĩa). Score không phải sort authority (test).
-- Detail: `Overview | Documents | Timeline` (motion `layoutId`). Overview: trường workflow + 3 action (đổi status, sửa thông tin, thêm ghi chú). Documents: snapshot CV (`parsedCV` tóm tắt), JD, Cover Letter hoặc "Không có Cover Letter khi lưu", điểm + requirements tại thời điểm lưu (chỉ đọc, không tính lại, không so với Analyze hiện tại); không có action sửa/tạo lại. Timeline: newest-first theo `occurred_at`, câu có nghĩa (VI/EN), không JSON thô. Giới hạn 200 event (shortcut, ghi trong code).
+- Detail: `Overview | Documents | Timeline` (motion `layoutId`). Overview: trường workflow + 3 action (đổi status, sửa thông tin, thêm ghi chú). Documents: snapshot CV (`parsedCV` tóm tắt), JD, Cover Letter hoặc "Không có Cover Letter khi lưu", điểm + requirements tại thời điểm lưu (chỉ đọc, không tính lại, không so với Analyze hiện tại); không có action sửa/tạo lại. Timeline: newest-first `occurred_at DESC, created_at DESC, id DESC` (id phá hoà thời gian ⇒ ổn định), câu có nghĩa (VI/EN), không JSON thô. Phân trang `.range()` 50/trang + 1 dòng look-ahead, nút "Xem thêm / Load more"; không tải toàn bộ, không cắt im lặng. Event append-only nên event mới giữa hai lần tải chỉ đẩy dòng xuống (trùng, không thiếu) ⇒ client gộp theo id. Mutation ⇒ reload từ trang đầu. Rỗng ⇒ "Chưa có hoạt động nào."
 - Ngày: helper trong `src/lib/vnTime.ts` (`formatVnDate`, `formatVnDateTime`, `formatPlainDate` cho `date` không dịch múi giờ, `vnTodayYmd`). Không có module định dạng thứ hai.
 - Xoá application: P2A không có UI xoá → P2B không thêm (grant DELETE vẫn có, chưa dùng ở client).
 
 ## Tests
 
-- SQL `application_tracker.test.sql`: catalog (grants, DEFINER/search_path, helper không lộ, trigger/policy, không cột score), matrix = JSON (81 cặp), **81 cặp qua RPC** (allowed → 1 event đúng from/to; rejected → status không đổi, 0 event), alias status, CAS, `applied_at` lần đầu + không ghi đè, occurred_at, note, details (một/nhiều trường, no-op, clear, blank→NULL, giới hạn, không đụng cột khác/snapshot), INSERT/UPDATE/DELETE trực tiếp bị chặn, cross-user, khoá tài khoản, immutability service_role, FK tổ hợp, 1 created/app, shape CHECK, cascade, xoá account, atomicity (lỗi chèn event ⇒ rollback save/transition/details/note).
-- SQL `application_tracker_concurrency.test.sql` (dblink): cùng key song song cho transition (payload khác) / note / details ⇒ 1 event, kết quả gốc; hai intent khác nhau đua nhau ⇒ cái cũ nhận `stale_status`.
+- SQL `application_tracker.test.sql`: catalog (grants, DEFINER/search_path, helper không lộ, trigger/policy, không cột score), matrix = JSON (81 cặp), **81 cặp qua RPC** (allowed → 1 event đúng from/to; rejected → status không đổi, 0 event), alias status, CAS, `applied_at` lần đầu + không ghi đè, occurred_at, note, details (một/nhiều trường, no-op, clear, blank→NULL, giới hạn, không đụng cột khác/snapshot), INSERT/UPDATE/DELETE trực tiếp bị chặn, cross-user, khoá tài khoản, immutability service_role, FK tổ hợp, 1 created/app, shape CHECK, cascade, xoá account, details CAS (đúng version ⇒ 1 event + row trả về; sai version ⇒ `stale_application`, 0 event; retry intent đã commit ⇒ replay, không stale; note làm version cũ; version NULL ⇒ invalid), atomicity (lỗi chèn event ⇒ rollback save/transition/details/note).
+- SQL `application_tracker_concurrency.test.sql` (dblink): cùng key song song cho transition (payload khác) / note / details ⇒ 1 event, kết quả gốc; hai intent khác nhau đua nhau ⇒ cái cũ nhận `stale_status`; hai lần sửa thông tin khác key cùng version ⇒ một thắng, cái kia `stale_application`, không event.
 - SQL backfill: `FIXTURE_BEFORE=20261104000000:/repo/tests/fixtures/pre_p2b_applications.sql supabase/tests/local/run.sh "$PWD" /repo/tests/applications_backfill.fixture-test.sql` (25 application P2A trước migration ⇒ giữ nguyên + đúng 1 created event; chạy lại backfill = 0 row). Hook `FIXTURE_BEFORE` mới trong `run.sh`.
 - P2A regression: `applications*.test.sql` PASS không sửa; `account_lock.test.sql` cập nhật.
 - Client: `applicationTracker.test.ts` (matrix/status, sort allowlist + score bị từ chối, range/order, lỗi sanitize), `ApplicationsView.test.tsx`, `ApplicationDetailView.test.tsx` (tabs, documents, score label, timeline, status/note/details: double click, key reuse qua remount, stale, final confirm VI/EN, no-op).
@@ -276,13 +277,14 @@ App và schema rollback **tách biệt**:
 - Lỗi ứng dụng ⇒ rollback deployment app; **để schema P2B ở trạng thái ngủ** (additive, app P2A không dùng tới). `save_application` mới vẫn tương thích app P2A.
 - Không tự động `DROP application_events`, thu hẹp status CHECK hay xoá timeline sau khi user đã có dữ liệu P2B: khi đã có status khác `drafted`, CHECK P2A **không thể** khôi phục an toàn.
 - Chỉ revert riêng phần tích hợp `save_application`: `supabase/rollback/20261104000000_save_application_p2a.sql` (thân P2A nguyên văn, đã chạy thử local: P2A tests PASS sau khi áp). Save sau đó sẽ không có created event.
-- Gỡ toàn bộ chỉ khi **chưa** có dữ liệu P2B (0 event ngoài `created`, mọi status = `drafted`): `DROP FUNCTION` 3 RPC + 2 helper + `application_events_immutable()`; áp rollback script trên; `DROP TABLE public.application_events`; `ALTER TABLE public.applications DROP COLUMN deadline, DROP COLUMN applied_at`; khôi phục CHECK `IN ('drafted')`; `DROP INDEX applications_user_updated_idx`.
+- Gỡ toàn bộ chỉ khi **chưa** có dữ liệu P2B (0 event ngoài `created`, mọi status = `drafted`): `DROP FUNCTION` 3 RPC (`update_application_details(uuid, timestamptz, text, text, date, uuid)`) + 2 helper + `application_events_immutable()`; áp rollback script trên; `DROP TABLE public.application_events`; `ALTER TABLE public.applications DROP COLUMN deadline, DROP COLUMN applied_at`; khôi phục CHECK `IN ('drafted')`; `DROP INDEX applications_user_updated_idx`.
 
 ## Known debt (P2B)
 
 - Tạo application thủ công: deferred.
 - Next action / follow-up / last contact: P2C.
-- Detail không có deep link (`/applications/<id>`); reload ở detail quay về list.
-- Timeline tối đa 200 event (không phân trang).
-- Details không có CAS (hai tab sửa cùng lúc: lần sau thắng, nhưng event ghi from/to từ server nên timeline vẫn đúng).
+- Application detail has no persistent deep link. Reloading detail returns to Applications list. (Chấp nhận, không chặn P2B.)
+- ~~Timeline tối đa 200 event~~ — P2B.1: phân trang 50/trang.
+- ~~Details không có CAS~~ — P2B.1: `p_expected_updated_at` + `stale_application`.
+- Version của details là cả row: một ghi chú/đổi status ở tab khác cũng làm bản sửa thông tin đang mở thành stale (an toàn, user xem lại rồi lưu).
 - Chưa smoke UI có đăng nhập thật (chỉ đo layout 375 px bằng harness tạm + unit test); cần trong production smoke.

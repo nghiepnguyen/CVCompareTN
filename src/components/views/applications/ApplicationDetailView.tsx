@@ -6,7 +6,7 @@ import { useUI } from '../../../context/UIContext';
 import { formatLabel, type UiLabels } from '../../../translations';
 import { formatPlainDate, formatVnDate, formatVnDateTime } from '../../../lib/vnTime';
 import {
-  getApplication, getApplicationDocuments, getApplicationTimeline, trackerErrorCode,
+  getApplication, getApplicationDocuments, getApplicationTimeline, trackerErrorCode, type MutationResult,
 } from '../../../services/applicationService';
 import type { ApplicationDetail, ApplicationDocument, ApplicationEvent } from '../../../services/applicationTypes';
 import { StatusBadge, statusLabel, trackerErrorMessage } from './status';
@@ -15,7 +15,7 @@ import { DetailsForm, NoteForm, StatusChangeForm } from './TrackerActions';
 type DetailTab = 'overview' | 'documents' | 'timeline';
 type Panel = 'status' | 'details' | 'note' | null;
 
-interface Loaded { application: ApplicationDetail; documents: ApplicationDocument[]; events: ApplicationEvent[] }
+interface Loaded { application: ApplicationDetail; documents: ApplicationDocument[]; events: ApplicationEvent[]; eventsPage: number; hasMoreEvents: boolean }
 
 export const companyOrFallback = (t: UiLabels, a: Pick<ApplicationDetail, 'companyName'>) => a.companyName ?? t.trackerCompanyUnset;
 export const roleOrFallback = (t: UiLabels, a: Pick<ApplicationDetail, 'roleTitle'>) => a.roleTitle ?? t.trackerRoleUnset;
@@ -23,8 +23,11 @@ export const roleOrFallback = (t: UiLabels, a: Pick<ApplicationDetail, 'roleTitl
 function Field({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="min-w-0 rounded-xl border border-border bg-surface p-3">
-      <dt className="text-[10px] font-black uppercase tracking-wider text-text-light">{label}</dt>
-      <dd className="mt-1 break-words text-sm font-bold text-text-main" title={hint}>{value}</dd>
+      <dt className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-text-light">
+        {label}
+        {hint && <Info className="h-3 w-3 shrink-0" aria-label={hint}><title>{hint}</title></Info>}
+      </dt>
+      <dd className="mt-1 break-words text-sm font-bold text-text-main">{value}</dd>
     </div>
   );
 }
@@ -39,14 +42,14 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
   const load = React.useCallback(async () => {
     setLoadError(null);
     try {
-      const [application, documents, events] = await Promise.all([
+      const [application, documents, timeline] = await Promise.all([
         getApplication(applicationId), getApplicationDocuments(applicationId), getApplicationTimeline(applicationId),
       ]);
       if (!application) {
         setLoadError(t.trackerErrNotFound);
         return;
       }
-      setData({ application, documents, events });
+      setData({ application, documents, events: timeline.items, eventsPage: 0, hasMoreEvents: timeline.hasMore });
     } catch (err) {
       const code = trackerErrorCode(err);
       setLoadError(code === 'unknown' ? t.trackerLoadError : trackerErrorMessage(t, code));
@@ -54,6 +57,35 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
   }, [applicationId, t]);
 
   React.useEffect(() => { void load(); }, [load]);
+
+  const [moreBusy, setMoreBusy] = React.useState(false);
+  const [moreError, setMoreError] = React.useState(false);
+  const loadMoreEvents = async () => {
+    if (!data || moreBusy) return;
+    setMoreBusy(true);
+    setMoreError(false);
+    try {
+      const next = await getApplicationTimeline(applicationId, data.eventsPage + 1);
+      setData((prev) => {
+        if (!prev) return prev;
+        const seen = new Set(prev.events.map((e) => e.id));
+        return { ...prev, events: [...prev.events, ...next.items.filter((e) => !seen.has(e.id))], eventsPage: prev.eventsPage + 1, hasMoreEvents: next.hasMore };
+      });
+    } catch {
+      setMoreError(true);
+    } finally {
+      setMoreBusy(false);
+    }
+  };
+
+  // Show the server's returned row at once (details edit), then reload everything.
+  const onMutated = (result?: MutationResult) => {
+    if (result?.application) {
+      const fresh = result.application;
+      setData((prev) => prev && { ...prev, application: { ...prev.application, ...fresh } });
+    }
+    void load();
+  };
 
   const back = (
     <button type="button" onClick={onBack} className="flex items-center gap-2 text-sm font-bold text-text-muted transition-all cursor-pointer hover:scale-105 hover:text-accent active:scale-95">
@@ -81,7 +113,7 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
     );
   }
 
-  const { application: app, documents, events } = data;
+  const { application: app, documents, events, hasMoreEvents } = data;
   const closePanel = () => setPanel(null);
   const tabs: { id: DetailTab; label: string }[] = [
     { id: 'overview', label: t.trackerTabOverview },
@@ -137,14 +169,31 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
               </button>
             ))}
           </div>
-          {panel === 'status' && <StatusChangeForm application={app} onDone={() => void load()} onClose={closePanel} />}
-          {panel === 'details' && <DetailsForm application={app} onDone={() => void load()} onClose={closePanel} />}
-          {panel === 'note' && <NoteForm applicationId={app.id} onDone={() => void load()} onClose={closePanel} />}
+          {panel === 'status' && <StatusChangeForm application={app} onDone={onMutated} onClose={closePanel} />}
+          {panel === 'details' && <DetailsForm application={app} onDone={onMutated} onClose={closePanel} />}
+          {panel === 'note' && <NoteForm applicationId={app.id} onDone={onMutated} onClose={closePanel} />}
         </div>
       )}
 
       {tab === 'documents' && <DocumentsTab documents={documents} t={t} />}
-      {tab === 'timeline' && <TimelineTab events={events} t={t} lang={lang} />}
+      {tab === 'timeline' && (
+        <div role="tabpanel" className="space-y-4">
+          <TimelineTab events={events} t={t} lang={lang} />
+          {moreError && <p role="alert" className="text-center text-xs text-error">{t.trackerLoadError}</p>}
+          {hasMoreEvents && (
+            <div className="text-center">
+              <button
+                type="button"
+                disabled={moreBusy}
+                onClick={() => void loadMoreEvents()}
+                className="rounded-xl border border-border px-5 py-2 text-sm font-bold text-text-main transition-all cursor-pointer hover:scale-105 hover:border-accent active:scale-95 disabled:opacity-50"
+              >
+                {moreBusy ? t.trackerLoading : t.trackerTimelineMore}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -273,8 +322,9 @@ function detailLines(t: UiLabels, e: ApplicationEvent, lang: 'vi' | 'en'): strin
 }
 
 function TimelineTab({ events, t, lang }: { events: ApplicationEvent[]; t: UiLabels; lang: 'vi' | 'en' }) {
+  if (events.length === 0) return <p className="py-8 text-center text-sm text-text-muted">{t.trackerTimelineEmpty}</p>;
   return (
-    <ol role="tabpanel" className="space-y-3 border-l-2 border-border pl-4">
+    <ol className="space-y-3 border-l-2 border-border pl-4">
       {events.map((e) => (
         <li key={e.id} className="relative min-w-0">
           <span className="absolute -left-[1.4rem] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-accent" />

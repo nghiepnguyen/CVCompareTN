@@ -25,7 +25,7 @@ export const clearIntent = (scope: string) => { intents.delete(scope); };
  * state: two clicks in one tick both see the old state). Only the error code
  * reaches Sentry: never note text or field values.
  */
-export function useTrackerMutation(scope: string, onSettled: () => void) {
+export function useTrackerMutation(scope: string, onSettled: (result?: MutationResult) => void) {
   const inFlight = React.useRef(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<TrackerErrorCode | null>(null);
@@ -38,15 +38,16 @@ export function useTrackerMutation(scope: string, onSettled: () => void) {
     try {
       const result = await fn(intentKey(scope));
       clearIntent(scope);
-      onSettled();
+      onSettled(result);
       return result;
     } catch (err) {
       const code = trackerErrorCode(err);
       if (isDefiniteRejection(code)) clearIntent(scope);
       if (code === 'unknown') captureException(new Error('application tracker mutation failed'), { tags: { feature: 'application_tracker' } });
       setError(code);
-      // Someone else changed it: show the fresh state.
-      if (code === 'stale_status') onSettled();
+      // Someone else changed it: show the fresh state. A stale intent is rejected (key
+      // already cleared above); the user's next save after reviewing is a new intent.
+      if (code === 'stale_status' || code === 'stale_application') onSettled();
       return null;
     } finally {
       inFlight.current = false;

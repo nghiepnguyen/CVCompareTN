@@ -34,7 +34,7 @@ DO $$
 DECLARE
  app text := current_setting('test.app');
  k text := '00000000-0000-4000-8000-0000000000a1';
- r record; n integer;
+ r record; n integer; v text;
 BEGIN
  -- Same transition intent twice; the second carries a changed payload (no_response).
  SELECT * INTO r FROM pg_temp.race(
@@ -55,11 +55,12 @@ BEGIN
  ASSERT (SELECT count(*) FROM public.application_events WHERE application_id = app::uuid AND event_type='note') = 1, 'parallel note duplicated';
  ASSERT (SELECT note FROM public.application_events WHERE application_id = app::uuid AND event_type='note') = 'note A', 'parallel note overwritten';
 
- -- Same details intent twice.
+ -- Same details intent twice (both based on the same row version).
  k := '00000000-0000-4000-8000-0000000000a3';
+ SELECT updated_at::text INTO v FROM public.applications WHERE id = app::uuid;
  SELECT * INTO r FROM pg_temp.race(
-   format($c$SELECT public.update_application_details(%L, 'Acme', NULL, NULL, %L)::text$c$, app, k),
-   format($c$SELECT public.update_application_details(%L, 'Other', NULL, NULL, %L)::text$c$, app, k));
+   format($c$SELECT public.update_application_details(%L, %L, 'Acme', NULL, NULL, %L)::text$c$, app, v, k),
+   format($c$SELECT public.update_application_details(%L, %L, 'Other', NULL, NULL, %L)::text$c$, app, v, k));
  ASSERT (r.r2->>'replayed')::boolean AND r.r2->>'event_id' = r.r1->>'event_id', 'parallel details not idempotent';
  ASSERT (SELECT company_name FROM public.applications WHERE id = app::uuid) = 'Acme', 'parallel details overwritten';
 
@@ -75,6 +76,27 @@ BEGIN
  END;
  ASSERT (SELECT status FROM public.applications WHERE id = app::uuid) = 'interview', 'stale parallel transition overwrote';
  ASSERT (SELECT count(*) FROM public.application_events WHERE application_id = app::uuid AND event_type='status_changed') = 2, 'stale parallel transition wrote an event';
+END $$;
+
+-- Two different details edits based on the same row version: one wins, the loser is stale.
+DO $$
+DECLARE
+ app text := current_setting('test.app');
+ v text; r record;
+BEGIN
+ SELECT updated_at::text INTO v FROM public.applications WHERE id = app::uuid;
+ BEGIN
+  SELECT * INTO r FROM pg_temp.race(
+    format($c$SELECT public.update_application_details(%L, %L, 'Winner', NULL, NULL, gen_random_uuid())::text$c$, app, v),
+    format($c$SELECT public.update_application_details(%L, %L, 'Loser', NULL, NULL, gen_random_uuid())::text$c$, app, v));
+  RAISE EXCEPTION 'stale parallel details edit succeeded';
+ EXCEPTION WHEN OTHERS THEN
+  IF SQLERRM NOT LIKE '%stale_application%' THEN RAISE; END IF;
+  PERFORM dblink_disconnect(c) FROM unnest(dblink_get_connections()) c;
+ END;
+ ASSERT (SELECT company_name FROM public.applications WHERE id = app::uuid) = 'Winner', 'loser overwrote winner';
+ ASSERT (SELECT count(*) FROM public.application_events WHERE application_id = app::uuid AND event_type='details_updated'
+   AND metadata->'company_name'->>'to' = 'Loser') = 0, 'loser wrote an event';
 END $$;
 
 DELETE FROM auth.users WHERE id = current_setting('test.uid')::uuid;

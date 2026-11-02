@@ -81,7 +81,8 @@ CREATE TABLE public.application_events (
 );
 
 CREATE UNIQUE INDEX application_events_one_created ON public.application_events (application_id) WHERE event_type = 'created';
-CREATE INDEX application_events_timeline_idx ON public.application_events (application_id, occurred_at DESC, created_at DESC);
+-- Timeline page order: occurred_at, created_at, id (all DESC) — id makes ties deterministic.
+CREATE INDEX application_events_timeline_idx ON public.application_events (application_id, occurred_at DESC, created_at DESC, id DESC);
 
 COMMENT ON TABLE public.application_events IS
   'P2B append-only application timeline. Written only by save_application / transition_application_status / add_application_note / update_application_details.';
@@ -342,9 +343,15 @@ $$;
 
 -- ---- details (company / role / deadline) ----
 -- Full replacement of the three fields; NULL / blank clears. A no-op writes nothing.
+-- Optimistic concurrency: p_expected_updated_at is the row version the edit was
+-- based on; any later mutation (another tab's edit, status change, note) makes it
+-- stale_application. Replay is checked first, so a retry of a committed edit
+-- returns its original result instead of stale_application.
 -- Event metadata holds only the changed fields: {"changedFields":[...], "<field>":{"from","to"}}.
+-- Returns the application's current details so the client can show server truth.
 CREATE FUNCTION public.update_application_details(
   p_application_id uuid,
+  p_expected_updated_at timestamptz,
   p_company_name text,
   p_role_title text,
   p_deadline date,
@@ -364,7 +371,7 @@ DECLARE
   v_meta jsonb := '{}'::jsonb;
   v_event uuid;
 BEGIN
-  IF p_application_id IS NULL OR p_idempotency_key IS NULL
+  IF p_application_id IS NULL OR p_idempotency_key IS NULL OR p_expected_updated_at IS NULL
      OR char_length(v_company) > 200 OR char_length(v_role) > 200
      OR p_deadline NOT BETWEEN DATE '2000-01-01' AND DATE '2100-12-31' THEN
     RAISE EXCEPTION 'invalid_details' USING ERRCODE = '22023';
@@ -374,7 +381,9 @@ BEGIN
   SELECT e.id INTO v_event FROM public.application_events AS e
   WHERE e.user_id = v_uid AND e.idempotency_key = p_idempotency_key;
   IF v_event IS NOT NULL THEN
-    RETURN jsonb_build_object('event_id', v_event, 'changed', true, 'replayed', true);
+    SELECT * INTO v_app FROM public.applications AS a WHERE a.id = p_application_id AND a.user_id = v_uid;
+    RETURN jsonb_build_object('event_id', v_event, 'changed', true, 'replayed', true,
+      'application', jsonb_build_object('company_name', v_app.company_name, 'role_title', v_app.role_title, 'deadline', v_app.deadline, 'updated_at', v_app.updated_at));
   END IF;
 
   SELECT * INTO v_app FROM public.applications AS a
@@ -382,6 +391,9 @@ BEGIN
   FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'application_not_found' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_app.updated_at <> p_expected_updated_at THEN
+    RAISE EXCEPTION 'stale_application' USING ERRCODE = 'P0001';
   END IF;
 
   IF v_app.company_name IS DISTINCT FROM v_company THEN
@@ -397,26 +409,29 @@ BEGIN
     v_meta := v_meta || jsonb_build_object('deadline', jsonb_build_object('from', v_app.deadline, 'to', p_deadline));
   END IF;
   IF cardinality(v_changed) = 0 THEN
-    RETURN jsonb_build_object('event_id', NULL, 'changed', false, 'replayed', false);
+    RETURN jsonb_build_object('event_id', NULL, 'changed', false, 'replayed', false,
+      'application', jsonb_build_object('company_name', v_app.company_name, 'role_title', v_app.role_title, 'deadline', v_app.deadline, 'updated_at', v_app.updated_at));
   END IF;
 
   UPDATE public.applications AS a
   SET company_name = v_company, role_title = v_role, deadline = p_deadline, updated_at = now()
-  WHERE a.id = p_application_id;
+  WHERE a.id = p_application_id
+  RETURNING * INTO v_app;
 
   INSERT INTO public.application_events (application_id, user_id, event_type, metadata, occurred_at, idempotency_key)
   VALUES (p_application_id, v_uid, 'details_updated', v_meta || jsonb_build_object('changedFields', to_jsonb(v_changed)), now(), p_idempotency_key)
   RETURNING id INTO v_event;
 
-  RETURN jsonb_build_object('event_id', v_event, 'changed', true, 'replayed', false);
+  RETURN jsonb_build_object('event_id', v_event, 'changed', true, 'replayed', false,
+    'application', jsonb_build_object('company_name', v_app.company_name, 'role_title', v_app.role_title, 'deadline', v_app.deadline, 'updated_at', v_app.updated_at));
 END;
 $$;
 
 REVOKE ALL ON FUNCTION public.transition_application_status(uuid, text, text, timestamptz, text, uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.add_application_note(uuid, text, uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.update_application_details(uuid, text, text, date, uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.update_application_details(uuid, timestamptz, text, text, date, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.transition_application_status(uuid, text, text, timestamptz, text, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.add_application_note(uuid, text, uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.update_application_details(uuid, text, text, date, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_application_details(uuid, timestamptz, text, text, date, uuid) TO authenticated;
 
 COMMIT;

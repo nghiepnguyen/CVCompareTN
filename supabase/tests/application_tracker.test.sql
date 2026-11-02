@@ -23,8 +23,10 @@ $$;
 CREATE FUNCTION pg_temp.note(app uuid, note text, intent text) RETURNS jsonb LANGUAGE sql AS $$
  SELECT public.add_application_note(app, note, md5(intent)::uuid);
 $$;
-CREATE FUNCTION pg_temp.details(app uuid, company text, role text, deadline date, intent text) RETURNS jsonb LANGUAGE sql AS $$
- SELECT public.update_application_details(app, company, role, deadline, md5(intent)::uuid);
+-- `expected` defaults to the row version the caller can see (now() when invisible).
+CREATE FUNCTION pg_temp.details(app uuid, company text, role text, deadline date, intent text, expected timestamptz DEFAULT NULL) RETURNS jsonb LANGUAGE sql AS $$
+ SELECT public.update_application_details(app, coalesce(expected, (SELECT a.updated_at FROM public.applications a WHERE a.id=app), now()),
+   company, role, deadline, md5(intent)::uuid);
 $$;
 CREATE FUNCTION pg_temp.save(intent text) RETURNS jsonb LANGUAGE sql AS $$
  SELECT public.save_application(md5(intent)::uuid, NULL, 'vi', 'Backend Engineer', NULL,
@@ -42,7 +44,7 @@ DECLARE
  rpcs text[] := ARRAY[
   'public.transition_application_status(uuid,text,text,timestamptz,text,uuid)',
   'public.add_application_note(uuid,text,uuid)',
-  'public.update_application_details(uuid,text,text,date,uuid)',
+  'public.update_application_details(uuid,timestamptz,text,text,date,uuid)',
   'public.save_application(uuid,text,text,text,text,jsonb,text,text,jsonb,text,text)'];
 BEGIN
  ASSERT (SELECT relrowsecurity FROM pg_class WHERE oid='public.application_events'::regclass), 'events RLS off';
@@ -237,6 +239,26 @@ BEGIN
    AND a2.idempotency_key=before_app.idempotency_key AND a2.created_at=before_app.created_at
    AND a2.source_analysis_id IS NOT DISTINCT FROM before_app.source_analysis_id FROM public.applications a2 WHERE id=app), 'details touched non-detail columns';
  ASSERT (SELECT jsonb_agg(to_jsonb(d) ORDER BY document_type) FROM public.application_documents d WHERE application_id=app)=before_doc, 'details touched snapshots';
+
+ -- DETAILS OPTIMISTIC CONCURRENCY (expected_updated_at = row version the edit was based on).
+ RESET ROLE; UPDATE public.applications SET updated_at='2020-01-01' WHERE id=app; SET LOCAL ROLE authenticated;
+ n := pg_temp.events(app);
+ r := pg_temp.details(app, 'Gamma', NULL, NULL, 'cas-ok', '2020-01-01');
+ ASSERT (r->>'changed')::boolean AND NOT (r->>'replayed')::boolean AND pg_temp.events(app)=n+1, 'matching version must update with one event';
+ ASSERT r->'application'->>'company_name'='Gamma' AND (r->'application'->>'updated_at')::timestamptz=now(), format('returned row %s', r);
+ -- Stale version: stale_application, no update, no event.
+ PERFORM pg_temp.fails(format($q$SELECT pg_temp.details(%L,'Delta',NULL,NULL,'cas-stale','2020-01-01')$q$, app), 'P0001', 'stale_application');
+ ASSERT (SELECT company_name FROM public.applications WHERE id=app)='Gamma' AND pg_temp.events(app)=n+1, 'stale edit mutated';
+ -- Retry of the committed intent (its version is now stale) replays, never stale_application.
+ r2 := pg_temp.details(app, 'Zeta', 'Changed', '2027-01-01', 'cas-ok', '2020-01-01');
+ ASSERT (r2->>'replayed')::boolean AND r2->>'event_id'=r->>'event_id', 'committed retry must replay';
+ ASSERT (SELECT company_name FROM public.applications WHERE id=app)='Gamma' AND pg_temp.events(app)=n+1, 'replay mutated';
+ -- Any other mutation (a note) moves the row version too.
+ RESET ROLE; UPDATE public.applications SET updated_at='2020-01-02' WHERE id=app; SET LOCAL ROLE authenticated;
+ PERFORM pg_temp.note(app, 'other tab', 'cas-note');
+ PERFORM pg_temp.fails(format($q$SELECT pg_temp.details(%L,'Eta',NULL,NULL,'cas-after-note','2020-01-02')$q$, app), 'P0001', 'stale_application');
+ -- Version is required.
+ PERFORM pg_temp.fails(format($q$SELECT public.update_application_details(%L,NULL,'x',NULL,NULL,gen_random_uuid())$q$, app), '22023', 'invalid_details');
 
  -- APPEND-ONLY for clients: no INSERT / UPDATE / DELETE on events.
  PERFORM pg_temp.fails(format($q$INSERT INTO public.application_events(application_id,user_id,event_type,note,occurred_at,idempotency_key) VALUES(%L,%L,'note','x',now(),gen_random_uuid())$q$, app, a), '42501');

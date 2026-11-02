@@ -138,27 +138,45 @@ export async function getApplicationDocuments(applicationId: string): Promise<Ap
   return rows.map((r) => ({ type: r.document_type, content: r.content, metadata: r.metadata, createdAt: r.created_at }));
 }
 
-export const TIMELINE_LIMIT = 200;
+export const TIMELINE_PAGE_SIZE = 50;
 
-/** Newest first. shortcut: capped at TIMELINE_LIMIT events, add paging if real timelines get that long. */
-export async function getApplicationTimeline(applicationId: string): Promise<ApplicationEvent[]> {
+/**
+ * One bounded timeline page, newest first: occurred_at, created_at, id (all DESC) so
+ * equal timestamps still order deterministically. Events are append-only, so a newer
+ * event between page loads can only shift rows down (a duplicate, never a gap):
+ * callers merge pages by id.
+ */
+export async function getApplicationTimeline(applicationId: string, page = 0, pageSize = TIMELINE_PAGE_SIZE): Promise<{ items: ApplicationEvent[]; hasMore: boolean }> {
+  const from = page * pageSize;
   const rows = await unwrap<{ id: string; event_type: ApplicationEvent['type']; from_status: ApplicationStatus | null; to_status: ApplicationStatus | null; note: string | null; metadata: ApplicationEvent['metadata']; occurred_at: string; created_at: string }[]>(() => supabase.from('application_events')
       .select('id, event_type, from_status, to_status, note, metadata, occurred_at, created_at')
       .eq('application_id', applicationId)
       .order('occurred_at', { ascending: false })
       .order('created_at', { ascending: false })
-      .range(0, TIMELINE_LIMIT - 1)
+      .order('id', { ascending: false })
+      .range(from, from + pageSize)
   ) ?? [];
-  return rows.map((r) => ({
+  const items = rows.slice(0, pageSize).map((r): ApplicationEvent => ({
     id: r.id, type: r.event_type, fromStatus: r.from_status, toStatus: r.to_status, note: r.note,
     metadata: r.metadata ?? {}, occurredAt: r.occurred_at, createdAt: r.created_at,
   }));
+  return { items, hasMore: rows.length > pageSize };
 }
 
-export interface MutationResult { eventId: string | null; replayed: boolean; changed?: boolean }
+export type ApplicationDetailsState = Pick<ApplicationDetail, 'companyName' | 'roleTitle' | 'deadline' | 'updatedAt'>;
+export interface MutationResult { eventId: string | null; replayed: boolean; changed?: boolean; application?: ApplicationDetailsState }
 
-const toMutation = (d: { event_id: string | null; replayed: boolean; changed?: boolean } | null): MutationResult =>
-  ({ eventId: d?.event_id ?? null, replayed: !!d?.replayed, ...(d && 'changed' in d && { changed: !!d.changed }) });
+type MutationRow = {
+  event_id: string | null; replayed: boolean; changed?: boolean;
+  application?: { company_name: string | null; role_title: string | null; deadline: string | null; updated_at: string };
+};
+
+const toMutation = (d: MutationRow | null): MutationResult => ({
+  eventId: d?.event_id ?? null,
+  replayed: !!d?.replayed,
+  ...(d && 'changed' in d && { changed: !!d.changed }),
+  ...(d?.application && { application: { companyName: d.application.company_name, roleTitle: d.application.role_title, deadline: d.application.deadline, updatedAt: d.application.updated_at } }),
+});
 
 /** `expectedStatus` is the status the user saw (compare-and-set); `occurredAt` null = now. */
 export async function transitionApplicationStatus(input: { applicationId: string; expectedStatus: ApplicationStatus; toStatus: ApplicationStatus; occurredAt: string | null; note: string | null; idempotencyKey: string }): Promise<MutationResult> {
@@ -178,10 +196,15 @@ export async function addApplicationNote(input: { applicationId: string; note: s
   })));
 }
 
-/** Full replacement of company / role / deadline (null clears). A no-op returns changed:false. */
-export async function updateApplicationDetails(input: { applicationId: string; companyName: string | null; roleTitle: string | null; deadline: string | null; idempotencyKey: string }): Promise<MutationResult> {
+/**
+ * Full replacement of company / role / deadline (null clears). A no-op returns changed:false.
+ * `expectedUpdatedAt` is the row version the edit is based on, passed through as the
+ * exact server string (a Date would drop microseconds); a newer row -> stale_application.
+ */
+export async function updateApplicationDetails(input: { applicationId: string; expectedUpdatedAt: string; companyName: string | null; roleTitle: string | null; deadline: string | null; idempotencyKey: string }): Promise<MutationResult> {
   return toMutation(await unwrap(() => supabase.rpc('update_application_details', {
     p_application_id: input.applicationId,
+    p_expected_updated_at: input.expectedUpdatedAt,
     p_company_name: input.companyName,
     p_role_title: input.roleTitle,
     p_deadline: input.deadline,

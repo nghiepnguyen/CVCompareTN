@@ -3,7 +3,7 @@ import { useUI } from '../../../context/UIContext';
 import { formatLabel } from '../../../translations';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { vnTodayYmd } from '../../../lib/vnTime';
-import { addApplicationNote, transitionApplicationStatus, updateApplicationDetails } from '../../../services/applicationService';
+import { addApplicationNote, transitionApplicationStatus, updateApplicationDetails, type MutationResult } from '../../../services/applicationService';
 import {
   allowedTransitions, isFinalStatus, DETAIL_TEXT_MAX, NOTE_MAX,
   type ApplicationDetail, type ApplicationStatus,
@@ -127,8 +127,10 @@ export function NoteForm({ applicationId, onDone, onClose }: { applicationId: st
   );
 }
 
-export function DetailsForm({ application, onDone, onClose }: { application: ApplicationDetail; onDone: () => void; onClose: () => void }) {
+export function DetailsForm({ application, onDone, onClose }: { application: ApplicationDetail; onDone: (result?: MutationResult) => void; onClose: () => void }) {
   const { t } = useUI();
+  // The version this edit is based on: captured when the form opens, not on every reload.
+  const [base, setBase] = React.useState(application);
   const [company, setCompany] = React.useState(application.companyName ?? '');
   const [role, setRole] = React.useState(application.roleTitle ?? '');
   const [deadline, setDeadline] = React.useState(application.deadline ?? '');
@@ -137,15 +139,25 @@ export function DetailsForm({ application, onDone, onClose }: { application: App
   const next = { companyName: company.trim() || null, roleTitle: role.trim() || null, deadline: deadline || null };
   const tooLong = (next.companyName?.length ?? 0) > DETAIL_TEXT_MAX || (next.roleTitle?.length ?? 0) > DETAIL_TEXT_MAX;
 
+  // stale_application: the reload brought newer data. Show it (never overwrite it with
+  // the rejected edit) and base the user's next, explicit save on the new version.
+  React.useEffect(() => {
+    if (error !== 'stale_application' || application.updatedAt === base.updatedAt) return;
+    setBase(application);
+    setCompany(application.companyName ?? '');
+    setRole(application.roleTitle ?? '');
+    setDeadline(application.deadline ?? '');
+  }, [error, application, base.updatedAt]);
+
   const onSave = async () => {
     if (busy || tooLong) return;
     // No-op edits never reach the server, so the timeline has no noise.
-    if (next.companyName === application.companyName && next.roleTitle === application.roleTitle && next.deadline === application.deadline) {
+    if (next.companyName === base.companyName && next.roleTitle === base.roleTitle && next.deadline === base.deadline) {
       setNotice(t.trackerNoChanges);
       return;
     }
     setNotice(null);
-    const ok = await run((idempotencyKey) => updateApplicationDetails({ applicationId: application.id, ...next, idempotencyKey }));
+    const ok = await run((idempotencyKey) => updateApplicationDetails({ applicationId: application.id, expectedUpdatedAt: base.updatedAt, ...next, idempotencyKey }));
     if (ok) onClose();
   };
 

@@ -32,7 +32,7 @@ beforeEach(() => {
   ui.lang = 'vi';
   // Intent keys live in module scope per application: fresh id per test.
   app = { id: `app-${++seq}`, company_name: 'Acme', role_title: 'Backend Engineer', status: 'drafted', deadline: null, applied_at: null,
-    created_at: '2026-11-01T03:00:00Z', updated_at: '2026-11-02T03:00:00Z', language: 'vi' };
+    created_at: '2026-11-01T03:00:00Z', updated_at: '2026-11-02T03:00:00.123456+00:00', language: 'vi' };
   docs = [cvDoc, jdDoc];
   events = [{ id: 'e0', event_type: 'created', from_status: null, to_status: null, note: null, metadata: {}, occurred_at: '2026-11-01T03:00:00Z', created_at: '2026-11-01T03:00:00Z' }];
   db.calls = [];
@@ -56,6 +56,21 @@ const appFetches = () => db.calls.filter((c) => c[0] === 'applications' && c[1] 
 const keysOf = (name: string) => db.rpc.mock.calls.filter((c) => c[0] === name).map((c) => c[1].p_idempotency_key);
 
 describe('Overview', () => {
+  it.each(['vi', 'en'] as const)('first-applied label is historical, with a quiet explanation (%s)', async (lang) => {
+    ui.lang = lang;
+    const L = UI_LABELS[lang];
+    app.applied_at = '2026-10-20T05:00:00Z';
+    app.status = 'drafted'; // corrected back after applying: date stays
+    await renderDetail();
+    const panel = screen.getByRole('tabpanel');
+    expect(panel.textContent).toContain(lang === 'vi' ? 'Nộp lần đầu' : 'First applied');
+    expect(screen.getByLabelText(L.trackerAppliedDateHint)).toBeTruthy();
+    expect(L.trackerAppliedDateHint).toBe(lang === 'vi'
+      ? 'Ngày ứng tuyển được ghi nhận lần đầu. Không thay đổi khi trạng thái được chỉnh sửa.'
+      : 'The first recorded application date. It does not change when the status is corrected later.');
+    expect(panel.textContent).toContain(lang === 'vi' ? '20 thg 10, 2026' : 'Oct 20, 2026');
+  });
+
   it('shows workflow fields, actions, no score', async () => {
     app.deadline = '2026-11-15';
     await renderDetail();
@@ -261,6 +276,120 @@ describe('Notes', () => {
     expect(k2).toBe(k1);
     // Telemetry never carries note content.
     expect(JSON.stringify(sentry.captureException.mock.calls)).not.toContain('salary');
+  });
+});
+
+describe('Details concurrency', () => {
+  it('sends the version the form opened with; on success shows the returned server row', async () => {
+    db.rpc.mockImplementationOnce(async () => {
+      app.company_name = 'Beta'; // server persisted it
+      app.updated_at = '2026-11-03T00:00:00.5+00:00';
+      return { data: { event_id: 'e6', changed: true, replayed: false,
+        application: { company_name: 'Beta', role_title: 'Backend Engineer', deadline: null, updated_at: '2026-11-03T00:00:00.5+00:00' } }, error: null };
+    });
+    await renderDetail();
+    click(vi_.trackerEditDetails);
+    fireEvent.change(screen.getByLabelText(vi_.trackerCompanyLabel), { target: { value: 'Beta' } });
+    click(vi_.trackerSave);
+    await waitFor(() => expect(db.rpc).toHaveBeenCalled());
+    expect(db.rpc.mock.calls[0][1].p_expected_updated_at).toBe('2026-11-02T03:00:00.123456+00:00');
+    await waitFor(() => expect(within(screen.getByRole('tabpanel')).getAllByText('Beta').length).toBeGreaterThan(0));
+  });
+
+  it('stale_application: refetches, shows the newer data, never resends the rejected edit; retry after review is a new intent on the new version', async () => {
+    db.rpc.mockImplementationOnce(async () => {
+      // Another tab saved first.
+      app.company_name = 'Server Co';
+      app.updated_at = '2026-11-03T09:00:00.000001+00:00';
+      return { data: null, error: { message: 'stale_application', details: 'secret row' } };
+    });
+    await renderDetail();
+    const before = appFetches();
+    click(vi_.trackerEditDetails);
+    fireEvent.change(screen.getByLabelText(vi_.trackerCompanyLabel), { target: { value: 'Mine' } });
+    click(vi_.trackerSave);
+    expect(await screen.findByText(vi_.trackerErrStaleApplication)).toBeTruthy();
+    await waitFor(() => expect(appFetches()).toBeGreaterThan(before));
+    await waitFor(() => expect((screen.getByLabelText(vi_.trackerCompanyLabel) as HTMLInputElement).value).toBe('Server Co'));
+    expect(db.rpc).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).not.toContain('secret');
+    expect(sentry.captureException).not.toHaveBeenCalled();
+
+    db.rpc.mockResolvedValueOnce({ data: { event_id: 'e7', changed: true, replayed: false }, error: null });
+    fireEvent.change(screen.getByLabelText(vi_.trackerCompanyLabel), { target: { value: 'Mine again' } });
+    click(vi_.trackerSave);
+    await waitFor(() => expect(db.rpc).toHaveBeenCalledTimes(2));
+    const [first, second] = db.rpc.mock.calls.map((c) => c[1]);
+    expect(second.p_idempotency_key).not.toBe(first.p_idempotency_key);
+    expect(second.p_expected_updated_at).toBe('2026-11-03T09:00:00.000001+00:00');
+    expect(second.p_company_name).toBe('Mine again');
+  });
+
+  it('EN stale message', async () => {
+    ui.lang = 'en';
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'stale_application' } });
+    await renderDetail();
+    click(UI_LABELS.en.trackerEditDetails);
+    fireEvent.change(screen.getByLabelText(UI_LABELS.en.trackerCompanyLabel), { target: { value: 'X' } });
+    click(UI_LABELS.en.trackerSave);
+    expect(await screen.findByText('This application was updated elsewhere. The latest data has been reloaded; review it and try again.')).toBeTruthy();
+  });
+});
+
+describe('Timeline pagination', () => {
+  const types = ['note', 'status_changed', 'details_updated'] as const;
+  const mkEvent = (i: number) => {
+    const type = i === 119 ? 'created' : types[i % 3];
+    return {
+      id: `ev-${String(i).padStart(3, '0')}`, event_type: type,
+      from_status: type === 'status_changed' ? 'applied' : null, to_status: type === 'status_changed' ? 'interview' : null,
+      note: type === 'note' ? `note ${i}` : null,
+      metadata: type === 'details_updated' ? { changedFields: ['company_name'], company_name: { from: null, to: `Co ${i}` } } : {},
+      // Pairs share a timestamp: the server's id tiebreak keeps them ordered.
+      occurred_at: new Date(Date.UTC(2026, 10, 1) - Math.floor(i / 2) * 60000).toISOString(), created_at: '2026-11-01T00:00:00Z',
+    };
+  };
+  let all: ReturnType<typeof mkEvent>[];
+  beforeEach(() => {
+    all = Array.from({ length: 120 }, (_, i) => mkEvent(i));
+    db.respond = (table, calls) => {
+      if (table !== 'application_events') return { data: table === 'applications' ? app : docs, error: null };
+      const [from, to] = calls.find((c) => c[1] === 'range')!.slice(2) as [number, number];
+      return { data: all.slice(from, to + 1), error: null };
+    };
+  });
+  const items = () => screen.getByRole('tabpanel').querySelectorAll('li');
+
+  it('first page, load more, final page; all event types render across boundaries; no duplicates', async () => {
+    await renderDetail();
+    openTab(vi_.trackerTabTimeline);
+    expect(items()).toHaveLength(50);
+    click(vi_.trackerTimelineMore);
+    await waitFor(() => expect(items()).toHaveLength(100));
+    // A new event arrives between page loads: rows shift down one; the overlap is dropped.
+    all.unshift({ ...mkEvent(0), id: 'ev-new', note: 'newer' });
+    click(vi_.trackerTimelineMore);
+    await waitFor(() => expect(items()).toHaveLength(120));
+    expect(screen.queryByRole('button', { name: vi_.trackerTimelineMore })).toBeNull();
+    const text = screen.getByRole('tabpanel').textContent!;
+    expect(text).toContain('note 99');
+    expect(text).toContain(formatLabel(vi_.trackerEvCompany, { value: 'Co 101' }));
+    expect(text).toContain(formatLabel(vi_.trackerEvStatus, { from: vi_.trackerStatusApplied, to: vi_.trackerStatusInterview }));
+    expect(text).toContain(vi_.trackerEvCreated);
+    expect([...items()].filter((li) => li.textContent!.includes('note 99')).length).toBe(1);
+    expect(new Set([...items()].map((li) => li.textContent)).size).toBe(120);
+    // Order of rendered rows = server order.
+    expect(text.indexOf('note 0')).toBeLessThan(text.indexOf('note 3'));
+    const ranges = db.calls.filter((c) => c[0] === 'application_events' && c[1] === 'range').map((c) => c.slice(2));
+    expect(ranges).toEqual([[0, 50], [50, 100], [100, 150]]);
+  });
+
+  it('empty timeline', async () => {
+    all = [];
+    await renderDetail();
+    openTab(vi_.trackerTabTimeline);
+    expect(screen.getByText(vi_.trackerTimelineEmpty)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: vi_.trackerTimelineMore })).toBeNull();
   });
 });
 

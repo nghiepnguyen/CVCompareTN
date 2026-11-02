@@ -28,10 +28,10 @@ export interface ApplicationSummary {
   status: ApplicationStatus;
   /** YYYY-MM-DD (date, no time zone). */
   deadline: string | null;
-  /** First recorded transition to applied; historical, kept across corrections. */
+  /** First recorded time it reached applied; historical: never cleared or overwritten by later corrections. */
   appliedAt: string | null;
   createdAt: string;
-  /** Bumped by every tracker mutation: "last activity". */
+  /** Bumped by every tracker mutation: "last activity" and the row version for details edits (exact server string). */
   updatedAt: string;
   language: 'vi' | 'en';
 }
@@ -66,7 +66,7 @@ export type ApplicationSort = typeof APPLICATION_SORTS[number];
 
 /** Stable RPC error vocabulary; anything else is `unknown` (never a raw DB message). */
 export const TRACKER_ERROR_CODES = [
-  'not_authenticated', 'account_locked', 'application_not_found', 'stale_status',
+  'not_authenticated', 'account_locked', 'application_not_found', 'stale_status', 'stale_application',
   'invalid_transition', 'invalid_occurred_at', 'invalid_note', 'invalid_details',
 ] as const;
 export type TrackerErrorCode = typeof TRACKER_ERROR_CODES[number] | 'unknown';

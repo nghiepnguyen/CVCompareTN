@@ -430,6 +430,10 @@ Chênh lệch so với yêu cầu roadmap (có chủ đích):
 -   Events `interview/offer/rejected/withdrawn/submitted` = `status_changed`
     với `to_status` tương ứng (không tạo event type riêng); `follow-up` → P2C.
 -   `no_response` chỉ chọn thủ công; không sweep tự động.
+-   P2B.1 (pre-PR hardening, local): `applied_at` = "Nộp lần đầu / First
+    applied" (lịch sử, không đổi khi sửa status); sửa thông tin có optimistic
+    concurrency (`expected_updated_at` → `stale_application`, replay thắng
+    CAS); timeline phân trang 50/trang. Detail chưa có deep link (debt chấp nhận).
 
 ### Score policy (P2A.2)
 

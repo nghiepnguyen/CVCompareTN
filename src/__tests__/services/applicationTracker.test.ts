@@ -6,8 +6,8 @@ const db = vi.hoisted(() => ({ calls: [], respond: () => ({ data: [], error: nul
 vi.mock('../../lib/supabase', async () => (await import('../components/trackerFakeSupabase')).fakeSupabase(db));
 
 import {
-  listApplications, getApplicationTimeline, transitionApplicationStatus, trackerErrorCode,
-  ApplicationTrackerError, APPLICATIONS_PAGE_SIZE,
+  listApplications, getApplicationTimeline, transitionApplicationStatus, updateApplicationDetails, trackerErrorCode,
+  ApplicationTrackerError, APPLICATIONS_PAGE_SIZE, TIMELINE_PAGE_SIZE,
 } from '../../services/applicationService';
 import { APPLICATION_STATUSES, APPLICATION_SORTS, allowedTransitions, isFinalStatus } from '../../services/applicationTypes';
 
@@ -95,10 +95,29 @@ describe('errors', () => {
 });
 
 describe('timeline', () => {
-  it('newest first by occurred_at then created_at, bounded', async () => {
-    await getApplicationTimeline('a');
-    expect(db.calls).toContainEqual(['application_events', 'order', 'occurred_at', { ascending: false }]);
-    expect(db.calls).toContainEqual(['application_events', 'order', 'created_at', { ascending: false }]);
-    expect(db.calls.some((c) => c[0] === 'application_events' && c[1] === 'range')).toBe(true);
+  it('newest first by occurred_at, created_at, id (deterministic ties); bounded page + look-ahead', async () => {
+    const ev = (i: number) => ({ id: `e${i}`, event_type: 'note', from_status: null, to_status: null, note: 'n', metadata: {}, occurred_at: '2026-11-01T00:00:00Z', created_at: '2026-11-01T00:00:00Z' });
+    db.respond = () => ({ data: Array.from({ length: TIMELINE_PAGE_SIZE + 1 }, (_, i) => ev(i)), error: null });
+    const first = await getApplicationTimeline('a');
+    expect(first.items).toHaveLength(TIMELINE_PAGE_SIZE);
+    expect(first.hasMore).toBe(true);
+    const orders = db.calls.filter((c) => c[1] === 'order').map((c) => c[2]);
+    expect(orders).toEqual(['occurred_at', 'created_at', 'id']);
+    expect(db.calls).toContainEqual(['application_events', 'order', 'id', { ascending: false }]);
+    expect(db.calls).toContainEqual(['application_events', 'range', 0, TIMELINE_PAGE_SIZE]);
+    db.calls = [];
+    db.respond = () => ({ data: [ev(1)], error: null });
+    const last = await getApplicationTimeline('a', 2);
+    expect(db.calls).toContainEqual(['application_events', 'range', 2 * TIMELINE_PAGE_SIZE, 3 * TIMELINE_PAGE_SIZE]);
+    expect(last.hasMore).toBe(false);
+  });
+
+  it('details edit sends the exact row version string (microseconds intact)', async () => {
+    db.rpc.mockResolvedValue({ data: { event_id: 'e1', changed: true, replayed: false, application: { company_name: 'Acme', role_title: null, deadline: null, updated_at: '2026-11-03T01:02:03.456789+00:00' } }, error: null });
+    const res = await updateApplicationDetails({ applicationId: 'a', expectedUpdatedAt: '2026-11-02T03:00:00.123456+00:00', companyName: 'Acme', roleTitle: null, deadline: null, idempotencyKey: 'k' });
+    expect(db.rpc.mock.calls[0][1].p_expected_updated_at).toBe('2026-11-02T03:00:00.123456+00:00');
+    expect(res.application).toEqual({ companyName: 'Acme', roleTitle: null, deadline: null, updatedAt: '2026-11-03T01:02:03.456789+00:00' });
+    db.rpc.mockResolvedValue({ data: null, error: { message: 'stale_application' } });
+    await expect(updateApplicationDetails({ applicationId: 'a', expectedUpdatedAt: 'x', companyName: null, roleTitle: null, deadline: null, idempotencyKey: 'k2' })).rejects.toMatchObject({ code: 'stale_application' });
   });
 });

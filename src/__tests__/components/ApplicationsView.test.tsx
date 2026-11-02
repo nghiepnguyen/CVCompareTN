@@ -65,6 +65,7 @@ describe('ApplicationsView list', () => {
     // Deadline is a plain date (no zone shift); applied_at is shown in ICT (01:30 on 2 Nov).
     expect(container.textContent).toContain('15 thg 11, 2026');
     expect(container.textContent).toContain('02 thg 11, 2026');
+    expect(container.textContent).toContain('Nộp lần đầu:');
     expect(container.textContent).not.toMatch(/score|điểm/i);
   });
 
