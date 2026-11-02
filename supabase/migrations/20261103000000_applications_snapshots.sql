@@ -148,6 +148,20 @@ BEGIN
     RAISE EXCEPTION 'not_allowed' USING ERRCODE = '42501';
   END IF;
 
+  SELECT a.id INTO v_id FROM public.applications AS a
+  WHERE a.user_id = v_uid AND a.source_analysis_id = p_source_analysis_id;
+  IF v_id IS NOT NULL THEN
+    RETURN jsonb_build_object('id', v_id, 'created', false);
+  END IF;
+
+  -- source_analysis_id is client-asserted, so bound what one account can store
+  -- (~750 KB max per application). Abuse ceiling, not a plan limit: equals the
+  -- paid history retention (500). Lock so concurrent saves cannot overshoot.
+  PERFORM pg_advisory_xact_lock(hashtextextended('applications:' || v_uid::text, 0));
+  IF (SELECT count(*) FROM public.applications AS a WHERE a.user_id = v_uid) >= 500 THEN
+    RAISE EXCEPTION 'application_limit_reached' USING ERRCODE = '42501';
+  END IF;
+
   INSERT INTO public.applications (user_id, source_analysis_id, company_name, role_title, language)
   VALUES (v_uid, p_source_analysis_id, v_company, v_role, p_language)
   ON CONFLICT ON CONSTRAINT applications_user_analysis_unique DO NOTHING

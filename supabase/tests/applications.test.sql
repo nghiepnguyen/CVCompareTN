@@ -21,13 +21,15 @@ CREATE FUNCTION pg_temp.save(analysis_id text, o jsonb DEFAULT '{}') RETURNS jso
   o->>'letter',
   o->>'letter_language');
 $$;
--- Expects the statement to fail with the given SQLSTATE.
-CREATE FUNCTION pg_temp.fails(stmt text, state text) RETURNS void LANGUAGE plpgsql AS $$
+-- Expects the statement to fail with the given SQLSTATE (and message, when given).
+CREATE FUNCTION pg_temp.fails(stmt text, state text, msg text DEFAULT NULL) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
  EXECUTE stmt;
  RAISE EXCEPTION 'expected % from: %', state, stmt;
 EXCEPTION WHEN OTHERS THEN
- IF SQLSTATE <> state THEN RAISE EXCEPTION 'expected % got % (%) from: %', state, SQLSTATE, SQLERRM, stmt; END IF;
+ IF SQLSTATE <> state OR SQLERRM IS DISTINCT FROM coalesce(msg, SQLERRM) THEN
+  RAISE EXCEPTION 'expected % % got % (%) from: %', state, msg, SQLSTATE, SQLERRM, stmt;
+ END IF;
 END $$;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO authenticated, anon;
 
@@ -56,12 +58,15 @@ BEGIN
  INSERT INTO auth.users(id) VALUES(a),(b),(locked);
  INSERT INTO public.profiles(id,role,has_permission) VALUES(a,'user',true),(b,'user',true),(locked,'user',false);
  INSERT INTO public.history(user_id,analysis_id) VALUES(b,'b-run'),(a,'a-hist');
+ INSERT INTO public.applications(id,user_id,source_analysis_id,language) VALUES(gen_random_uuid(),locked,'locked-old','vi');
+ INSERT INTO public.application_documents(application_id,user_id,document_type,content)
+  SELECT id,locked,'jd','{"text":"x"}' FROM public.applications WHERE user_id=locked;
 
  SET LOCAL ROLE authenticated;
 
  -- AUTH: no JWT subject -> rejected, nothing written.
  PERFORM pg_temp.set_user(NULL);
- PERFORM pg_temp.fails($q$SELECT pg_temp.save('anon-run')$q$, '42501');
+ PERFORM pg_temp.fails($q$SELECT pg_temp.save('anon-run')$q$, '42501', 'not_authenticated');
 
  -- Owner save: CV + JD, no letter.
  PERFORM pg_temp.set_user(a);
@@ -102,7 +107,7 @@ BEGIN
  ASSERT NOT EXISTS (SELECT 1 FROM public.applications WHERE source_analysis_id LIKE 'bad-%'), 'rejected save left an application row';
 
  -- Foreign analysis id (in user B's history) -> rejected, nothing created.
- PERFORM pg_temp.fails($q$SELECT pg_temp.save('b-run')$q$, '42501');
+ PERFORM pg_temp.fails($q$SELECT pg_temp.save('b-run')$q$, '42501', 'not_allowed');
  ASSERT NOT EXISTS (SELECT 1 FROM public.applications WHERE source_analysis_id='b-run'), 'foreign analysis created a row';
  -- Own history row is fine.
  r := pg_temp.save('a-hist');
@@ -133,7 +138,9 @@ BEGIN
 
  -- Locked account cannot save or read.
  PERFORM pg_temp.set_user(locked);
- PERFORM pg_temp.fails($q$SELECT pg_temp.save('locked-run')$q$, '42501');
+ PERFORM pg_temp.fails($q$SELECT pg_temp.save('locked-run')$q$, '42501', 'account_locked');
+ ASSERT (SELECT count(*) FROM public.applications)=0, 'locked user reads applications';
+ ASSERT (SELECT count(*) FROM public.application_documents)=0, 'locked user reads documents';
 
  -- History deletion does not touch applications.
  PERFORM pg_temp.set_user(a);
@@ -148,7 +155,7 @@ BEGIN
  PERFORM pg_temp.set_user(NULL,'service_role'); -- admin hard delete runs as service_role
  ASSERT NOT EXISTS (SELECT 1 FROM public.application_documents WHERE application_id=app), 'orphan documents after delete';
  -- Service role also cannot rewrite a snapshot.
- PERFORM pg_temp.fails($q$UPDATE public.application_documents SET metadata='{}'$q$, '42501');
+ PERFORM pg_temp.fails($q$UPDATE public.application_documents SET metadata='{}'$q$, '42501', 'application_document_immutable');
  -- documents.user_id must match the application owner.
  PERFORM pg_temp.fails(format($q$INSERT INTO public.application_documents(application_id,user_id,document_type,content) SELECT id,%L,'cover_letter','{"text":"x"}' FROM public.applications WHERE user_id=%L AND source_analysis_id='a-hist'$q$, b, a), '23503');
 
@@ -156,5 +163,43 @@ BEGIN
  DELETE FROM auth.users WHERE id=a;
  ASSERT NOT EXISTS (SELECT 1 FROM public.applications WHERE user_id=a), 'account delete left applications';
  ASSERT NOT EXISTS (SELECT 1 FROM public.application_documents WHERE user_id=a), 'account delete left documents';
+END $$;
+
+-- ATOMICITY: a failure after the application row (and after documents) rolls everything back.
+CREATE FUNCTION pg_temp.boom() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.document_type = current_setting('test.fail_type') THEN RAISE EXCEPTION 'injected_failure' USING ERRCODE = 'XX001'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER zz_boom BEFORE INSERT ON public.application_documents FOR EACH ROW EXECUTE FUNCTION pg_temp.boom();
+DO $$
+DECLARE c uuid:=gen_random_uuid(); n integer;
+BEGIN
+ PERFORM pg_temp.set_user(NULL,'service_role');
+ INSERT INTO auth.users(id) VALUES(c);
+ INSERT INTO public.profiles(id,role,has_permission) VALUES(c,'user',true);
+ SET LOCAL ROLE authenticated;
+ PERFORM pg_temp.set_user(c);
+ -- jd is the second document: fails after the application row and the cv row.
+ PERFORM set_config('test.fail_type','jd',true);
+ PERFORM pg_temp.fails($q$SELECT pg_temp.save('rb-1')$q$, 'XX001', 'injected_failure');
+ -- cover_letter is the third: fails after cv + jd.
+ PERFORM set_config('test.fail_type','cover_letter',true);
+ PERFORM pg_temp.fails($q$SELECT pg_temp.save('rb-2','{"letter":"Hi","letter_language":"en"}')$q$, 'XX001', 'injected_failure');
+ PERFORM set_config('test.fail_type','none',true);
+ RESET ROLE;
+ SELECT count(*) INTO n FROM public.applications WHERE user_id=c;
+ ASSERT n=0, format('rolled-back save left %s application rows', n);
+ SELECT count(*) INTO n FROM public.application_documents WHERE user_id=c;
+ ASSERT n=0, format('rolled-back save left %s documents', n);
+
+ -- CAP: at the ceiling a new analysis is refused; an existing one still answers idempotently.
+ PERFORM pg_temp.set_user(NULL,'service_role');
+ INSERT INTO public.applications(user_id,source_analysis_id,language)
+  SELECT c,'cap-'||g,'vi' FROM generate_series(1,500) g;
+ SET LOCAL ROLE authenticated;
+ PERFORM pg_temp.set_user(c);
+ PERFORM pg_temp.fails($q$SELECT pg_temp.save('cap-new')$q$, '42501', 'application_limit_reached');
+ ASSERT NOT (pg_temp.save('cap-1')->>'created')::boolean, 'existing save blocked by cap';
 END $$;
 ROLLBACK;

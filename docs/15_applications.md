@@ -45,8 +45,20 @@ Một RPC: `public.save_application(...)` → `{ id, created }`, gọi trực ti
 
 - `SECURITY DEFINER`, `search_path = ''`, owner = `auth.uid()` (không nhận `user_id` từ client); `REVOKE` anon, `GRANT EXECUTE` authenticated. Lint "SECURITY DEFINER executable by authenticated" là **chấp nhận có chủ đích**: đây là đường ghi duy nhất.
 - Validate: analysis id 1–100 ký tự, `language`, parsedCV là object khác rỗng ≤ 200 KB, JD không rỗng ≤ 50 000 ký tự, analysis có `matchScore` number + `requirements` array ≤ 60 KB, letter ≤ 10 000 ký tự + language hợp lệ. Lỗi → `22023 invalid_application` (UI chỉ hiện thông báo chung).
-- `source_analysis_id` có trong `history` của user khác → `42501`. Không bắt buộc history row tồn tại (history insert của client là fire-and-forget).
+- `source_analysis_id` có trong `history` của user khác → `42501 not_allowed`. Không bắt buộc history row tồn tại (history insert của client là fire-and-forget) — vì vậy id là **provenance do client khẳng định, không được xác minh** (không có bản ghi server-side nào giữ analysis id).
+- Đã lưu analysis này → trả `{id, created:false}`, không ghi gì.
+- Trần chống lạm dụng 500 application/user (`42501 application_limit_reached`, advisory lock theo user). Không phải plan limit; P2B quyết định cap theo plan.
 - Một function plpgsql = một transaction: lỗi bất kỳ (kể cả letter sai sau khi CV/JD hợp lệ) → không còn row nào.
+
+## Trước khi áp production
+
+RPC đọc `public.history(analysis_id, user_id)`; production `history` có drift so với migration. Kiểm tra read-only trước:
+
+```sql
+SELECT column_name, data_type FROM information_schema.columns
+WHERE table_schema='public' AND table_name='history' AND column_name IN ('analysis_id','user_id');
+-- kỳ vọng: analysis_id text, user_id uuid
+```
 
 ## Quyền
 
