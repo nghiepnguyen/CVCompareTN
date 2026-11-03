@@ -14,6 +14,7 @@ vi.mock('../../context/UIContext', async () => {
 vi.mock('../../lib/supabase', async () => (await import('./trackerFakeSupabase')).fakeSupabase(db));
 vi.mock('../../lib/sentry', () => sentry);
 
+import type { ApplicationEvent } from '../../services/applicationTypes';
 import { ApplicationDetailView } from '../../components/views/applications/ApplicationDetailView';
 
 let seq = 0;
@@ -143,6 +144,42 @@ describe('Timeline', () => {
     expect(text).not.toMatch(/no_response|changedFields|\{"/);
     // Newest first, as returned.
     expect(text.indexOf(vi_.trackerEvDetails)).toBeLessThan(text.indexOf(vi_.trackerEvCreated));
+  });
+});
+
+describe('Timeline unknown events', () => {
+  const row = (id: string, type: string, extra: Record<string, unknown> = {}) => ({ id, event_type: type, from_status: null, to_status: null, note: 'x', metadata: {},
+    occurred_at: '2026-11-0' + id.slice(1) + 'T03:00:00Z', created_at: '2026-11-0' + id.slice(1) + 'T03:00:00Z', ...extra });
+
+  it('unknown event type renders a generic title', async () => {
+    // Simulates a DB event_type newer than this client; follow_up_sent/contact_received are intentionally unknown here.
+    const future = 'future_event_type' as ApplicationEvent['type'];
+    events = [row('e5', future), row('e6', 'follow_up_sent'), row('e7', 'contact_received'),
+      row('e1', 'status_changed', { from_status: 'applied', to_status: 'no_response', note: null }), row('e2', 'note'), row('e3', 'details_updated', { note: null }), ...events];
+    await renderDetail();
+    openTab(vi_.trackerTabTimeline);
+    const list = screen.getByRole('tabpanel');
+    expect(vi_.trackerEvUnknown).toBe('Hoạt động');
+    expect(within(list).getAllByText('Hoạt động')).toHaveLength(3);
+    expect(within(list).getAllByText('x')).toHaveLength(4); // 3 unknown + 1 note event
+    expect(list.textContent).not.toMatch(/future_event_type|follow_up_sent|contact_received/);
+    // Known titles unchanged.
+    for (const known of [vi_.trackerEvCreated, vi_.trackerEvNote, vi_.trackerEvDetails, formatLabel(vi_.trackerEvStatus, { from: vi_.trackerStatusApplied, to: vi_.trackerStatusNoResponse })]) {
+      expect(list.textContent).toContain(known);
+    }
+    expect(list.textContent).not.toContain('Activity');
+  });
+
+  it('unknown event type renders "Activity" in English', async () => {
+    ui.lang = 'en';
+    events = [row('e5', 'follow_up_sent'), ...events];
+    await renderDetail();
+    openTab(UI_LABELS.en.trackerTabTimeline);
+    const list = screen.getByRole('tabpanel');
+    expect(within(list).getByText('Activity')).toBeTruthy();
+    expect(within(list).getByText('x')).toBeTruthy();
+    expect(list.textContent).not.toContain('follow_up_sent');
+    expect(list.textContent).toContain(UI_LABELS.en.trackerEvCreated);
   });
 });
 

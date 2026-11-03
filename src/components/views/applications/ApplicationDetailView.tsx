@@ -307,6 +307,7 @@ function eventTitle(t: UiLabels, e: ApplicationEvent): string {
       return e.fromStatus && e.toStatus ? formatLabel(t.trackerEvStatus, { from: statusLabel(t, e.fromStatus), to: statusLabel(t, e.toStatus) }) : t.trackerEvDetails;
     case 'note': return t.trackerEvNote;
     case 'details_updated': return t.trackerEvDetails;
+    default: return t.trackerEvUnknown;
   }
 }
 

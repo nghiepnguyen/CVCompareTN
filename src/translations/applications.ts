@@ -72,6 +72,7 @@ export const applications = {
   trackerEvStatus: { vi: "Đổi trạng thái từ {from} sang {to}", en: "Status changed from {from} to {to}" },
   trackerEvNote: { vi: "Đã thêm ghi chú", en: "Added note" },
   trackerEvDetails: { vi: "Cập nhật thông tin", en: "Details updated" },
+  trackerEvUnknown: { vi: "Hoạt động", en: "Activity" },
   trackerEvCompany: { vi: "Công ty: {value}", en: "Company: {value}" },
   trackerEvRole: { vi: "Vị trí: {value}", en: "Role: {value}" },
   trackerEvDeadline: { vi: "Hạn nộp: {value}", en: "Deadline: {value}" },
