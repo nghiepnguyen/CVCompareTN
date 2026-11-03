@@ -97,4 +97,42 @@ $$;
 REVOKE ALL ON FUNCTION public.log_application_contact(uuid, text, timestamptz, text, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.log_application_contact(uuid, text, timestamptz, text, uuid) TO authenticated;
 
+-- ---- follow-up read model (derived; nothing stored on applications) ----
+-- Stage anchor: the event that put the app in its current status = newest INSERTED
+-- status_changed with to_status = status (transition RPC is the only status writer;
+-- CAS serializes transitions per app). Its occurred_at is the anchor value, so a
+-- backdated re-apply still anchors on the new episode.
+-- Episode scope: contact events count only when inserted at/after the anchor (created_at >=),
+-- so an old-episode reply/follow-up cannot control a backdated re-apply.
+-- Follow-ups count only when occurring strictly after the reset point; a reply wins a tie.
+-- security_invoker: base-table RLS (owner + RESTRICTIVE account_unlocked_read) applies to the caller.
+CREATE VIEW public.application_follow_up_state WITH (security_invoker = true) AS
+SELECT a.id AS application_id, s.stage_entered_at, c.last_contact_at, n.follow_ups_since_reset,
+       c.last_contact_at + interval '7 days' AS follow_up_due_at,
+       CASE WHEN n.follow_ups_since_reset >= 2 THEN 'limit_reached'
+            WHEN now() >= c.last_contact_at + interval '7 days' THEN 'due'
+            ELSE 'waiting' END AS follow_up_state
+FROM public.applications a
+CROSS JOIN LATERAL (SELECT e.occurred_at AS stage_entered_at, e.created_at AS stage_created_at FROM public.application_events e
+  WHERE e.application_id = a.id AND e.event_type = 'status_changed' AND e.to_status = a.status
+  ORDER BY e.created_at DESC, e.id DESC LIMIT 1) s
+CROSS JOIN LATERAL (SELECT
+    max(e.occurred_at) FILTER (WHERE e.event_type = 'contact_received') AS last_reply,
+    greatest(s.stage_entered_at, max(e.occurred_at)) AS last_contact_at
+  FROM public.application_events e
+  WHERE e.application_id = a.id AND e.event_type IN ('follow_up_sent', 'contact_received')
+    AND e.created_at >= s.stage_created_at) c  -- current episode only (inserted at/after the anchor)
+CROSS JOIN LATERAL (SELECT count(*)::int AS follow_ups_since_reset FROM public.application_events e
+  WHERE e.application_id = a.id AND e.event_type = 'follow_up_sent'
+    AND e.created_at >= s.stage_created_at
+    AND e.occurred_at > greatest(s.stage_entered_at, c.last_reply)) n
+WHERE a.status = 'applied';
+
+COMMENT ON VIEW public.application_follow_up_state IS
+  'P2C derived follow-up state, one row per applied application: waiting | due (7 days after last contact) | limit_reached (>= 2 unanswered follow-ups). Read-only; never mutation validation.';
+
+-- Supabase default privileges would otherwise grant anon.
+REVOKE ALL ON public.application_follow_up_state FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.application_follow_up_state TO authenticated, service_role;
+
 COMMIT;

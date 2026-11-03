@@ -173,21 +173,24 @@ FROM public.applications a
 -- status_changed with to_status = status (transition RPC is the only status writer;
 -- CAS serializes transitions per app). Its occurred_at is the anchor value, so a
 -- backdated re-apply still anchors on the new episode.
-CROSS JOIN LATERAL (SELECT e.occurred_at AS stage_entered_at FROM public.application_events e
+CROSS JOIN LATERAL (SELECT e.occurred_at AS stage_entered_at, e.created_at AS stage_created_at FROM public.application_events e
   WHERE e.application_id = a.id AND e.event_type = 'status_changed' AND e.to_status = a.status
   ORDER BY e.created_at DESC, e.id DESC LIMIT 1) s
 CROSS JOIN LATERAL (SELECT
     max(e.occurred_at) FILTER (WHERE e.event_type = 'contact_received') AS last_reply,
     greatest(s.stage_entered_at, max(e.occurred_at)) AS last_contact_at
   FROM public.application_events e
-  WHERE e.application_id = a.id AND e.event_type IN ('follow_up_sent', 'contact_received')) c
+  WHERE e.application_id = a.id AND e.event_type IN ('follow_up_sent', 'contact_received')
+    AND e.created_at >= s.stage_created_at) c  -- current episode only (inserted at/after the anchor)
 CROSS JOIN LATERAL (SELECT count(*)::int AS follow_ups_since_reset FROM public.application_events e
   WHERE e.application_id = a.id AND e.event_type = 'follow_up_sent'
+    AND e.created_at >= s.stage_created_at
     AND e.occurred_at > greatest(s.stage_entered_at, c.last_reply)) n
 WHERE a.status = 'applied';
 ```
 
 - **Interpretation, recorded in docs:** the spec's "latest status_changed where to_status = status" means the newest *inserted* such event, ordered by `created_at DESC, id DESC`. Its `occurred_at` is the anchor. The largest `occurred_at` would pick an old episode after a backdated re-apply.
+- **Episode scope (amended in Task 3):** contact events count only for the current stage episode, i.e. inserted at or after the anchor event (`e.created_at >= anchor.created_at`). Without it, a backdated re-apply would let an old-episode reply or follow-up with a later `occurred_at` control the new episode. `>=` keeps events written in the same transaction as the anchor (test fixtures) in the episode. Known limit: `created_at` is the transaction start, so under concurrent requests on one app a contact event can be attributed to the adjacent episode in either direction (a contact racing a re-apply, or an interview-era follow-up racing an `interview → applied` correction); impact is one event. An `applied` app with no anchor event (only possible via direct service writes) has no row, which consumers must read as "no follow-up indicator", never as an error or a reason to recompute client-side.
 - **Tie rules:**
   - A follow-up counts only when its `occurred_at` is strictly after the reset point. This follows the spec's literal "occurring after".
   - When a reply and a follow-up share a timestamp, the reply wins and the count is 0.
