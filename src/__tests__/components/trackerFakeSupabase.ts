@@ -6,6 +6,7 @@ export interface FakeDb {
   calls: Call[];
   respond: (table: string, calls: Call[]) => { data: unknown; error: unknown } | Promise<{ data: unknown; error: unknown }>;
   rpc: ReturnType<typeof vi.fn>;
+  session?: { access_token: string } | null;
 }
 
 export function fakeSupabase(db: FakeDb) {
@@ -18,5 +19,5 @@ export function fakeSupabase(db: FakeDb) {
     q.then = (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => Promise.resolve(db.respond(table, own)).then(res, rej);
     return q;
   };
-  return { supabase: { from, rpc: db.rpc }, withAuthRetry: (fn: () => unknown) => fn() };
+  return { supabase: { from, rpc: db.rpc, auth: { getSession: async () => ({ data: { session: db.session ?? null } }) } }, withAuthRetry: (fn: () => unknown) => fn() };
 }

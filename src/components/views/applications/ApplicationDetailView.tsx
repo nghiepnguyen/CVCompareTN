@@ -10,11 +10,11 @@ import {
 } from '../../../services/applicationService';
 import type { ApplicationDetail, ApplicationDocument, ApplicationEvent, FollowUpInfo } from '../../../services/applicationTypes';
 import { StatusBadge, statusLabel, trackerErrorMessage } from './status';
-import { ContactEventForm } from './FollowUpActions';
+import { ContactEventForm, FollowUpDraftPanel } from './FollowUpActions';
 import { DetailsForm, NoteForm, StatusChangeForm } from './TrackerActions';
 
 type DetailTab = 'overview' | 'documents' | 'timeline';
-type Panel = 'status' | 'details' | 'note' | 'follow_up_sent' | 'contact_received' | null;
+type Panel = 'status' | 'details' | 'note' | 'follow_up_sent' | 'contact_received' | 'draft' | null;
 
 interface Loaded { application: ApplicationDetail; documents: ApplicationDocument[]; events: ApplicationEvent[]; eventsPage: number; hasMoreEvents: boolean; followUp: FollowUpInfo | null }
 
@@ -171,7 +171,7 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
             {([
               ['status', t.trackerChangeStatus], ['details', t.trackerEditDetails], ['note', t.trackerAddNote],
               // Gate the buttons on status, not the open panel: a contact_not_allowed message must survive the reload.
-              ...(app.status === 'applied' ? [['follow_up_sent', t.trackerMarkFollowUpSent], ['contact_received', t.trackerEmployerReplied]] as const : []),
+              ...(app.status === 'applied' ? [['follow_up_sent', t.trackerMarkFollowUpSent], ['contact_received', t.trackerEmployerReplied], ['draft', t.trackerDraftButton]] as const : []),
             ] as const).map(([id, label]) => (
               <button
                 key={id}
@@ -186,6 +186,7 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
           {panel === 'status' && <StatusChangeForm application={app} onDone={onMutated} onClose={closePanel} />}
           {panel === 'details' && <DetailsForm application={app} onDone={onMutated} onClose={closePanel} />}
           {panel === 'note' && <NoteForm applicationId={app.id} onDone={onMutated} onClose={closePanel} />}
+          {panel === 'draft' && app.status === 'applied' && <FollowUpDraftPanel application={app} documents={documents} onClose={closePanel} />}
           {(panel === 'follow_up_sent' || panel === 'contact_received') && (
             <ContactEventForm key={panel} applicationId={app.id} eventType={panel} onDone={onMutated} onClose={closePanel} />
           )}

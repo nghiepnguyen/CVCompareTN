@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, within, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, within, waitFor, act } from '@testing-library/react';
 import { UI_LABELS, formatLabel } from '../../translations';
 import type { FakeDb } from './trackerFakeSupabase';
 
@@ -717,5 +717,251 @@ describe('Follow-up and contact actions (P2C)', () => {
     expect(within(list).getAllByText(L.trackerEvUnknown)).toHaveLength(1);
     expect(list.querySelector('b')).toBeNull();
     expect(within(list).getByText('<b>x</b>')).toBeTruthy();
+  });
+});
+
+describe('Draft follow-up', () => {
+  const DRAFT = 'Chào chị, em xin hỏi thăm về hồ sơ Backend Engineer.';
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let writeText: ReturnType<typeof vi.fn>;
+  const reply = (status: number, body: unknown = {}) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+  const okBody = (content = DRAFT, language = 'vi') => reply(200, { content, language });
+  const bodyOf = (i = 0) => JSON.parse((fetchMock.mock.calls[i][1] as RequestInit).body as string);
+  const draftBtn = () => screen.getByRole('button', { name: /Soạn follow-up|Draft follow-up/ });
+  const gen = () => screen.getByRole('button', { name: vi_.trackerDraftGenerate });
+  const open = async () => { await renderDetail(); fireEvent.click(draftBtn()); };
+  const flush = () => act(async () => { await Promise.resolve(); });
+  const noDraftInLogs = (spies: ReturnType<typeof vi.spyOn>[]) => {
+    for (const s of spies) expect(JSON.stringify(s.mock.calls)).not.toContain('Chào chị');
+    expect(JSON.stringify(sentry.captureException.mock.calls)).not.toContain('Chào chị');
+  };
+
+  beforeEach(() => {
+    app.status = 'applied';
+    fetchMock = vi.fn(async () => okBody());
+    vi.stubGlobal('fetch', fetchMock);
+    writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    db.session = { access_token: 'tok-1' };
+  });
+  afterEach(() => { vi.unstubAllGlobals(); db.session = null; });
+
+  it.each(['drafted', 'interview', 'offer', 'rejected', 'hired'])('button hidden for %s', async (status) => {
+    app.status = status;
+    await renderDetail();
+    expect(screen.queryByRole('button', { name: /Soạn follow-up/ })).toBeNull();
+  });
+
+  it('button shown for applied, including limit_reached', async () => {
+    followUp = [{ application_id: app.id, stage_entered_at: '2026-10-20T03:00:00Z', last_contact_at: '2026-10-20T03:00:00Z', follow_ups_since_reset: 2,
+      follow_up_due_at: '2026-11-10T00:00:00Z', follow_up_state: 'limit_reached' }];
+    await renderDetail();
+    expect(draftBtn()).toBeTruthy();
+    expect(vi_.trackerDraftButton).toBe('Soạn follow-up');
+    expect(UI_LABELS.en.trackerDraftButton).toBe('Draft follow-up');
+  });
+
+  it('untouched toggle: body has no language; Authorization sent; UI en + app vi shows VI', async () => {
+    ui.lang = 'en';
+    await open();
+    expect(screen.getByRole('button', { name: 'Tiếng Việt' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'English' }).getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: UI_LABELS.en.trackerDraftGenerate }));
+    await screen.findByRole('textbox', { name: UI_LABELS.en.trackerDraftTextLabel });
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/rewrite-cv');
+    expect(bodyOf()).toEqual({ action: 'follow_up', applicationId: app.id });
+    expect((fetchMock.mock.calls[0][1] as RequestInit).headers).toMatchObject({ Authorization: 'Bearer tok-1' });
+  });
+
+  it('initial language: cover letter metadata beats application.language', async () => {
+    app.language = 'en';
+    docs = [cvDoc, jdDoc, letterDoc];
+    await open();
+    expect(screen.getByRole('button', { name: 'Tiếng Việt' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('explicit toggle sends language, including toggling to VI from an EN initial', async () => {
+    app.language = 'en';
+    await open();
+    expect(screen.getByRole('button', { name: 'English' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Tiếng Việt' }));
+    fireEvent.click(gen());
+    await screen.findByRole('textbox', { name: vi_.trackerDraftTextLabel });
+    expect(bodyOf()).toEqual({ action: 'follow_up', applicationId: app.id, language: 'vi' });
+  });
+
+  it('toggle to EN sends language en; changing language never auto-regenerates', async () => {
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'English' }));
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(gen());
+    await screen.findByRole('textbox', { name: vi_.trackerDraftTextLabel });
+    expect(bodyOf()).toEqual({ action: 'follow_up', applicationId: app.id, language: 'en' });
+    fireEvent.click(screen.getByRole('button', { name: 'Tiếng Việt' }));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('loading is announced, Generate and toggle disabled, double click = one fetch', async () => {
+    const d = pending();
+    fetchMock.mockImplementation(() => d.p);
+    await open();
+    fireEvent.click(gen());
+    fireEvent.click(gen());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('status').textContent).toContain(vi_.trackerDraftGenerating);
+    expect((gen() as HTMLButtonElement).disabled).toBe(true);
+    expect(gen().getAttribute('aria-busy')).toBe('true');
+    expect((screen.getByRole('button', { name: 'English' }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => { d.resolve(okBody()); await d.p; });
+  });
+
+  it('renders draft in an editable textarea; Copy writes the edited text; feedback visible; Regenerate = 2nd request', async () => {
+    await open();
+    fireEvent.click(gen());
+    const ta = (await screen.findByRole('textbox', { name: vi_.trackerDraftTextLabel })) as HTMLTextAreaElement;
+    expect(ta.value).toBe(DRAFT);
+    fireEvent.change(ta, { target: { value: 'Bản đã sửa' } });
+    fireEvent.click(screen.getByRole('button', { name: vi_.trackerDraftCopy }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('Bản đã sửa'));
+    expect(await screen.findByText(vi_.trackerDraftCopied)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: vi_.trackerDraftRegenerate }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await flush();
+  });
+
+  it('hint is always visible; no "verified/grounded" claim', async () => {
+    await open();
+    expect(screen.getByText(vi_.trackerDraftHint)).toBeTruthy();
+    expect(vi_.trackerDraftHint).toBe('Bản nháp không được lưu và chưa được ghi là đã gửi.');
+    expect(UI_LABELS.en.trackerDraftHint).toBe("Drafts aren't saved and aren't logged as sent.");
+    fireEvent.click(gen());
+    await screen.findByRole('textbox', { name: vi_.trackerDraftTextLabel });
+    expect(screen.getByText(vi_.trackerDraftHint)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/đã xác minh|verified/i);
+  });
+
+  it('fidelityFallback: exact copy, no draft textarea', async () => {
+    fetchMock.mockImplementation(async () => reply(200, { content: '', language: 'vi', fidelityFallback: true }));
+    await open();
+    fireEvent.click(gen());
+    expect((await screen.findByRole('alert')).textContent).toBe('Không tạo được bản nháp an toàn từ hồ sơ đã nộp. Vui lòng thử lại hoặc tự viết.');
+    expect(UI_LABELS.en.trackerDraftFallback).toBe("Couldn't produce a draft grounded in the submitted application. Try again or write your own.");
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it.each([
+    [401, 'trackerDraftErr401'], [403, 'trackerDraftErr403'], [404, 'trackerDraftErr404'], [409, 'trackerDraftErr409'],
+    [422, 'trackerDraftErr422'], [429, 'trackerDraftErr429'], [503, 'trackerDraftErr503'], [500, 'trackerDraftErrGeneric'], [504, 'trackerDraftErrGeneric'],
+  ] as const)('status %i shows its own message (vi + en)', async (status, key) => {
+    for (const lang of ['vi', 'en'] as const) {
+      ui.lang = lang;
+      fetchMock.mockImplementation(async () => reply(status, { error: 'x' }));
+      await open();
+      fireEvent.click(screen.getByRole('button', { name: UI_LABELS[lang].trackerDraftGenerate }));
+      expect((await screen.findByRole('alert')).textContent).toBe(UI_LABELS[lang][key]);
+      expect(screen.queryByRole('textbox')).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('messages are distinct; 503 is not a missing-document message; 429 is the shared hourly limit', () => {
+    const keys = ['401', '403', '404', '409', '422', '429', '503'].map((c) => vi_[`trackerDraftErr${c}` as 'trackerDraftErr401']);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(vi_.trackerDraftErr503).not.toBe(vi_.trackerDraftErr422);
+    expect(vi_.trackerDraftErr429 + UI_LABELS.en.trackerDraftErr429).not.toMatch(/follow-up|Analyze|tháng|month/i);
+    expect(UI_LABELS.en.trackerDraftErr409).toMatch(/current status/);
+  });
+
+  it('TimeoutError and network errors show the generic retry message; no automatic retry', async () => {
+    fetchMock.mockImplementation(async () => { throw new DOMException('t', 'TimeoutError'); });
+    await open();
+    fireEvent.click(gen());
+    expect((await screen.findByRole('alert')).textContent).toBe(vi_.trackerDraftErrGeneric);
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('unmount isolation: a response that arrives after the panel is gone renders nothing and warns nothing', async () => {
+    const d = pending();
+    fetchMock.mockImplementation(() => d.p);
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await open();
+    fireEvent.click(gen());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(draftBtn()); // close the panel (unmounts it)
+    expect(screen.queryByRole('status')).toBeNull();
+    await act(async () => { d.resolve(okBody()); await d.p; });
+    expect(document.body.textContent).not.toContain('Chào chị');
+    expect(err).not.toHaveBeenCalled();
+    err.mockRestore();
+  });
+
+  it('unmount isolation: reopening the panel starts clean; an older panel\'s late response never shows', async () => {
+    const first = pending();
+    const second = pending();
+    fetchMock.mockImplementationOnce(() => first.p).mockImplementationOnce(() => second.p);
+    await open();
+    fireEvent.click(gen());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(draftBtn());
+    fireEvent.click(draftBtn());
+    fireEvent.click(gen());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await act(async () => { second.resolve(okBody('NEW')); await second.p; });
+    await act(async () => { first.resolve(okBody('OLD')); await first.p; });
+    expect((screen.getByRole('textbox', { name: vi_.trackerDraftTextLabel }) as HTMLTextAreaElement).value).toBe('NEW');
+    expect(document.body.textContent).not.toContain('OLD');
+  });
+
+  it('failed Regenerate keeps the edited draft and shows the error; fallback on Regenerate keeps it too', async () => {
+    await open();
+    fireEvent.click(gen());
+    const ta = (await screen.findByRole('textbox', { name: vi_.trackerDraftTextLabel })) as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: 'Bản đã sửa' } });
+    fetchMock.mockImplementationOnce(async () => reply(500));
+    fireEvent.click(screen.getByRole('button', { name: vi_.trackerDraftRegenerate }));
+    expect((await screen.findByRole('alert')).textContent).toBe(vi_.trackerDraftErrGeneric);
+    expect((screen.getByRole('textbox', { name: vi_.trackerDraftTextLabel }) as HTMLTextAreaElement).value).toBe('Bản đã sửa');
+    fetchMock.mockImplementationOnce(async () => reply(200, { content: '', language: 'vi', fidelityFallback: true }));
+    fireEvent.click(screen.getByRole('button', { name: vi_.trackerDraftRegenerate }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(vi_.trackerDraftFallback));
+    expect((screen.getByRole('textbox', { name: vi_.trackerDraftTextLabel }) as HTMLTextAreaElement).value).toBe('Bản đã sửa');
+  });
+
+  it('clicking the already-selected language does not send language', async () => {
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Tiếng Việt' }));
+    fireEvent.click(gen());
+    await screen.findByRole('textbox', { name: vi_.trackerDraftTextLabel });
+    expect(bodyOf()).toEqual({ action: 'follow_up', applicationId: app.id });
+  });
+
+  it('generation never mutates the tracker nor reloads detail/timeline/follow-up state; no draft text in logs', async () => {
+    const spies = [vi.spyOn(console, 'log'), vi.spyOn(console, 'error'), vi.spyOn(console, 'warn')].map((s) => s.mockImplementation(() => {}));
+    await open();
+    const before = db.calls.length;
+    const notes = () => screen.queryAllByRole('textbox').filter((e) => !(e as HTMLTextAreaElement).value);
+    fireEvent.click(gen());
+    await screen.findByRole('textbox', { name: vi_.trackerDraftTextLabel });
+    fireEvent.click(screen.getByRole('button', { name: vi_.trackerDraftCopy }));
+    await flush();
+    expect(db.calls.length).toBe(before);
+    expect(db.rpc).not.toHaveBeenCalled();
+    expect(notes()).toHaveLength(0);
+    noDraftInLogs(spies);
+    spies.forEach((s) => s.mockRestore());
+  });
+
+  it('Mark as sent still works after a draft is generated; nothing goes to Sentry', async () => {
+    db.rpc.mockResolvedValue({ data: { event_id: 'e9', replayed: false }, error: null });
+    await open();
+    fireEvent.click(gen());
+    await screen.findByRole('textbox', { name: vi_.trackerDraftTextLabel });
+    expect(sentry.captureException).not.toHaveBeenCalled();
+    click(vi_.trackerMarkFollowUpSent);
+    expect(screen.getByText(vi_.trackerMarkFollowUpSent, { selector: 'h4' })).toBeTruthy();
+    click(vi_.trackerSave);
+    await waitFor(() => expect(db.rpc).toHaveBeenCalledWith('log_application_contact', expect.anything()));
   });
 });
