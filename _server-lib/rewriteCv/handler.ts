@@ -8,6 +8,8 @@ import { stripInvisibleControls } from '../untrustedText.js';
 import { GEMINI_REWRITE_MODEL } from '../ai/geminiClient.js';
 import { generateCoverLetter, MAX_COVER_LETTER_CV_CHARS, serializeParsedCvForCoverLetter, verifiedName } from '../ai/coverLetterService.js';
 import { MAX_REVIEW_LETTER_CHARS, reviewApplication, sanitizeRequirements } from '../ai/applicationReviewService.js';
+import { generateFollowUp } from '../ai/followUpService.js';
+import { loadFollowUpContext } from './followUpContext.js';
 import type { ApplicationReviewGuardMetrics, CoverLetterGuardMetrics } from '../ai/suggestionGuard.js';
 import {
   aiFailureCategory,
@@ -52,7 +54,8 @@ async function authorize(
 /**
  * POST /api/rewrite-cv. `action` absent or 'rewrite' = Full CV rewrite
  * (unchanged contract); 'cover_letter' = P1A cover letter;
- * 'application_review' = P1B review; anything else 400.
+ * 'application_review' = P1B review; 'follow_up' = P2C follow-up draft built
+ * from the server-stored application snapshot; anything else 400.
  */
 export async function handleRewriteCv(
   authHeader: string | undefined,
@@ -61,6 +64,7 @@ export async function handleRewriteCv(
   const action = (body as { action?: unknown } | null)?.action;
   if (action === 'cover_letter') return handleCoverLetter(authHeader, body);
   if (action === 'application_review') return handleApplicationReview(authHeader, body);
+  if (action === 'follow_up') return handleFollowUp(authHeader, body);
   if (action !== undefined && action !== 'rewrite') return { status: 400, body: { error: 'Invalid action' } };
   return handleFullRewrite(authHeader, body);
 }
@@ -267,6 +271,68 @@ async function handleApplicationReview(authHeader: string | undefined, body: unk
     return {
       status: isTimeout ? 504 : 500,
       body: { error: isTimeout ? REVIEW_TIMEOUT_MESSAGE : 'Không thể kiểm tra hồ sơ. Vui lòng thử lại.', retryable: isTimeout },
+    };
+  }
+}
+
+const FOLLOW_UP_TIMEOUT_MESSAGE = 'Follow-up generation is taking too long. Please try again. (Timeout)';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const FOLLOW_UP_KEYS = new Set(['action', 'applicationId', 'language']);
+const CONTEXT_TIMEOUT_MS = 4_000;
+
+/**
+ * P2C follow-up: the client sends only an application id (+ optional language).
+ * CV, JD, letter, company/role and the follow-up number are loaded from the
+ * caller's own saved snapshot; the saved analysis and tracker notes are never
+ * read. The only write is the analysis_log row (guard_metrics.followUp).
+ */
+async function handleFollowUp(authHeader: string | undefined, body: unknown): Promise<HandlerResult> {
+  const b = (body ?? {}) as Record<string, unknown>;
+  if (Object.keys(b).some((k) => !FOLLOW_UP_KEYS.has(k))) return { status: 400, body: { error: 'Invalid request' } };
+  if (typeof b.applicationId !== 'string' || !UUID_RE.test(b.applicationId)) return { status: 400, body: { error: 'Invalid applicationId' } };
+  if ('language' in b && b.language !== 'vi' && b.language !== 'en') return { status: 400, body: { error: 'Invalid language' } };
+  const applicationId = b.applicationId;
+
+  const deadline = createDeadline(TOTAL_BUDGET_MS);
+  const aiDeadline = deadline.reserve(POST_RESERVE_MS);
+  const access = await authorize(authHeader, 'follow_up', deadline);
+  if ('result' in access) return access.result;
+  const userId = access.userId;
+
+  const ctx = await loadFollowUpContext(userId, applicationId, Math.min(CONTEXT_TIMEOUT_MS, deadline.remainingMs()), deadline.signal(CONTEXT_TIMEOUT_MS));
+  if (ctx.status === 'not_found') return { status: 404, body: { error: 'Application not found' } };
+  if (ctx.status === 'not_allowed') return { status: 409, body: { error: 'Follow-up not available' } };
+  if (ctx.status === 'snapshot_unavailable') return { status: 422, body: { error: 'Snapshot unavailable' } };
+  // Deviation: view/query failure is not evidence of "first follow-up"; fail closed.
+  if (ctx.status !== 'ok') return { status: 503, body: { error: 'Follow-up temporarily unavailable', retryable: true } };
+
+  const language: 'vi' | 'en' = b.language === 'vi' || b.language === 'en' ? b.language : ctx.defaultLanguage;
+
+  const logFailure = (category: string, geminiCalls: CoverLetterGuardMetrics['geminiCalls'], withModel: boolean) =>
+    logAnalysisAttempt(
+      userId, 'error', 'rewrite', `[follow_up:${category}]`,
+      withModel ? { model: GEMINI_REWRITE_MODEL } : undefined,
+      { v: 1, followUp: { language, outcome: 'error', category, geminiCalls } },
+      deadline
+    );
+
+  if (aiDeadline.remainingMs() < MIN_GEMINI_BUDGET_MS) {
+    await logFailure('request_budget_exhausted', 0, false);
+    return { status: 504, body: { error: FOLLOW_UP_TIMEOUT_MESSAGE, retryable: true } };
+  }
+
+  try {
+    const { content, usage, fidelityFallback, guardMetrics } = await generateFollowUp({ ...ctx.input, language }, aiDeadline.remainingMs());
+    await logAnalysisAttempt(userId, 'success', 'rewrite', undefined, usage, { v: 1, followUp: guardMetrics }, deadline);
+    return { status: 200, body: fidelityFallback ? { content: '', language, fidelityFallback } : { content, language } };
+  } catch (err) {
+    console.error('Follow-up failed:', err instanceof Error ? err.name : 'error');
+    const category = aiFailureCategory(err);
+    const isTimeout = category !== 'gemini_error';
+    await logFailure(category, category === 'request_budget_exhausted' ? 0 : 1, category !== 'request_budget_exhausted');
+    return {
+      status: isTimeout ? 504 : 500,
+      body: { error: isTimeout ? FOLLOW_UP_TIMEOUT_MESSAGE : 'Không thể tạo tin nhắn theo dõi. Vui lòng thử lại.', retryable: isTimeout },
     };
   }
 }
