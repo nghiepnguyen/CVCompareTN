@@ -60,6 +60,8 @@ export function trackerErrorMessage(t: UiLabels, code: TrackerErrorCode): string
     case 'account_locked': return t.trackerErrLocked;
     case 'not_authenticated': return t.trackerErrAuth;
     case 'invalid_occurred_at': return t.trackerErrOccurredAt;
+    case 'contact_not_allowed': return t.trackerErrContactNotAllowed;
+    case 'invalid_contact':
     case 'invalid_note':
     case 'invalid_details': return t.trackerErrInvalid;
     default: return t.trackerErrGeneric;

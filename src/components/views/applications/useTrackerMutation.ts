@@ -47,7 +47,7 @@ export function useTrackerMutation(scope: string, onSettled: (result?: MutationR
       setError(code);
       // Someone else changed it: show the fresh state. A stale intent is rejected (key
       // already cleared above); the user's next save after reviewing is a new intent.
-      if (code === 'stale_status' || code === 'stale_application') onSettled();
+      if (code === 'stale_status' || code === 'stale_application' || code === 'contact_not_allowed') onSettled();
       return null;
     } finally {
       inFlight.current = false;

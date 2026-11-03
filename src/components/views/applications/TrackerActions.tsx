@@ -11,11 +11,11 @@ import {
 import { statusLabel, trackerErrorMessage } from './status';
 import { useTrackerMutation } from './useTrackerMutation';
 
-const fieldClass = 'w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none';
-const primaryButton = 'rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100';
-const secondaryButton = 'rounded-xl border border-border px-4 py-2 text-sm font-bold text-text-muted transition-all cursor-pointer hover:scale-105 hover:text-text-main active:scale-95';
+export const fieldClass = 'w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none';
+export const primaryButton = 'rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100';
+export const secondaryButton = 'rounded-xl border border-border px-4 py-2 text-sm font-bold text-text-muted transition-all cursor-pointer hover:scale-105 hover:text-text-main active:scale-95';
 
-function FormShell({ title, error, children }: { title: string; error: string | null; children: React.ReactNode }) {
+export function FormShell({ title, error, children }: { title: string; error: string | null; children: React.ReactNode }) {
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
       <h4 className="text-sm font-black text-text-main">{title}</h4>
@@ -26,7 +26,7 @@ function FormShell({ title, error, children }: { title: string; error: string | 
 }
 
 /** Today (ICT) = now on the server; a past day is recorded at 12:00 ICT. */
-const occurredAtFor = (ymd: string) => (ymd === vnTodayYmd() ? null : `${ymd}T12:00:00+07:00`);
+export const occurredAtFor = (ymd: string) => (ymd === vnTodayYmd() ? null : `${ymd}T12:00:00+07:00`);
 
 export function StatusChangeForm({ application, onDone, onClose }: { application: ApplicationDetail; onDone: () => void; onClose: () => void }) {
   const { t } = useUI();

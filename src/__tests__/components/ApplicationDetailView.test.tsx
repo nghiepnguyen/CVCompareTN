@@ -21,6 +21,7 @@ let seq = 0;
 let app: Record<string, unknown>;
 let docs: Record<string, unknown>[];
 let events: Record<string, unknown>[];
+let followUp: Record<string, unknown>[] | Error;
 const vi_ = UI_LABELS.vi;
 
 const cvDoc = { document_type: 'cv', created_at: '2026-11-01T03:00:00Z', metadata: { snapshotVersion: 1, fileName: 'nguyen-cv.pdf' },
@@ -39,10 +40,11 @@ beforeEach(() => {
   db.calls = [];
   db.rpc.mockReset();
   sentry.captureException.mockReset();
-  db.respond = (table) => ({
-    data: table === 'applications' ? app : table === 'application_documents' ? docs : events,
-    error: null,
-  });
+  followUp = [];
+  db.respond = (table) => {
+    if (table === 'application_follow_up_state') return followUp instanceof Error ? Promise.reject(followUp) : { data: followUp, error: null };
+    return { data: table === 'applications' ? app : table === 'application_documents' ? docs : events, error: null };
+  };
 });
 afterEach(cleanup);
 
@@ -152,7 +154,7 @@ describe('Timeline unknown events', () => {
     occurred_at: '2026-11-0' + id.slice(1) + 'T03:00:00Z', created_at: '2026-11-0' + id.slice(1) + 'T03:00:00Z', ...extra });
 
   it('unknown event type renders a generic title', async () => {
-    // Simulates a DB event_type newer than this client; follow_up_sent/contact_received are intentionally unknown here.
+    // Simulates a DB event_type newer than this client; follow_up_sent/contact_received are known since P2C.
     const future = 'future_event_type' as ApplicationEvent['type'];
     events = [row('e5', future), row('e6', 'follow_up_sent'), row('e7', 'contact_received'),
       row('e1', 'status_changed', { from_status: 'applied', to_status: 'no_response', note: null }), row('e2', 'note'), row('e3', 'details_updated', { note: null }), ...events];
@@ -160,11 +162,11 @@ describe('Timeline unknown events', () => {
     openTab(vi_.trackerTabTimeline);
     const list = screen.getByRole('tabpanel');
     expect(vi_.trackerEvUnknown).toBe('Hoạt động');
-    expect(within(list).getAllByText('Hoạt động')).toHaveLength(3);
-    expect(within(list).getAllByText('x')).toHaveLength(4); // 3 unknown + 1 note event
+    expect(within(list).getAllByText('Hoạt động')).toHaveLength(1);
+    expect(within(list).getAllByText('x')).toHaveLength(4); // 1 unknown + follow_up_sent + contact_received + note event
     expect(list.textContent).not.toMatch(/future_event_type|follow_up_sent|contact_received/);
     // Known titles unchanged.
-    for (const known of [vi_.trackerEvCreated, vi_.trackerEvNote, vi_.trackerEvDetails, formatLabel(vi_.trackerEvStatus, { from: vi_.trackerStatusApplied, to: vi_.trackerStatusNoResponse })]) {
+    for (const known of [vi_.trackerEvFollowUpSent, vi_.trackerEvContactReceived, vi_.trackerEvCreated, vi_.trackerEvNote, vi_.trackerEvDetails, formatLabel(vi_.trackerEvStatus, { from: vi_.trackerStatusApplied, to: vi_.trackerStatusNoResponse })]) {
       expect(list.textContent).toContain(known);
     }
     expect(list.textContent).not.toContain('Activity');
@@ -172,13 +174,13 @@ describe('Timeline unknown events', () => {
 
   it('unknown event type renders "Activity" in English', async () => {
     ui.lang = 'en';
-    events = [row('e5', 'follow_up_sent'), ...events];
+    events = [row('e5', 'future_event_type'), ...events];
     await renderDetail();
     openTab(UI_LABELS.en.trackerTabTimeline);
     const list = screen.getByRole('tabpanel');
     expect(within(list).getByText('Activity')).toBeTruthy();
     expect(within(list).getByText('x')).toBeTruthy();
-    expect(list.textContent).not.toContain('follow_up_sent');
+    expect(list.textContent).not.toContain('future_event_type');
     expect(list.textContent).toContain(UI_LABELS.en.trackerEvCreated);
   });
 });
@@ -480,5 +482,240 @@ describe('Details', () => {
     fireEvent.change(screen.getByLabelText(vi_.trackerCompanyLabel), { target: { value: 'x'.repeat(201) } });
     expect(screen.getByText(formatLabel(vi_.trackerTooLong, { max: 200 }))).toBeTruthy();
     expect((screen.getByRole('button', { name: vi_.trackerSave }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('Follow-up and contact actions (P2C)', () => {
+  const fuRow = (state: string, extra: Record<string, unknown> = {}) => ({ application_id: app.id, stage_entered_at: '2026-10-20T03:00:00Z', last_contact_at: '2026-10-20T03:00:00Z',
+    follow_ups_since_reset: 0, follow_up_due_at: '2026-11-10T00:00:00Z', follow_up_state: state, ...extra });
+  const fuFetches = () => db.calls.filter((c) => c[0] === 'application_follow_up_state' && c[1] === 'select').length;
+  const logCalls = () => db.rpc.mock.calls.filter((c) => c[0] === 'log_application_contact').map((c) => c[1]);
+  const ok = (id = 'e9', replayed = false) => ({ data: { event_id: id, replayed }, error: null });
+  const overview = () => screen.getByRole('tabpanel');
+  const timelineRow = (id: string, type: string, extra: Record<string, unknown> = {}) => ({ id, event_type: type, from_status: null, to_status: null, note: null, metadata: {},
+    occurred_at: '2026-11-0' + id.slice(1) + 'T03:00:00Z', created_at: '2026-11-0' + id.slice(1) + 'T03:00:00Z', ...extra });
+
+  it.each(['vi', 'en'] as const)('applied: waiting / due / limit Field (%s)', async (lang) => {
+    ui.lang = lang;
+    const L = UI_LABELS[lang];
+    app.status = 'applied';
+    followUp = [fuRow('waiting')];
+    await renderDetail();
+    expect(overview().textContent).toContain(formatLabel(L.trackerFollowUpWaitingFrom, { date: lang === 'vi' ? '10 thg 11, 2026' : 'Nov 10, 2026' }));
+    cleanup();
+    followUp = [fuRow('due')];
+    await renderDetail();
+    expect(overview().textContent).toContain(L.trackerFollowUpDueDetail);
+    cleanup();
+    followUp = [fuRow('limit_reached', { follow_ups_since_reset: 2 })];
+    await renderDetail();
+    expect(overview().textContent).toContain(L.trackerFollowUpLimitDetail);
+    expect(within(overview()).getByText(L.trackerFollowUpLimitHint)).toBeTruthy();
+    expect(db.rpc).not.toHaveBeenCalled();
+  });
+
+  it('exact copy', () => {
+    expect(vi_.trackerFollowUpDueDetail).toBe('Nên follow-up');
+    expect(UI_LABELS.en.trackerFollowUpDueDetail).toBe('Follow-up due');
+    expect(vi_.trackerEmployerReplied).toBe('Nhà tuyển dụng đã phản hồi');
+    expect(UI_LABELS.en.trackerEmployerReplied).toBe('Employer replied');
+    expect(UI_LABELS.en.trackerMarkFollowUpSent).toBe('Mark as sent');
+  });
+
+  it.each(['drafted', 'interview', 'offer', 'rejected', 'hired'])('%s: no follow-up Field, no contact buttons', async (status) => {
+    app.status = status;
+    followUp = [fuRow('due')];
+    await renderDetail();
+    expect(overview().textContent).not.toContain(vi_.trackerFollowUpDueDetail);
+    expect(screen.queryByRole('button', { name: vi_.trackerMarkFollowUpSent })).toBeNull();
+    expect(screen.queryByRole('button', { name: vi_.trackerEmployerReplied })).toBeNull();
+  });
+
+  it('a follow-up read failure is non-fatal: detail still renders', async () => {
+    app.status = 'applied';
+    followUp = new Error('boom');
+    await renderDetail();
+    expect(overview().textContent).toContain('Acme');
+    expect(overview().textContent).not.toContain(vi_.trackerFollowUpDueDetail);
+    expect(screen.getByRole('button', { name: vi_.trackerMarkFollowUpSent })).toBeTruthy();
+  });
+
+  it('Mark as sent: today = null; one call, double click = one; success reloads detail AND follow-up state; form closes', async () => {
+    app.status = 'applied';
+    followUp = [fuRow('due')];
+    const call = pending();
+    db.rpc.mockReturnValueOnce(call.p);
+    await renderDetail();
+    const before = { app: appFetches(), fu: fuFetches() };
+    click(vi_.trackerMarkFollowUpSent);
+    fireEvent.change(screen.getByLabelText(vi_.trackerNoteOptional), { target: { value: '  ping  ' } });
+    click(vi_.trackerSave);
+    click(vi_.trackerSaving);
+    expect(logCalls()).toHaveLength(1);
+    expect(logCalls()[0]).toMatchObject({ p_application_id: app.id, p_event_type: 'follow_up_sent', p_occurred_at: null, p_note: 'ping' });
+    followUp = [fuRow('waiting')];
+    call.resolve(ok());
+    await waitFor(() => expect(fuFetches()).toBeGreaterThan(before.fu));
+    expect(appFetches()).toBeGreaterThan(before.app);
+    await waitFor(() => expect(screen.queryByLabelText(vi_.trackerNoteOptional)).toBeNull());
+    await waitFor(() => expect(overview().textContent).toContain('Đang chờ phản hồi'));
+    expect(sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it('limit_reached still shows Mark as sent and submitting calls the RPC', async () => {
+    app.status = 'applied';
+    followUp = [fuRow('limit_reached', { follow_ups_since_reset: 2 })];
+    db.rpc.mockResolvedValueOnce(ok());
+    await renderDetail();
+    click(vi_.trackerMarkFollowUpSent);
+    click(vi_.trackerSave);
+    await waitFor(() => expect(logCalls()).toHaveLength(1));
+    expect(db.rpc.mock.calls.every((c) => c[0] === 'log_application_contact')).toBe(true);
+  });
+
+  it('Employer replied sends contact_received with a past ICT day', async () => {
+    app.status = 'applied';
+    db.rpc.mockResolvedValueOnce(ok());
+    await renderDetail();
+    click(vi_.trackerEmployerReplied);
+    fireEvent.change(screen.getByLabelText(vi_.trackerOccurredOn), { target: { value: '2026-10-20' } });
+    click(vi_.trackerSave);
+    await waitFor(() => expect(logCalls()).toHaveLength(1));
+    expect(logCalls()[0]).toMatchObject({ p_event_type: 'contact_received', p_occurred_at: '2026-10-20T12:00:00+07:00', p_note: null });
+  });
+
+  it('date uses ICT: when UTC day != ICT day, today is null and the UTC day is a past day', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-11-03T18:00:00Z')); // 2026-11-04 in ICT
+      app.status = 'applied';
+      db.rpc.mockResolvedValue(ok());
+      await renderDetail();
+      click(vi_.trackerMarkFollowUpSent);
+      expect((screen.getByLabelText(vi_.trackerOccurredOn) as HTMLInputElement).value).toBe('2026-11-04');
+      click(vi_.trackerSave);
+      await waitFor(() => expect(logCalls()).toHaveLength(1));
+      expect(logCalls()[0].p_occurred_at).toBeNull();
+      click(vi_.trackerMarkFollowUpSent);
+      fireEvent.change(screen.getByLabelText(vi_.trackerOccurredOn), { target: { value: '2026-11-03' } });
+      click(vi_.trackerSave);
+      await waitFor(() => expect(logCalls()).toHaveLength(2));
+      expect(logCalls()[1].p_occurred_at).toBe('2026-11-03T12:00:00+07:00');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('replay is success: one reload, form closes, no error', async () => {
+    app.status = 'applied';
+    db.rpc.mockResolvedValueOnce(ok('e9', true));
+    await renderDetail();
+    const before = appFetches();
+    click(vi_.trackerMarkFollowUpSent);
+    click(vi_.trackerSave);
+    await waitFor(() => expect(screen.queryByLabelText(vi_.trackerNoteOptional)).toBeNull());
+    await waitFor(() => expect(appFetches()).toBe(before + 1));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('unknown error: Sentry gets no note; retry and remount keep the key; success then new submit = new key', async () => {
+    app.status = 'applied';
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
+    await renderDetail();
+    click(vi_.trackerMarkFollowUpSent);
+    fireEvent.change(screen.getByLabelText(vi_.trackerNoteOptional), { target: { value: 'secret salary' } });
+    click(vi_.trackerSave);
+    expect(await screen.findByText(vi_.trackerErrGeneric)).toBeTruthy();
+    expect(sentry.captureException).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(sentry.captureException.mock.calls)).not.toContain('secret');
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
+    click(vi_.trackerSave); // retry in place
+    await waitFor(() => expect(logCalls()).toHaveLength(2));
+    cleanup(); // remount, not Cancel
+    db.rpc.mockResolvedValueOnce(ok());
+    await renderDetail();
+    click(vi_.trackerMarkFollowUpSent);
+    click(vi_.trackerSave);
+    await waitFor(() => expect(logCalls()).toHaveLength(3));
+    await waitFor(() => expect(screen.queryByLabelText(vi_.trackerNoteOptional)).toBeNull());
+    db.rpc.mockResolvedValueOnce(ok('e10'));
+    click(vi_.trackerMarkFollowUpSent);
+    click(vi_.trackerSave);
+    await waitFor(() => expect(logCalls()).toHaveLength(4));
+    const [k1, k2, k3, k4] = logCalls().map((c) => c.p_idempotency_key);
+    expect(k2).toBe(k1);
+    expect(k3).toBe(k1);
+    expect(k4).not.toBe(k1);
+  });
+
+  it('keys are scoped per event type and application; Cancel clears', async () => {
+    app.status = 'applied';
+    const idA = app.id as string;
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
+    await renderDetail();
+    click(vi_.trackerMarkFollowUpSent);
+    click(vi_.trackerSave);
+    await screen.findByText(vi_.trackerErrGeneric);
+    click(vi_.trackerCancel); // clears follow_up_sent:A
+    click(vi_.trackerEmployerReplied);
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
+    click(vi_.trackerSave);
+    await screen.findByText(vi_.trackerErrGeneric);
+    click(vi_.trackerMarkFollowUpSent); // switches panel; contact_received:A key persists
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
+    click(vi_.trackerSave);
+    await screen.findByText(vi_.trackerErrGeneric);
+    click(vi_.trackerEmployerReplied);
+    db.rpc.mockResolvedValueOnce(ok());
+    click(vi_.trackerSave);
+    await waitFor(() => expect(logCalls()).toHaveLength(4));
+    const keys = logCalls().map((c) => c.p_idempotency_key);
+    expect(new Set([keys[0], keys[1], keys[2]]).size).toBe(3); // Cancel gave follow_up_sent a new key; scopes differ
+    expect(keys[3]).toBe(keys[1]); // retry of contact_received:A reuses its key
+    // follow_up_sent:A (uncertain) vs another application
+    cleanup();
+    seq += 1;
+    app = { ...app, id: `app-${seq}` };
+    db.rpc.mockResolvedValueOnce(ok());
+    await renderDetail();
+    click(vi_.trackerMarkFollowUpSent);
+    click(vi_.trackerSave);
+    await waitFor(() => expect(logCalls()).toHaveLength(5));
+    expect(logCalls()[4].p_idempotency_key).not.toBe(keys[2]);
+    expect(logCalls()[4].p_application_id).not.toBe(idA);
+  });
+
+  it('contact_not_allowed: VI message stays after reload, nothing else sent, no Sentry, key cleared', async () => {
+    app.status = 'applied';
+    db.rpc.mockImplementation(async () => { app.status = 'interview'; return { data: null, error: { message: 'contact_not_allowed' } }; });
+    await renderDetail();
+    const before = appFetches();
+    click(vi_.trackerMarkFollowUpSent);
+    click(vi_.trackerSave);
+    await waitFor(() => expect(appFetches()).toBeGreaterThan(before));
+    expect(await screen.findByText(vi_.trackerErrContactNotAllowed)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: vi_.trackerMarkFollowUpSent })).toBeNull(); // buttons follow the fresh status
+    expect(sentry.captureException).not.toHaveBeenCalled();
+    expect(db.rpc.mock.calls.every((c) => c[0] === 'log_application_contact')).toBe(true);
+    click(vi_.trackerSave);
+    await waitFor(() => expect(logCalls()).toHaveLength(2));
+    const [k1, k2] = logCalls().map((c) => c.p_idempotency_key);
+    expect(k2).not.toBe(k1);
+    openTab(vi_.trackerTabTimeline);
+    expect(screen.getByRole('tabpanel').textContent).not.toContain(vi_.trackerEvFollowUpSent);
+  });
+
+  it.each(['vi', 'en'] as const)('timeline: contact titles, text-only notes, future fallback (%s)', async (lang) => {
+    ui.lang = lang;
+    const L = UI_LABELS[lang];
+    events = [timelineRow('e5', 'follow_up_sent', { note: '<b>x</b>' }), timelineRow('e6', 'contact_received'), timelineRow('e7', 'future_event_type'), ...events];
+    await renderDetail();
+    openTab(L.trackerTabTimeline);
+    const list = screen.getByRole('tabpanel');
+    expect(list.textContent).toContain(L.trackerEvFollowUpSent);
+    expect(list.textContent).toContain(L.trackerEvContactReceived);
+    expect(within(list).getAllByText(L.trackerEvUnknown)).toHaveLength(1);
+    expect(list.querySelector('b')).toBeNull();
+    expect(within(list).getByText('<b>x</b>')).toBeTruthy();
   });
 });
