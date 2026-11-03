@@ -86,4 +86,11 @@ export const applications = {
   trackerStatusNoResponse: { vi: "Không phản hồi", en: "No response" },
   trackerStatusOfferDeclined: { vi: "Đã từ chối offer", en: "Offer declined" },
   trackerStatusWithdrawn: { vi: "Đã rút hồ sơ", en: "Withdrawn" },
+  trackerFollowUpWaiting: { vi: "Đang chờ phản hồi", en: "Waiting" },
+  trackerFollowUpDue: { vi: "Nên follow-up", en: "Follow up" },
+  trackerFollowUpLimit: { vi: "Đã đủ lượt follow-up", en: "Limit reached" },
+  trackerFilterNeedsFollowUp: { vi: "Cần follow-up", en: "Needs follow-up" },
+  trackerFollowUpSortHint: { vi: "Theo ngày đến hạn follow-up", en: "By follow-up due date" },
+  trackerFollowUpEmpty: { vi: "Không có hồ sơ cần follow-up.", en: "No applications need a follow-up." },
+  trackerFollowUpLoadError: { vi: "Không tải được trạng thái follow-up.", en: "Couldn't load follow-up status." },
 } as const;

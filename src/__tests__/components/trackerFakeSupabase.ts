@@ -12,7 +12,7 @@ export function fakeSupabase(db: FakeDb) {
   const from = (table: string) => {
     const own: Call[] = [];
     const q: Record<string, unknown> = {};
-    for (const m of ['select', 'order', 'range', 'eq', 'maybeSingle']) {
+    for (const m of ['select', 'order', 'range', 'eq', 'in', 'maybeSingle']) {
       q[m] = (...args: unknown[]) => { const c: Call = [table, m, ...args]; own.push(c); db.calls.push(c); return q; };
     }
     q.then = (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => Promise.resolve(db.respond(table, own)).then(res, rej);

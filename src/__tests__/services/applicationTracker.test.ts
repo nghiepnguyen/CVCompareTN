@@ -3,16 +3,7 @@ import matrix from '../../../supabase/application_status_transitions.json';
 import type { FakeDb } from '../components/trackerFakeSupabase';
 
 const db = vi.hoisted(() => ({ calls: [], respond: () => ({ data: [], error: null }), rpc: vi.fn() }) as unknown as FakeDb);
-// The shared fake has no `.in`; add it here (records into db.calls like the other methods).
-vi.mock('../../lib/supabase', async () => {
-  const fake = (await import('../components/trackerFakeSupabase')).fakeSupabase(db);
-  const from = fake.supabase.from;
-  return { ...fake, supabase: { ...fake.supabase, from: (table: string) => {
-    const q = from(table) as Record<string, unknown>;
-    q.in = (...args: unknown[]) => { db.calls.push([table, 'in', ...args]); return q; };
-    return q;
-  } } };
-});
+vi.mock('../../lib/supabase', async () => (await import('../components/trackerFakeSupabase')).fakeSupabase(db));
 
 import {
   listApplications, getApplicationTimeline, transitionApplicationStatus, updateApplicationDetails, trackerErrorCode,

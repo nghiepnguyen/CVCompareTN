@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../../lib/utils';
 import type { UiLabels } from '../../../translations';
-import { isFinalStatus, type ApplicationStatus, type TrackerErrorCode } from '../../../services/applicationTypes';
+import { isFinalStatus, type ApplicationStatus, type FollowUpInfo, type TrackerErrorCode } from '../../../services/applicationTypes';
 
 const STATUS_LABEL_KEY: Record<ApplicationStatus, keyof UiLabels> = {
   drafted: 'trackerStatusDrafted',
@@ -33,6 +33,20 @@ export function StatusBadge({ status, t }: { status: ApplicationStatus; t: UiLab
     >
       {statusLabel(t, status)}
       {final && <span className="font-medium opacity-70">· {t.trackerFinalBadge}</span>}
+    </span>
+  );
+}
+
+/** Text carries the meaning; `waiting` is deliberately quiet (no chip) so it does not compete with actionable states. */
+export function FollowUpBadge({ info, t }: { info: FollowUpInfo; t: UiLabels }) {
+  if (info.state === 'waiting') return <span className="text-[11px] text-text-light whitespace-nowrap">{t.trackerFollowUpWaiting}</span>;
+  const due = info.state === 'due';
+  return (
+    <span className={cn(
+      'inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-bold whitespace-nowrap',
+      due ? 'border-accent/30 bg-accent-light text-accent' : 'border-border bg-surface-secondary text-text-muted'
+    )}>
+      {due ? t.trackerFollowUpDue : t.trackerFollowUpLimit}
     </span>
   );
 }
