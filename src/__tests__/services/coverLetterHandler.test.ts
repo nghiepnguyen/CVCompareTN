@@ -163,7 +163,7 @@ describe('cover_letter: quota', () => {
     expect(generateContent).not.toHaveBeenCalled();
     expect(state.countFilters[0]).toEqual(expect.arrayContaining([
       ['eq', 'kind', 'rewrite'],
-      ['or', 'guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null'],
+      ['or', 'guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null,guard_metrics->followUp.not.is.null'],
     ]));
   });
 

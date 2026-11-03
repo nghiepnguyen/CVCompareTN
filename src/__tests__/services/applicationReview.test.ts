@@ -152,7 +152,7 @@ describe('application_review: contract and validation', () => {
     expect((await call()).status).toBe(429);
     expect(state.countFilters[0]).toEqual(expect.arrayContaining([
       ['eq', 'kind', 'rewrite'],
-      ['or', 'guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null'],
+      ['or', 'guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null,guard_metrics->followUp.not.is.null'],
     ]));
     expect(generateContent).not.toHaveBeenCalled();
   });

@@ -584,11 +584,15 @@ export type ApplicationReviewGuardMetrics = {
   geminiCalls: 0 | 1 | 2;
 };
 
+/** P2C follow-up draft (kind='rewrite' rows); same shape as the cover letter metrics. */
+export type FollowUpGuardMetrics = CoverLetterGuardMetrics;
+
 export type GuardMetrics =
   | { v: 1; suggestionGuard: SuggestionGuardMetrics; requirementVerification?: RequirementVerificationMetrics }
   | { v: 1; fullCv: FullCvGuardMetrics }
   | { v: 1; coverLetter: CoverLetterGuardMetrics }
-  | { v: 1; applicationReview: ApplicationReviewGuardMetrics };
+  | { v: 1; applicationReview: ApplicationReviewGuardMetrics }
+  | { v: 1; followUp: FollowUpGuardMetrics };
 
 export function countViolations(violations: FullRewriteViolation[]): ViolationCounts {
   return {

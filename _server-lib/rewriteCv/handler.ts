@@ -27,7 +27,7 @@ type Access = { ok: true; userId: string } | { ok: false; result: HandlerResult 
 
 async function authorize(
   authHeader: string | undefined,
-  kind: 'rewrite' | 'cover_letter' | 'application_review',
+  kind: 'rewrite' | 'cover_letter' | 'application_review' | 'follow_up',
   deadline: ReturnType<typeof createDeadline>
 ): Promise<Access> {
   const user = await withTimeout(

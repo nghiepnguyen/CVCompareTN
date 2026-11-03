@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ result: vi.fn(), count: vi.fn() }));
+const mocks = vi.hoisted(() => ({ result: vi.fn(), count: vi.fn(), filters: [] as unknown[][] }));
 vi.mock('../payment/supabaseAdmin.js', () => ({
   getSupabaseAdmin: () => ({ from: (table: string) => {
-    const b = { select: () => b, eq: () => b, gte: () => b, abortSignal: () => b, maybeSingle: mocks.result, then: (resolve: (v: unknown) => unknown) => Promise.resolve(mocks.count()).then(resolve) };
+    const b = { select: () => b, eq: (...a: unknown[]) => { mocks.filters.push(['eq', ...a]); return b; }, or: (...a: unknown[]) => { mocks.filters.push(['or', ...a]); return b; }, gte: () => b, abortSignal: () => b, maybeSingle: mocks.result, then: (resolve: (v: unknown) => unknown) => Promise.resolve(mocks.count()).then(resolve) };
     return b;
   } }),
 }));
@@ -10,6 +10,7 @@ import { checkAccountAccess, checkAiAccess, checkHourlyAiLimit } from '../accoun
 
 beforeEach(() => {
   mocks.result.mockReset().mockResolvedValue({ data: { role: 'user', has_permission: true, plan: 'free', plan_expires_at: null }, error: null });
+  mocks.filters.length = 0;
   mocks.count.mockReset().mockReturnValue({ count: 0, error: null });
 });
 afterEach(() => vi.useRealTimers());
@@ -39,6 +40,15 @@ describe('server account lock', () => {
 });
 
 describe('hourly AI entitlement', () => {
+  it('follow_up shares the document cap', async () => {
+    mocks.count.mockReturnValue({ count: 5, error: null });
+    expect(await checkHourlyAiLimit('u1', 'follow_up', 'free', 100)).toBe('rate_limited');
+    mocks.count.mockReturnValue({ count: 4, error: null });
+    expect(await checkHourlyAiLimit('u1', 'follow_up', 'free', 100)).toBe('ok');
+    expect(mocks.filters).toContainEqual(['eq', 'kind', 'rewrite']);
+    expect(mocks.filters).toContainEqual(['or', 'guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null,guard_metrics->followUp.not.is.null']);
+  });
+
   it.each([['free', 10], ['pro', 10], ['recruiter', 100]] as const)(
     'uses the %s plan cap (%i calls) for analyze',
     async (plan, limit) => {
