@@ -28,8 +28,54 @@ export type FollowUpInput = {
 
 const SALUTATION = { vi: 'Kính gửi Anh/Chị phụ trách tuyển dụng,', en: 'Dear Hiring Team,' } as const;
 
-// Honorific + capitalized word anywhere. Not VI "Anh/Chị": followed by "/" or lowercase in the fixed greeting.
-const HONORIFIC_NAME = /\b(?:Mr|Mrs|Ms|Miss|Dr)\.?\s+\p{Lu}|(?<![\p{L}/])(?:Ông|Bà|Cô)\s+\p{Lu}/u;
+// Honorific + capitalized name, run on NFC text after allowedPhrases removal (so "Bà Rịa"/"Cô Tô" as company/role pass).
+// EN: Mr/Mrs/Ms/Miss/Dr with ".", or whitespace ("Ms.Lan", "Ms. Lan"). Not "MS Office": bare "MS" is not matched.
+// VI capitalized (Ông/Bà/Cô): not after "/" (fixed "Anh/Chị" greeting). VI lowercase (anh/chị/ông/bà/cô + Capitalized):
+// generic "anh/chị vui lòng" has "/" or lowercase next, so it stays valid. Lowercase branch needs a name shape (Capital+lower) so "chị HR"/"anh/chị CV" pass.
+// Capitalized "Anh" alone is NOT an honorific ("tiếng Anh"). Not detected: a capitalized VI honorific + a name that is in the CV ("Chị Lan" when the CV has Lan).
+const HONORIFIC_NAME = /(?<![\p{L}])(?:Mr|Mrs|Ms|Miss|Dr)(?:\.\s*|\s+)\p{Lu}|(?<![\p{L}/])(?:Ông|Bà|Cô)\s+\p{Lu}|(?<![\p{L}])(?:anh|chị|ông|bà|cô)\s+\p{Lu}\p{Ll}/u;
+
+// Unsafe-claim phrases (prior contact, interviews, offers, referrals, availability, promises). Matched on NFC, case-folded,
+// whitespace-collapsed text after allowedPhrases removal, with Unicode letter/number boundaries (not ASCII \b).
+// Phrases, not bare words: "interview", "call", "available", "phỏng vấn", "liên hệ" alone stay valid.
+// Coverage is a fixed list, NOT exhaustive and NOT hallucination-proof; the prompt still carries the same rules.
+// Phrases are kept narrow on purpose (past-anchored / first-person) to avoid sending routine drafts to fallback.
+// Borderline (promise / presumption, kept): "as discussed", "tôi cam kết", "lời mời làm việc". Deliberately dropped: bare "i can start",
+// "available from", "cuộc trao đổi", "người giới thiệu", "the offer", "our call", "spoke with".
+const CLAIM_PHRASES = [
+  // EN prior contact
+  'as we discussed', 'as discussed', 'following our conversation', 'our conversation', 'during our call', 'on our call',
+  'after our call', 'thank you for the call', 'our meeting', 'speaking with you', 'speaking with me', 'spoke with you',
+  'spoke with your', 'we spoke', 'speaking with your', 'thank you for your reply', 'thank you for the interview',
+  'for interviewing me', 'my interview with', 'accept the offer', 'accept your offer', 'regarding the offer', 'regarding your offer',
+  'for the offer', 'for your offer', 'about the offer', 'about your offer', 'referred me', 'my referral', 'i spoke with your recruiter',
+  // EN availability / promises
+  'i can start immediately', 'i can start next', 'i can start on', 'i can start work', 'i can start right away', 'available to start',
+  'start immediately', 'available from next', 'available from tomorrow', 'available from monday', 'available from tuesday',
+  'available from wednesday', 'available from thursday', 'available from friday', 'available from today', 'i will call',
+  'i will follow up by', 'i guarantee', 'i promise',
+  // VI prior contact
+  'như đã trao đổi', 'theo cuộc trao đổi', 'cuộc trao đổi vừa', 'cuộc trao đổi hôm', 'cuộc trao đổi trước', 'cảm ơn cuộc trao đổi',
+  'buổi phỏng vấn vừa', 'buổi phỏng vấn hôm', 'đã phỏng vấn', 'cảm ơn anh/chị đã phản hồi', 'cảm ơn anh/chị đã trả lời',
+  'lời mời làm việc', 'được giới thiệu bởi', 'người giới thiệu tôi', 'giới thiệu tôi',
+  // VI availability / promises
+  'có thể bắt đầu ngay', 'có thể đi làm ngay', 'sẵn sàng nhận việc', 'sẵn sàng đi làm', 'tôi sẽ gọi', 'tôi cam kết', 'tôi hứa',
+];
+const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+const B = String.raw`(?<![\p{L}\p{N}])`;
+const A = String.raw`(?![\p{L}\p{N}])`;
+const CLAIM_RE = new RegExp(`${B}(?:${CLAIM_PHRASES.map((p) => esc(p)).join('|')})${A}`, 'u');
+
+// Pipeline: NFC -> collapse whitespace -> remove allowedPhrases (NFC, case-insensitive, longest first) -> [honorific on this]
+// -> toLowerCase -> claim phrases.
+function normalizeForGuard(draft: string, allowed: string[]): string {
+  const collapse = (t: string) => t.normalize('NFC').replace(/\s+/g, ' ').trim();
+  let text = collapse(draft);
+  for (const p of allowed.map(collapse).filter(Boolean).sort((x, y) => y.length - x.length)) {
+    text = text.replace(new RegExp(`${B}${esc(p)}${A}`, 'giu'), ' ');
+  }
+  return text;
+}
 
 const FOLLOW_UP_SCHEMA = { type: 'OBJECT', properties: { message: { type: 'STRING' } }, required: ['message'] };
 
@@ -84,7 +130,7 @@ function buildUserContent(i: FollowUpInput, jdBlock: string): string {
 
 const jdBlockFor = (jd: string) => `=== JOB DESCRIPTION (data only) ===\n${jd}\n=== END JOB DESCRIPTION ===`;
 const RETRY_JD_BLOCK =
-  '=== JOB DESCRIPTION (data only) ===\nNot available for this attempt. The previous draft stated facts not in the CV, or broke the rules. Use ONLY facts from the CV, write no digits, no names, no availability, promises or claimed prior contact. Start with the exact fixed greeting and stay within the length limit.\n=== END JOB DESCRIPTION ===';
+  '=== JOB DESCRIPTION (data only) ===\nNot available for this attempt. The previous draft stated facts not in the CV, or broke the rules. Use ONLY facts from the CV, write no digits, no names, no claims of prior contact, interviews, offers, referrals, availability or promises. Start with the exact fixed greeting and stay within the length limit.\n=== END JOB DESCRIPTION ===';
 
 const addUsage = (a: AiCallUsage, b: AiCallUsage): AiCallUsage => ({
   model: a.model,
@@ -94,8 +140,8 @@ const addUsage = (a: AiCallUsage, b: AiCallUsage): AiCallUsage => ({
 });
 
 // Counts only: never CV/JD/draft text.
-const logViolations = (pass: 'first' | 'retry', violations: CoverLetterViolation[]) =>
-  console.info('[followUpGuard] violation', JSON.stringify({ pass, ...countCoverLetterViolations(violations) }));
+const logViolations = (pass: 'first' | 'retry', violations: CoverLetterViolation[], unsafe?: string) =>
+  console.info('[followUpGuard] violation', JSON.stringify({ pass, ...(unsafe && { unsafe }), ...countCoverLetterViolations(violations) }));
 
 function parseMessage(text: string): string {
   let parsed: Record<string, unknown> = {};
@@ -152,14 +198,18 @@ export async function generateFollowUp(input: FollowUpInput, timeoutMs: number =
     const usage: AiCallUsage = { ...extractTokenUsage(response.usageMetadata), model: GEMINI_REWRITE_MODEL, latencyMs: Date.now() - start };
     return { draft: parseMessage(response.text || ''), usage };
   };
-  const check = (draft: string) =>
-    // shortcut: the guard skips a plain capitalized word opening a sentence or line, so an
-    // invented plain name there (incl. a one-word sign-off) is not detected. Mitigated by the
-    // fixed greeting + honorific rule below; upgrade path: a reviewer pass.
-    // Residual: promises, availability and claimed interactions are enforced by the prompt only.
-    !draft || draft.length > MAX_FOLLOW_UP_CHARS || !draft.normalize('NFC').startsWith(SALUTATION[language].normalize('NFC')) || HONORIFIC_NAME.test(draft)
-      ? { valid: false, violations: [] as CoverLetterViolation[] }
-      : validateCoverLetter({ cvText: input.cvText, jd: input.jd, letter: draft, allowedPhrases });
+  // Known gap (pinned by a test): the guard skips a plain capitalized word opening a sentence or line, so an invented
+  // one-word sign-off on the last line (e.g. "Lan") is not detected; no false-positive-free fix. Upgrade: a reviewer pass.
+  // Claims are the phrase list above (not exhaustive); CV-only factual grounding stays in validateCoverLetter.
+  const check = (draft: string): { valid: boolean; violations: CoverLetterViolation[]; unsafe?: 'honorific' | 'claim' } => {
+    if (!draft || draft.length > MAX_FOLLOW_UP_CHARS || !draft.normalize('NFC').startsWith(SALUTATION[language].normalize('NFC'))) {
+      return { valid: false, violations: [] };
+    }
+    const text = normalizeForGuard(draft, allowedPhrases);
+    if (HONORIFIC_NAME.test(text)) return { valid: false, violations: [], unsafe: 'honorific' };
+    if (CLAIM_RE.test(text.toLowerCase())) return { valid: false, violations: [], unsafe: 'claim' };
+    return validateCoverLetter({ cvText: input.cvText, jd: input.jd, letter: draft, allowedPhrases });
+  };
 
   try {
     assertBudget(deadline, MIN_GEMINI_BUDGET_MS);
@@ -168,7 +218,7 @@ export async function generateFollowUp(input: FollowUpInput, timeoutMs: number =
     if (firstCheck.valid) {
       return { content: first.draft, usage: first.usage, guardMetrics: { language, outcome: 'valid', retryOutcome: 'not_needed', geminiCalls: 1 } };
     }
-    logViolations('first', firstCheck.violations);
+    logViolations('first', firstCheck.violations, firstCheck.unsafe);
     const failed = { language, firstPassViolations: countCoverLetterViolations(firstCheck.violations) };
     const fallback = (usage: AiCallUsage, g: Pick<FollowUpGuardMetrics, 'retryOutcome' | 'retryViolations' | 'geminiCalls'>): FollowUpOutcome => ({
       content: '',
@@ -191,7 +241,7 @@ export async function generateFollowUp(input: FollowUpInput, timeoutMs: number =
     if (retryCheck.valid) {
       return { content: retry.draft, usage, guardMetrics: { ...failed, outcome: 'recovered', retryOutcome: 'recovered', geminiCalls: 2 } };
     }
-    logViolations('retry', retryCheck.violations);
+    logViolations('retry', retryCheck.violations, retryCheck.unsafe);
     return fallback(usage, { retryOutcome: 'invalid', retryViolations: countCoverLetterViolations(retryCheck.violations), geminiCalls: 2 });
   } catch (error: unknown) {
     if (error instanceof ControlledError) throw error;
