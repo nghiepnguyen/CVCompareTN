@@ -124,4 +124,13 @@ export const applications = {
   trackerDraftErr503: { vi: "Dịch vụ tạm thời gián đoạn. Vui lòng thử lại.", en: "Temporarily unavailable. Please try again." },
   trackerDraftErrGeneric: { vi: "Không soạn được bản nháp. Vui lòng thử lại.", en: "Couldn't draft the message. Please try again." },
   trackerErrContactNotAllowed: { vi: "Không thể ghi follow-up ở trạng thái hiện tại.", en: "Follow-ups can't be logged in the current status." },
+  trackerUnresolvedExplain: { vi: "Chưa xác nhận được lần gửi trước đã được ghi nhận hay chưa. Bấm Thử lại để gửi lại đúng nội dung này mà không tạo trùng.", en: "We couldn't confirm whether your earlier submission was recorded. Retry resends exactly this entry without creating a duplicate." },
+  trackerInFlightExplain: { vi: "Lần gửi trước vẫn đang được xác nhận. Vui lòng chờ kết quả trước khi gửi tiếp.", en: "Your previous submission is still being confirmed. Please wait for the result before submitting again." },
+  trackerUnresolvedClose: { vi: "Đóng", en: "Close" },
+  trackerUnresolvedAbandon: { vi: "Bỏ lần gửi này", en: "Discard this submission" },
+  trackerAbandonTitle: { vi: "Bỏ lần gửi chưa xác nhận?", en: "Discard the unconfirmed submission?" },
+  trackerAbandonMessage: { vi: "Chưa rõ lần gửi trước đã được ghi nhận hay chưa. Nếu bạn gửi mới, mục này có thể bị ghi trùng.", en: "It's unknown whether the earlier submission was recorded. A new submission may create a duplicate entry." },
+  trackerAbandonConfirm: { vi: "Bỏ và nhập mới", en: "Discard and start over" },
+  trackerReplayNotice: { vi: "Lần gửi trước đã được ghi nhận. Không tạo bản trùng.", en: "Your earlier submission had already been recorded. No duplicate was created." },
+  trackerUnconfirmedMarker: { vi: "Có lần gửi chưa xác nhận", en: "Unconfirmed submission" },
 } as const;

@@ -9,25 +9,33 @@ import type { ApplicationDetail, ApplicationDocument } from '../../../services/a
 import { logApplicationContact, type MutationResult } from '../../../services/applicationService';
 import { NOTE_MAX, type ContactEventType } from '../../../services/applicationTypes';
 import { trackerErrorMessage } from './status';
-import { FormShell, fieldClass, occurredAtFor, primaryButton, secondaryButton } from './TrackerActions';
+import { FormShell, UnresolvedActions, fieldClass, occurredAtFor, primaryButton, secondaryButton } from './TrackerActions';
 import { useTrackerMutation } from './useTrackerMutation';
+
+/** Sent values (occurredAt, note) plus the picked day, shown while unresolved. */
+type ContactArgs = { occurredAt: string | null; note: string | null; date: string };
 
 /** Logs a follow-up sent / employer contact. Eligibility is the RPC's call (contact_not_allowed). */
 export function ContactEventForm({ applicationId, eventType, onDone, onClose }: {
-  applicationId: string; eventType: ContactEventType; onDone: (r?: MutationResult) => void; onClose: () => void;
+  applicationId: string; eventType: ContactEventType; onDone: (r?: MutationResult, recovered?: boolean) => void; onClose: () => void;
 }) {
   const { t } = useUI();
   const [date, setDate] = React.useState(vnTodayYmd());
   const [note, setNote] = React.useState('');
-  const { run, busy, error, cancel } = useTrackerMutation(`${eventType}:${applicationId}`, onDone);
-  const noteTooLong = note.trim().length > NOTE_MAX;
+  const { run, busy, error, cancel, unresolved, confirming, pending: locked, abandon } = useTrackerMutation<ContactArgs>(`${eventType}:${applicationId}`, onDone, { preserveUnknown: true, onClose });
+  const noteTooLong = !locked && note.trim().length > NOTE_MAX;
+
+  // Retry resends the stored args: recomputing occurredAt after midnight would change what this key means.
+  const send = async (args: ContactArgs) => {
+    const ok = await run((idempotencyKey) => logApplicationContact({
+      applicationId, eventType, occurredAt: args.occurredAt, note: args.note, idempotencyKey,
+    }), args);
+    if (ok) onClose();
+  };
 
   const onSave = async () => {
-    if (busy || noteTooLong || !date) return;
-    const ok = await run((idempotencyKey) => logApplicationContact({
-      applicationId, eventType, occurredAt: occurredAtFor(date), note: note.trim() || null, idempotencyKey,
-    }));
-    if (ok) onClose();
+    if (busy || noteTooLong || !date || confirming) return;
+    await send({ occurredAt: occurredAtFor(date), note: note.trim() || null, date });
   };
 
   return (
@@ -37,18 +45,24 @@ export function ContactEventForm({ applicationId, eventType, onDone, onClose }: 
     >
       <label className="block space-y-1 text-xs font-bold text-text-muted">
         <span>{t.trackerOccurredOn}</span>
-        <input type="date" className={fieldClass} value={date} max={vnTodayYmd()} onChange={(e) => setDate(e.target.value)} />
+        <input type="date" className={fieldClass} value={locked ? locked.date : date} max={vnTodayYmd()} disabled={!!locked} onChange={(e) => setDate(e.target.value)} />
       </label>
       <label className="block space-y-1 text-xs font-bold text-text-muted">
         <span>{t.trackerNoteOptional}</span>
-        <textarea className={fieldClass} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+        <textarea className={fieldClass} rows={2} value={locked ? locked.note ?? '' : note} disabled={!!locked} onChange={(e) => setNote(e.target.value)} />
       </label>
-      <div className="flex flex-wrap justify-end gap-2">
-        <button type="button" className={secondaryButton} onClick={() => { cancel(); onClose(); }}>{t.trackerCancel}</button>
-        <button type="button" className={primaryButton} disabled={busy || noteTooLong || !date} aria-busy={busy} onClick={() => void onSave()}>
-          {busy ? t.trackerSaving : t.trackerSave}
-        </button>
-      </div>
+      {unresolved ? (
+        <UnresolvedActions busy={busy} onRetry={() => void send(unresolved)} onClose={() => { cancel(); onClose(); }}
+          onAbandon={() => { abandon(); setNote(''); setDate(vnTodayYmd()); }} />
+      ) : (
+        <div className="flex flex-wrap justify-end gap-2">
+          {confirming && <p role="status" className="w-full text-xs font-medium text-text-muted">{t.trackerInFlightExplain}</p>}
+          <button type="button" className={secondaryButton} onClick={() => { cancel(); onClose(); }}>{t.trackerCancel}</button>
+          <button type="button" className={primaryButton} disabled={busy || noteTooLong || !date || !!confirming} aria-busy={busy} onClick={() => void onSave()}>
+            {busy ? t.trackerSaving : t.trackerSave}
+          </button>
+        </div>
+      )}
     </FormShell>
   );
 }

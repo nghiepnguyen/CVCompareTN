@@ -12,6 +12,7 @@ import type { ApplicationDetail, ApplicationDocument, ApplicationEvent, FollowUp
 import { StatusBadge, statusLabel, trackerErrorMessage } from './status';
 import { ContactEventForm, FollowUpDraftPanel } from './FollowUpActions';
 import { DetailsForm, NoteForm, StatusChangeForm } from './TrackerActions';
+import { hasUnresolvedIntent, useIntentsVersion } from './useTrackerMutation';
 
 type DetailTab = 'overview' | 'documents' | 'timeline';
 type Panel = 'status' | 'details' | 'note' | 'follow_up_sent' | 'contact_received' | 'draft' | null;
@@ -38,6 +39,8 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [tab, setTab] = React.useState<DetailTab>('overview');
   const [panel, setPanel] = React.useState<Panel>(null);
+  const [replayNotice, setReplayNotice] = React.useState(false);
+  useIntentsVersion(); // keeps the unconfirmed marker current
 
   const load = React.useCallback(async () => {
     setLoadError(null);
@@ -81,7 +84,8 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
   };
 
   // Show the server's returned row at once (details edit), then reload everything.
-  const onMutated = (result?: MutationResult) => {
+  const onMutated = (result?: MutationResult, recovered?: boolean) => {
+    if (recovered) setReplayNotice(true);
     if (result?.application) {
       const fresh = result.application;
       setData((prev) => prev && { ...prev, application: { ...prev.application, ...fresh } });
@@ -116,7 +120,8 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
   }
 
   const { application: app, documents, events, hasMoreEvents, followUp } = data;
-  const closePanel = () => setPanel(null);
+  // Each form closes only its own panel: a late settle of a closed form must not close another one.
+  const closeOnly = (id: Panel) => () => setPanel((p) => (p === id ? null : p));
   const tabs: { id: DetailTab; label: string }[] = [
     { id: 'overview', label: t.trackerTabOverview },
     { id: 'documents', label: t.trackerTabDocuments },
@@ -176,19 +181,22 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
               <button
                 key={id}
                 type="button"
-                onClick={() => setPanel(panel === id ? null : id)}
+                onClick={() => { setReplayNotice(false); setPanel(panel === id ? null : id); }}
+                title={hasUnresolvedIntent(`${id}:${app.id}`) ? t.trackerUnconfirmedMarker : undefined}
                 className={cn('rounded-xl border px-4 py-2 text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95', panel === id ? 'border-accent text-accent' : 'border-border text-text-main hover:border-accent')}
               >
                 {label}
+                {hasUnresolvedIntent(`${id}:${app.id}`) && <span aria-hidden="true" className="ml-1.5 inline-block h-2 w-2 rounded-full bg-accent" />}
               </button>
             ))}
           </div>
-          {panel === 'status' && <StatusChangeForm application={app} onDone={onMutated} onClose={closePanel} />}
-          {panel === 'details' && <DetailsForm application={app} onDone={onMutated} onClose={closePanel} />}
-          {panel === 'note' && <NoteForm applicationId={app.id} onDone={onMutated} onClose={closePanel} />}
-          {panel === 'draft' && app.status === 'applied' && <FollowUpDraftPanel application={app} documents={documents} onClose={closePanel} />}
+          {replayNotice && <p role="status" aria-live="polite" className="text-xs font-bold text-text-muted">{t.trackerReplayNotice}</p>}
+          {panel === 'status' && <StatusChangeForm application={app} onDone={onMutated} onClose={closeOnly('status')} />}
+          {panel === 'details' && <DetailsForm application={app} onDone={onMutated} onClose={closeOnly('details')} />}
+          {panel === 'note' && <NoteForm applicationId={app.id} onDone={onMutated} onClose={closeOnly('note')} />}
+          {panel === 'draft' && app.status === 'applied' && <FollowUpDraftPanel application={app} documents={documents} onClose={closeOnly('draft')} />}
           {(panel === 'follow_up_sent' || panel === 'contact_received') && (
-            <ContactEventForm key={panel} applicationId={app.id} eventType={panel} onDone={onMutated} onClose={closePanel} />
+            <ContactEventForm key={panel} applicationId={app.id} eventType={panel} onDone={onMutated} onClose={closeOnly(panel)} />
           )}
         </div>
       )}

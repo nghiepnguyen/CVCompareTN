@@ -16,6 +16,7 @@ vi.mock('../../lib/sentry', () => sentry);
 
 import type { ApplicationEvent } from '../../services/applicationTypes';
 import { ApplicationDetailView } from '../../components/views/applications/ApplicationDetailView';
+import * as intentsModule from '../../components/views/applications/useTrackerMutation';
 
 let seq = 0;
 let app: Record<string, unknown>;
@@ -309,7 +310,7 @@ describe('Notes', () => {
     call.resolve({ data: null, error: { message: 'Failed to fetch' } });
     expect(await screen.findByText(vi_.trackerErrGeneric)).toBeTruthy();
     db.rpc.mockResolvedValueOnce({ data: { event_id: 'e5', replayed: true }, error: null });
-    click(vi_.trackerSave);
+    click(vi_.trackerRetry); // R1: unresolved mode replaces Save with Retry
     await waitFor(() => expect(db.rpc).toHaveBeenCalledTimes(2));
     const [k1, k2] = keysOf('add_application_note');
     expect(k2).toBe(k1);
@@ -629,13 +630,13 @@ describe('Follow-up and contact actions (P2C)', () => {
     expect(sentry.captureException).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(sentry.captureException.mock.calls)).not.toContain('secret');
     db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
-    click(vi_.trackerSave); // retry in place
+    click(vi_.trackerRetry); // retry in place (R1: unresolved mode replaces Save with Retry)
     await waitFor(() => expect(logCalls()).toHaveLength(2));
     cleanup(); // remount, not Cancel
     db.rpc.mockResolvedValueOnce(ok());
     await renderDetail();
     click(vi_.trackerMarkFollowUpSent);
-    click(vi_.trackerSave);
+    click(vi_.trackerRetry);
     await waitFor(() => expect(logCalls()).toHaveLength(3));
     await waitFor(() => expect(screen.queryByLabelText(vi_.trackerNoteOptional)).toBeNull());
     db.rpc.mockResolvedValueOnce(ok('e10'));
@@ -648,7 +649,7 @@ describe('Follow-up and contact actions (P2C)', () => {
     expect(k4).not.toBe(k1);
   });
 
-  it('keys are scoped per event type and application; Cancel clears', async () => {
+  it('keys are scoped per event type and application; Close keeps an unresolved intent (R1)', async () => {
     app.status = 'applied';
     const idA = app.id as string;
     db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
@@ -656,21 +657,22 @@ describe('Follow-up and contact actions (P2C)', () => {
     click(vi_.trackerMarkFollowUpSent);
     click(vi_.trackerSave);
     await screen.findByText(vi_.trackerErrGeneric);
-    click(vi_.trackerCancel); // clears follow_up_sent:A
+    click(vi_.trackerUnresolvedClose); // R1: keeps follow_up_sent:A (outcome unknown)
     click(vi_.trackerEmployerReplied);
     db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
     click(vi_.trackerSave);
     await screen.findByText(vi_.trackerErrGeneric);
     click(vi_.trackerMarkFollowUpSent); // switches panel; contact_received:A key persists
     db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
-    click(vi_.trackerSave);
+    click(vi_.trackerRetry);
     await screen.findByText(vi_.trackerErrGeneric);
     click(vi_.trackerEmployerReplied);
     db.rpc.mockResolvedValueOnce(ok());
-    click(vi_.trackerSave);
+    click(vi_.trackerRetry);
     await waitFor(() => expect(logCalls()).toHaveLength(4));
     const keys = logCalls().map((c) => c.p_idempotency_key);
-    expect(new Set([keys[0], keys[1], keys[2]]).size).toBe(3); // Cancel gave follow_up_sent a new key; scopes differ
+    expect(new Set([keys[0], keys[1]]).size).toBe(2); // scopes differ
+    expect(keys[2]).toBe(keys[0]); // R1: Close kept follow_up_sent:A, its retry reuses the key
     expect(keys[3]).toBe(keys[1]); // retry of contact_received:A reuses its key
     // follow_up_sent:A (uncertain) vs another application
     cleanup();
@@ -963,5 +965,460 @@ describe('Draft follow-up', () => {
     expect(screen.getByText(vi_.trackerMarkFollowUpSent, { selector: 'h4' })).toBeTruthy();
     click(vi_.trackerSave);
     await waitFor(() => expect(db.rpc).toHaveBeenCalledWith('log_application_contact', expect.anything()));
+  });
+});
+
+describe('Unknown-outcome idempotency (R1: note / follow_up_sent / contact_received)', () => {
+  const NET = { data: null, error: { message: 'Failed to fetch' } };
+  const ok = (id = 'e9', replayed = false) => ({ data: { event_id: id, replayed }, error: null });
+  const scopes = [
+    { scope: 'note', rpc: 'add_application_note', open: vi_.trackerAddNote, noteLabel: vi_.trackerNoteLabel },
+    { scope: 'follow_up_sent', rpc: 'log_application_contact', open: vi_.trackerMarkFollowUpSent, noteLabel: vi_.trackerNoteOptional },
+    { scope: 'contact_received', rpc: 'log_application_contact', open: vi_.trackerEmployerReplied, noteLabel: vi_.trackerNoteOptional },
+  ] as const;
+  type Scope = typeof scopes[number];
+  const unresolvedShown = () => screen.queryByText(vi_.trackerUnresolvedExplain) !== null;
+  const noteBox = (s: Scope) => screen.getByLabelText(s.noteLabel) as HTMLTextAreaElement;
+  // Opens the form, types a note, saves; the response is lost (unknown outcome).
+  const failFirst = async (s: Scope, note: string, scripted = true) => {
+    if (scripted) db.rpc.mockResolvedValueOnce(NET);
+    click(s.open);
+    fireEvent.change(noteBox(s), { target: { value: note } });
+    click(vi_.trackerSave);
+    await screen.findByText(vi_.trackerErrGeneric);
+  };
+  // Server that commits on first sight of a key but loses that response; a seen key replays.
+  const commitThenLose = () => {
+    const committed = new Map<string, string>();
+    db.rpc.mockImplementation(async (name: string, a: Record<string, unknown>) => {
+      const key = a.p_idempotency_key as string;
+      if (committed.has(key)) return ok(committed.get(key), true);
+      const id = `e${committed.size + 5}`;
+      committed.set(key, id);
+      const type = name === 'add_application_note' ? 'note' : a.p_event_type;
+      events = [{ id, event_type: type, from_status: null, to_status: null, note: a.p_note, metadata: {}, occurred_at: '2026-11-03T03:00:00Z', created_at: '2026-11-03T03:00:00Z' }, ...events];
+      return NET;
+    });
+    return committed;
+  };
+
+  beforeEach(() => {
+    app.status = 'applied';
+    intentsModule.resetIntents?.();
+  });
+
+  it('1. contact: request commits, response lost, Retry replays the same key: exactly one event', async () => {
+    const committed = commitThenLose();
+    await renderDetail();
+    await failFirst(scopes[1], 'pinged HR', false);
+    expect(committed.size).toBe(1);
+    click(vi_.trackerRetry);
+    await waitFor(() => expect(screen.queryByLabelText(vi_.trackerNoteOptional)).toBeNull());
+    const keys = keysOf('log_application_contact');
+    expect(keys).toHaveLength(2);
+    expect(keys[1]).toBe(keys[0]);
+    expect(committed.size).toBe(1);
+    openTab(vi_.trackerTabTimeline);
+    await waitFor(() => expect(within(screen.getByRole('tabpanel')).getAllByText('pinged HR')).toHaveLength(1));
+  });
+
+  it.each(scopes)('2. $scope: unknown → Close → reopen → Retry reuses the original key and stored entry', async (s) => {
+    await renderDetail();
+    await failFirst(s, '  original  ');
+    expect(unresolvedShown()).toBe(true);
+    click(vi_.trackerUnresolvedClose);
+    expect(screen.queryByLabelText(s.noteLabel)).toBeNull();
+    click(s.open);
+    expect(unresolvedShown()).toBe(true); // HEAD's Cancel/Close cleared the intent here
+    expect(noteBox(s).disabled).toBe(true);
+    expect(noteBox(s).value).toBe('original');
+    db.rpc.mockResolvedValueOnce(ok('e9', true));
+    click(vi_.trackerRetry);
+    await waitFor(() => expect(keysOf(s.rpc)).toHaveLength(2));
+    const [k1, k2] = keysOf(s.rpc);
+    expect(k2).toBe(k1);
+    expect(db.rpc.mock.calls[1][1].p_note).toBe('original');
+  });
+
+  it.each(scopes)('3. $scope: unknown → unmount/remount → Retry reuses the original key', async (s) => {
+    await renderDetail();
+    await failFirst(s, 'kept');
+    cleanup();
+    await renderDetail();
+    expect(screen.getByRole('button', { name: s.open }).getAttribute('title')).toBe(vi_.trackerUnconfirmedMarker);
+    click(s.open);
+    expect(unresolvedShown()).toBe(true);
+    expect(screen.queryByText(vi_.trackerErrGeneric)).toBeNull(); // fresh mount: explanation only
+    db.rpc.mockResolvedValueOnce(ok());
+    click(vi_.trackerRetry);
+    await waitFor(() => expect(screen.queryByLabelText(s.noteLabel)).toBeNull());
+    const [k1, k2] = keysOf(s.rpc);
+    expect(k2).toBe(k1);
+    expect(screen.queryByText(vi_.trackerReplayNotice)).toBeNull(); // a fresh commit is not a replay
+    expect(screen.getByRole('button', { name: s.open }).getAttribute('title')).toBeNull();
+  });
+
+  it('4. note: confirmed replay after unresolved shows the notice; one timeline item; first-attempt replay shows none', async () => {
+    commitThenLose();
+    await renderDetail();
+    await failFirst(scopes[0], 'Recruiter said salary 50M', false);
+    click(vi_.trackerRetry);
+    expect(await screen.findByText(vi_.trackerReplayNotice)).toBeTruthy();
+    expect(screen.getByText(vi_.trackerReplayNotice).getAttribute('role')).toBe('status');
+    expect(screen.queryByLabelText(vi_.trackerNoteLabel)).toBeNull();
+    openTab(vi_.trackerTabTimeline);
+    await waitFor(() => expect(within(screen.getByRole('tabpanel')).getAllByText('Recruiter said salary 50M')).toHaveLength(1));
+    expect(JSON.stringify(sentry.captureException.mock.calls)).not.toContain('salary');
+    cleanup();
+    db.rpc.mockReset();
+    db.rpc.mockResolvedValueOnce(ok('e9', true));
+    await renderDetail();
+    click(vi_.trackerAddNote);
+    fireEvent.change(noteBox(scopes[0]), { target: { value: 'other' } });
+    click(vi_.trackerSave);
+    await waitFor(() => expect(screen.queryByLabelText(vi_.trackerNoteLabel)).toBeNull());
+    expect(screen.queryByText(vi_.trackerReplayNotice)).toBeNull();
+  });
+
+  it.each(scopes)('5. $scope: confirmed success then a genuinely new action gets a new key', async (s) => {
+    db.rpc.mockResolvedValue(ok());
+    await renderDetail();
+    for (const n of ['one', 'two']) {
+      click(s.open);
+      expect(unresolvedShown()).toBe(false);
+      fireEvent.change(noteBox(s), { target: { value: n } });
+      click(vi_.trackerSave);
+      await waitFor(() => expect(screen.queryByLabelText(s.noteLabel)).toBeNull());
+    }
+    const [k1, k2] = keysOf(s.rpc);
+    expect(k2).not.toBe(k1);
+  });
+
+  it('6. separate applications and action types keep separate intents', async () => {
+    const appA = app;
+    await renderDetail();
+    await failFirst(scopes[1], 'fu A');
+    click(vi_.trackerUnresolvedClose);
+    click(vi_.trackerEmployerReplied);
+    expect(unresolvedShown()).toBe(false); // contact_received:A is its own intent
+    fireEvent.change(noteBox(scopes[2]), { target: { value: 'cr A' } });
+    db.rpc.mockResolvedValueOnce(NET);
+    click(vi_.trackerSave);
+    await screen.findByText(vi_.trackerErrGeneric);
+    click(vi_.trackerUnresolvedClose);
+    await failFirst(scopes[0], 'note A');
+    click(vi_.trackerUnresolvedClose);
+    cleanup();
+    seq += 1;
+    app = { ...appA, id: `app-${seq}` };
+    db.rpc.mockResolvedValue(ok());
+    await renderDetail();
+    for (const s of [scopes[1], scopes[0]]) {
+      click(s.open);
+      expect(unresolvedShown()).toBe(false); // application B is unaffected
+      fireEvent.change(noteBox(s), { target: { value: `${s.scope} B` } });
+      click(vi_.trackerSave);
+      await waitFor(() => expect(screen.queryByLabelText(s.noteLabel)).toBeNull());
+    }
+    cleanup();
+    app = appA;
+    await renderDetail();
+    for (const s of scopes) {
+      click(s.open);
+      expect(unresolvedShown()).toBe(true);
+      click(vi_.trackerRetry);
+      await waitFor(() => expect(screen.queryByLabelText(s.noteLabel)).toBeNull());
+    }
+    const calls = db.rpc.mock.calls.map((c) => ({ name: c[0], ...c[1] }));
+    const keyOf = (i: number) => calls[i].p_idempotency_key;
+    // 0 fu A, 1 cr A, 2 note A, 3 fu B, 4 note B, 5 note A retry, 6 fu A retry, 7 cr A retry
+    expect(new Set([0, 1, 2, 3, 4].map(keyOf)).size).toBe(5);
+    expect(calls[5].name).toBe('add_application_note');
+    expect(keyOf(5)).toBe(keyOf(2));
+    expect(keyOf(6)).toBe(keyOf(0));
+    expect(keyOf(7)).toBe(keyOf(1));
+    expect([calls[6].p_note, calls[7].p_note, calls[5].p_note]).toEqual(['fu A', 'cr A', 'note A']);
+  });
+
+  it('8a. status keeps CAS semantics: unknown → Cancel → different target → stale_status = rejection + reload', async () => {
+    db.rpc.mockResolvedValueOnce(NET);
+    await renderDetail();
+    click(vi_.trackerChangeStatus);
+    click(vi_.trackerSave);
+    await screen.findByText(vi_.trackerErrGeneric);
+    click(vi_.trackerCancel); // still clears for CAS scopes
+    db.rpc.mockImplementationOnce(async () => { app.status = 'interview'; return { data: null, error: { message: 'stale_status' } }; });
+    const before = appFetches();
+    click(vi_.trackerChangeStatus);
+    expect(unresolvedShown()).toBe(false);
+    fireEvent.change(screen.getByLabelText(vi_.trackerNewStatus), { target: { value: 'rejected' } });
+    click(vi_.trackerSave);
+    expect(await screen.findByText(vi_.trackerErrStale)).toBeTruthy();
+    await waitFor(() => expect(appFetches()).toBeGreaterThan(before));
+    const [k1, k2] = keysOf('transition_application_status');
+    expect(k2).not.toBe(k1);
+    expect(db.rpc.mock.calls[1][1]).toMatchObject({ p_expected_status: 'applied', p_to_status: 'rejected' });
+  });
+
+  it('8b. details keeps CAS semantics: unknown → Cancel → different fields → stale_application = rejection + reload', async () => {
+    db.rpc.mockResolvedValueOnce(NET);
+    await renderDetail();
+    click(vi_.trackerEditDetails);
+    fireEvent.change(screen.getByLabelText(vi_.trackerCompanyLabel), { target: { value: 'First' } });
+    click(vi_.trackerSave);
+    await screen.findByText(vi_.trackerErrGeneric);
+    click(vi_.trackerCancel);
+    db.rpc.mockImplementationOnce(async () => { app.updated_at = '2026-11-03T09:00:00+00:00'; return { data: null, error: { message: 'stale_application' } }; });
+    const before = appFetches();
+    click(vi_.trackerEditDetails);
+    fireEvent.change(screen.getByLabelText(vi_.trackerRoleLabel), { target: { value: 'Other role' } });
+    click(vi_.trackerSave);
+    expect(await screen.findByText(vi_.trackerErrStaleApplication)).toBeTruthy();
+    await waitFor(() => expect(appFetches()).toBeGreaterThan(before));
+    const [k1, k2] = keysOf('update_application_details');
+    expect(k2).not.toBe(k1);
+  });
+
+  it('9a. unresolved mode: fields disabled; Retry sends the STORED entry even if render state is changed', async () => {
+    await renderDetail();
+    await failFirst(scopes[0], '  stored text ');
+    expect(noteBox(scopes[0]).disabled).toBe(true);
+    fireEvent.change(noteBox(scopes[0]), { target: { value: 'tampered' } });
+    expect(noteBox(scopes[0]).value).toBe('stored text');
+    db.rpc.mockResolvedValueOnce(ok());
+    click(vi_.trackerRetry);
+    await waitFor(() => expect(keysOf('add_application_note')).toHaveLength(2));
+    expect(db.rpc.mock.calls[1][1].p_note).toBe('stored text');
+  });
+
+  it('9b. midnight: unknown at 23:59 ICT with today (occurredAt null) → Retry after midnight still sends null', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-11-04T16:59:00Z')); // 23:59 ICT on 2026-11-04
+      await renderDetail();
+      await failFirst(scopes[1], 'late');
+      expect(db.rpc.mock.calls[0][1].p_occurred_at).toBeNull();
+      vi.setSystemTime(new Date('2026-11-04T17:01:00Z')); // 00:01 ICT on 2026-11-05
+      cleanup();
+      await renderDetail();
+      click(vi_.trackerMarkFollowUpSent);
+      const date = screen.getByLabelText(vi_.trackerOccurredOn) as HTMLInputElement;
+      expect(date.disabled).toBe(true);
+      expect(date.value).toBe('2026-11-04');
+      db.rpc.mockResolvedValueOnce(ok());
+      click(vi_.trackerRetry);
+      await waitFor(() => expect(keysOf('log_application_contact')).toHaveLength(2));
+      expect(db.rpc.mock.calls[1][1].p_occurred_at).toBeNull();
+      expect(db.rpc.mock.calls[1][1].p_note).toBe('late');
+      const [k1, k2] = keysOf('log_application_contact');
+      expect(k2).toBe(k1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(['vi', 'en'] as const)('9c. Abandon needs confirmation, then fields unlock empty and a new submit uses a NEW key (%s)', async (lang) => {
+    ui.lang = lang;
+    const L = UI_LABELS[lang];
+    await renderDetail();
+    db.rpc.mockResolvedValueOnce(NET);
+    click(L.trackerEmployerReplied);
+    fireEvent.change(screen.getByLabelText(L.trackerNoteOptional), { target: { value: 'first' } });
+    click(L.trackerSave);
+    expect(await screen.findByText(L.trackerUnresolvedExplain)).toBeTruthy();
+    click(L.trackerUnresolvedAbandon);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).toContain(L.trackerAbandonMessage);
+    fireEvent.click(within(dialog).getAllByRole('button', { name: L.trackerCancel })[0]);
+    expect(screen.getByText(L.trackerUnresolvedExplain)).toBeTruthy(); // dismissing keeps the intent
+    click(L.trackerUnresolvedAbandon);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: L.trackerAbandonConfirm }));
+    expect(screen.queryByText(L.trackerUnresolvedExplain)).toBeNull();
+    const box = screen.getByLabelText(L.trackerNoteOptional) as HTMLTextAreaElement;
+    expect(box.disabled).toBe(false);
+    expect(box.value).toBe('');
+    expect(db.rpc).toHaveBeenCalledTimes(1);
+    db.rpc.mockResolvedValueOnce(ok());
+    fireEvent.change(box, { target: { value: 'second' } });
+    click(L.trackerSave);
+    await waitFor(() => expect(keysOf('log_application_contact')).toHaveLength(2));
+    const [k1, k2] = keysOf('log_application_contact');
+    expect(k2).not.toBe(k1);
+    expect(L.trackerUnresolvedExplain).not.toBe(L.trackerErrGeneric);
+  });
+
+  it.each(scopes)('11. $scope: Cancel while the request is in flight keeps the intent; a late unknown → reopen → Retry reuses the key', async (s) => {
+    const call = pending();
+    db.rpc.mockReturnValueOnce(call.p);
+    await renderDetail();
+    click(s.open);
+    fireEvent.change(noteBox(s), { target: { value: 'hung' } });
+    click(vi_.trackerSave);
+    click(vi_.trackerCancel); // user gives up while saving
+    await act(async () => { call.resolve(NET); });
+    click(s.open);
+    expect(unresolvedShown()).toBe(true);
+    db.rpc.mockResolvedValueOnce(ok('e9', true));
+    click(vi_.trackerRetry);
+    await waitFor(() => expect(keysOf(s.rpc)).toHaveLength(2));
+    const [k1, k2] = keysOf(s.rpc);
+    expect(k2).toBe(k1);
+  });
+
+  // Save → Close while in flight → reopen: the reopened form must not accept new text under the in-flight key.
+  const inFlightThenReopen = async (s: Scope) => {
+    const call = pending();
+    db.rpc.mockReturnValueOnce(call.p);
+    await renderDetail();
+    click(s.open);
+    fireEvent.change(noteBox(s), { target: { value: 'first' } });
+    click(vi_.trackerSave);
+    click(vi_.trackerCancel);
+    click(s.open);
+    expect(screen.queryByText(vi_.trackerInFlightExplain)).not.toBeNull();
+    expect(noteBox(s).disabled).toBe(true);
+    expect(noteBox(s).value).toBe('first');
+    expect((screen.getByRole('button', { name: vi_.trackerSave }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(noteBox(s), { target: { value: 'different' } });
+    click(vi_.trackerSave);
+    expect(keysOf(s.rpc)).toHaveLength(1);
+    return call;
+  };
+
+  it.each(scopes)('12. $scope: in flight → Close → reopen is locked; success closes + reloads; a new action gets a new key', async (s) => {
+    const call = await inFlightThenReopen(s);
+    const before = appFetches();
+    await act(async () => { call.resolve(ok()); });
+    await waitFor(() => expect(screen.queryByText(vi_.trackerInFlightExplain)).toBeNull());
+    await waitFor(() => expect(appFetches()).toBeGreaterThan(before));
+    expect(keysOf(s.rpc)).toHaveLength(1); // the displayed-but-locked text was never sent under the old key
+    expect(unresolvedShown()).toBe(false);
+    // The settled save closes the panel (its onClose); reopening is a clean, unlocked form.
+    await waitFor(() => expect(screen.queryByLabelText(s.noteLabel)).toBeNull());
+    click(s.open);
+    expect(noteBox(s).disabled).toBe(false);
+    db.rpc.mockResolvedValueOnce(ok('e10'));
+    fireEvent.change(noteBox(s), { target: { value: 'second' } });
+    click(vi_.trackerSave);
+    await waitFor(() => expect(keysOf(s.rpc)).toHaveLength(2));
+    const [k1, k2] = keysOf(s.rpc);
+    expect(k2).not.toBe(k1);
+    expect(db.rpc.mock.calls[1][1].p_note).toBe('second');
+  });
+
+  it.each(scopes)('13. $scope: in flight → Close → reopen; a late unknown turns the locked form into unresolved mode with the original entry', async (s) => {
+    const call = await inFlightThenReopen(s);
+    await act(async () => { call.resolve(NET); });
+    await waitFor(() => expect(unresolvedShown()).toBe(true));
+    expect(screen.queryByText(vi_.trackerInFlightExplain)).toBeNull();
+    expect(noteBox(s).value).toBe('first');
+    db.rpc.mockResolvedValueOnce(ok('e9', true));
+    click(vi_.trackerRetry);
+    await waitFor(() => expect(keysOf(s.rpc)).toHaveLength(2));
+    const [k1, k2] = keysOf(s.rpc);
+    expect(k2).toBe(k1);
+    expect(db.rpc.mock.calls[1][1].p_note).toBe('first');
+    expect(await screen.findByText(vi_.trackerReplayNotice)).toBeTruthy();
+  });
+
+  // Save is pending; the detail view is left (Back) and reopened; the same form is opened again.
+  const remountWhileInFlight = async (s: Scope, viaRetry = false) => {
+    const call = pending();
+    await renderDetail();
+    if (viaRetry) {
+      await failFirst(s, 'first');
+      fireEvent.change(noteBox(s), { target: { value: 'local edit' } }); // hidden local state differs from the stored entry
+      db.rpc.mockReturnValueOnce(call.p);
+      click(vi_.trackerRetry);
+      expect(noteBox(s).disabled).toBe(true); // M1: the retrying form shows the payload being sent
+      expect(noteBox(s).value).toBe('first');
+    } else {
+      db.rpc.mockReturnValueOnce(call.p);
+      click(s.open);
+      fireEvent.change(noteBox(s), { target: { value: 'first' } });
+      click(vi_.trackerSave);
+    }
+    cleanup();
+    await renderDetail();
+    click(s.open);
+    expect(noteBox(s).disabled).toBe(true); // M1: the payload being sent, never editable local state
+    expect(noteBox(s).value).toBe('first');
+    expect((screen.getByRole('button', { name: vi_.trackerSave }) as HTMLButtonElement).disabled).toBe(true);
+    return call;
+  };
+  const commitEvent = (s: Scope) => {
+    events = [{ id: 'e50', event_type: s.scope, from_status: null, to_status: null, note: 'first', metadata: {}, occurred_at: '2026-11-03T03:00:00Z', created_at: '2026-11-03T03:00:00Z' }, ...events];
+  };
+
+  it.each(scopes)('14. I1 $scope: a settle after the detail view remounted reloads the NEW view and closes its form; one timeline item', async (s) => {
+    const call = await remountWhileInFlight(s);
+    expect(screen.queryByText(vi_.trackerInFlightExplain)).not.toBeNull();
+    commitEvent(s);
+    app.company_name = 'Reloaded Co'; // only a reload of the NEW view can show this (the dead view's fetch counts too)
+    await act(async () => { call.resolve(ok()); });
+    await waitFor(() => expect(screen.getByRole('tabpanel').textContent).toContain('Reloaded Co'));
+    await waitFor(() => expect(screen.queryByLabelText(s.noteLabel)).toBeNull());
+    expect(keysOf(s.rpc)).toHaveLength(1);
+    openTab(vi_.trackerTabTimeline);
+    await waitFor(() => expect(within(screen.getByRole('tabpanel')).getAllByText('first')).toHaveLength(1));
+  });
+
+  it('15. I1 + M1: a replay of an unresolved Retry that settles after remount shows the notice in the NEW view', async () => {
+    const s = scopes[0];
+    const call = await remountWhileInFlight(s, true);
+    await act(async () => { call.resolve(ok('e9', true)); });
+    expect(await screen.findByText(vi_.trackerReplayNotice)).toBeTruthy();
+    await waitFor(() => expect(screen.queryByLabelText(s.noteLabel)).toBeNull());
+    const [k1, k2] = keysOf(s.rpc);
+    expect(k2).toBe(k1);
+  });
+
+  it('16. I1/M2: a definite rejection that settles after remount shows its message in the NEW form and unlocks it', async () => {
+    const s = scopes[1];
+    const call = await remountWhileInFlight(s);
+    await act(async () => { call.resolve({ data: null, error: { message: 'contact_not_allowed' } }); });
+    expect(await screen.findByText(vi_.trackerErrContactNotAllowed)).toBeTruthy();
+    await waitFor(() => expect(noteBox(s).disabled).toBe(false));
+    expect(unresolvedShown()).toBe(false);
+  });
+
+  it('17. I1: an unknown outcome that settles after remount turns the NEW form into unresolved mode', async () => {
+    const s = scopes[2];
+    const call = await remountWhileInFlight(s);
+    await act(async () => { call.resolve(NET); });
+    await waitFor(() => expect(unresolvedShown()).toBe(true));
+    expect(noteBox(s).value).toBe('first');
+    expect(noteBox(s).disabled).toBe(true);
+  });
+
+  it('18. M3: a late settle of a closed note form never closes another open panel', async () => {
+    const call = pending();
+    db.rpc.mockReturnValueOnce(call.p);
+    await renderDetail();
+    click(vi_.trackerAddNote);
+    fireEvent.change(noteBox(scopes[0]), { target: { value: 'hung' } });
+    click(vi_.trackerSave);
+    click(vi_.trackerCancel);
+    click(vi_.trackerChangeStatus);
+    fireEvent.change(screen.getByLabelText(vi_.trackerNoteOptional), { target: { value: 'keep me' } });
+    app.company_name = 'Reloaded Co';
+    await act(async () => { call.resolve(ok()); });
+    await waitFor(() => expect(screen.getByRole('tabpanel').textContent).toContain('Reloaded Co'));
+    expect((screen.getByLabelText(vi_.trackerNoteOptional) as HTMLTextAreaElement).value).toBe('keep me');
+  });
+
+  it('10. a definite rejection on Retry clears the intent: next submit uses a new key', async () => {
+    await renderDetail();
+    await failFirst(scopes[1], 'x');
+    db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'contact_not_allowed' } });
+    click(vi_.trackerRetry);
+    expect(await screen.findByText(vi_.trackerErrContactNotAllowed)).toBeTruthy();
+    expect(unresolvedShown()).toBe(false);
+    db.rpc.mockResolvedValueOnce(ok());
+    click(vi_.trackerSave);
+    await waitFor(() => expect(keysOf('log_application_contact')).toHaveLength(3));
+    const [k1, k2, k3] = keysOf('log_application_contact');
+    expect(k2).toBe(k1);
+    expect(k3).not.toBe(k1);
   });
 });
