@@ -11,6 +11,7 @@ Canonical reference for **which runtime handles each capability**. Từ 2026-06,
 | **Gemini CV rewrite** (nền, `fullRewrittenCV`) | `POST /api/rewrite-cv` → `api/rewrite-cv.ts` (maxDuration 300s, deadline 65s) | `POST /api/rewrite-cv` → `server/routes/rewriteCv.ts` | `_server-lib/rewriteCv/handler.ts` |
 | **Cover Letter (P1A)** — `action: 'cover_letter'` | `POST /api/rewrite-cv` (cùng function, không thêm route) | `POST /api/rewrite-cv` | `_server-lib/rewriteCv/handler.ts` → `_server-lib/ai/coverLetterService.ts` |
 | **Application Review (P1B)** — `action: 'application_review'` | `POST /api/rewrite-cv` (cùng function, không thêm route) | `POST /api/rewrite-cv` | `_server-lib/rewriteCv/handler.ts` → `_server-lib/ai/applicationReviewService.ts` |
+| **Follow-up draft (P2C)** — `action: 'follow_up'` | `POST /api/rewrite-cv` (cùng function, không thêm route) | `POST /api/rewrite-cv` | `_server-lib/rewriteCv/handler.ts` (`handleFollowUp`) → `_server-lib/rewriteCv/followUpContext.ts` + `_server-lib/ai/followUpService.ts` |
 | **Gemini CV parse** (nền, `parsedCV`) | `POST /api/parse-cv` → `api/parse-cv.ts` (maxDuration 300s, deadline 65s) | `POST /api/parse-cv` → `server/routes/parseCv.ts` | `_server-lib/parseCv/handler.ts` |
 | PDF text extract | `POST /api/extract-pdf` → `api/extract-pdf.ts` (Auth: Bearer or reCAPTCHA) | `POST /api/extract-pdf` → `server/routes/pdf.ts` (idem) | `_server-lib/pdf/handler.ts` |
 | reCAPTCHA verify | Không còn route riêng — verify inline trong handler dùng nó (extract-pdf, feedback) | — | `_server-lib/recaptcha.ts` |
@@ -33,6 +34,26 @@ Rewrites are defined in [`vercel.json`](../vercel.json).
 **PayOS:** `POST /api/payment/create` yêu cầu `Authorization: Bearer <supabase_access_token>` (JWT được cache 5 phút in-memory). Webhook không dùng JWT; xác thực 2 lớp — HMAC-SHA256 + timestamp freshness (±30 phút, `transactionDateTime` UTC+7) để chống replay attack. Biến môi trường: `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL`.
 
 **Recruiter save-analysis:** `POST /api/recruiter/save-analysis` yêu cầu `Authorization: Bearer <supabase_access_token>`. Dùng service role để ghi kết quả phân tích vào bảng recruiter campaigns.
+
+**Follow-up draft (P2C, `action: 'follow_up'`):** body chỉ nhận `action`, `applicationId` (UUID) và `language` (`vi|en`, tùy chọn); key lạ bị từ chối. Server tự nạp snapshot của chính user (CV, JD, thư, company/role, số follow-up đã gửi) từ `applications`, `application_documents` (`document_type, content, language:metadata->>language`; `metadata` phân tích của JD không bao giờ được select) và view `application_follow_up_state`. Không select nội dung event/ghi chú (chỉ đọc `follow_ups_since_reset` từ view, view tự tổng hợp trong DB). Chỉ app `status = 'applied'`. Không ghi event, không đổi status, không lưu nháp; chỉ ghi một row `analysis_log`. Không dùng quota phân tích tháng; dùng chung trần tài liệu theo giờ với cover letter/application review. Authority: [15_applications.md](./15_applications.md#p2c--follow-up-workflow). Trạng thái: IMPLEMENTED — NOT YET PRODUCTION VERIFIED.
+
+| Status | Body | Khi nào |
+|---|---|---|
+| 200 | `{ content, language }` | Bản nháp qua guard |
+| 200 (fallback) | `{ content: '', language, fidelityFallback: true }` | Không bản nháp nào qua guard sau tối đa một retry |
+| 400 | `{ error: 'Invalid request' }` (key lạ) / `'Invalid applicationId'` / `'Invalid language'` | Body sai |
+| 401 | `{ error: 'Authentication required' }` | Thiếu/sai Bearer |
+| 403 | `{ error: 'Account locked' }` | Tài khoản bị khóa |
+| 404 | `{ error: 'Application not found' }` | Không tồn tại **hoặc** của account khác (không phân biệt) |
+| 409 | `{ error: 'Follow-up not available' }` | Status khác `applied` |
+| 422 | `{ error: 'Snapshot unavailable' }` | Thiếu CV/JD snapshot hoặc CV vượt giới hạn ký tự |
+| 429 | `{ error: 'Too many requests. Please try again later.' }` | Trần tài liệu theo giờ (trước khi nạp context/Gemini) |
+| 503 | `{ error: 'Follow-up temporarily unavailable', retryable: true }` | Lỗi query applications/documents/view. **Lệch so với plan:** lỗi view không bị coi là "follow-up đầu tiên", fail closed |
+| 503 | `{ error: 'Account verification unavailable' }` | Không kiểm được tài khoản (không có `retryable`) |
+| 504 | `{ error: 'Follow-up generation is taking too long. Please try again. (Timeout)', retryable: true }` | Hết ngân sách/timeout |
+| 500 | `{ error: 'Không thể tạo tin nhắn theo dõi. Vui lòng thử lại.', retryable: false }` | Lỗi Gemini |
+
+Ngôn ngữ: `language` trong body > `language` của snapshot thư > `applications.language` > `vi`. Mọi nỗ lực sau bước nạp context đều ghi `analysis_log` (xem [11_guard_metrics.md](./11_guard_metrics.md)).
 
 **Chấm điểm canonical (Stage 3.7):** `/api/analyze` luôn chấm bằng prompt EN (độc lập ngôn ngữ UI, `scoreVersion = canonical-en-v1`); UI tiếng Việt thêm một bước dịch riêng chỉ cho văn bản trình bày. Chi tiết: [12_canonical_scoring.md](./12_canonical_scoring.md).
 

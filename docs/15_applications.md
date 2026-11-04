@@ -1,4 +1,8 @@
-# Applications (P2A — Save Application + immutable snapshots; P2B — Tracker)
+# Applications (P2A — Save Application + immutable snapshots; P2B — Tracker; P2C — Follow-up)
+
+> P2C (follow-up workflow): **IMPLEMENTED — NOT YET PRODUCTION VERIFIED.** Migration
+> `20261105000000` **chưa áp production**. Có blocker mở trước release, xem
+> [P2C](#p2c--follow-up-workflow) (mục "Open before release").
 
 > P2B (Application Tracker + `application_events`): **DEPLOYED / PRODUCTION VERIFIED**
 > (03/11/2026). PR #70 squash merge `fa1a45f`; migration `20261104000000` áp production
@@ -340,3 +344,219 @@ App và schema rollback **tách biệt**:
 - Version của details là cả row: một ghi chú/đổi status ở tab khác cũng làm bản sửa thông tin đang mở thành stale (an toàn, user xem lại rồi lưu).
 - ~~Chưa smoke UI có đăng nhập thật~~ — đã smoke production 03/11/2026 (xem Production smoke; khoảng trống xác minh liệt kê riêng ở đó).
 - `no_response` tự động: không triển khai (chỉ user chọn).
+
+---
+
+# P2C — Follow-up workflow
+
+Trạng thái: **IMPLEMENTED — NOT YET PRODUCTION VERIFIED.** Nhánh `feat/p2c-contact-events`
+(HEAD `5988756` + commit docs này). Migration `20261105000000_application_follow_up.sql`
+**chưa áp production**. Fallback P2C.0 (Timeline hiển thị event type lạ bằng title chung)
+đã deploy trước: PR #72, merge `b6e3c47` = **SHA rollback tối thiểu** cho schema P2C
+(không phải `3a3a5bb`). Plan: `docs/superpowers/plans/2026-11-03-p2c-follow-up-workflow.md`.
+
+Không có Vercel function mới (tổng 9), không đổi file Analyze (so với `b6e3c47`), không có
+quota tháng cho follow-up (xem [Quota](#quota-p2c)).
+
+## Event authority
+
+| Mục | Giá trị |
+|---|---|
+| Event type mới | `follow_up_sent`, `contact_received` (CHECK `application_events_event_type_check` mở rộng, additive) |
+| Shape (`application_events_shape`) | `from_status IS NULL AND to_status IS NULL`; `note` tùy chọn; nhánh P2B giữ nguyên, type lạ fail closed (`ELSE false`) |
+| Writer duy nhất | RPC `log_application_contact(p_application_id, p_event_type, p_occurred_at, p_note, p_idempotency_key) → jsonb {event_id, replayed}` |
+| Bảo mật RPC | SECURITY DEFINER, `search_path=''`, owner = `auth.uid()`; anon không EXECUTE, authenticated có |
+| Status cho phép | `applied`, `interview`, `offer` (allow-list). `drafted` và mọi status final ⇒ `contact_not_allowed` |
+| Idempotency | cùng namespace `(user, key)` với P2B (`pg_advisory_xact_lock` → replay → khóa row → ghi) |
+| Ghi chú | tối đa 2000 ký tự; `occurred_at` null = `now()`, cho phép quá khứ tới 10 năm, tương lai tối đa 5 phút |
+
+Mã lỗi RPC: `invalid_contact` (22023; id/key/type null hoặc type ngoài 2 giá trị),
+`invalid_note` (22023), `invalid_occurred_at` (22023), `application_not_found` (P0002; cross-account
+giống không tồn tại), `contact_not_allowed` (P0001). Client map hai mã mới thành **từ chối
+dứt khoát** (`isDefiniteRejection`), xoá intent key.
+
+UI chỉ mở ghi event cho `applied`; RPC vẫn nhận `interview`/`offer` (UI không lộ, xem nợ chấp nhận).
+
+## Derivation (view `application_follow_up_state`)
+
+Một row cho mỗi application `status = 'applied'`; không có cột nào lưu trên `applications`.
+
+- **Anchor** = event `status_changed` được **chèn mới nhất** (`created_at DESC, id DESC`) có
+  `to_status = applications.status`. `stage_entered_at` = `occurred_at` của anchor (re-apply
+  backdate vẫn neo ở episode mới).
+- **Episode scope (Task 3):** event contact chỉ tính khi `e.created_at >= anchor.created_at`
+  (cả `last_contact_at` lẫn đếm follow-up). Nếu không, một reply/follow-up của episode cũ có
+  `occurred_at` muộn hơn sẽ điều khiển episode re-apply mới.
+- **Known limit:** `created_at` là thời điểm bắt đầu transaction, nên khi một contact đua với
+  một transition trên cùng app, event có thể bị gán vào episode kề bên (cả hai chiều: contact
+  đua với re-apply; follow-up thời `interview` đua với sửa `interview → applied`). Tác động
+  tối đa một event.
+- `last_contact_at = greatest(stage_entered_at, max(occurred_at) của mọi contact trong episode)`.
+- `follow_ups_since_reset` = số `follow_up_sent` trong episode có `occurred_at` **strictly
+  after** `greatest(stage_entered_at, max(occurred_at) của contact_received)` (reply thắng khi hoà).
+  Follow-up có `occurred_at` tại/trước mốc reset (`greatest(stage_entered_at, reply)`) **không dời timer và không được đếm** (không thể là max của `last_contact_at`); nó chỉ xuất hiện trên Timeline.
+- `follow_up_due_at = last_contact_at + 7 ngày`.
+- `follow_up_state`: `limit_reached` nếu `follow_ups_since_reset >= 2`; ngược lại `due` nếu
+  `now() >= follow_up_due_at`; ngược lại `waiting`.
+- App `applied` không có anchor (chỉ xảy ra khi ghi trực tiếp bằng service) ⇒ **không có row**.
+  Consumer đọc là "không có chỉ báo", không phải lỗi, không tự tính lại ở client.
+- Ngưỡng 7 ngày và giới hạn mềm 2 follow-up là hằng số trong view. Giới hạn mềm không chặn
+  log: lần thứ ba vẫn được ghi (UI vẫn hiện nút).
+
+`contact_received` (Employer replied): reset đồng hồ (7 ngày tính lại từ reply) và reset bộ
+đếm follow-up về 0. Hệ thống không suy luận nội dung phản hồi; không đổi status.
+
+## View, security_invoker và grants
+
+`CREATE VIEW ... WITH (security_invoker = true)`: RLS của bảng gốc (owner + RESTRICTIVE
+`account_unlocked_read`) áp cho người gọi. `REVOKE ALL FROM PUBLIC, anon, authenticated`, rồi
+`GRANT SELECT TO authenticated, service_role` (authenticated chỉ SELECT). View không có cột
+`user_id`; server (service_role) chứng minh ownership bằng query `applications` có
+`user_id` ngay trước đó. `security_invoker` cần PG >= 15 (production PG 17.6; **phải kiểm lại
+trong preflight Phase C**).
+
+## Index: NO INDEX NEEDED (Task 4)
+
+Đo trên DB local dựng từ migration, 5.600 application, 108.410 event (lịch sử lớn nhất 250
+event), chạy bằng role `authenticated` có RLS, `EXPLAIN (ANALYZE, BUFFERS)`, 2 lần chạy
+độc lập. Cả 3 lateral dùng `application_events_timeline_idx` với Index Cond
+`application_id = a.id`: công việc tỉ lệ với lịch sử của chính app và số app `applied` của
+caller, không với cả bảng. Ba dạng query: một app (median 0,148 ms, 39 buffers), lô 20 id
+(0,569 ms, 394 buffers), trang "due" `LIMIT 21` (median 4,85 ms, 5.548 buffers, tuyến tính
+theo số app `applied`, khoảng 13 buffers mỗi app). Ứng viên
+`(application_id, event_type, occurred_at DESC)` được planner chọn cho 2/3 lateral, giảm
+buffer 5,5% (due page) và 14% (lô), không giảm thời gian ⇒ không thêm index (tránh index thứ
+năm trên bảng append-only mọi RPC đều ghi). Xem lại nếu một caller có hàng nghìn app
+`applied`. Giới hạn của phép đo: seed làm `created_at ≈ occurred_at`; chỉ đo custom plan
+(không generic plan); chi phí ghi/lưu của index không được đo; comment tripwire trong SQL test
+còn câu chữ cũ. Test `application_follow_up.test.sql` vẫn khẳng định không có index
+`%contact%`; nếu sau này thêm index đó phải sửa test.
+
+## AI boundary (`action: 'follow_up'`)
+
+- **Body allowlist:** chỉ `action`, `applicationId` (UUID), `language` (`vi|en`, tùy chọn).
+  Key lạ ⇒ 400 (client không gửi được CV/JD/thư/ghi chú).
+- **Server tự nạp snapshot** (`_server-lib/rewriteCv/followUpContext.ts`), lọc theo `user_id` cho `applications` (`id, status, language, company_name, role_title`) và
+  `application_documents` (`document_type, content, language:metadata->>language`); view
+  `application_follow_up_state` (chỉ `follow_ups_since_reset`) không có cột `user_id`, ownership
+  đến từ query `applications` ngay trước đó.
+- **Đầu vào tới Gemini:** CV (parsedCV đã serialize), JD đầy đủ, thư xin việc đã nộp (chỉ làm
+  ngữ điệu, không phải nguồn sự thật), company/role, thứ tự follow-up (1/2/3 bằng chữ, từ lần 4 là "lần tiếp theo"/"another").
+- **Loại trừ:** `metadata` của JD snapshot (kết quả analyze, score) **không bao giờ được select**
+  (chỉ lấy scalar `language` qua alias, trên mọi row); loader không bao giờ select nội dung
+  event/ghi chú (chỉ đọc `follow_ups_since_reset` từ view, view tự tổng hợp `application_events` trong DB); ngày tracker không phải đầu vào; không điểm/matchScore.
+- **Ngôn ngữ:** body `language` > `language` trong metadata của snapshot thư > `applications.language` > `vi`. UI chỉ gửi
+  `language` sau khi người dùng chủ động bấm đổi.
+- **Chỉ `applied`** (khác ⇒ 409). Không ghi gì ngoài hàng `analysis_log`; không event, không đổi status, không lưu bản nháp.
+- **Guard:** bản nháp bắt buộc bắt đầu bằng lời chào cố định (VI "Kính gửi Anh/Chị phụ trách tuyển dụng,", EN "Dear Hiring Team,"), tối đa 1500 ký tự, không honorific + tên viết hoa (Mr/Mrs/Ms/Miss/Dr, Ông/Bà/Cô), cộng `validateCoverLetter` dùng chung (số, số viết chữ, raw-JD, thuật ngữ không có trong CV, JD copy, strength claim; company/role là `allowedPhrases`). Tối đa một retry (JD bị giấu), sau đó fallback `content: ''` + `fidelityFallback: true`. Bản nháp lỗi không bao giờ được trả.
+
+### Quota (P2C)
+
+- **Trần tài liệu theo giờ dùng chung** với cover letter và application review: một nửa trần
+  rewrite (`ceil(hourlyAiLimit/2)`), đếm hàng `kind='rewrite'` có một trong ba marker (xem
+  [11_guard_metrics.md](./11_guard_metrics.md)). Kiểm tra trước khi nạp context và trước Gemini (429).
+- **Không dùng quota phân tích tháng:** không gọi `check_analytics_quota`/`increment_usage_count`;
+  `profiles.usage_count` không đổi. Mọi nỗ lực AI (kể cả lỗi) ghi một row nên đều tính vào trần giờ.
+
+## Rollout (thứ tự)
+
+Mỗi phase là một checkpoint do người dùng duyệt; executor dừng và báo trước A, C, D, E, F.
+
+| Phase | Hành động | Cổng |
+|---|---|---|
+| A. Fallback trước | P2C.0 (#72) đã merge `b6e3c47` và deploy; smoke VI/EN PASS | Timeline production hiện title chung cho type lạ. **`b6e3c47` là target rollback** |
+| B. PR triển khai | PR Task 2–12, CI xanh, migration **không** áp. Preview dùng Supabase production nên: list hiện một thông báo nhỏ `role=status` "Không tải được trạng thái follow-up." và không có chỉ báo; detail không có Field Follow-up (lỗi im lặng); ghi contact và soạn nháp báo lỗi. Đây là kỳ vọng (như preview P2A/P2B) | Review đạt **và** đã xử lý mục 1 (Cancel duplicate) + các blocker do whole-branch review quyết định (theo controller/ledger). Mục 3–5 (alias PostgREST, Gemini thật, browser) chỉ kiểm được ở Phase E; mục 3 có phương án dự phòng (chưa làm) |
+| C. Migration | Preflight read-only: `20261105000000` chưa có trong `schema_migrations`; `pg_get_constraintdef` của CHECK event_type và `application_events_shape` bằng định nghĩa P2B; `to_regclass('public.application_follow_up_state') IS NULL`; `log_application_contact` chưa có; **PG >= 15 (`security_invoker`)**; ghi số event theo type. `supabase db push --linked --dry-run` liệt kê đúng 1 migration, rồi áp. Verify read-only: CHECK mới; `reloptions` có `security_invoker=true`; anon không SELECT view, authenticated chỉ SELECT; RPC DEFINER `search_path=""`, anon EXECUTE false, authenticated true; số event theo type không đổi; `count(*)` view = `count(*)` applications `status='applied'` | Mọi check đạt, sai lệch ⇒ dừng |
+| D. Merge + deploy | Squash merge, Vercel production | Deployment success |
+| E. Production verification | Bên dưới | Mỗi case PASS hoặc ghi là gap |
+| F. Docs closeout | Bên dưới | — |
+
+**Vì sao migration trước deploy app:** app mới đọc view và gọi RPC. App cũ (Phase A) không ghi
+type mới, CHECK mở rộng là additive, Timeline xử lý type lạ bằng fallback ⇒ rollback chỉ app là an toàn
+kể cả sau khi user đã log contact.
+
+**Rollback schema:** để schema ngủ (additive). Chỉ DROP view + RPC và khôi phục CHECK khi có
+**0** event `follow_up_sent`/`contact_received`; khi đã có event thì `REVOKE EXECUTE` thay vì khôi phục CHECK.
+
+## Production verification (kế hoạch — CHƯA CHẠY)
+
+Dùng tài khoản smoke có kiểm soát + application tổng hợp. Mọi trạng thái thời gian tạo qua date
+picker UI (backdate). **Không ghi SQL trên production**; DB chỉ kiểm bằng query read-only.
+
+1. Application P2B (`P2B Smoke Corp`) vẫn load ở list và detail.
+2. Timeline vẫn render; mọi event P2B giữ title.
+3. Analyze → Save → `drafted → applied` (hôm nay): detail hiện `waiting` với hạn 7 ngày sau; thẻ ở list hiện **chỉ báo chữ nhẹ "Đang chờ phản hồi"/"Waiting" (không chip)**.
+4. App smoke mới `drafted → applied` backdate 8 ngày: badge và detail `due`; nằm trong "Cần follow-up", xếp theo hạn.
+5. Soạn follow-up: văn bản bám snapshot CV/JD; payload (network) chỉ có `action`, `applicationId` và có thể `language`. **Trả 200, không 503**: đây là bằng chứng thật đầu tiên cho alias PostgREST `language:metadata->>language` (xem Open before release).
+6. Sau khi sinh, số event Timeline không đổi (`count(*)` read-only theo app).
+7. "Đánh dấu đã gửi" tạo đúng một `follow_up_sent`; double click không trùng.
+8. Trạng thái về `waiting`.
+9. "Nhà tuyển dụng đã phản hồi" tạo đúng một `contact_received`.
+10. Sau reply, `follow_ups_since_reset = 0` (query view read-only).
+11. Hai follow-up sau reply ⇒ `limit_reached`: badge muted, app không còn trong "Cần follow-up".
+12. Lần Mark as sent thứ ba vẫn được ghi, event hiển thị.
+13. App `rejected`: không Field follow-up, không nút contact, không nút soạn.
+14. App `drafted`: tương tự, không UI follow-up.
+15. Cross-account: account thứ hai gọi `applicationId` của account đầu ⇒ 404 và không thấy ở view. Nếu không có account thứ hai, ghi là gap (đã có SQL/server test), như P2B.
+16. Mobile 375 px và desktop: badge list, filter, Field detail, ba panel, không tràn ngang. **Chưa từng kiểm bằng browser thật** (hoãn từ Task 6, 7, 11).
+17. Vercel liệt kê 9 function.
+18. Một lần Analyze hoạt động như cũ (monthly usage +1); soạn follow-up không đổi `profiles.usage_count`.
+
+Toàn vẹn sau smoke: không orphan event; số event theo type khớp thao tác; snapshot P2A/P2B không đổi (fingerprint như smoke P2B).
+
+## Documentation closeout (sau khi verification đạt)
+
+PR docs-only: đánh dấu P2C DEPLOYED / PRODUCTION VERIFIED kèm ngày, PR, SHA merge, thời điểm
+áp migration, bảng 18 case (PASS hoặc gap), các gap; xác nhận `docs/9_api_routes.md` và
+`docs/11_guard_metrics.md` khớp production. Không đánh dấu verified cho thứ chưa smoke.
+
+## Bằng chứng hồi quy (pre-merge)
+
+- SQL, một lần chạy harness: **7/7 PASS** (`application_follow_up`, `application_follow_up_concurrency`,
+  `application_tracker`, `application_tracker_concurrency`, `applications`, `applications_concurrency`,
+  `account_lock`); fixture backfill PASS. Hai dòng `MIGRATION-ERR activate_pro_plan` (migration
+  `20260602100000`) là noise có sẵn của harness, tái hiện trên `b6e3c47`.
+- Vercel functions: 9. File Analyze: 0 thay đổi so với `b6e3c47`.
+- Chưa chạy: Gemini thật, browser 375 px/desktop, PostgREST thật.
+
+## Nợ
+
+### (a) Nợ chấp nhận được
+
+- Transition sửa lỗi (ví dụ `interview → applied`) tạo anchor mới nên nhắc muộn hơn. Fail safe.
+- Ngày user tự backdate được tin cậy. Follow-up có ngày tại/trước mốc reset không dời timer và không được đếm (chỉ hiện trên Timeline).
+- Race `created_at` (Known limit ở mục Derivation): tối đa một event gán nhầm episode.
+- `company_name`/`role_title` là metadata sửa được và dùng làm allowed phrase; một thuật ngữ owner tự gõ trong đó không bị guard bắt.
+- Văn bản follow-up đã gửi không được lưu (chỉ ghi chú riêng tùy chọn).
+- Tự động hoá follow-up cho interview/offer và bản nháp cho chúng: hoãn. RPC nhận log cho chúng, UI không lộ.
+- Detail không có deep link (nợ chấp nhận có sẵn).
+- `FollowUpGuardMetrics` đang là alias của `CoverLetterGuardMetrics` (Minor): phải tách thành type riêng trước khi thêm field chỉ của follow-up.
+- Metrics không phân biệt lỗi độ dài/lời chào với vi phạm khác (violations rỗng).
+- `FollowUpRow` kiểu non-null trong khi catalog view cho phép null (giá trị non-null theo cấu trúc).
+- Detail nuốt lỗi tải follow-up state (không Field, không thông báo); list thì có thông báo. Đây là ruling của controller: plan Task 7 coi việc tải follow-up ở detail là non-fatal.
+- Vài Minor UI hoãn: live region mount có điều kiện, sequence guard chỉ phòng thủ, alert fallback nằm dưới bản nháp cũ, panel `draft` còn mở khi status rời rồi quay lại `applied`.
+- Parked P2B: `details_updated` thiếu `changedFields` qua được CHECK (NULL); client không tới được.
+
+### (b) Open before release (chặn hoặc chưa xác minh — KHÔNG phải nợ chấp nhận)
+
+1. **[Important, BLOCKER] Cancel sau kết quả không xác định có thể tạo event trùng.** Kế hoạch ghi
+   "retry không thể trùng" là **không đúng như đã ship**. Retry và remount phát lại cùng key
+   (intent nằm ở module-scope), nên an toàn. Nhưng bấm **Cancel** sau một lỗi `unknown`
+   gọi `cancel → clearIntent` (`useTrackerMutation.ts`), nên lần lưu lại dùng key mới; nếu request
+   đầu thực ra đã commit thì sinh thêm một event. Hook dùng chung với form status/note/details của
+   P2B nên cần regression cho cả bốn form. Chưa sửa.
+2. **Copy kết quả không xác định.** `trackerErrGeneric` "Chưa lưu được…" ngụ ý thất bại chắc chắn
+   trong khi có thể đã lưu. Đề xuất: VI "Chưa xác nhận được kết quả. Bạn có thể thử lại an toàn." /
+   EN "The result couldn't be confirmed. You can safely retry." (dùng chung với P2B).
+3. **Alias PostgREST chưa xác minh.** `language:metadata->>language` chưa từng chạy trên PostgREST
+   thật (mock-only; harness local chỉ là Postgres). Alias bị từ chối ⇒ fail closed 503 retryable,
+   nên mọi bản nháp sẽ lỗi. Bằng chứng thật đầu tiên là Production Verification case 5. Fallback:
+   select `metadata` và chỉ đọc `language` từ row `cover_letter` (không bao giờ từ JD).
+4. **Gemini thật CHƯA CHẠY** (không có môi trường dev được phép). Chất lượng prompt/tỉ lệ fallback chưa biết.
+5. **Browser 375 px/desktop chờ** (hoãn từ Task 6, 7, 11).
+6. **Lỗ hổng grounding:** tên riêng trơn bịa ra và lời ký tên một từ không bị phát hiện;
+   tương tác được tuyên bố (phỏng vấn, offer, giới thiệu, đã liên hệ trước), lời hứa và tính sẵn sàng chỉ
+   được chặn bằng prompt; check honorific chạy **trước** khi gỡ `allowedPhrases` (dương tính giả như
+   "Bà Rịa", "Cô Tô" ép về fallback). Lỗ hổng regex: bỏ sót "ông Lan" viết thường và "Ms.Lan"; lỗ hổng NFC: văn bản NFD không khớp.
+   Đề xuất sửa có giới hạn trong `check` của `followUpService`: danh sách cụm tương tác xác
+   định (deterministic), và chạy honorific trên văn bản NFC **sau** khi gỡ `allowedPhrases`.

@@ -194,7 +194,7 @@ WHERE a.status = 'applied';
 - **Tie rules:**
   - A follow-up counts only when its `occurred_at` is strictly after the reset point. This follows the spec's literal "occurring after".
   - When a reply and a follow-up share a timestamp, the reply wins and the count is 0.
-  - A follow-up dated at or before the reset point still moves `last_contact_at` through the `max`, but does not count.
+  - A follow-up dated at or before the reset point neither moves the timer nor counts (it can never be the `max` that sets `last_contact_at`).
 - **Grants:** `REVOKE ALL ON public.application_follow_up_state FROM PUBLIC, anon, authenticated; GRANT SELECT ON … TO authenticated, service_role;`. Supabase default privileges would otherwise grant anon. `security_invoker` makes base-table RLS apply, including owner policies and the RESTRICTIVE `account_unlocked_read`. It is supported on PostgreSQL ≥ 15: the local harness runs `postgres:16` and production runs PG 17.6 (docs/15).
 
 - [ ] **Step 1: Write the failing SQL tests.** Use `now()` as the constant transaction time and backdate with `tr(..., at => now() - interval '...')`. Use the test names as `-- name` comments.
@@ -277,7 +277,7 @@ WHERE a.status = 'applied';
 **UX decision (explicit):** cards show a badge only for actionable or explanatory states.
 - `due` gets an accent badge "Nên follow-up / Follow up".
 - `limit_reached` gets a muted badge "Đã đủ lượt follow-up / Limit reached".
-- `waiting` gets **no badge on the card**, to avoid noise on most applied cards. Waiting is shown in the detail view (Task 7).
+- `waiting` gets a **quiet text indicator** on the card (no chip), to avoid noise on most applied cards (Task 6 ruling). Waiting is also shown in the detail view (Task 7).
 - "Hoạt động gần nhất / Last activity" stays unchanged.
 
 **Filter:**
@@ -286,7 +286,7 @@ WHERE a.status = 'applied';
 - The empty state reads "Không có hồ sơ cần follow-up. / No applications need a follow-up."
 - `limit_reached` is excluded. The UI stops prompting for those apps, so they don't belong in an action list.
 
-**Resilience:** the follow-up fetch is non-fatal. If `getFollowUpStates` rejects (for example, a preview before the migration), cards render with no badge and no error.
+**Resilience:** the follow-up fetch is non-fatal. If `getFollowUpStates` rejects (for example, a preview before the migration), cards render with no follow-up indicators and a small role=status load-error notice.
 
 - [ ] **Step 1: Write the failing tests:**
   - a `due` card shows "Nên follow-up", a `limit_reached` card shows the muted label, and a `waiting` card shows neither;
@@ -490,7 +490,7 @@ WHERE a.status = 'applied';
 |---|---|---|
 | *Every phase below is a USER-APPROVED CHECKPOINT. Executors stop and report before A, C, D, E and F.* | | |
 | A. Fallback first | PR P2C.0 (Task 1) goes through CI, merge and Vercel deploy. Confirm cvfit.pro serves the new `ApplicationDetailView` chunk. | Production Timeline shows a generic title for unknown types. **This build is the rollback target from now on**, not `3a3a5bb`. |
-| B. Implementation PR | PR with Tasks 2–12; CI green. The migration is **not** applied. Preview deploys use production Supabase: badges are absent (the failed fetch is non-fatal), and contact logging and drafts fail with not-found or 5xx. This is expected, as with P2A/P2B previews. | Review approved. |
+| B. Implementation PR | PR with Tasks 2–12; CI green. The migration is **not** applied. Preview deploys use production Supabase: the list shows no indicators plus a small role=status load-error notice, and the detail view fails silently (no Follow-up Field), and contact logging and drafts fail with not-found or 5xx. This is expected, as with P2A/P2B previews. | Review approved. |
 | C. Migration | 1) **Preflight, read-only:** `20261105000000` is absent from `supabase_migrations.schema_migrations`; `pg_get_constraintdef` of the event_type CHECK and `application_events_shape` equal the P2B definitions; `to_regclass('public.application_follow_up_state') IS NULL`; `log_application_contact` is absent; event counts by type are recorded. 2) `supabase db push --linked --dry-run` lists exactly one migration. 3) Apply with `supabase db push --linked`. 4) **Verify, read-only:** the new CHECK definitions; view `reloptions` contains `security_invoker=true`; `has_table_privilege('anon', view, 'SELECT') = false`; authenticated has SELECT only; the RPC is DEFINER with `search_path=""`, anon EXECUTE false and authenticated true; event counts by type are unchanged; `SELECT count(*) FROM view` equals `SELECT count(*) FROM applications WHERE status = 'applied'`. | All checks pass. Any mismatch means stop. |
 | D. Merge + deploy | Squash merge and Vercel production deploy. | Deployment success. |
 | E. Production verification | See below. | All cases pass or are recorded as gaps. |
@@ -506,7 +506,7 @@ Use the controlled smoke account and synthetic applications only. Reach timing s
 
 1. The existing P2B application (`P2B Smoke Corp`) still loads in the list and detail.
 2. Its Timeline still renders, and all P2B events keep their titles.
-3. Analyze → Save → `drafted → applied` (today) shows the `waiting` state in detail with a due date 7 days out, and no badge on the card.
+3. Analyze → Save → `drafted → applied` (today) shows the `waiting` state in detail with a due date 7 days out, and the quiet "Đang chờ phản hồi" text indicator on the card.
 4. A new smoke app with `drafted → applied` backdated 8 days shows `due` on the badge and in detail, and appears under "Needs follow-up", ordered by due date.
 5. Draft follow-up on it produces text grounded in the saved CV/JD. The read-only check: the text references only snapshot facts, and the request payload (network panel) contains only `action`, `applicationId` and possibly `language`.
 6. After generating, the Timeline count is unchanged (read-only `count(*)` by app).
@@ -536,7 +536,7 @@ After production verification passes, in a docs-only PR:
 ## Risks / accepted debt (to carry into docs)
 
 - A correction transition (for example `interview → applied`) creates a new stage anchor, so the reminder is later. This fails safe.
-- User-backdated dates are trusted. A follow-up dated at or before the reset point moves the timer but doesn't count.
+- User-backdated dates are trusted. A follow-up dated at or before the reset point neither moves the timer nor counts (`last_contact_at` is `greatest(stage_entered_at, max contact)`, and the count needs `occurred_at >` the reset point).
 - Promises and availability without digits are guarded by the prompt only.
 - `company_name` and `role_title` are mutable metadata and are used as allowed phrases.
 - Sent follow-up text isn't stored, except in the optional private note.
@@ -545,9 +545,11 @@ After production verification passes, in a docs-only PR:
 
 ## Final plan gate
 
+*Gate answers were updated at Task 12 to reflect the shipped code.*
+
 - **Does every persisted field have one authority?** Yes. The only new persisted data is append-only events. Status stays `applications.status`, and all follow-up values are derived in a view.
 - **Can follow-up eligibility be reconstructed from events?** Yes. The view is a pure function of `applications.status`, `application_events` and `now()`.
-- **Can a retry duplicate an event?** No. One UUID per intent, the advisory lock on `(user, key)`, replay before writes, and `UNIQUE(user_id, idempotency_key)`. This is tested sequentially (Task 2) and in parallel (concurrency test).
+- **Can a retry duplicate an event?** Retries and remounts reuse one UUID per intent, and the advisory lock on `(user, key)`, replay before writes and `UNIQUE(user_id, idempotency_key)` prevent duplicates (tested sequentially in Task 2 and in parallel). But an explicit Cancel after an unknown outcome clears the intent key, so resubmitting can create one duplicate event. This is OPEN Important and a release blocker (see docs/15).
 - **Can a client replace snapshot content sent to Gemini?** No. The body allowlist rejects document fields, and the server loads snapshots filtered by `user_id` (Task 10 sentinel tests).
 - **Can notes leak to Gemini or Sentry?** No. The loader never queries `application_events`. The tracker hook sends only a generic Sentry message (unchanged), and draft text never goes to Sentry (Tasks 10–11).
 - **Can new event types break the old deployed UI?** No. The fallback ships and deploys first (Task 1, Phase A), and the old app never writes the new types.
