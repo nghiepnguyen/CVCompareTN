@@ -42,11 +42,18 @@ const HONORIFIC_NAME = /(?<![\p{L}])(?:Mr|Mrs|Ms|Miss|Dr)(?:\.\s*|\s+)\p{Lu}|(?<
 // Phrases are kept narrow on purpose (past-anchored / first-person) to avoid sending routine drafts to fallback.
 // Borderline (promise / presumption, kept): "as discussed", "tôi cam kết", "lời mời làm việc". Deliberately dropped: bare "i can start",
 // "available from", "cuộc trao đổi", "người giới thiệu", "the offer", "our call", "spoke with".
+// R4: bare "speaking with you/me/your" and bare "giới thiệu tôi" removed (forward-looking / self-introduction); past-contact forms are anchored ("for/after/since/enjoyed speaking with", "was a pleasure/great/nice speaking with", "speaking with you was").
+// Known gap: bare sentence-initial "Great/Nice speaking with you." and "giới thiệu tôi với" stay undetected (adding them flags allowed closings).
+// R4 accepted under-matches vs R2 (284140a), traded for no false positives on future closings: "It was wonderful / really great speaking with you",
+// a time word before "was" ("Speaking with you yesterday was..."), "appreciated the time speaking with", bare "Great/Nice speaking with you.".
+// Accepted over-matches (fail-safe: retry/fallback only): "I would have appreciated speaking with you sooner", "tôi đã giới thiệu tôi là...".
 const CLAIM_PHRASES = [
   // EN prior contact
   'as we discussed', 'as discussed', 'following our conversation', 'our conversation', 'during our call', 'on our call',
-  'after our call', 'thank you for the call', 'our meeting', 'speaking with you', 'speaking with me', 'spoke with you',
-  'spoke with your', 'we spoke', 'speaking with your', 'thank you for your reply', 'thank you for the interview',
+  'after our call', 'thank you for the call', 'our meeting', 'for speaking with', 'enjoyed speaking with', 'after speaking with', 'since speaking with', 'for our call',
+  'was a pleasure speaking with', 'was great speaking with', 'was nice speaking with', 'speaking with you was',
+  'speaking with your team was', 'appreciated speaking with',
+  'spoke with you', 'spoke with your', 'we spoke', 'thank you for your reply', 'thank you for the interview',
   'for interviewing me', 'my interview with', 'accept the offer', 'accept your offer', 'regarding the offer', 'regarding your offer',
   'for the offer', 'for your offer', 'about the offer', 'about your offer', 'referred me', 'my referral', 'i spoke with your recruiter',
   // EN availability / promises
@@ -57,7 +64,8 @@ const CLAIM_PHRASES = [
   // VI prior contact
   'như đã trao đổi', 'theo cuộc trao đổi', 'cuộc trao đổi vừa', 'cuộc trao đổi hôm', 'cuộc trao đổi trước', 'cảm ơn cuộc trao đổi',
   'buổi phỏng vấn vừa', 'buổi phỏng vấn hôm', 'đã phỏng vấn', 'cảm ơn anh/chị đã phản hồi', 'cảm ơn anh/chị đã trả lời',
-  'lời mời làm việc', 'được giới thiệu bởi', 'người giới thiệu tôi', 'giới thiệu tôi',
+  'lời mời làm việc', 'được giới thiệu bởi', 'người giới thiệu tôi', 'đã giới thiệu tôi',
+  'cảm ơn buổi phỏng vấn', 'cảm ơn cuộc gọi', 'chúng ta đã trao đổi',
   // VI availability / promises
   'có thể bắt đầu ngay', 'có thể đi làm ngay', 'sẵn sàng nhận việc', 'sẵn sàng đi làm', 'tôi sẽ gọi', 'tôi cam kết', 'tôi hứa',
 ];

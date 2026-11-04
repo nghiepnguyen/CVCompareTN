@@ -209,6 +209,64 @@ const CLAIMS: Array<[string, 'en' | 'vi', string, string]> = [
   ['vi-promise', 'vi', 'Tôi hứa sẽ cố gắng.', 'Tôi sẽ cố gắng hết sức.'],
 ];
 
+// R4: phrase-list correction. [language, sentence]
+const R4_REJECT: Array<['en' | 'vi', string]> = [
+  ['en', 'Thank you for speaking with me.'],
+  ['en', 'I enjoyed speaking with your team.'],
+  ['en', 'After speaking with your recruiter, I became interested.'],
+  ['en', 'Since speaking with you, I have learned more.'],
+  ['en', 'Thank you for our call yesterday.'],
+  ['vi', 'Tôi được giới thiệu bởi một người quen.'],
+  ['vi', 'Người giới thiệu tôi đã trao đổi với công ty.'],
+  ['vi', 'Cảm ơn buổi phỏng vấn của anh/chị.'],
+  ['vi', 'Cảm ơn cuộc gọi của anh/chị.'],
+  ['vi', 'Như chúng ta đã trao đổi trước đó, tôi vẫn quan tâm.'],
+  ['en', 'It was a pleasure speaking with you.'],
+  ['en', 'It was great speaking with you last week.'],
+  ['en', 'I appreciated speaking with you.'],
+  ['en', 'Speaking with you was very helpful.'],
+  ['vi', 'Anh ấy đã giới thiệu tôi với công ty.'],
+  ['vi', 'Một người bạn đã giới thiệu tôi đến vị trí này.'],
+];
+const R4_ALLOW: Array<['en' | 'vi', string]> = [
+  ['en', 'I look forward to speaking with you.'],
+  ['en', 'I look forward to speaking with your team.'],
+  ['en', 'I would welcome the chance of speaking with you.'],
+  ['en', 'I hope to have the opportunity to speak with you.'],
+  ['en', 'I would welcome a call.'],
+  ['en', 'Our call for applications was a great idea.'],
+  ['vi', 'Tôi xin gửi thư này để giới thiệu tôi và kinh nghiệm của mình.'],
+  ['vi', 'Tôi mong có cơ hội phỏng vấn.'],
+  ['vi', 'Tôi hy vọng nhận được cuộc gọi.'],
+  ['vi', 'Tôi mong chúng ta có cơ hội trao đổi.'],
+  ['en', 'It would be a pleasure speaking with you.'],
+  ['en', 'It would be great speaking with you about the role.'],
+  ['en', 'It would be nice speaking with you.'],
+  ['en', 'I would appreciate speaking with you.'],
+  ['en', 'Speaking with your team would be a privilege.'],
+  ['vi', 'Tôi mong có dịp giới thiệu tôi với anh/chị.'],
+  ['vi', 'Trong thư trước, tôi đã giới thiệu kinh nghiệm của mình.'],
+  ['vi', 'Như chúng ta đã biết, công nghệ thay đổi nhanh.'],
+];
+
+describe('R4 claim phrase correction', () => {
+  it.each(R4_REJECT)('%s rejected: %s', async (lang, sentence) => {
+    const r = await run(insert(sentence, lang === 'vi' ? VI_OK : EN_OK), lang);
+    expect(r.content).toBe('');
+    expect(r.fidelityFallback).toBe(true);
+    expect(r.guardMetrics).toMatchObject({ outcome: 'fallback', retryOutcome: 'invalid', geminiCalls: 2 });
+    expect(generateContent).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(R4_ALLOW)('%s allowed: %s', async (lang, sentence) => {
+    const draft = insert(sentence, lang === 'vi' ? VI_OK : EN_OK);
+    const r = await run(draft, lang);
+    expect(r.guardMetrics).toMatchObject({ outcome: 'valid', geminiCalls: 1 });
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(r.content).toBe(draft);
+  });
+});
+
 describe('R2 claim guard (table)', () => {
   it.each(CLAIMS)('%s unsafe is rejected: %s', async (_g, lang, unsafe) => {
     const ok = lang === 'vi' ? VI_OK : EN_OK;
