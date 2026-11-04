@@ -17,6 +17,7 @@ vi.mock('../../lib/sentry', () => sentry);
 import type { ApplicationEvent } from '../../services/applicationTypes';
 import { ApplicationDetailView } from '../../components/views/applications/ApplicationDetailView';
 import * as intentsModule from '../../components/views/applications/useTrackerMutation';
+import { trackerErrorMessage } from '../../components/views/applications/status';
 
 let seq = 0;
 let app: Record<string, unknown>;
@@ -1420,5 +1421,78 @@ describe('Unknown-outcome idempotency (R1: note / follow_up_sent / contact_recei
     const [k1, k2, k3] = keysOf('log_application_contact');
     expect(k2).toBe(k1);
     expect(k3).not.toBe(k1);
+  });
+});
+
+describe('R3: neutral unknown-outcome copy', () => {
+  const NEUTRAL = { vi: 'Chưa xác nhận được kết quả. Bạn có thể thử lại an toàn.', en: "The result couldn't be confirmed. You can safely retry." } as const;
+  const FAILED = { vi: 'Không lưu được. Vui lòng kiểm tra lại và thử lại.', en: "Couldn't save. Please check and try again." } as const;
+  const NET = { data: null, error: { message: 'Failed to fetch' } };
+  const forms = (L: typeof vi_) => [
+    { name: 'note', rpc: 'add_application_note', open: L.trackerAddNote, box: L.trackerNoteLabel },
+    { name: 'follow_up_sent', rpc: 'log_application_contact', open: L.trackerMarkFollowUpSent, box: L.trackerNoteOptional },
+    { name: 'contact_received', rpc: 'log_application_contact', open: L.trackerEmployerReplied, box: L.trackerNoteOptional },
+  ];
+  const save = (L: typeof vi_, s: ReturnType<typeof forms>[number], text: string) => {
+    fireEvent.click(screen.getByRole('button', { name: s.open }));
+    fireEvent.change(screen.getByLabelText(s.box), { target: { value: text } });
+    fireEvent.click(screen.getByRole('button', { name: L.trackerSave }));
+  };
+
+  it.each(['vi', 'en'] as const)('%s: unknown shows the neutral copy next to Retry, never the definite-failure copy; Retry reuses the key', async (lang) => {
+    ui.lang = lang;
+    const L = UI_LABELS[lang];
+    app.status = 'applied';
+    for (const s of forms(L)) {
+      cleanup(); db.rpc.mockReset(); seq += 1; app = { ...app, id: `app-${seq}` };
+      db.rpc.mockResolvedValueOnce(NET);
+      await renderDetail();
+      save(L, s, 'x');
+      expect(await screen.findByText(NEUTRAL[lang])).toBeTruthy();
+      expect(screen.queryByText(FAILED[lang])).toBeNull();
+      expect(screen.getByRole('button', { name: L.trackerRetry })).toBeTruthy();
+      db.rpc.mockResolvedValueOnce({ data: { event_id: 'e9', replayed: false }, error: null });
+      fireEvent.click(screen.getByRole('button', { name: L.trackerRetry }));
+      await waitFor(() => expect(db.rpc).toHaveBeenCalledTimes(2));
+      const [k1, k2] = db.rpc.mock.calls.map((c) => c[1].p_idempotency_key);
+      expect(k2).toBe(k1);
+    }
+  });
+
+  it.each(['vi', 'en'] as const)('%s: status form unknown shows the neutral copy', async (lang) => {
+    ui.lang = lang;
+    const L = UI_LABELS[lang];
+    db.rpc.mockResolvedValueOnce(NET);
+    await renderDetail();
+    fireEvent.click(screen.getByRole('button', { name: L.trackerChangeStatus }));
+    fireEvent.click(screen.getByRole('button', { name: L.trackerSave }));
+    expect(await screen.findByText(NEUTRAL[lang])).toBeTruthy();
+  });
+
+  it('definite rejections never show the neutral copy', async () => {
+    app.status = 'applied';
+    const cases: [number, string, string][] = [[0, 'invalid_note', vi_.trackerErrInvalid], [1, 'contact_not_allowed', vi_.trackerErrContactNotAllowed]];
+    for (const [i, code, text] of cases) {
+      cleanup(); db.rpc.mockReset(); seq += 1; app = { ...app, id: `app-${seq}` };
+      db.rpc.mockResolvedValueOnce({ data: null, error: { message: code } });
+      await renderDetail();
+      save(vi_, forms(vi_)[i], 'x');
+      expect(await screen.findByText(text)).toBeTruthy();
+      expect(screen.queryByText(NEUTRAL.vi)).toBeNull();
+    }
+    cleanup(); db.rpc.mockReset();
+    db.rpc.mockImplementation(async () => { app.status = 'withdrawn'; return { data: null, error: { message: 'stale_status' } }; });
+    await renderDetail();
+    fireEvent.click(screen.getByRole('button', { name: vi_.trackerChangeStatus }));
+    fireEvent.click(screen.getByRole('button', { name: vi_.trackerSave }));
+    expect(await screen.findByText(vi_.trackerErrStale)).toBeTruthy();
+    expect(screen.queryByText(NEUTRAL.vi)).toBeNull();
+  });
+
+  it('trackerErrorMessage: unknown is neutral; an unmapped definite code gets the definite fallback', () => {
+    for (const lang of ['vi', 'en'] as const) {
+      expect(trackerErrorMessage(UI_LABELS[lang], 'unknown')).toBe(NEUTRAL[lang]);
+      expect(trackerErrorMessage(UI_LABELS[lang], 'future_code' as never)).toBe(FAILED[lang]);
+    }
   });
 });

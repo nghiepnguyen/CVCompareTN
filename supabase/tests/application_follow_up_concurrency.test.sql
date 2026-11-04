@@ -67,4 +67,6 @@ BEGIN
 END $$;
 
 DELETE FROM auth.users WHERE id = current_setting('test.uid')::uuid;
-SELECT 1 FROM public.application_events WHERE user_id = current_setting('test.uid')::uuid HAVING count(*) > 0;
+DO $$ BEGIN
+ ASSERT NOT EXISTS (SELECT 1 FROM public.application_events WHERE user_id = current_setting('test.uid')::uuid), 'events leaked after cleanup';
+END $$;

@@ -53,7 +53,7 @@ Rewrites are defined in [`vercel.json`](../vercel.json).
 | 504 | `{ error: 'Follow-up generation is taking too long. Please try again. (Timeout)', retryable: true }` | Hết ngân sách/timeout |
 | 500 | `{ error: 'Không thể tạo tin nhắn theo dõi. Vui lòng thử lại.', retryable: false }` | Lỗi Gemini |
 
-Ngôn ngữ: `language` trong body > `language` của snapshot thư > `applications.language` > `vi`. Mọi nỗ lực sau bước nạp context đều ghi `analysis_log` (xem [11_guard_metrics.md](./11_guard_metrics.md)).
+Ngôn ngữ: `language` trong body > `language` của snapshot thư > `applications.language` > `vi`. Mỗi nỗ lực sau bước nạp context cố ghi một row `analysis_log` theo kiểu best-effort: insert bị giới hạn bởi deadline và lỗi bị nuốt, còn kiểm tra trần fail open khi tra cứu lỗi, nên không đảm bảo mọi nỗ lực đều được đếm (xem [11_guard_metrics.md](./11_guard_metrics.md)).
 
 **Chấm điểm canonical (Stage 3.7):** `/api/analyze` luôn chấm bằng prompt EN (độc lập ngôn ngữ UI, `scoreVersion = canonical-en-v1`); UI tiếng Việt thêm một bước dịch riêng chỉ cho văn bản trình bày. Chi tiết: [12_canonical_scoring.md](./12_canonical_scoring.md).
 

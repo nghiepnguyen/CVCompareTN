@@ -159,7 +159,12 @@ reaches generation, success or error, with the `followUp` key. See
   empty violation counts, so they are indistinguishable from each other in metrics.
 - Error rows (Gemini/timeout/budget): `{ language, outcome: 'error', category, geminiCalls }`
   and `error_message` is `[follow_up:<category>]`. `geminiCalls` is 0 for
-  `request_budget_exhausted`, else 1. Failed attempts count toward the cap.
+  `request_budget_exhausted`, else 1. Failed attempts normally count toward the cap, but
+  counting is best-effort, not guaranteed: `logAnalysisAttempt` is a deadline-bounded insert
+  (skipped when the request deadline is already reached, aborted at its timeout) and swallows
+  its own failures (`_server-lib/analysisLog.ts`), so an attempt whose row is not written is
+  not counted. The cap check also fails open: on a lookup error or timeout `checkHourlyAiLimit`
+  returns `ok` (`_server-lib/accountLock.ts`, catch block ~94-97). Quota semantics are unchanged.
 - Context failures (404, 409, 422, 503) and auth/429 rejections write no row.
 - Follow-up does not touch monthly usage (`profiles.usage_count`).
 - Never stored: the draft, CV/JD text, company/role, notes.
@@ -167,7 +172,7 @@ reaches generation, success or error, with the `followUp` key. See
 **Shared document cap.** Cover letter, application review and follow-up rows share one
 hourly cap of `ceil(hourlyAiLimit(plan) / 2)` (half of the rewrite limit), counted over
 `kind = 'rewrite'` rows in the last hour with this exact PostgREST filter
-(`_server-lib/accountLock.ts`, `checkHourlyAiLimit`):
+(`_server-lib/accountLock.ts`, `checkHourlyAiLimit`; best-effort and fail-open, see above):
 
 ```
 guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null,guard_metrics->followUp.not.is.null

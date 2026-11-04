@@ -64,6 +64,7 @@ export function trackerErrorMessage(t: UiLabels, code: TrackerErrorCode): string
     case 'invalid_contact':
     case 'invalid_note':
     case 'invalid_details': return t.trackerErrInvalid;
-    default: return t.trackerErrGeneric;
+    case 'unknown': return t.trackerErrGeneric; // outcome unconfirmed: never claim a definite failure
+    default: return t.trackerErrFailed; // unmapped but definite code
   }
 }

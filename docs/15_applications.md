@@ -447,8 +447,8 @@ còn câu chữ cũ. Test `application_follow_up.test.sql` vẫn khẳng định
   event/ghi chú (chỉ đọc `follow_ups_since_reset` từ view, view tự tổng hợp `application_events` trong DB); ngày tracker không phải đầu vào; không điểm/matchScore.
 - **Ngôn ngữ:** body `language` > `language` trong metadata của snapshot thư > `applications.language` > `vi`. UI chỉ gửi
   `language` sau khi người dùng chủ động bấm đổi.
-- **Chỉ `applied`** (khác ⇒ 409). Không ghi gì ngoài hàng `analysis_log`; không event, không đổi status, không lưu bản nháp.
-- **Guard:** bản nháp bắt buộc bắt đầu bằng lời chào cố định (VI "Kính gửi Anh/Chị phụ trách tuyển dụng,", EN "Dear Hiring Team,"), tối đa 1500 ký tự, không honorific + tên viết hoa (Mr/Mrs/Ms/Miss/Dr, Ông/Bà/Cô), cộng `validateCoverLetter` dùng chung (số, số viết chữ, raw-JD, thuật ngữ không có trong CV, JD copy, strength claim; company/role là `allowedPhrases`). Tối đa một retry (JD bị giấu), sau đó fallback `content: ''` + `fidelityFallback: true`. Bản nháp lỗi không bao giờ được trả.
+- **Chỉ `applied`** (khác ⇒ 409). Ruling sản phẩm (M-5): "Soạn follow-up" luôn có cho mọi application `applied`, kể cả `waiting` và `limit_reached`. Đây là công cụ hỗ trợ viết do người dùng chủ động; **soạn nháp không có nghĩa hệ thống khuyên gửi ngay**, không ngụ ý `due`, không ghi event; giới hạn mềm 2 follow-up chưa trả lời chỉ đổi trạng thái khuyến nghị, **không cấm ghi tay lần thứ ba trở đi** (RPC vẫn nhận). Điều kiện chỉ-`applied` phía server và logic due/limit trong DB không đổi. Không ghi gì ngoài hàng `analysis_log`; không event, không đổi status, không lưu bản nháp.
+- **Guard:** bản nháp bắt buộc bắt đầu bằng lời chào cố định (VI "Kính gửi Anh/Chị phụ trách tuyển dụng,", EN "Dear Hiring Team,"), tối đa 1500 ký tự, không honorific + tên viết hoa (Mr/Mrs/Ms/Miss/Dr, Ông/Bà/Cô), cộng `validateCoverLetter` dùng chung (số, số viết chữ, raw-JD, thuật ngữ không có trong CV, JD copy, strength claim; company/role là `allowedPhrases`). Tối đa một retry (JD bị giấu), sau đó fallback `content: ''` + `fidelityFallback: true`. Bản nháp lỗi không bao giờ được trả. Từ R2 (`7cbc1ce`) có thêm lớp kiểm xác định (cụm tương tác/lời hứa/sẵn sàng; honorific trên văn bản NFC sau khi gỡ `allowedPhrases`). Giới hạn còn lại: xem Open before release.
 
 ### Quota (P2C)
 
@@ -456,7 +456,12 @@ còn câu chữ cũ. Test `application_follow_up.test.sql` vẫn khẳng định
   rewrite (`ceil(hourlyAiLimit/2)`), đếm hàng `kind='rewrite'` có một trong ba marker (xem
   [11_guard_metrics.md](./11_guard_metrics.md)). Kiểm tra trước khi nạp context và trước Gemini (429).
 - **Không dùng quota phân tích tháng:** không gọi `check_analytics_quota`/`increment_usage_count`;
-  `profiles.usage_count` không đổi. Mọi nỗ lực AI (kể cả lỗi) ghi một row nên đều tính vào trần giờ.
+  `profiles.usage_count` không đổi.
+- **Đếm vào trần giờ là best-effort, không phải đảm bảo.** Mỗi nỗ lực AI (kể cả lỗi) cố ghi một
+  row `analysis_log`, nhưng insert bị giới hạn bởi deadline và timeout, và lỗi bị nuốt
+  (`_server-lib/analysisLog.ts`): row không ghi được thì nỗ lực đó không được đếm. Kiểm tra trần
+  cũng fail open: lỗi/timeout khi tra cứu trả `ok` (`_server-lib/accountLock.ts`, khoảng dòng 94-97).
+  Ngữ nghĩa quota không đổi.
 
 ## Rollout (thứ tự)
 
@@ -539,24 +544,33 @@ PR docs-only: đánh dấu P2C DEPLOYED / PRODUCTION VERIFIED kèm ngày, PR, SH
 
 ### (b) Open before release (chặn hoặc chưa xác minh — KHÔNG phải nợ chấp nhận)
 
-1. **[Important, BLOCKER] Cancel sau kết quả không xác định có thể tạo event trùng.** Kế hoạch ghi
-   "retry không thể trùng" là **không đúng như đã ship**. Retry và remount phát lại cùng key
-   (intent nằm ở module-scope), nên an toàn. Nhưng bấm **Cancel** sau một lỗi `unknown`
-   gọi `cancel → clearIntent` (`useTrackerMutation.ts`), nên lần lưu lại dùng key mới; nếu request
-   đầu thực ra đã commit thì sinh thêm một event. Hook dùng chung với form status/note/details của
-   P2B nên cần regression cho cả bốn form. Chưa sửa.
-2. **Copy kết quả không xác định.** `trackerErrGeneric` "Chưa lưu được…" ngụ ý thất bại chắc chắn
-   trong khi có thể đã lưu. Đề xuất: VI "Chưa xác nhận được kết quả. Bạn có thể thử lại an toàn." /
-   EN "The result couldn't be confirmed. You can safely retry." (dùng chung với P2B).
-3. **Alias PostgREST chưa xác minh.** `language:metadata->>language` chưa từng chạy trên PostgREST
+**Đã xử lý bằng remediation (vẫn chờ production verification):**
+
+- **Cancel sau kết quả không xác định có thể tạo event trùng: ĐÃ SỬA ở R1 (`90157dd`)** cho
+  `note`, `follow_up_sent`, `contact_received`. Form status/details vốn đã an toàn nhờ CAS
+  (`stale_status` / `stale_application`), nên nhận định cũ "cần regression cho cả bốn form" là chưa
+  chính xác: chỉ ba form ghi event mới cần intent. Vòng đời intent: Retry gửi lại **cùng key và cùng
+  args đã lưu**; **Close giữ intent**; **Abandon cần xác nhận** mới bỏ intent; replay hiện thông báo;
+  hành động mới ⇒ key mới; khóa in-flight chống gửi đồng thời. **Giới hạn còn lại:** intent chỉ nằm
+  trong bộ nhớ (tải lại trang là mất; gửi lại sau reload có thể tạo event trùng); gửi từ tab khác là
+  intent riêng.
+- **Copy kết quả không xác định: ĐÃ SỬA ở R3.** `unknown` hiện thông báo trung tính ("Chưa xác nhận
+  được kết quả. Bạn có thể thử lại an toàn." / "The result couldn't be confirmed. You can safely
+  retry.") cạnh Thử lại/Đóng/Bỏ; mã bị từ chối chắc chắn giữ thông báo riêng; mã chưa ánh xạ dùng
+  `trackerErrFailed` ("Không lưu được. Vui lòng kiểm tra lại và thử lại.").
+- **Grounding: lớp xác định đã thêm ở R2 (`7cbc1ce`)** (cụm cho tương tác được tuyên bố, lời hứa/sẵn
+  sàng, honorific). **Giới hạn còn lại; không chống được bịa hoàn toàn:** danh sách cụm không đầy
+  đủ, bỏ sót diễn đạt khác (ví dụ "I can start tomorrow/Monday", "Thank you for our call", "Cảm ơn
+  buổi phỏng vấn" không có vừa/hôm); cụm ranh giới ("as discussed", "tôi cam kết", "lời mời làm
+  việc"); tên riêng trơn bịa ra và lời ký tên một từ không bị phát hiện; honorific viết hoa tiếng
+  Việt kèm tên có trong CV không bị phát hiện. Tỉ lệ fallback với Gemini thật chưa đo.
+
+**Cổng release còn MỞ:**
+
+1. **Alias PostgREST chưa xác minh.** `language:metadata->>language` chưa từng chạy trên PostgREST
    thật (mock-only; harness local chỉ là Postgres). Alias bị từ chối ⇒ fail closed 503 retryable,
    nên mọi bản nháp sẽ lỗi. Bằng chứng thật đầu tiên là Production Verification case 5. Fallback:
    select `metadata` và chỉ đọc `language` từ row `cover_letter` (không bao giờ từ JD).
-4. **Gemini thật CHƯA CHẠY** (không có môi trường dev được phép). Chất lượng prompt/tỉ lệ fallback chưa biết.
-5. **Browser 375 px/desktop chờ** (hoãn từ Task 6, 7, 11).
-6. **Lỗ hổng grounding:** tên riêng trơn bịa ra và lời ký tên một từ không bị phát hiện;
-   tương tác được tuyên bố (phỏng vấn, offer, giới thiệu, đã liên hệ trước), lời hứa và tính sẵn sàng chỉ
-   được chặn bằng prompt; check honorific chạy **trước** khi gỡ `allowedPhrases` (dương tính giả như
-   "Bà Rịa", "Cô Tô" ép về fallback). Lỗ hổng regex: bỏ sót "ông Lan" viết thường và "Ms.Lan"; lỗ hổng NFC: văn bản NFD không khớp.
-   Đề xuất sửa có giới hạn trong `check` của `followUpService`: danh sách cụm tương tác xác
-   định (deterministic), và chạy honorific trên văn bản NFC **sau** khi gỡ `allowedPhrases`.
+2. **Gemini thật CHƯA CHẠY** (smoke VI/EN). Chất lượng prompt/tỉ lệ fallback chưa biết.
+3. **Browser 375 px/desktop chờ** (hoãn từ Task 6, 7, 11).
+4. **Production migration preflight + smoke** (migration `20261105000000` chưa áp production).

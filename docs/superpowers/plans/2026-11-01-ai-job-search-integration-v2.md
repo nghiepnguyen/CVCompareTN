@@ -540,12 +540,11 @@ Chênh lệch so với yêu cầu roadmap (có chủ đích):
 -   Bản nháp không được lưu; user phải tự xác nhận "đã gửi" thì mới ghi event.
 -   Stale/no-response sweep: không làm.
 
-**Open before release (blocker hoặc chưa xác minh; test hiện có không bao phủ):** Cancel sau kết quả không xác định
-có thể tạo event trùng (Important, blocker; trái với exit criterion "không duplicate khi
-retry"); copy "Chưa lưu được…" cho kết quả không xác định; alias PostgREST
-`language:metadata->>language` chưa xác minh; Gemini thật chưa chạy; browser 375 px/desktop
-chưa kiểm; lỗ hổng grounding (tên trơn, ký tên một từ, tương tác/lời hứa/availability chỉ ở
-prompt; check honorific chạy trước khi gỡ allowedPhrases và trên văn bản chưa NFC). Chi tiết và đề xuất sửa: `docs/15_applications.md`.
+**Open before release (cập nhật sau remediation R1-R3):** Cancel-after-unknown duplicate đã sửa ở R1
+(`90157dd`; intent chỉ trong bộ nhớ, reload/tab khác vẫn có thể trùng); copy kết quả không xác định
+đã sửa ở R3; grounding có lớp xác định từ R2 (`7cbc1ce`) nhưng còn giới hạn (diễn đạt khác, cụm
+ranh giới, tên trơn, ký tên một từ). Còn MỞ: alias PostgREST `language:metadata->>language`, Gemini
+thật VI/EN, browser 375 px/desktop, production migration preflight + smoke. Chi tiết: `docs/15_applications.md`.
 
 ### Logic
 
