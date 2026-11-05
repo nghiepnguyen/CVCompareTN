@@ -1,9 +1,9 @@
 # Kế hoạch tích hợp ý tưởng từ ai-job-search vào cvFit
 
 -   Ngày lập ban đầu: 24/10/2026.
--   Cập nhật: 03/11/2026.
+-   Cập nhật: 05/11/2026.
 -   Trạng thái: P0, P1A, P1B (+ P1B.1), P1C, P2A DEPLOYED / PRODUCTION
-    VERIFIED; P2B DEPLOYED / PRODUCTION VERIFIED (PR #70, `fa1a45f`). Triển khai theo từng stage, không port nguyên stack
+    VERIFIED; P2B DEPLOYED / PRODUCTION VERIFIED (PR #70, `fa1a45f`); P2C DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT (PR #73, `15d90c1`). Triển khai theo từng stage, không port nguyên stack
     upstream.
 -   Repo tham khảo: https://github.com/ai-job-search-dev/ai-job-search
     (nhánh `master`).
@@ -523,9 +523,16 @@ Không chỉ lưu current status; phải giữ timeline.
 
 **Mức tác động:** Backend trung bình, UI trung bình.
 
-**Trạng thái (04/11/2026): IMPLEMENTED — NOT YET PRODUCTION VERIFIED.** Nhánh
-`feat/p2c-contact-events`; migration `20261105000000` **chưa áp production**. Fallback P2C.0
-đã deploy (#72, `b6e3c47` = SHA rollback tối thiểu). Authority:
+**Trạng thái (05/11/2026): P2C — DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT.**
+PR #73 squash-merge 2026-11-05T00:06:06Z, merge/production SHA `15d90c1ada1a40cd7af66d593348aa401438ce3e`;
+Vercel production deployment `dpl_9LHHxuJ3T7R52vvxav89TrT43B7J` (Ready, 9 function, `rewrite-cv` maxDuration 300);
+migration `20261105000000_application_follow_up.sql` đã áp production 2026-11-05 (trước merge, ghi một lần, 88 migration).
+Smoke production 2026-11-05 (tài khoản smoke có kiểm soát, dữ liệu tổng hợp): 18 case, 1–14 PASS, 15 GAP
+(cross-account CHƯA xác minh, không có account thứ hai), 16 PASS WITH GAPS, 17–18 PASS. Gemini production:
+4 bản nháp/5 lần gọi/1 retry/0 fallback, mẫu nhỏ, không phải tỉ lệ hallucination. Nợ mở (Minor/known debt):
+cross-account, clipboard success, keyboard focus-visible, thông báo unknown-outcome bị lặp, độ phủ paraphrase
+của grounding. Chi tiết: `docs/15_applications.md`. Fallback P2C.0
+đã deploy trước (#72, `b6e3c47` = SHA rollback tối thiểu; lịch sử: trước 05/11 trạng thái là IMPLEMENTED — NOT YET PRODUCTION VERIFIED). Authority:
 `docs/15_applications.md` (mục P2C); plan chi tiết:
 `docs/superpowers/plans/2026-11-03-p2c-follow-up-workflow.md`. Tóm tắt: 2 event type
 (`follow_up_sent`, `contact_received`) ghi bởi RPC `log_application_contact`; view

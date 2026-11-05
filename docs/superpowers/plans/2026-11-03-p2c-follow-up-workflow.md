@@ -1,5 +1,7 @@
 # P2C Follow-up Workflow Implementation Plan
 
+> **Release status (2026-11-05):** P2C — DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT (PR #73, `15d90c1`). Authority: `docs/15_applications.md`. The steps and reports below are historical and unchanged.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add deterministic follow-up tracking and grounded follow-up drafting to the existing Application Tracker without creating a second tracker authority.

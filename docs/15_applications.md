@@ -1,8 +1,9 @@
 # Applications (P2A — Save Application + immutable snapshots; P2B — Tracker; P2C — Follow-up)
 
-> P2C (follow-up workflow): **IMPLEMENTED — NOT YET PRODUCTION VERIFIED.** Migration
-> `20261105000000` **chưa áp production**. Có blocker mở trước release, xem
-> [P2C](#p2c--follow-up-workflow) (mục "Open before release").
+> P2C (follow-up workflow): **DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT** (smoke 2026-11-05).
+> PR #73, merge/production SHA `15d90c1`; migration `20261105000000` đã áp production. Bảng 18 case
+> và nợ mở: [P2C](#p2c--follow-up-workflow) (mục "Production verification" và "Known debt (open)").
+> Cross-account (case 15) là GAP, chưa được xác minh.
 
 > P2B (Application Tracker + `application_events`): **DEPLOYED / PRODUCTION VERIFIED**
 > (03/11/2026). PR #70 squash merge `fa1a45f`; migration `20261104000000` áp production
@@ -349,9 +350,12 @@ App và schema rollback **tách biệt**:
 
 # P2C — Follow-up workflow
 
-Trạng thái: **IMPLEMENTED — NOT YET PRODUCTION VERIFIED.** Nhánh `feat/p2c-contact-events`
-(HEAD `5988756` + commit docs này). Migration `20261105000000_application_follow_up.sql`
-**chưa áp production**. Fallback P2C.0 (Timeline hiển thị event type lạ bằng title chung)
+Trạng thái: **P2C — DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT.**
+PR #73 squash-merge 2026-11-05T00:06:06Z, merge/production SHA `15d90c1ada1a40cd7af66d593348aa401438ce3e`; Vercel production deployment `dpl_9LHHxuJ3T7R52vvxav89TrT43B7J` (Ready, 9 function, `rewrite-cv` maxDuration 300); migration `20261105000000_application_follow_up.sql` đã áp production 2026-11-05 (trước merge, `supabase db push --linked`, ghi đúng một lần, 88 migration).
+Production smoke 2026-11-05 (tài khoản smoke có kiểm soát, dữ liệu tổng hợp): 18 case, 1–14 PASS,
+15 GAP, 16 PASS WITH GAPS, 17–18 PASS (bảng bên dưới). Nợ còn mở ở "Known debt (open)".
+(Lịch sử: nhánh `feat/p2c-contact-events`, HEAD `5988756` tại thời điểm viết docs implementation,
+trạng thái khi đó là IMPLEMENTED — NOT YET PRODUCTION VERIFIED.) Fallback P2C.0 (Timeline hiển thị event type lạ bằng title chung)
 đã deploy trước: PR #72, merge `b6e3c47` = **SHA rollback tối thiểu** cho schema P2C
 (không phải `3a3a5bb`). Plan: `docs/superpowers/plans/2026-11-03-p2c-follow-up-workflow.md`.
 
@@ -466,6 +470,7 @@ còn câu chữ cũ. Test `application_follow_up.test.sql` vẫn khẳng định
 ## Rollout (thứ tự)
 
 Mỗi phase là một checkpoint do người dùng duyệt; executor dừng và báo trước A, C, D, E, F.
+**Đã thực hiện A–E; F là closeout này** (C: 2026-11-05 trước merge; D: merge `15d90c1`; E: bảng bên dưới). Bảng là kế hoạch gốc, giữ làm lịch sử.
 
 | Phase | Hành động | Cổng |
 |---|---|---|
@@ -483,37 +488,60 @@ kể cả sau khi user đã log contact.
 **Rollback schema:** để schema ngủ (additive). Chỉ DROP view + RPC và khôi phục CHECK khi có
 **0** event `follow_up_sent`/`contact_received`; khi đã có event thì `REVOKE EXECUTE` thay vì khôi phục CHECK.
 
-## Production verification (kế hoạch — CHƯA CHẠY)
+## Production verification (kết quả 2026-11-05)
 
-Dùng tài khoản smoke có kiểm soát + application tổng hợp. Mọi trạng thái thời gian tạo qua date
-picker UI (backdate). **Không ghi SQL trên production**; DB chỉ kiểm bằng query read-only.
+Smoke trên production `15d90c1` (deployment `dpl_9LHHxuJ3T7R52vvxav89TrT43B7J`) bằng một tài khoản
+smoke có kiểm soát (phiên browser sẵn có), chỉ dữ liệu tổng hợp. Trạng thái thời gian tạo qua date
+picker UI (backdate). Không ghi SQL trên production; DB chỉ kiểm bằng query read-only.
+ID tổng hợp chỉ ghi tiền tố 8 ký tự (S1 `999ab417`, Acme `94112745`).
 
-1. Application P2B (`P2B Smoke Corp`) vẫn load ở list và detail.
-2. Timeline vẫn render; mọi event P2B giữ title.
-3. Analyze → Save → `drafted → applied` (hôm nay): detail hiện `waiting` với hạn 7 ngày sau; thẻ ở list hiện **chỉ báo chữ nhẹ "Đang chờ phản hồi"/"Waiting" (không chip)**.
-4. App smoke mới `drafted → applied` backdate 8 ngày: badge và detail `due`; nằm trong "Cần follow-up", xếp theo hạn.
-5. Soạn follow-up: văn bản bám snapshot CV/JD; payload (network) chỉ có `action`, `applicationId` và có thể `language`. **Trả 200, không 503**: đây là bằng chứng thật đầu tiên cho alias PostgREST `language:metadata->>language` (xem Open before release).
-6. Sau khi sinh, số event Timeline không đổi (`count(*)` read-only theo app).
-7. "Đánh dấu đã gửi" tạo đúng một `follow_up_sent`; double click không trùng.
-8. Trạng thái về `waiting`.
-9. "Nhà tuyển dụng đã phản hồi" tạo đúng một `contact_received`.
-10. Sau reply, `follow_ups_since_reset = 0` (query view read-only).
-11. Hai follow-up sau reply ⇒ `limit_reached`: badge muted, app không còn trong "Cần follow-up".
-12. Lần Mark as sent thứ ba vẫn được ghi, event hiển thị.
-13. App `rejected`: không Field follow-up, không nút contact, không nút soạn.
-14. App `drafted`: tương tự, không UI follow-up.
-15. Cross-account: account thứ hai gọi `applicationId` của account đầu ⇒ 404 và không thấy ở view. Nếu không có account thứ hai, ghi là gap (đã có SQL/server test), như P2B.
-16. Mobile 375 px và desktop: badge list, filter, Field detail, ba panel, không tràn ngang. **Chưa từng kiểm bằng browser thật** (hoãn từ Task 6, 7, 11).
-17. Vercel liệt kê 9 function.
-18. Một lần Analyze hoạt động như cũ (monthly usage +1); soạn follow-up không đổi `profiles.usage_count`.
+| # | Case | Kết quả |
+|---|---|---|
+| 1 | Application P2B (`P2B Smoke Corp`) vẫn load ở list và detail | PASS |
+| 2 | Timeline vẫn render; event P2B giữ title | PASS |
+| 3 | `drafted → applied` hôm nay: detail `waiting`, hạn +7 ngày; list chỉ báo chữ nhẹ "Đang chờ phản hồi"/"Waiting" | PASS |
+| 4 | App backdate 8 ngày: `due`, nằm trong "Cần follow-up", xếp theo hạn | PASS |
+| 5 | Soạn follow-up bám snapshot; payload chỉ `action`, `applicationId`, tùy chọn `language`; 200 không 503 (alias PostgREST `language:metadata->>language`; ưu tiên ngôn ngữ: S1 cover en/app vi không gửi language ⇒ EN, explicit en ⇒ EN, Acme cover vi ⇒ 200) | PASS |
+| 6 | Sinh nháp không đổi số event Timeline | PASS |
+| 7 | "Đánh dấu đã gửi" tạo đúng một `follow_up_sent`; double click không trùng | PASS |
+| 8 | Trạng thái về `waiting` sau khi gửi | PASS |
+| 9 | "Nhà tuyển dụng đã phản hồi" tạo đúng một `contact_received` (double click không trùng) | PASS |
+| 10 | Sau reply `follow_ups_since_reset = 0` | PASS |
+| 11 | Hai follow-up sau reply ⇒ `limit_reached` (badge muted, rời "Cần follow-up") | PASS |
+| 12 | Lần Mark as sent thứ ba vẫn được ghi | PASS |
+| 13 | App `rejected`: không Field follow-up, nút contact, nút soạn | PASS |
+| 14 | App `drafted`: không UI follow-up | PASS |
+| 15 | Cross-account (account thứ hai gọi `applicationId` của account đầu ⇒ 404, không thấy ở view) | **GAP**: không có account thứ hai được ủy quyền. Chưa xác minh bằng browser/API xác thực. Chỉ có SQL/server test, anon `42501`, no-auth `401` |
+| 16 | Mobile 375 px và desktop 1024 px: badge, filter, Field detail, ba panel | PASS WITH GAPS: không tràn ngang, panel wrap, loading được announce, 0 console error. Gap: đường clipboard thành công không test được trong browser test (thông báo fallback hoạt động); chưa xác nhận keyboard focus-visible |
+| 17 | Vercel liệt kê 9 function | PASS (production `15d90c1`, 9 function) |
+| 18 | Analyze hoạt động như cũ (monthly usage +1); soạn follow-up không đổi `profiles.usage_count` | PASS (usage 4→5 chỉ do Analyze; 4 lần soạn nháp không đổi `usage_count`) |
 
-Toàn vẹn sau smoke: không orphan event; số event theo type khớp thao tác; snapshot P2A/P2B không đổi (fingerprint như smoke P2B).
+Bằng chứng bổ sung:
+
+- **R1 trên production (kết quả không xác định):** response bị drop phía page sau khi commit ⇒ UI
+  `unknown` (thông báo trung tính + giải thích chưa xác nhận) ⇒ Close giữ intent ⇒ mở lại bị khóa
+  (field disabled; Retry/Abandon/Close) ⇒ Abandon cần xác nhận (đã hủy) ⇒ Retry cùng key và payload
+  ⇒ `replayed:true`, cùng event, thông báo "Lần gửi trước đã được ghi nhận. Không tạo bản trùng."
+  Không có bản trùng.
+- **Hồi quy P2B:** app/timeline P2B vẫn đúng; `drafted → applied` và `applied → rejected` hoạt động.
+- **Gemini production (smoke giới hạn, dữ liệu tổng hợp):** 4 bản nháp, 5 lần gọi Gemini, 1 lần retry
+  fidelity (vòng đầu bị từ chối `rawJd: 1`, đã phục hồi), 0 fallback, latency server 1.6-3.2 s;
+  trong các bản nháp đã xem không có khẳng định sự kiện không được hỗ trợ (không bịa liên hệ/phỏng vấn/offer/giới thiệu/lịch rảnh).
+  **Đây KHÔNG phải phép đo tỉ lệ hallucination thống kê**, chỉ là mẫu nhỏ. (Smoke local tổng hợp E1 riêng: 6 bản nháp, 9 lần gọi, 3 retry, 0 fallback.)
+- **Toàn vẹn dữ liệu:** trước apps 6 / docs 14 / events 21; sau apps 7 / docs 17 / events 31; cả 10
+  event mới nằm trên fixture tổng hợp của smoke; 0 orphan; 0 idempotency key trùng; snapshot tài liệu
+  có sẵn không đổi (fingerprint); fingerprint application của user khác không đổi; migration ghi một lần.
+- **Migration (2026-11-05, trước merge):** dry-run liệt kê đúng 1; check authority sau áp PASS (view
+  `security_invoker=true`; RPC SECURITY DEFINER `search_path=""`; anon không EXECUTE/SELECT;
+  authenticated có EXECUTE/SELECT; CHECK đã validate; RPC/grant/policy/RLS P2B không đổi; quyền đầy đủ
+  của `service_role` trên view đến từ Supabase default ACL, view non-updatable).
 
 ## Documentation closeout (sau khi verification đạt)
 
-PR docs-only: đánh dấu P2C DEPLOYED / PRODUCTION VERIFIED kèm ngày, PR, SHA merge, thời điểm
-áp migration, bảng 18 case (PASS hoặc gap), các gap; xác nhận `docs/9_api_routes.md` và
-`docs/11_guard_metrics.md` khớp production. Không đánh dấu verified cho thứ chưa smoke.
+PR docs-only (đây là closeout đó): đánh dấu P2C DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT kèm
+ngày, PR, SHA merge, thời điểm áp migration, bảng 18 case (PASS hoặc gap) và các gap; đã đối chiếu
+`docs/9_api_routes.md` và `docs/11_guard_metrics.md`. Không đánh dấu verified cho thứ chưa smoke
+(cross-account, clipboard success, keyboard focus-visible vẫn là gap).
 
 ## Bằng chứng hồi quy (pre-merge)
 
@@ -522,7 +550,7 @@ PR docs-only: đánh dấu P2C DEPLOYED / PRODUCTION VERIFIED kèm ngày, PR, SH
   `account_lock`); fixture backfill PASS. Hai dòng `MIGRATION-ERR activate_pro_plan` (migration
   `20260602100000`) là noise có sẵn của harness, tái hiện trên `b6e3c47`.
 - Vercel functions: 9. File Analyze: 0 thay đổi so với `b6e3c47`.
-- Chưa chạy: Gemini thật, browser 375 px/desktop, PostgREST thật.
+- (Lịch sử, tại thời điểm pre-merge) chưa chạy: Gemini thật, browser 375 px/desktop, PostgREST thật. Các mục này đã được chạy sau đó ở E1/E2-D, xem Production verification.
 
 ## Nợ
 
@@ -542,11 +570,14 @@ PR docs-only: đánh dấu P2C DEPLOYED / PRODUCTION VERIFIED kèm ngày, PR, SH
 - Vài Minor UI hoãn: live region mount có điều kiện, sequence guard chỉ phòng thủ, alert fallback nằm dưới bản nháp cũ, panel `draft` còn mở khi status rời rồi quay lại `applied`.
 - Parked P2B: `details_updated` thiếu `changedFields` qua được CHECK (NULL); client không tới được.
 
-### (b) Open before release (chặn hoặc chưa xác minh — KHÔNG phải nợ chấp nhận)
+### (b) Open before release: lịch sử và kết quả
 
-**Đã xử lý bằng remediation (vẫn chờ production verification):**
+Các mục dưới đây là cổng release trước 2026-11-05. Trạng thái hiện tại: tất cả đã RESOLVED/VERIFIED
+trừ phần nợ ở "Known debt (open)". Giữ nguyên nội dung remediation làm lịch sử.
 
-- **Cancel sau kết quả không xác định có thể tạo event trùng: ĐÃ SỬA ở R1 (`90157dd`)** cho
+**Đã xử lý bằng remediation (nay VERIFIED trên production):**
+
+- **Cancel sau kết quả không xác định có thể tạo event trùng: ĐÃ SỬA ở R1 (`90157dd`), VERIFIED production (mục R1 trong Bằng chứng bổ sung)** cho
   `note`, `follow_up_sent`, `contact_received`. Form status/details vốn đã an toàn nhờ CAS
   (`stale_status` / `stale_application`), nên nhận định cũ "cần regression cho cả bốn form" là chưa
   chính xác: chỉ ba form ghi event mới cần intent. Vòng đời intent: Retry gửi lại **cùng key và cùng
@@ -554,23 +585,30 @@ PR docs-only: đánh dấu P2C DEPLOYED / PRODUCTION VERIFIED kèm ngày, PR, SH
   hành động mới ⇒ key mới; khóa in-flight chống gửi đồng thời. **Giới hạn còn lại:** intent chỉ nằm
   trong bộ nhớ (tải lại trang là mất; gửi lại sau reload có thể tạo event trùng); gửi từ tab khác là
   intent riêng.
-- **Copy kết quả không xác định: ĐÃ SỬA ở R3.** `unknown` hiện thông báo trung tính ("Chưa xác nhận
+- **Copy kết quả không xác định: ĐÃ SỬA ở R3, VERIFIED production (copy trung tính hiển thị; xem nợ Minor về thông báo trùng).**
+  `unknown` hiện thông báo trung tính ("Chưa xác nhận
   được kết quả. Bạn có thể thử lại an toàn." / "The result couldn't be confirmed. You can safely
   retry.") cạnh Thử lại/Đóng/Bỏ; mã bị từ chối chắc chắn giữ thông báo riêng; mã chưa ánh xạ dùng
   `trackerErrFailed` ("Không lưu được. Vui lòng kiểm tra lại và thử lại.").
-- **Grounding: lớp xác định đã thêm ở R2 (`7cbc1ce`)** (cụm cho tương tác được tuyên bố, lời hứa/sẵn
-  sàng, honorific). **Giới hạn còn lại; không chống được bịa hoàn toàn:** danh sách cụm không đầy
+- **Grounding: lớp xác định đã thêm ở R2 (`7cbc1ce`); smoke production giới hạn đạt (xem Gemini ở trên), nhưng giới hạn còn lại vẫn là nợ mở.**
+  Lớp gồm cụm cho tương tác được tuyên bố, lời hứa/sẵn sàng, honorific. Không chống được bịa hoàn toàn: danh sách cụm không đầy
   đủ, bỏ sót diễn đạt khác (ví dụ "I can start tomorrow/Monday", "Thank you for our call", "Cảm ơn
   buổi phỏng vấn" không có vừa/hôm); cụm ranh giới ("as discussed", "tôi cam kết", "lời mời làm
   việc"); tên riêng trơn bịa ra và lời ký tên một từ không bị phát hiện; honorific viết hoa tiếng
-  Việt kèm tên có trong CV không bị phát hiện. Tỉ lệ fallback với Gemini thật chưa đo.
+  Việt kèm tên có trong CV không bị phát hiện.
 
-**Cổng release còn MỞ:**
+**Các cổng release trước đây (nay đã đóng):**
 
-1. **Alias PostgREST chưa xác minh.** `language:metadata->>language` chưa từng chạy trên PostgREST
-   thật (mock-only; harness local chỉ là Postgres). Alias bị từ chối ⇒ fail closed 503 retryable,
-   nên mọi bản nháp sẽ lỗi. Bằng chứng thật đầu tiên là Production Verification case 5. Fallback:
-   select `metadata` và chỉ đọc `language` từ row `cover_letter` (không bao giờ từ JD).
-2. **Gemini thật CHƯA CHẠY** (smoke VI/EN). Chất lượng prompt/tỉ lệ fallback chưa biết.
-3. **Browser 375 px/desktop chờ** (hoãn từ Task 6, 7, 11).
-4. **Production migration preflight + smoke** (migration `20261105000000` chưa áp production).
+1. **Alias PostgREST: RESOLVED/VERIFIED.** E1-A (anon, zero-row) xác nhận parser + projection; E2-D xác nhận trên row thật: Acme (cover vi) 200, S1 (cover en, app vi) không gửi language ⇒ EN, explicit en ⇒ EN. (Cũ: chưa từng chạy trên PostgREST thật; fallback select `metadata` không cần dùng.)
+2. **Gemini thật: RESOLVED (smoke giới hạn).** E1 local 6 bản nháp/9 lần gọi/3 retry/0 fallback; E2-D production 4 bản nháp/5 lần gọi/1 retry/0 fallback. Mẫu nhỏ, KHÔNG phải tỉ lệ hallucination.
+3. **Browser 375 px/desktop: RESOLVED (case 16 PASS WITH GAPS).**
+4. **Production migration preflight + smoke: RESOLVED.** Preflight read-only PASS, dry-run đúng 1 migration, áp 2026-11-05, check authority PASS.
+
+### Known debt (open)
+
+Mọi mục dưới đây vẫn MỞ (Minor/known debt), chưa sửa. Danh sách nợ chấp nhận được ở (a) vẫn giữ nguyên.
+
+- **Khoảng trống xác minh:** (1) cross-account smoke xác thực bằng account thứ hai được ủy quyền (case 15); (2) đường clipboard thành công (case 16); (3) hành vi keyboard focus-visible (case 16).
+- **Intent R1 chỉ giữ trong bộ nhớ trang** (reload/tab khác là intent mới, có thể tạo event trùng).
+- **Minor UI:** thông báo kết quả không xác định bị lặp (copy trung tính của FormShell cộng giải thích unresolved).
+- **AI grounding:** độ phủ paraphrase chưa đầy đủ (các khoảng trống đã biết ở danh sách "Giới hạn còn lại" của Grounding R2 ở trên và trong comment của `followUpService`); mẫu smoke production nhỏ; chưa có tỉ lệ fallback thống kê; chưa có ước lượng thống kê tỉ lệ hallucination. E1 ghi thêm: 3/6 bản nháp local qua vòng đầu phải retry với lý do chưa ghi lại; smoke tiếp theo cần ghi `firstPassViolations` và loại không an toàn; Minor: tính từ "robust" thêm thắt, "trao đổi thêm" mềm, follow-up #2 chưa ghi nhận follow-up trước.
