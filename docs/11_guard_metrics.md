@@ -138,9 +138,11 @@ document cap (`guard_metrics->coverLetter` OR `->applicationReview`, plus
   unknown/missing requirement, verbatim-supported, duplicate).
 - Never a finding message, quote, term, letter or revision.
 
-`kind='rewrite'`, P2C follow-up draft (`action: 'follow_up'`, branch
-`feat/p2c-contact-events`; IMPLEMENTED — NOT YET PRODUCTION VERIFIED) — one row per request that
-reaches generation, success or error, with the `followUp` key. See
+`kind='rewrite'`, P2C follow-up draft (`action: 'follow_up'`; DEPLOYED / PRODUCTION VERIFIED WITH
+KNOWN DEBT, PR #73, production `15d90c1`, 2026-11-05) — one row per request that
+reaches generation, success or error, with the `followUp` key. Production smoke evidence (4 synthetic
+drafts, 5 Gemini calls, 1 fidelity retry whose first pass was rejected with `rawJd: 1` and recovered,
+0 fallbacks) is a small bounded sample, not a hallucination-rate measurement. See
 [15_applications.md](./15_applications.md#p2c--follow-up-workflow).
 
 ```json
