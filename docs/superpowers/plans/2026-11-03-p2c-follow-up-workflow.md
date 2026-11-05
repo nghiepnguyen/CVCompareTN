@@ -1,6 +1,6 @@
 # P2C Follow-up Workflow Implementation Plan
 
-> **Release status (2026-11-05):** P2C — DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT (PR #73, `15d90c1`). Authority: `docs/15_applications.md`. The steps and reports below are historical and unchanged.
+> **Release status (2026-11-05):** P2C — DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT (PR #73, `15d90c1`). Authority: `docs/15_applications.md`. Task 1–12 steps are checked as executed (Task 4 decided NO INDEX, so it made no commit). Remediation R1–R4 and the E1/E2 rollout are recorded in docs/15. The task text and reports below are historical.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -94,12 +94,12 @@ This is a separate small PR (P2C.0). It is merged and deployed **before** the mi
 **Interfaces:**
 - Produces: translation key `trackerEvUnknown: { vi: "Hoạt động", en: "Activity" }`. `eventTitle` never returns `undefined`.
 
-- [ ] **Step 1: Write the failing test** `it('unknown event type renders a generic title')`. Mock timeline rows with `type: 'future_event_type' as ApplicationEvent['type']` (stays outside `ApplicationEventType` permanently) plus the P2C-looking `follow_up_sent` and `contact_received` (unknown to the P2C.0 client), each with `note: 'x'`. Assert `screen.getByText('Hoạt động')` (VI) and, with EN, `'Activity'`. Assert the note `x` still renders.
-- [ ] **Step 2: Run it and confirm it fails.** `npx vitest run src/__tests__/components/ApplicationDetailView.test.tsx -t "unknown event type"` should FAIL because the title isn't found.
-- [ ] **Step 3: Implement.** Add `default: return t.trackerEvUnknown;` to the `eventTitle` switch, and add the key.
-- [ ] **Step 4: Run it and confirm it passes.** Run the same command (PASS), then `npm run lint && npm test`.
-- [ ] **Step 5: Commit** `fix(applications): render unknown timeline events with a generic title`.
-- [ ] **Step 6: USER-APPROVED CHECKPOINT. Stop and report.** Push, PR, merge and deploy (Rollout Phase A) happen only on the user's explicit go-ahead.
+- [x] **Step 1: Write the failing test** `it('unknown event type renders a generic title')`. Mock timeline rows with `type: 'future_event_type' as ApplicationEvent['type']` (stays outside `ApplicationEventType` permanently) plus the P2C-looking `follow_up_sent` and `contact_received` (unknown to the P2C.0 client), each with `note: 'x'`. Assert `screen.getByText('Hoạt động')` (VI) and, with EN, `'Activity'`. Assert the note `x` still renders.
+- [x] **Step 2: Run it and confirm it fails.** `npx vitest run src/__tests__/components/ApplicationDetailView.test.tsx -t "unknown event type"` should FAIL because the title isn't found.
+- [x] **Step 3: Implement.** Add `default: return t.trackerEvUnknown;` to the `eventTitle` switch, and add the key.
+- [x] **Step 4: Run it and confirm it passes.** Run the same command (PASS), then `npm run lint && npm test`.
+- [x] **Step 5: Commit** `fix(applications): render unknown timeline events with a generic title`.
+- [x] **Step 6: USER-APPROVED CHECKPOINT. Stop and report.** Push, PR, merge and deploy (Rollout Phase A) happen only on the user's explicit go-ahead.
 
 ### Task 2: Event types + `log_application_contact` RPC
 
@@ -132,7 +132,7 @@ This is a separate small PR (P2C.0). It is merged and deployed **before** the mi
   - Drop and re-add `application_events_shape` with an explicit `WHEN 'created'` branch (note/from/to NULL) and `WHEN 'follow_up_sent', 'contact_received' THEN from_status IS NULL AND to_status IS NULL`, with note optional. Its `ELSE` becomes `false`.
 - No backfill.
 
-- [ ] **Step 1: Write the failing SQL tests** in `application_follow_up.test.sql`. Copy the P2B harness helpers (`set_user`, `fails`, `tr`, `save`, `events`) from `application_tracker.test.sql:4-37`, add `pg_temp.contact(app uuid, type text, intent text, at timestamptz DEFAULT NULL, note text DEFAULT NULL)`, and assert:
+- [x] **Step 1: Write the failing SQL tests** in `application_follow_up.test.sql`. Copy the P2B harness helpers (`set_user`, `fails`, `tr`, `save`, `events`) from `application_tracker.test.sql:4-37`, add `pg_temp.contact(app uuid, type text, intent text, at timestamptz DEFAULT NULL, note text DEFAULT NULL)`, and assert:
   - **catalog:** DEFINER, `search_path=""`, anon cannot EXECUTE, authenticated can EXECUTE; the CHECK names exist;
   - `contact(app_drafted, 'follow_up_sent', …)` fails with `P0001 contact_not_allowed`, and the same holds for each of the 5 final statuses and for `contact_received`;
   - for `applied`, `interview` and `offer`, each type inserts exactly one event with `from_status IS NULL AND to_status IS NULL`, and status is unchanged;
@@ -145,11 +145,11 @@ This is a separate small PR (P2C.0). It is merged and deployed **before** the mi
   - direct `INSERT` into `application_events` as authenticated is denied;
   - shape CHECK: inserting as owner a `follow_up_sent` with `to_status` set fails `23514`, and a `created` with a note still fails `23514`;
   - after `save` + `tr(drafted→applied)` + one contact event, a `transition` still works.
-- [ ] **Step 2: Write the failing concurrency test** `application_follow_up_concurrency.test.sql`, following the dblink pattern in `application_tracker_concurrency.test.sql`. Two sessions call `log_application_contact` with the same key and different notes. Assert 1 event and that both results carry the same `event_id`.
-- [ ] **Step 3: Run them and confirm they fail.** `supabase/tests/local/run.sh "$PWD" /repo/tests/application_follow_up.test.sql /repo/tests/application_follow_up_concurrency.test.sql` should FAIL because the function doesn't exist.
-- [ ] **Step 4: Implement the CHECK changes and the RPC** in the migration, as decided above.
-- [ ] **Step 5: Run them and confirm they pass,** together with the P2A/P2B regression: `supabase/tests/local/run.sh "$PWD" /repo/tests/application_follow_up.test.sql /repo/tests/application_follow_up_concurrency.test.sql /repo/tests/application_tracker.test.sql /repo/tests/application_tracker_concurrency.test.sql /repo/tests/applications.test.sql /repo/tests/applications_concurrency.test.sql /repo/tests/account_lock.test.sql`. All must PASS with no `MIGRATION-ERR` line. Then run the backfill fixture test: `FIXTURE_BEFORE=20261104000000:/repo/tests/fixtures/pre_p2b_applications.sql supabase/tests/local/run.sh "$PWD" /repo/tests/applications_backfill.fixture-test.sql`.
-- [ ] **Step 6: Commit** `feat(applications): add follow_up_sent / contact_received events and log RPC`.
+- [x] **Step 2: Write the failing concurrency test** `application_follow_up_concurrency.test.sql`, following the dblink pattern in `application_tracker_concurrency.test.sql`. Two sessions call `log_application_contact` with the same key and different notes. Assert 1 event and that both results carry the same `event_id`.
+- [x] **Step 3: Run them and confirm they fail.** `supabase/tests/local/run.sh "$PWD" /repo/tests/application_follow_up.test.sql /repo/tests/application_follow_up_concurrency.test.sql` should FAIL because the function doesn't exist.
+- [x] **Step 4: Implement the CHECK changes and the RPC** in the migration, as decided above.
+- [x] **Step 5: Run them and confirm they pass,** together with the P2A/P2B regression: `supabase/tests/local/run.sh "$PWD" /repo/tests/application_follow_up.test.sql /repo/tests/application_follow_up_concurrency.test.sql /repo/tests/application_tracker.test.sql /repo/tests/application_tracker_concurrency.test.sql /repo/tests/applications.test.sql /repo/tests/applications_concurrency.test.sql /repo/tests/account_lock.test.sql`. All must PASS with no `MIGRATION-ERR` line. Then run the backfill fixture test: `FIXTURE_BEFORE=20261104000000:/repo/tests/fixtures/pre_p2b_applications.sql supabase/tests/local/run.sh "$PWD" /repo/tests/applications_backfill.fixture-test.sql`.
+- [x] **Step 6: Commit** `feat(applications): add follow_up_sent / contact_received events and log RPC`.
 
 ### Task 3: Follow-up read model `application_follow_up_state`
 
@@ -199,7 +199,7 @@ WHERE a.status = 'applied';
   - A follow-up dated at or before the reset point neither moves the timer nor counts (it can never be the `max` that sets `last_contact_at`).
 - **Grants:** `REVOKE ALL ON public.application_follow_up_state FROM PUBLIC, anon, authenticated; GRANT SELECT ON … TO authenticated, service_role;`. Supabase default privileges would otherwise grant anon. `security_invoker` makes base-table RLS apply, including owner policies and the RESTRICTIVE `account_unlocked_read`. It is supported on PostgreSQL ≥ 15: the local harness runs `postgres:16` and production runs PG 17.6 (docs/15).
 
-- [ ] **Step 1: Write the failing SQL tests.** Use `now()` as the constant transaction time and backdate with `tr(..., at => now() - interval '...')`. Use the test names as `-- name` comments.
+- [x] **Step 1: Write the failing SQL tests.** Use `now()` as the constant transaction time and backdate with `tr(..., at => now() - interval '...')`. Use the test names as `-- name` comments.
   - **catalog:** `reloptions` of the view contains `security_invoker=true`; `NOT has_table_privilege('anon', view, 'SELECT')`; authenticated has SELECT but no INSERT/UPDATE/DELETE.
   - `drafted_never_due`: a saved app has 0 rows.
   - `drafted_with_applied_at_never_due`: `drafted→applied→drafted` has `applied_at` NOT NULL and 0 rows.
@@ -219,22 +219,22 @@ WHERE a.status = 'applied';
   - `updated_at_not_authority`: `last_contact_at <> updated_at` after a note.
   - `rls_cross_account`: as user B, `SELECT count(*) FROM view WHERE application_id = A_app` is 0.
   - `rls_locked`: a locked user sees 0 rows of their own apps.
-- [ ] **Step 2: Run them and confirm they fail.** The Task 2 run command should FAIL because the view doesn't exist.
-- [ ] **Step 3: Implement** the view and grants above in the migration.
-- [ ] **Step 4: Run them and confirm they pass.** Use the same full regression command as Task 2 Step 5 (all PASS).
-- [ ] **Step 5: Commit** `feat(applications): derive follow-up state from events (security_invoker view)`.
+- [x] **Step 2: Run them and confirm they fail.** The Task 2 run command should FAIL because the view doesn't exist.
+- [x] **Step 3: Implement** the view and grants above in the migration.
+- [x] **Step 4: Run them and confirm they pass.** Use the same full regression command as Task 2 Step 5 (all PASS).
+- [x] **Step 5: Commit** `feat(applications): derive follow-up state from events (security_invoker view)`.
 
 ### Task 4: Read-model performance check (decide the index)
 
 **Files:**
 - Create: `scratchpad` script only (not committed). The result goes into the Task 12 docs.
 
-- [ ] **Step 1: Seed a disposable local DB** using the harness (`run.sh` with a seed SQL file in the scratchpad mounted through `HARNESS`). Seed 500 applications for one user (400 of them `applied`), about 20 events each, plus 5 other users with the same volume.
-- [ ] **Step 2: Run EXPLAIN as an RLS-bound caller,** not superuser. Set `set_config('request.jwt.claims', …)`, then `SET ROLE authenticated`, then `EXPLAIN (ANALYZE, BUFFERS)` on:
+- [x] **Step 1: Seed a disposable local DB** using the harness (`run.sh` with a seed SQL file in the scratchpad mounted through `HARNESS`). Seed 500 applications for one user (400 of them `applied`), about 20 events each, plus 5 other users with the same volume.
+- [x] **Step 2: Run EXPLAIN as an RLS-bound caller,** not superuser. Set `set_config('request.jwt.claims', …)`, then `SET ROLE authenticated`, then `EXPLAIN (ANALYZE, BUFFERS)` on:
   - (a) `SELECT * FROM application_follow_up_state WHERE application_id = ANY($20_ids)`;
   - (b) `SELECT application_id, follow_up_due_at FROM application_follow_up_state WHERE follow_up_state = 'due' ORDER BY follow_up_due_at, application_id LIMIT 21`.
-- [ ] **Step 3: Decide using this rule.** If each lateral uses an index scan on `application_events_timeline_idx` (or the `application_id` prefix of the FK path) and query (b) runs under 50 ms locally, **add no index**. Otherwise add `CREATE INDEX application_events_contact_idx ON public.application_events (application_id, event_type, occurred_at DESC);` to the migration, re-run the plans and keep the before/after numbers.
-- [ ] **Step 4: Record** both plans' key lines and the decision for the Task 12 docs. Commit only if an index was added: `perf(applications): index follow-up event lookups`.
+- [x] **Step 3: Decide using this rule.** If each lateral uses an index scan on `application_events_timeline_idx` (or the `application_id` prefix of the FK path) and query (b) runs under 50 ms locally, **add no index**. Otherwise add `CREATE INDEX application_events_contact_idx ON public.application_events (application_id, event_type, occurred_at DESC);` to the migration, re-run the plans and keep the before/after numbers.
+- [x] **Step 4: Record** both plans' key lines and the decision for the Task 12 docs. Commit only if an index was added: `perf(applications): index follow-up event lookups`.
 
 ### Task 5: Tracker client types + service
 
@@ -254,17 +254,17 @@ WHERE a.status = 'applied';
   1. view `.eq('follow_up_state','due').order('follow_up_due_at',{ascending:true}).order('application_id',{ascending:true}).range(from, from+pageSize)`;
   2. `applications.select(SUMMARY_COLUMNS).in('id', ids)`, re-ordered to the view order. Rows missing from step 2 (changed in between) are dropped.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `logApplicationContact` sends `{p_application_id, p_event_type, p_occurred_at, p_note, p_idempotency_key}` and no `p_user_id`;
   - `contact_not_allowed`/`invalid_contact` map to those codes, and `isDefiniteRejection` is true;
   - `getFollowUpStates([])` makes no request;
   - `getFollowUpStates` maps snake_case to `FollowUpInfo`;
   - `listDueApplications` filters `follow_up_state = 'due'` only (never `limit_reached`), orders by `follow_up_due_at` then `application_id`, uses `.range(0, 20)`, keeps view order and drops missing rows;
   - no score column appears in any select string.
-- [ ] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/services/applicationTracker.test.ts` should FAIL.
-- [ ] **Step 3: Implement** the interfaces above, following the existing `unwrap`/`toMutation` helpers.
-- [ ] **Step 4: Run them and confirm they pass,** then `npm run lint`.
-- [ ] **Step 5: Commit** `feat(applications): client service for follow-up state and contact events`.
+- [x] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/services/applicationTracker.test.ts` should FAIL.
+- [x] **Step 3: Implement** the interfaces above, following the existing `unwrap`/`toMutation` helpers.
+- [x] **Step 4: Run them and confirm they pass,** then `npm run lint`.
+- [x] **Step 5: Commit** `feat(applications): client service for follow-up state and contact events`.
 
 ### Task 6: List indicator + "Needs follow-up" filter
 
@@ -290,17 +290,17 @@ WHERE a.status = 'applied';
 
 **Resilience:** the follow-up fetch is non-fatal. If `getFollowUpStates` rejects (for example, a preview before the migration), cards render with no follow-up indicators and a small role=status load-error notice.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - a `due` card shows "Nên follow-up", a `limit_reached` card shows the muted label, and a `waiting` card shows neither;
   - "Hoạt động gần nhất" still shows `updatedAt`;
   - clicking the filter calls `listDueApplications({page:0})`, disables the sort select and renders cards in returned order; clicking again restores `listApplications`;
   - a `getFollowUpStates` rejection still renders the list;
   - EN labels.
   - Layout at 375 px is checked in the browser preview step, not in Vitest.
-- [ ] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/components/ApplicationsView.test.tsx` should FAIL.
-- [ ] **Step 3: Implement** the badge, filter state and the batched `getFollowUpStates(items.map(a => a.id))` after each page load, merged into a `Map` state.
-- [ ] **Step 4: Run them and confirm they pass,** then `npm run lint && npm test`.
-- [ ] **Step 5: Commit** `feat(applications): follow-up indicator and needs-follow-up filter`.
+- [x] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/components/ApplicationsView.test.tsx` should FAIL.
+- [x] **Step 3: Implement** the badge, filter state and the batched `getFollowUpStates(items.map(a => a.id))` after each page load, merged into a `Map` state.
+- [x] **Step 4: Run them and confirm they pass,** then `npm run lint && npm test`.
+- [x] **Step 5: Commit** `feat(applications): follow-up indicator and needs-follow-up filter`.
 
 ### Task 7: Detail follow-up state, contact actions, timeline labels
 
@@ -321,7 +321,7 @@ WHERE a.status = 'applied';
 - **Timeline:** `follow_up_sent` reads "Đã gửi follow-up / Follow-up sent"; `contact_received` reads "Nhà tuyển dụng đã liên hệ / Employer contacted you". Notes render as text through the existing `e.note`.
 - **`trackerErrorMessage`:** `contact_not_allowed` reads "Không thể ghi follow-up ở trạng thái hiện tại." / "Follow-ups can't be logged in the current status."; `invalid_contact` maps to `trackerErrInvalid`.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - applied+waiting shows the waiting text with the due date; due shows "Nên follow-up"; limit shows the text and the neutral hint, with no status change triggered;
   - drafted, interview and final apps show no follow-up Field and no contact buttons;
   - Mark as sent sends one `logApplicationContact` with `eventType:'follow_up_sent'` and a past date as `YYYY-MM-DDT12:00:00+07:00`, today as `null`; a double click produces one call; an uncertain failure keeps the key across remount;
@@ -330,10 +330,10 @@ WHERE a.status = 'applied';
   - after success the detail reloads;
   - the timeline renders both new titles in VI and EN, and Task 1's unknown-type test is updated: `follow_up_sent` / `contact_received` are now known, the `future_event_type` fallback assertion stays;
   - existing Overview, Status, Notes and Details tests are unchanged and pass.
-- [ ] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/components/ApplicationDetailView.test.tsx` should FAIL.
-- [ ] **Step 3: Implement** the interfaces above.
-- [ ] **Step 4: Run them and confirm they pass,** then `npm run lint && npm test`.
-- [ ] **Step 5: Commit** `feat(applications): follow-up state and contact logging in application detail`.
+- [x] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/components/ApplicationDetailView.test.tsx` should FAIL.
+- [x] **Step 3: Implement** the interfaces above.
+- [x] **Step 4: Run them and confirm they pass,** then `npm run lint && npm test`.
+- [x] **Step 5: Commit** `feat(applications): follow-up state and contact logging in application detail`.
 
 ### Task 8: Shared document cap + guard-metrics marker
 
@@ -347,13 +347,13 @@ WHERE a.status = 'applied';
 - `export type FollowUpGuardMetrics = { language: 'vi' | 'en'; outcome: 'valid' | 'recovered' | 'fallback' | 'error'; category?: string; firstPassViolations?: CoverLetterViolationCounts; retryViolations?: CoverLetterViolationCounts; retryOutcome?: FullCvRetryOutcome; geminiCalls: 0 | 1 | 2 };`
 - `GuardMetrics` gains `| { v: 1; followUp: FollowUpGuardMetrics }`.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `follow_up shares the document cap`: `checkHourlyAiLimit('u1','follow_up','free',100)` with count 5 returns `rate_limited`, and with count 4 returns `ok`; the recorded filters include `['eq','kind','rewrite']` and the 3-marker `or` string;
   - update the cover-letter cap test expectation to the 3-marker string. The behavior for cover letters and reviews is unchanged: the same limit and the same kind.
-- [ ] **Step 2: Run them and confirm they fail.** `npx vitest run _server-lib/__tests__/accountLock.test.ts src/__tests__/services/coverLetterHandler.test.ts` should FAIL.
-- [ ] **Step 3: Implement** the interfaces above, and update the comment at `accountLock.ts:66-71` to name follow-ups.
-- [ ] **Step 4: Run them and confirm they pass,** then `npm run lint:api && npm test`. `applicationReview.test.ts` and `guardMetrics.test.ts` must also pass.
-- [ ] **Step 5: Commit** `feat(ai): count follow-up drafts in the shared document cap`.
+- [x] **Step 2: Run them and confirm they fail.** `npx vitest run _server-lib/__tests__/accountLock.test.ts src/__tests__/services/coverLetterHandler.test.ts` should FAIL.
+- [x] **Step 3: Implement** the interfaces above, and update the comment at `accountLock.ts:66-71` to name follow-ups.
+- [x] **Step 4: Run them and confirm they pass,** then `npm run lint:api && npm test`. `applicationReview.test.ts` and `guardMetrics.test.ts` must also pass.
+- [x] **Step 5: Commit** `feat(ai): count follow-up drafts in the shared document cap`.
 
 ### Task 9: Follow-up generation service (prompt + grounding guard)
 
@@ -375,16 +375,16 @@ WHERE a.status = 'applied';
 - A draft longer than `MAX_FOLLOW_UP_CHARS` is treated as invalid and goes to retry or fallback.
 - **Residual risk (documented):** promises and availability without digits ("I can start immediately") are enforced by the prompt only. No existing deterministic guard covers them.
 
-- [ ] **Step 1: Write the failing tests** (mock `generateContent` as in `coverLetterHandler.test.ts:3-7`):
+- [x] **Step 1: Write the failing tests** (mock `generateContent` as in `coverLetterHandler.test.ts:3-7`):
   - a realistic VI draft and EN draft (no digits, company and role named) are `valid`, with 1 Gemini call;
   - a draft with an invented metric ("tăng 30% doanh thu") or an invented skill not in the CV is invalid on the first pass; a clean retry gives `recovered` with 2 calls; an invalid retry gives `fallback` with `content ''`;
   - an invented person's name ("Dear Ms. Lan") is flagged;
   - an over-long draft goes to retry;
   - `buildFollowUpInstruction('vi')` contains the no-digits and no-availability rules, and the user content contains no `matchScore`.
-- [ ] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/services/followUpGuard.test.ts` should FAIL.
-- [ ] **Step 3: Implement** the interfaces above.
-- [ ] **Step 4: Run them and confirm they pass,** then `npm run lint:api`.
-- [ ] **Step 5: Commit** `feat(ai): grounded follow-up draft generation`.
+- [x] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/services/followUpGuard.test.ts` should FAIL.
+- [x] **Step 3: Implement** the interfaces above.
+- [x] **Step 4: Run them and confirm they pass,** then `npm run lint:api`.
+- [x] **Step 5: Commit** `feat(ai): grounded follow-up draft generation`.
 
 ### Task 10: `follow_up` action with server-owned snapshots
 
@@ -411,7 +411,7 @@ WHERE a.status = 'applied';
 - **Language precedence:** an explicit `language` in the request (the user's per-draft override) wins. Otherwise use `defaultLanguage`: cover-letter snapshot language, then `applications.language`. The UI locale is never used.
 - **No writes.** No writes to `applications`, `application_documents` or `application_events`, and no `check_analytics_quota`/`increment_usage_count` RPC.
 
-- [ ] **Step 1: Write the failing tests.** Extend the `coverLetterHandler.test.ts` admin mock with per-table fixtures for `applications`, `application_documents` and `application_follow_up_state`, and record every `insert/update/upsert/delete/rpc` call. Use sentinels: the CV snapshot contains `SNAPSHOT_CV_SENTINEL`, the JD snapshot `SNAPSHOT_JD_SENTINEL`, and `jd.metadata.analysis.requirements[0].requirement = 'ANALYSIS_SENTINEL'` with `matchScore: 77`.
+- [x] **Step 1: Write the failing tests.** Extend the `coverLetterHandler.test.ts` admin mock with per-table fixtures for `applications`, `application_documents` and `application_follow_up_state`, and record every `insert/update/upsert/delete/rpc` call. Use sentinels: the CV snapshot contains `SNAPSHOT_CV_SENTINEL`, the JD snapshot `SNAPSHOT_JD_SENTINEL`, and `jd.metadata.analysis.requirements[0].requirement = 'ANALYSIS_SENTINEL'` with `matchScore: 77`.
   - `rejects body-supplied documents`: a body with `parsedCV`/`jd`/`coverLetter`/`cvText` returns 400 and `generateContent` is not called.
   - `prompt is built from the stored snapshot`: with a valid request, the `generateContent` arguments contain `SNAPSHOT_CV_SENTINEL` and `SNAPSHOT_JD_SENTINEL`, and contain none of `ANALYSIS_SENTINEL`, `matchScore`, `77` or `NOTE_SENTINEL`.
   - Both `applications` and `application_documents` filters include `['eq','user_id','user-1']`, and no `application_events` query is made.
@@ -423,10 +423,10 @@ WHERE a.status = 'applied';
   - `success log`: the insert has `kind 'rewrite'` and `guard_metrics.followUp.outcome`.
   - `no monthly quota`: no `rpc` call was recorded.
   - Existing `cover_letter`, `application_review` and `rewrite` tests still pass unchanged.
-- [ ] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/services/followUpHandler.test.ts` should FAIL.
-- [ ] **Step 3: Implement** `loadFollowUpContext`, `handleFollowUp` and the dispatch line `if (action === 'follow_up') return handleFollowUp(authHeader, body);`.
-- [ ] **Step 4: Run them and confirm they pass,** then `npm run lint:api && npm test`. `errorPrivacy.test.ts` must still pass.
-- [ ] **Step 5: Commit** `feat(ai): follow_up action on rewrite-cv using server-loaded application snapshots`.
+- [x] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/services/followUpHandler.test.ts` should FAIL.
+- [x] **Step 3: Implement** `loadFollowUpContext`, `handleFollowUp` and the dispatch line `if (action === 'follow_up') return handleFollowUp(authHeader, body);`.
+- [x] **Step 4: Run them and confirm they pass,** then `npm run lint:api && npm test`. `errorPrivacy.test.ts` must still pass.
+- [x] **Step 5: Commit** `feat(ai): follow_up action on rewrite-cv using server-loaded application snapshots`.
 
 ### Task 11: Draft follow-up UI
 
@@ -447,7 +447,7 @@ WHERE a.status = 'applied';
 - **No tracker mutation** follows generation, and the timeline is not reloaded.
 - Errors map by HTTP status: 429 is rate limit, 409 is "not available in the current status", other codes get the generic message. Reuse CoverLetterAction's status-to-message mapping if it's exported, otherwise add keys. Nothing goes to Sentry with draft text.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - Generate calls `generateFollowUpDraft({ applicationId })` with no `language` when untouched, and with UI locale `en` but app language `vi`, the toggle shows VI;
   - toggling to EN sends `language:'en'`;
   - the draft renders, and `logApplicationContact` and `transitionApplicationStatus` are **not** called and the timeline fetch count is unchanged;
@@ -455,22 +455,22 @@ WHERE a.status = 'applied';
   - fallback copy appears;
   - 429 shows the rate-limit message;
   - the button is hidden for drafted, interview and final apps.
-- [ ] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/components/ApplicationDetailView.test.tsx -t "Draft follow-up"` should FAIL.
-- [ ] **Step 3: Implement** the interfaces above.
-- [ ] **Step 4: Run them and confirm they pass,** then `npm run lint && npm test`.
-- [ ] **Step 5: Commit** `feat(applications): follow-up draft panel (not persisted, never logs sent)`.
+- [x] **Step 2: Run them and confirm they fail.** `npx vitest run src/__tests__/components/ApplicationDetailView.test.tsx -t "Draft follow-up"` should FAIL.
+- [x] **Step 3: Implement** the interfaces above.
+- [x] **Step 4: Run them and confirm they pass,** then `npm run lint && npm test`.
+- [x] **Step 5: Commit** `feat(applications): follow-up draft panel (not persisted, never logs sent)`.
 
 ### Task 12: Full regression + pre-merge authority docs
 
 **Files:**
 - Modify: `docs/15_applications.md` (new "P2C" section), `docs/superpowers/plans/2026-11-01-ai-job-search-integration-v2.md` (P2C status: IMPLEMENTED, not production verified), `docs/9_api_routes.md` (row for `action: 'follow_up'`), `docs/11_guard_metrics.md` (`followUp` shape and the document-cap filter).
 
-- [ ] **Step 1: Run every SQL suite in one harness run:** `supabase/tests/local/run.sh "$PWD" /repo/tests/application_follow_up.test.sql /repo/tests/application_follow_up_concurrency.test.sql /repo/tests/application_tracker.test.sql /repo/tests/application_tracker_concurrency.test.sql /repo/tests/applications.test.sql /repo/tests/applications_concurrency.test.sql /repo/tests/account_lock.test.sql`. Every line must be PASS with no `MIGRATION-ERR`. Then run the backfill fixture command from Task 2.
-- [ ] **Step 2: Run** `npm run lint && npm run lint:api && npm test && npm run build`. All must pass.
-- [ ] **Step 3: Check the function count and Analyze isolation:**
+- [x] **Step 1: Run every SQL suite in one harness run:** `supabase/tests/local/run.sh "$PWD" /repo/tests/application_follow_up.test.sql /repo/tests/application_follow_up_concurrency.test.sql /repo/tests/application_tracker.test.sql /repo/tests/application_tracker_concurrency.test.sql /repo/tests/applications.test.sql /repo/tests/applications_concurrency.test.sql /repo/tests/account_lock.test.sql`. Every line must be PASS with no `MIGRATION-ERR`. Then run the backfill fixture command from Task 2.
+- [x] **Step 2: Run** `npm run lint && npm run lint:api && npm test && npm run build`. All must pass.
+- [x] **Step 3: Check the function count and Analyze isolation:**
   - `ls api/*.ts api/*/*.ts | grep -v __tests__ | xargs grep -l "export default" | wc -l` should print `9`;
   - `git diff --stat origin/main -- _server-lib/analyze _server-lib/ai/analyzeService.ts _server-lib/ai/prompts* src/services/ai/prompts* api/analyze.ts` should be empty. Adjust the globs to the actual Analyze files with `graft grep "analyzeCV"`.
-- [ ] **Step 4: Write the docs.** Cover:
+- [x] **Step 4: Write the docs.** Cover:
   - event authority (two types, shape, RPC, error codes);
   - the derivation (anchor by insertion order, `max` for last contact, strict-after count, tie rules);
   - the 7-day threshold and the 2-follow-up soft limit;
@@ -482,7 +482,7 @@ WHERE a.status = 'applied';
   - accepted debt (see Risks);
   - the rollout order;
   - status "IMPLEMENTED — NOT YET PRODUCTION VERIFIED".
-- [ ] **Step 5: Commit** `docs(applications): P2C follow-up authority (pre-verification)`.
+- [x] **Step 5: Commit** `docs(applications): P2C follow-up authority (pre-verification)`.
 
 ---
 

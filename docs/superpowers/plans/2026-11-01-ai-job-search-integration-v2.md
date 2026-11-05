@@ -530,8 +530,9 @@ migration `20261105000000_application_follow_up.sql` đã áp production 2026-11
 Smoke production 2026-11-05 (tài khoản smoke có kiểm soát, dữ liệu tổng hợp): 18 case, 1–14 PASS, 15 GAP
 (cross-account CHƯA xác minh, không có account thứ hai), 16 PASS WITH GAPS, 17–18 PASS. Gemini production:
 4 bản nháp/5 lần gọi/1 retry/0 fallback, mẫu nhỏ, không phải tỉ lệ hallucination. Nợ mở (Minor/known debt):
-cross-account, clipboard success, keyboard focus-visible, thông báo unknown-outcome bị lặp, độ phủ paraphrase
-của grounding. Chi tiết: `docs/15_applications.md`. Fallback P2C.0
+cross-account, clipboard success, keyboard focus-visible, thông báo unknown-outcome bị lặp, intent R1 chỉ giữ
+trong bộ nhớ trang (reload/tab khác là intent mới, có thể tạo event trùng), độ phủ paraphrase của grounding
+(chưa có tỉ lệ hallucination/fallback thống kê). Chi tiết: `docs/15_applications.md`. Fallback P2C.0
 đã deploy trước (#72, `b6e3c47` = SHA rollback tối thiểu; lịch sử: trước 05/11 trạng thái là IMPLEMENTED — NOT YET PRODUCTION VERIFIED). Authority:
 `docs/15_applications.md` (mục P2C); plan chi tiết:
 `docs/superpowers/plans/2026-11-03-p2c-follow-up-workflow.md`. Tóm tắt: 2 event type
@@ -547,11 +548,20 @@ Chênh lệch so với yêu cầu roadmap (có chủ đích):
 -   Bản nháp không được lưu; user phải tự xác nhận "đã gửi" thì mới ghi event.
 -   Stale/no-response sweep: không làm.
 
-**Open before release (cập nhật sau remediation R1-R3):** Cancel-after-unknown duplicate đã sửa ở R1
-(`90157dd`; intent chỉ trong bộ nhớ, reload/tab khác vẫn có thể trùng); copy kết quả không xác định
-đã sửa ở R3; grounding có lớp xác định từ R2 (`7cbc1ce`) nhưng còn giới hạn (diễn đạt khác, cụm
-ranh giới, tên trơn, ký tên một từ). Còn MỞ: alias PostgREST `language:metadata->>language`, Gemini
-thật VI/EN, browser 375 px/desktop, production migration preflight + smoke. Chi tiết: `docs/15_applications.md`.
+**Open before release — lịch sử (trước 05/11/2026), nay đã đóng:**
+
+-   Cancel-after-unknown duplicate: RESOLVED ở R1 (`90157dd`); còn giới hạn intent chỉ giữ trong bộ
+    nhớ (xem nợ mở ở trên).
+-   Copy kết quả không xác định: RESOLVED ở R3 (`284140a`).
+-   Grounding: lớp xác định R2 (`7cbc1ce`) + R4 (`eeaf2aa`, giảm false positive); giới hạn còn lại là
+    nợ mở (diễn đạt khác, tên trơn, ký tên một từ).
+-   Alias PostgREST `language:metadata->>language`: VERIFIED trên production (E1 parser/projection,
+    E2-D real-row + thứ tự ngôn ngữ).
+-   Gemini thật VI/EN: VERIFIED bằng smoke giới hạn (E1 local + E2-D production), không phải phép đo tỉ lệ.
+-   Browser 375 px/desktop: VERIFIED (E2-D case 16, còn gap clipboard success + focus-visible).
+-   Production migration preflight + áp + smoke: DONE (E1, E2-B, E2-D).
+
+Chi tiết: `docs/15_applications.md`.
 
 ### Logic
 
@@ -568,19 +578,23 @@ dụng vì chưa có hồ sơ nào được gửi.
 
 ### Công việc
 
--   [ ] Hiển thị application cần follow-up.
--   [ ] Draft follow-up dựa trên submitted snapshot.
--   [ ] Không cho follow-up thêm claim mới ngoài tài liệu đã gửi.
--   [ ] User phải xác nhận đã gửi trước khi ghi event.
--   [ ] Không tự động gửi email trong MVP.
+-   [x] Hiển thị application cần follow-up. *(chỉ báo trên list + bộ lọc "Cần follow-up")*
+-   [x] Draft follow-up dựa trên submitted snapshot. *(server nạp snapshot CV/JD/thư)*
+-   [x] Không cho follow-up thêm claim mới ngoài tài liệu đã gửi. *(guard CV-only + lớp claim/honorific
+    R2/R4; độ phủ paraphrase còn là nợ mở)*
+-   [x] User phải xác nhận đã gửi trước khi ghi event. *("Đánh dấu đã gửi follow-up"; sinh nháp không
+    ghi event)*
+-   [x] Không tự động gửi email trong MVP.
 -   [ ] Có thể bổ sung stale/no-response sweep sau khi tracker có usage
-    thực tế.
+    thực tế. *(không làm, có chủ đích)*
 
 ### Exit criteria
 
--   Không nhắc follow-up cho draft.
--   Follow-up draft dùng đúng application language/context.
--   Log follow-up không bị duplicate khi retry.
+-   [x] Không nhắc follow-up cho draft. *(smoke production case 14)*
+-   [x] Follow-up draft dùng đúng application language/context. *(case 5: snapshot + thứ tự ngôn ngữ
+    request → thư → application)*
+-   [x] Log follow-up không bị duplicate khi retry. *(case 7 double-click + R1 replay trên production;
+    giới hạn: intent chỉ trong bộ nhớ trang)*
 
 ------------------------------------------------------------------------
 
@@ -724,6 +738,7 @@ Không tạo một API file cho mỗi feature.
 -   `cover_letter` --- P1A
 -   `application_review` --- P1B (review + tối đa 1 revision trong cùng
     request; không có action `revise-after-review` riêng)
+-   `follow_up` --- P2C (body chỉ `action`, `applicationId`, `language`; snapshot do server nạp)
 
 Application CRUD ưu tiên route/handler phù hợp với architecture hiện tại
 hoặc Supabase RPC/direct client khi RLS đủ an toàn; phải audit function
@@ -789,7 +804,7 @@ Policy đã chốt (02/11/2026):
 
 -   Analyze: giữ policy hiện tại (monthly quota + cap theo giờ).
 -   Rewrite CV: cap theo giờ hiện tại, đếm mọi row `kind='rewrite'`.
--   Cover Letter + Review: chung một document cap theo giờ
+-   Cover Letter + Review + Follow-up (từ P2C): chung một document cap theo giờ
     `ceil(hourlyAiLimit/2)` request (free 5/giờ), không monthly quota.
 -   Review: chỉ tính khi user chủ động chạy.
 -   Revision: bundled trong request review (1 request = tối đa 2 Gemini
@@ -885,6 +900,9 @@ MVP hoàn thành khi user có thể:
 6.  Theo dõi trạng thái.
 7.  Nhận/draft follow-up hợp lý.
 
+**Trạng thái (05/11/2026):** cả 7 điểm đã đạt trên production (P0–P2C); MVP hoàn thành kèm nợ đã
+biết của P2C (xem mục P2C).
+
 Interview Prep và Multi-JD Intelligence là expansion sau MVP.
 
 ## 14. Thứ tự triển khai đề xuất
@@ -902,7 +920,7 @@ P2A  Save Application + Snapshot          ✅ deployed (PR #67)
  ↓
 P2B  Application Tracker                  ✅ deployed (PR #70)
  ↓
-P2C  Follow-up
+P2C  Follow-up                            ✅ deployed (PR #73, #74)
  ↓
 P3   Interview Preparation
  ↓
