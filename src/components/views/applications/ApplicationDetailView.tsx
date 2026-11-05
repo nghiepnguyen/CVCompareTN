@@ -6,16 +6,18 @@ import { useUI } from '../../../context/UIContext';
 import { formatLabel, type UiLabels } from '../../../translations';
 import { formatPlainDate, formatVnDate, formatVnDateTime } from '../../../lib/vnTime';
 import {
-  getApplication, getApplicationDocuments, getApplicationTimeline, trackerErrorCode, type MutationResult,
+  getApplication, getApplicationDocuments, getFollowUpStates, getApplicationTimeline, trackerErrorCode, type MutationResult,
 } from '../../../services/applicationService';
-import type { ApplicationDetail, ApplicationDocument, ApplicationEvent } from '../../../services/applicationTypes';
+import type { ApplicationDetail, ApplicationDocument, ApplicationEvent, FollowUpInfo } from '../../../services/applicationTypes';
 import { StatusBadge, statusLabel, trackerErrorMessage } from './status';
+import { ContactEventForm, FollowUpDraftPanel } from './FollowUpActions';
 import { DetailsForm, NoteForm, StatusChangeForm } from './TrackerActions';
+import { hasUnresolvedIntent, useIntentsVersion } from './useTrackerMutation';
 
 type DetailTab = 'overview' | 'documents' | 'timeline';
-type Panel = 'status' | 'details' | 'note' | null;
+type Panel = 'status' | 'details' | 'note' | 'follow_up_sent' | 'contact_received' | 'draft' | null;
 
-interface Loaded { application: ApplicationDetail; documents: ApplicationDocument[]; events: ApplicationEvent[]; eventsPage: number; hasMoreEvents: boolean }
+interface Loaded { application: ApplicationDetail; documents: ApplicationDocument[]; events: ApplicationEvent[]; eventsPage: number; hasMoreEvents: boolean; followUp: FollowUpInfo | null }
 
 export const companyOrFallback = (t: UiLabels, a: Pick<ApplicationDetail, 'companyName'>) => a.companyName ?? t.trackerCompanyUnset;
 export const roleOrFallback = (t: UiLabels, a: Pick<ApplicationDetail, 'roleTitle'>) => a.roleTitle ?? t.trackerRoleUnset;
@@ -37,18 +39,22 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
   const [loadError, setLoadError] = React.useState<string | null>(null);
   const [tab, setTab] = React.useState<DetailTab>('overview');
   const [panel, setPanel] = React.useState<Panel>(null);
+  const [replayNotice, setReplayNotice] = React.useState(false);
+  useIntentsVersion(); // keeps the unconfirmed marker current
 
   const load = React.useCallback(async () => {
     setLoadError(null);
     try {
-      const [application, documents, timeline] = await Promise.all([
+      const [application, documents, timeline, followUp] = await Promise.all([
         getApplication(applicationId), getApplicationDocuments(applicationId), getApplicationTimeline(applicationId),
+        // Non-fatal: the detail is usable without the derived follow-up state.
+        getFollowUpStates([applicationId]).then((m) => m.get(applicationId) ?? null, () => null),
       ]);
       if (!application) {
         setLoadError(t.trackerErrNotFound);
         return;
       }
-      setData({ application, documents, events: timeline.items, eventsPage: 0, hasMoreEvents: timeline.hasMore });
+      setData({ application, documents, events: timeline.items, eventsPage: 0, hasMoreEvents: timeline.hasMore, followUp });
     } catch (err) {
       const code = trackerErrorCode(err);
       setLoadError(code === 'unknown' ? t.trackerLoadError : trackerErrorMessage(t, code));
@@ -78,7 +84,8 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
   };
 
   // Show the server's returned row at once (details edit), then reload everything.
-  const onMutated = (result?: MutationResult) => {
+  const onMutated = (result?: MutationResult, recovered?: boolean) => {
+    if (recovered) setReplayNotice(true);
     if (result?.application) {
       const fresh = result.application;
       setData((prev) => prev && { ...prev, application: { ...prev.application, ...fresh } });
@@ -112,8 +119,9 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
     );
   }
 
-  const { application: app, documents, events, hasMoreEvents } = data;
-  const closePanel = () => setPanel(null);
+  const { application: app, documents, events, hasMoreEvents, followUp } = data;
+  // Each form closes only its own panel: a late settle of a closed form must not close another one.
+  const closeOnly = (id: Panel) => () => setPanel((p) => (p === id ? null : p));
   const tabs: { id: DetailTab; label: string }[] = [
     { id: 'overview', label: t.trackerTabOverview },
     { id: 'documents', label: t.trackerTabDocuments },
@@ -153,24 +161,43 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
             <Field label={t.trackerCurrentStatus} value={statusLabel(t, app.status)} />
             <Field label={t.trackerDeadline} value={app.deadline ? formatPlainDate(app.deadline, lang) : '—'} />
             <Field label={t.trackerAppliedDate} value={app.appliedAt ? formatVnDate(app.appliedAt, lang) : '—'} hint={t.trackerAppliedDateHint} />
+            {app.status === 'applied' && followUp && (
+              <Field
+                label={t.trackerFollowUpField}
+                value={followUp.state === 'waiting' ? formatLabel(t.trackerFollowUpWaitingFrom, { date: formatVnDate(followUp.dueAt, lang) })
+                  : followUp.state === 'due' ? t.trackerFollowUpDueDetail : t.trackerFollowUpLimitDetail}
+                hint={followUp.state === 'limit_reached' ? t.trackerFollowUpLimitHint : undefined}
+              />
+            )}
             <Field label={t.trackerSavedDate} value={formatVnDateTime(app.createdAt, lang)} />
             <Field label={t.trackerUpdatedDate} value={formatVnDateTime(app.updatedAt, lang)} />
           </dl>
           <div className="flex flex-wrap gap-2">
-            {([['status', t.trackerChangeStatus], ['details', t.trackerEditDetails], ['note', t.trackerAddNote]] as const).map(([id, label]) => (
+            {([
+              ['status', t.trackerChangeStatus], ['details', t.trackerEditDetails], ['note', t.trackerAddNote],
+              // Gate the buttons on status, not the open panel: a contact_not_allowed message must survive the reload.
+              ...(app.status === 'applied' ? [['follow_up_sent', t.trackerMarkFollowUpSent], ['contact_received', t.trackerEmployerReplied], ['draft', t.trackerDraftButton]] as const : []),
+            ] as const).map(([id, label]) => (
               <button
                 key={id}
                 type="button"
-                onClick={() => setPanel(panel === id ? null : id)}
+                onClick={() => { setReplayNotice(false); setPanel(panel === id ? null : id); }}
+                title={hasUnresolvedIntent(`${id}:${app.id}`) ? t.trackerUnconfirmedMarker : undefined}
                 className={cn('rounded-xl border px-4 py-2 text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95', panel === id ? 'border-accent text-accent' : 'border-border text-text-main hover:border-accent')}
               >
                 {label}
+                {hasUnresolvedIntent(`${id}:${app.id}`) && <span aria-hidden="true" className="ml-1.5 inline-block h-2 w-2 rounded-full bg-accent" />}
               </button>
             ))}
           </div>
-          {panel === 'status' && <StatusChangeForm application={app} onDone={onMutated} onClose={closePanel} />}
-          {panel === 'details' && <DetailsForm application={app} onDone={onMutated} onClose={closePanel} />}
-          {panel === 'note' && <NoteForm applicationId={app.id} onDone={onMutated} onClose={closePanel} />}
+          {replayNotice && <p role="status" aria-live="polite" className="text-xs font-bold text-text-muted">{t.trackerReplayNotice}</p>}
+          {panel === 'status' && <StatusChangeForm application={app} onDone={onMutated} onClose={closeOnly('status')} />}
+          {panel === 'details' && <DetailsForm application={app} onDone={onMutated} onClose={closeOnly('details')} />}
+          {panel === 'note' && <NoteForm applicationId={app.id} onDone={onMutated} onClose={closeOnly('note')} />}
+          {panel === 'draft' && app.status === 'applied' && <FollowUpDraftPanel application={app} documents={documents} onClose={closeOnly('draft')} />}
+          {(panel === 'follow_up_sent' || panel === 'contact_received') && (
+            <ContactEventForm key={panel} applicationId={app.id} eventType={panel} onDone={onMutated} onClose={closeOnly(panel)} />
+          )}
         </div>
       )}
 
@@ -307,6 +334,8 @@ function eventTitle(t: UiLabels, e: ApplicationEvent): string {
       return e.fromStatus && e.toStatus ? formatLabel(t.trackerEvStatus, { from: statusLabel(t, e.fromStatus), to: statusLabel(t, e.toStatus) }) : t.trackerEvDetails;
     case 'note': return t.trackerEvNote;
     case 'details_updated': return t.trackerEvDetails;
+    case 'follow_up_sent': return t.trackerEvFollowUpSent;
+    case 'contact_received': return t.trackerEvContactReceived;
     default: return t.trackerEvUnknown;
   }
 }

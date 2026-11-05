@@ -11,11 +11,11 @@ import {
 import { statusLabel, trackerErrorMessage } from './status';
 import { useTrackerMutation } from './useTrackerMutation';
 
-const fieldClass = 'w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none';
-const primaryButton = 'rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100';
-const secondaryButton = 'rounded-xl border border-border px-4 py-2 text-sm font-bold text-text-muted transition-all cursor-pointer hover:scale-105 hover:text-text-main active:scale-95';
+export const fieldClass = 'w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none';
+export const primaryButton = 'rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100';
+export const secondaryButton = 'rounded-xl border border-border px-4 py-2 text-sm font-bold text-text-muted transition-all cursor-pointer hover:scale-105 hover:text-text-main active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100';
 
-function FormShell({ title, error, children }: { title: string; error: string | null; children: React.ReactNode }) {
+export function FormShell({ title, error, children }: { title: string; error: string | null; children: React.ReactNode }) {
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
       <h4 className="text-sm font-black text-text-main">{title}</h4>
@@ -26,7 +26,7 @@ function FormShell({ title, error, children }: { title: string; error: string | 
 }
 
 /** Today (ICT) = now on the server; a past day is recorded at 12:00 ICT. */
-const occurredAtFor = (ymd: string) => (ymd === vnTodayYmd() ? null : `${ymd}T12:00:00+07:00`);
+export const occurredAtFor = (ymd: string) => (ymd === vnTodayYmd() ? null : `${ymd}T12:00:00+07:00`);
 
 export function StatusChangeForm({ application, onDone, onClose }: { application: ApplicationDetail; onDone: () => void; onClose: () => void }) {
   const { t } = useUI();
@@ -95,34 +95,73 @@ export function StatusChangeForm({ application, onDone, onClose }: { application
   );
 }
 
-export function NoteForm({ applicationId, onDone, onClose }: { applicationId: string; onDone: () => void; onClose: () => void }) {
+/** Shown while an earlier submission's outcome is unknown: Retry resends it, Close keeps it, Abandon (confirmed) drops it. */
+export function UnresolvedActions({ busy, onRetry, onClose, onAbandon }: { busy: boolean; onRetry: () => void; onClose: () => void; onAbandon: () => void }) {
+  const { t } = useUI();
+  const [confirming, setConfirming] = React.useState(false);
+  return (
+    <>
+      <p role="status" className="text-xs font-medium text-text-muted">{t.trackerUnresolvedExplain}</p>
+      <div className="flex flex-wrap justify-end gap-2">
+        <button type="button" className={secondaryButton} onClick={onClose}>{t.trackerUnresolvedClose}</button>
+        <button type="button" className={secondaryButton} disabled={busy} onClick={() => setConfirming(true)}>{t.trackerUnresolvedAbandon}</button>
+        <button type="button" className={primaryButton} disabled={busy} aria-busy={busy} onClick={onRetry}>{busy ? t.trackerSaving : t.trackerRetry}</button>
+      </div>
+      <ConfirmDialog
+        open={confirming}
+        title={t.trackerAbandonTitle}
+        message={t.trackerAbandonMessage}
+        confirmLabel={t.trackerAbandonConfirm}
+        cancelLabel={t.trackerCancel}
+        danger
+        onConfirm={() => { setConfirming(false); onAbandon(); }}
+        onCancel={() => setConfirming(false)}
+      />
+    </>
+  );
+}
+
+export function NoteForm({ applicationId, onDone, onClose }: {
+  applicationId: string; onDone: (r?: MutationResult, recovered?: boolean) => void; onClose: () => void;
+}) {
   const { t } = useUI();
   const [note, setNote] = React.useState('');
   const [touched, setTouched] = React.useState(false);
-  const { run, busy, error, cancel } = useTrackerMutation(`note:${applicationId}`, onDone);
+  const { run, busy, error, cancel, unresolved, confirming, pending: locked, abandon } = useTrackerMutation<{ note: string }>(`note:${applicationId}`, onDone, { preserveUnknown: true, onClose });
   const trimmed = note.trim();
   const invalid = !trimmed ? t.trackerNoteEmpty : trimmed.length > NOTE_MAX ? formatLabel(t.trackerTooLong, { max: NOTE_MAX }) : null;
 
-  const onSave = async () => {
-    setTouched(true);
-    if (busy || invalid) return;
-    const ok = await run((idempotencyKey) => addApplicationNote({ applicationId, note: trimmed, idempotencyKey }));
+  const send = async (args: { note: string }) => {
+    const ok = await run((idempotencyKey) => addApplicationNote({ applicationId, note: args.note, idempotencyKey }), args);
     if (ok) onClose();
   };
 
+  const onSave = async () => {
+    setTouched(true);
+    if (busy || invalid || confirming) return;
+    await send({ note: trimmed });
+  };
+
+  const shown = locked ? locked.note : note;
   return (
-    <FormShell title={t.trackerAddNote} error={error ? trackerErrorMessage(t, error) : touched ? invalid : null}>
+    <FormShell title={t.trackerAddNote} error={error ? trackerErrorMessage(t, error) : touched && !locked ? invalid : null}>
       <label className="block space-y-1 text-xs font-bold text-text-muted">
         <span>{t.trackerNoteLabel}</span>
-        <textarea className={fieldClass} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+        <textarea className={fieldClass} rows={3} value={shown} disabled={!!locked} onChange={(e) => setNote(e.target.value)} />
       </label>
-      <p className="text-right text-[10px] text-text-light">{trimmed.length}/{NOTE_MAX}</p>
-      <div className="flex flex-wrap justify-end gap-2">
-        <button type="button" className={secondaryButton} onClick={() => { cancel(); onClose(); }}>{t.trackerCancel}</button>
-        <button type="button" className={primaryButton} disabled={busy} aria-busy={busy} onClick={() => void onSave()}>
-          {busy ? t.trackerSaving : t.trackerSave}
-        </button>
-      </div>
+      <p className="text-right text-[10px] text-text-light">{shown.trim().length}/{NOTE_MAX}</p>
+      {unresolved ? (
+        <UnresolvedActions busy={busy} onRetry={() => void send(unresolved)} onClose={() => { cancel(); onClose(); }}
+          onAbandon={() => { abandon(); setNote(''); setTouched(false); }} />
+      ) : (
+        <div className="flex flex-wrap justify-end gap-2">
+          {confirming && <p role="status" className="w-full text-xs font-medium text-text-muted">{t.trackerInFlightExplain}</p>}
+          <button type="button" className={secondaryButton} onClick={() => { cancel(); onClose(); }}>{t.trackerCancel}</button>
+          <button type="button" className={primaryButton} disabled={busy || !!confirming} aria-busy={busy} onClick={() => void onSave()}>
+            {busy ? t.trackerSaving : t.trackerSave}
+          </button>
+        </div>
+      )}
     </FormShell>
   );
 }

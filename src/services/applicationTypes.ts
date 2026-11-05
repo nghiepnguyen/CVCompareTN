@@ -18,7 +18,12 @@ const FINAL = new Set(statusMatrix.final as ApplicationStatus[]);
 export const isFinalStatus = (s: ApplicationStatus) => FINAL.has(s);
 export const allowedTransitions = (from: ApplicationStatus): readonly ApplicationStatus[] => TRANSITIONS[from] ?? [];
 
-export type ApplicationEventType = 'created' | 'status_changed' | 'note' | 'details_updated';
+export type ApplicationEventType = 'created' | 'status_changed' | 'note' | 'details_updated' | 'follow_up_sent' | 'contact_received';
+export type ContactEventType = 'follow_up_sent' | 'contact_received';
+
+/** Derived by the DB view application_follow_up_state (applied apps only); the client never re-derives it. */
+export type FollowUpState = 'waiting' | 'due' | 'limit_reached';
+export interface FollowUpInfo { state: FollowUpState; dueAt: string; lastContactAt: string; stageEnteredAt: string; followUpsSinceReset: number }
 export type ApplicationDocumentType = 'cv' | 'jd' | 'cover_letter';
 
 export interface ApplicationSummary {
@@ -67,7 +72,7 @@ export type ApplicationSort = typeof APPLICATION_SORTS[number];
 /** Stable RPC error vocabulary; anything else is `unknown` (never a raw DB message). */
 export const TRACKER_ERROR_CODES = [
   'not_authenticated', 'account_locked', 'application_not_found', 'stale_status', 'stale_application',
-  'invalid_transition', 'invalid_occurred_at', 'invalid_note', 'invalid_details',
+  'invalid_transition', 'invalid_occurred_at', 'invalid_note', 'invalid_details', 'invalid_contact', 'contact_not_allowed',
 ] as const;
 export type TrackerErrorCode = typeof TRACKER_ERROR_CODES[number] | 'unknown';
 

@@ -113,8 +113,8 @@ the cover-letter hourly cap counts):
 `kind='rewrite'`, P1B application review (`action: 'application_review'`,
 2026-11-02) — one row per request, success or error, with the
 `applicationReview` key. Cover letter and review rows share one hourly
-document cap (`guard_metrics->coverLetter` OR `->applicationReview`, half the
-rewrite limit). See [14_application_review.md](./14_application_review.md).
+document cap (`guard_metrics->coverLetter` OR `->applicationReview`, plus
+`->followUp` since P2C; half the rewrite limit). See [14_application_review.md](./14_application_review.md).
 
 ```json
 { "v": 1, "applicationReview": {
@@ -137,6 +137,49 @@ rewrite limit). See [14_application_review.md](./14_application_review.md).
 - `droppedFindings`: reviewer findings the server rejected (unanchored quote,
   unknown/missing requirement, verbatim-supported, duplicate).
 - Never a finding message, quote, term, letter or revision.
+
+`kind='rewrite'`, P2C follow-up draft (`action: 'follow_up'`, branch
+`feat/p2c-contact-events`; IMPLEMENTED — NOT YET PRODUCTION VERIFIED) — one row per request that
+reaches generation, success or error, with the `followUp` key. See
+[15_applications.md](./15_applications.md#p2c--follow-up-workflow).
+
+```json
+{ "v": 1, "followUp": {
+    "language": "vi",
+    "outcome": "recovered",
+    "firstPassViolations": { "unsupportedNumber": 0, "spelledNumber": 0, "rawJd": 0,
+                             "unsupportedTerm": 1, "jdCopy": 0, "strengthClaim": 0 },
+    "retryOutcome": "recovered",
+    "geminiCalls": 2 } }
+```
+
+- Shape: `FollowUpGuardMetrics`, currently a **type alias of `CoverLetterGuardMetrics`**
+  (Minor debt: split it before adding a follow-up-only field). Same `outcome` /
+  `retryOutcome` values as the cover letter. Length-only, greeting-only and honorific failures record
+  empty violation counts, so they are indistinguishable from each other in metrics.
+- Error rows (Gemini/timeout/budget): `{ language, outcome: 'error', category, geminiCalls }`
+  and `error_message` is `[follow_up:<category>]`. `geminiCalls` is 0 for
+  `request_budget_exhausted`, else 1. Failed attempts normally count toward the cap, but
+  counting is best-effort, not guaranteed: `logAnalysisAttempt` is a deadline-bounded insert
+  (skipped when the request deadline is already reached, aborted at its timeout) and swallows
+  its own failures (`_server-lib/analysisLog.ts`), so an attempt whose row is not written is
+  not counted. The cap check also fails open: on a lookup error or timeout `checkHourlyAiLimit`
+  returns `ok` (`_server-lib/accountLock.ts`, catch block ~94-97). Quota semantics are unchanged.
+- Context failures (404, 409, 422, 503) and auth/429 rejections write no row.
+- Follow-up does not touch monthly usage (`profiles.usage_count`).
+- Never stored: the draft, CV/JD text, company/role, notes.
+
+**Shared document cap.** Cover letter, application review and follow-up rows share one
+hourly cap of `ceil(hourlyAiLimit(plan) / 2)` (half of the rewrite limit), counted over
+`kind = 'rewrite'` rows in the last hour with this exact PostgREST filter
+(`_server-lib/accountLock.ts`, `checkHourlyAiLimit`; best-effort and fail-open, see above):
+
+```
+guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null,guard_metrics->followUp.not.is.null
+```
+
+Full CV queries must keep filtering on `guard_metrics ? 'fullCv'`: a bare
+`guard_metrics IS NOT NULL` on `kind='rewrite'` now also matches follow-up rows.
 
 ## NULL vs 0 / false
 
@@ -226,5 +269,11 @@ SELECT guard_metrics->'applicationReview'->>'outcome' AS verdict,
        guard_metrics->'applicationReview'->>'revision' AS revision, count(*)
 FROM analysis_log
 WHERE kind = 'rewrite' AND guard_metrics ? 'applicationReview'
+GROUP BY 1, 2 ORDER BY 3 DESC;
+
+-- Follow-up draft (P2C): outcomes (success and error rows)
+SELECT guard_metrics->'followUp'->>'outcome' AS outcome, status, count(*)
+FROM analysis_log
+WHERE kind = 'rewrite' AND guard_metrics ? 'followUp'
 GROUP BY 1, 2 ORDER BY 3 DESC;
 ```

@@ -62,28 +62,28 @@ export async function checkAccountAccess(userId: string): Promise<'ok' | 'locked
  * understate it; the actual number of analyze calls is capped here instead.
  * Fails open on lookup errors, matching the existing AI rate-count behavior.
  */
-// Cover letters (P1A) and application reviews (P1B) are logged as
-// kind='rewrite' (the kind CHECK has neither) and marked by
-// guard_metrics.coverLetter / .applicationReview. Both share one document cap
+// Cover letters (P1A), application reviews (P1B) and follow-up drafts (P2C) are
+// logged as kind='rewrite' (the kind CHECK has none) and marked by
+// guard_metrics.coverLetter / .applicationReview / .followUp. All share one document cap
 // at half the rewrite bucket; the rewrite count still includes them, so
 // documents can use at most half of the automatic Full CV budget. One row per
 // request: a review is up to 2 Gemini calls (reviewer + revision).
 export async function checkHourlyAiLimit(
   userId: string,
-  kind: 'analyze' | 'rewrite' | 'parse_cv' | 'cover_letter' | 'application_review',
+  kind: 'analyze' | 'rewrite' | 'parse_cv' | 'cover_letter' | 'application_review' | 'follow_up',
   plan: 'free' | 'pro' | 'recruiter',
   timeoutMs: number,
   signal?: AbortSignal
 ): Promise<'ok' | 'rate_limited'> {
   try {
-    const document = kind === 'cover_letter' || kind === 'application_review';
+    const document = kind === 'cover_letter' || kind === 'application_review' || kind === 'follow_up';
     let query = getSupabaseAdmin()
       .from('analysis_log')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('kind', document ? 'rewrite' : kind)
       .gte('created_at', new Date(Date.now() - RATE_WINDOW_MS).toISOString());
-    if (document) query = query.or('guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null');
+    if (document) query = query.or('guard_metrics->coverLetter.not.is.null,guard_metrics->applicationReview.not.is.null,guard_metrics->followUp.not.is.null');
     const { count } = await withTimeout(
       (signal ? query.abortSignal(signal) : query) as unknown as Promise<{ count: number | null }>,
       timeoutMs,
@@ -104,7 +104,7 @@ export async function checkHourlyAiLimit(
  */
 export async function checkAiAccess(
   userId: string,
-  kind: 'rewrite' | 'parse_cv' | 'cover_letter' | 'application_review',
+  kind: 'rewrite' | 'parse_cv' | 'cover_letter' | 'application_review' | 'follow_up',
   timeoutMs: number,
   signal?: AbortSignal
 ): Promise<'ok' | 'locked' | 'rate_limited' | 'unavailable'> {

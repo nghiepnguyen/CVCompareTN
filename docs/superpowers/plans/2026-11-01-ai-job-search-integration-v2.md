@@ -523,6 +523,29 @@ Không chỉ lưu current status; phải giữ timeline.
 
 **Mức tác động:** Backend trung bình, UI trung bình.
 
+**Trạng thái (04/11/2026): IMPLEMENTED — NOT YET PRODUCTION VERIFIED.** Nhánh
+`feat/p2c-contact-events`; migration `20261105000000` **chưa áp production**. Fallback P2C.0
+đã deploy (#72, `b6e3c47` = SHA rollback tối thiểu). Authority:
+`docs/15_applications.md` (mục P2C); plan chi tiết:
+`docs/superpowers/plans/2026-11-03-p2c-follow-up-workflow.md`. Tóm tắt: 2 event type
+(`follow_up_sent`, `contact_received`) ghi bởi RPC `log_application_contact`; view
+`application_follow_up_state` (security_invoker) suy ra `waiting | due | limit_reached`
+(ngưỡng 7 ngày, giới hạn mềm 2 follow-up); chỉ `applied`; `action: 'follow_up'` trên
+`/api/rewrite-cv` với snapshot do server nạp, không nháp lưu, không event khi sinh nháp,
+dùng chung trần tài liệu theo giờ, không quota tháng; 9 function.
+
+Chênh lệch so với yêu cầu roadmap (có chủ đích):
+
+-   Follow-up cho `interview`/`offer` và bản nháp cho chúng: **DEFERRED** (RPC nhận log, UI không lộ).
+-   Bản nháp không được lưu; user phải tự xác nhận "đã gửi" thì mới ghi event.
+-   Stale/no-response sweep: không làm.
+
+**Open before release (cập nhật sau remediation R1-R3):** Cancel-after-unknown duplicate đã sửa ở R1
+(`90157dd`; intent chỉ trong bộ nhớ, reload/tab khác vẫn có thể trùng); copy kết quả không xác định
+đã sửa ở R3; grounding có lớp xác định từ R2 (`7cbc1ce`) nhưng còn giới hạn (diễn đạt khác, cụm
+ranh giới, tên trơn, ký tên một từ). Còn MỞ: alias PostgREST `language:metadata->>language`, Gemini
+thật VI/EN, browser 375 px/desktop, production migration preflight + smoke. Chi tiết: `docs/15_applications.md`.
+
 ### Logic
 
 Follow-up chỉ áp dụng khi:

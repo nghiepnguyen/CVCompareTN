@@ -1,11 +1,12 @@
 import React from 'react';
+import { cn } from '../../lib/utils';
 import { Briefcase, ChevronRight } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
 import type { UiLabels } from '../../translations';
 import { formatPlainDate, formatVnDate } from '../../lib/vnTime';
-import { listApplications } from '../../services/applicationService';
-import { APPLICATION_SORTS, type ApplicationSort, type ApplicationSummary } from '../../services/applicationTypes';
-import { StatusBadge } from './applications/status';
+import { getFollowUpStates, listApplications, listDueApplications } from '../../services/applicationService';
+import { APPLICATION_SORTS, type ApplicationSort, type ApplicationSummary, type FollowUpInfo } from '../../services/applicationTypes';
+import { FollowUpBadge, StatusBadge } from './applications/status';
 import { ApplicationDetailView, companyOrFallback, roleOrFallback } from './applications/ApplicationDetailView';
 
 const SORT_LABEL: Record<ApplicationSort, keyof UiLabels> = {
@@ -31,15 +32,33 @@ export function ApplicationsView() {
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [moreError, setMoreError] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [dueOnly, setDueOnly] = React.useState(false);
+  const [followUps, setFollowUps] = React.useState<Map<string, FollowUpInfo>>(new Map());
+  const [followUpError, setFollowUpError] = React.useState(false);
   const request = React.useRef(0);
+  const generation = React.useRef(0); // changes only when the list is reset (page-0 load), so load-more keeps earlier pages' hydration
 
   const load = React.useCallback(async (nextPage: number) => {
     const id = ++request.current;
+    if (nextPage === 0) generation.current = id;
+    const gen = generation.current;
     if (nextPage === 0) setStatus('loading'); else setLoadingMore(true);
     setMoreError(false);
     try {
-      const res = await listApplications({ sort, page: nextPage });
-      if (id !== request.current) return; // a newer sort / reload won
+      const res = dueOnly ? await listDueApplications({ page: nextPage }) : await listApplications({ sort, page: nextPage });
+      if (id !== request.current) return; // a newer sort / filter / reload won
+      if (nextPage === 0) { setFollowUps(new Map()); setFollowUpError(false); }
+      if (dueOnly) {
+        // Due items carry their follow-up state already: no second read.
+        const due = res.items as (ApplicationSummary & { followUp: FollowUpInfo })[];
+        setFollowUps((prev) => new Map([...prev, ...due.map((a) => [a.id, a.followUp] as const)]));
+      } else {
+        // Non-blocking: the list is already on screen; one batched read per page.
+        getFollowUpStates(res.items.map((a) => a.id)).then(
+          (m) => { if (gen === generation.current) setFollowUps((prev) => new Map([...prev, ...m])); },
+          () => { if (gen === generation.current) setFollowUpError(true); },
+        );
+      }
       setItems((prev) => (nextPage === 0 ? res.items : [...prev, ...res.items]));
       setHasMore(res.hasMore);
       setPage(nextPage);
@@ -50,7 +69,7 @@ export function ApplicationsView() {
     } finally {
       if (id === request.current) setLoadingMore(false);
     }
-  }, [sort]);
+  }, [sort, dueOnly]);
 
   React.useEffect(() => {
     if (!selectedId) void load(0);
@@ -67,16 +86,31 @@ export function ApplicationsView() {
           <h2 className="text-2xl font-black tracking-tight text-text-main">{t.trackerTitle}</h2>
           <p className="text-sm text-text-muted">{t.trackerDesc}</p>
         </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button
+          type="button"
+          aria-pressed={dueOnly}
+          onClick={() => setDueOnly((v) => !v)}
+          className={cn(
+            'rounded-xl border px-3 py-2 text-sm font-bold whitespace-nowrap transition-all cursor-pointer hover:scale-105 active:scale-95',
+            dueOnly ? 'border-accent bg-accent-light text-accent' : 'border-border bg-surface text-text-main hover:border-accent'
+          )}
+        >
+          {t.trackerFilterNeedsFollowUp}
+        </button>
         <label className="flex items-center gap-2 text-xs font-bold text-text-muted">
           {t.trackerSortLabel}
           <select
             value={sort}
+            disabled={dueOnly}
             onChange={(e) => setSort(e.target.value as ApplicationSort)}
-            className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main cursor-pointer focus:border-accent focus:outline-none"
+            className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main cursor-pointer focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           >
             {APPLICATION_SORTS.map((s) => <option key={s} value={s}>{t[SORT_LABEL[s]] as string}</option>)}
           </select>
         </label>
+        {dueOnly && <span className="text-xs text-text-muted">{t.trackerFollowUpSortHint}</span>}
+        </div>
       </div>
 
       {status === 'loading' ? (
@@ -85,6 +119,10 @@ export function ApplicationsView() {
         <div className="rounded-2xl border border-border bg-surface p-8 text-center">
           <p role="alert" className="text-sm font-bold text-text-muted">{t.trackerLoadError}</p>
           <button type="button" onClick={() => void load(0)} className="mt-4 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition-all cursor-pointer hover:scale-105 active:scale-95">{t.trackerRetry}</button>
+        </div>
+      ) : items.length === 0 && dueOnly ? (
+        <div className="rounded-2xl border border-border bg-surface p-10 text-center">
+          <p className="text-sm font-bold text-text-muted">{t.trackerFollowUpEmpty}</p>
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-2xl border border-border bg-surface p-10 text-center">
@@ -107,6 +145,7 @@ export function ApplicationsView() {
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <span className={a.roleTitle ? 'truncate text-base font-black text-text-main' : 'truncate text-base font-bold italic text-text-muted'}>{roleOrFallback(t, a)}</span>
                       <StatusBadge status={a.status} t={t} />
+                      {followUps.get(a.id) && <FollowUpBadge info={followUps.get(a.id)!} t={t} />}
                     </div>
                     <p className={a.companyName ? 'truncate text-sm text-text-muted' : 'truncate text-sm italic text-text-light'}>{companyOrFallback(t, a)}</p>
                     <dl className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-light">
@@ -120,6 +159,7 @@ export function ApplicationsView() {
               </li>
             ))}
           </ul>
+          {followUpError && <p role="status" className="text-center text-xs text-text-muted">{t.trackerFollowUpLoadError}</p>}
           {moreError && <p role="alert" className="text-center text-xs text-error">{t.trackerLoadError}</p>}
           {hasMore && (
             <div className="text-center">

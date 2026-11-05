@@ -3,7 +3,7 @@ import type { AnalysisResult, ParsedCV } from "./ai";
 import {
   APPLICATION_SORTS, TRACKER_ERROR_CODES,
   type ApplicationDetail, type ApplicationDocument, type ApplicationEvent, type ApplicationSort,
-  type ApplicationStatus, type ApplicationSummary, type TrackerErrorCode,
+  type ApplicationStatus, type ApplicationSummary, type ContactEventType, type FollowUpInfo, type FollowUpState, type TrackerErrorCode,
 } from './applicationTypes';
 
 /** Cover letter as currently shown in the result dialog (P1A/P1B, session only). */
@@ -210,4 +210,56 @@ export async function updateApplicationDetails(input: { applicationId: string; e
     p_deadline: input.deadline,
     p_idempotency_key: input.idempotencyKey,
   })));
+}
+
+/** P2C: append a follow-up / reply event. Eligibility is enforced by the RPC (contact_not_allowed); `occurredAt` null = now. */
+export async function logApplicationContact(input: { applicationId: string; eventType: ContactEventType; occurredAt: string | null; note: string | null; idempotencyKey: string }): Promise<MutationResult> {
+  return toMutation(await unwrap(() => supabase.rpc('log_application_contact', {
+    p_application_id: input.applicationId,
+    p_event_type: input.eventType,
+    p_occurred_at: input.occurredAt,
+    p_note: input.note,
+    p_idempotency_key: input.idempotencyKey,
+  })));
+}
+
+const FOLLOW_UP_COLUMNS = 'application_id, stage_entered_at, last_contact_at, follow_ups_since_reset, follow_up_due_at, follow_up_state';
+
+type FollowUpRow = {
+  application_id: string; stage_entered_at: string; last_contact_at: string;
+  follow_ups_since_reset: number; follow_up_due_at: string; follow_up_state: FollowUpState;
+};
+
+const toFollowUp = (r: FollowUpRow): FollowUpInfo => ({
+  state: r.follow_up_state, dueAt: r.follow_up_due_at, lastContactAt: r.last_contact_at,
+  stageEnteredAt: r.stage_entered_at, followUpsSinceReset: r.follow_ups_since_reset,
+});
+
+/** One batched read of the derived view. Apps without a row (not `applied`) are simply absent. */
+export async function getFollowUpStates(applicationIds: string[]): Promise<Map<string, FollowUpInfo>> {
+  if (applicationIds.length === 0) return new Map();
+  const rows = await unwrap<FollowUpRow[]>(() => supabase.from('application_follow_up_state').select(FOLLOW_UP_COLUMNS).in('application_id', applicationIds)) ?? [];
+  return new Map(rows.map((r) => [r.application_id, toFollowUp(r)]));
+}
+
+/**
+ * Follow-ups due now (never limit_reached), most overdue first: the view gives the order and the
+ * page, then the summaries are fetched for those ids only. Rows changed in between are dropped.
+ */
+export async function listDueApplications({ page = 0, pageSize = APPLICATIONS_PAGE_SIZE }: { page?: number; pageSize?: number } = {}): Promise<{ items: (ApplicationSummary & { followUp: FollowUpInfo })[]; hasMore: boolean }> {
+  const from = page * pageSize;
+  const due = await unwrap<FollowUpRow[]>(() => supabase.from('application_follow_up_state').select(FOLLOW_UP_COLUMNS)
+      .eq('follow_up_state', 'due')
+      .order('follow_up_due_at', { ascending: true })
+      .order('application_id', { ascending: true })
+      .range(from, from + pageSize)
+  ) ?? [];
+  const pageRows = due.slice(0, pageSize);
+  const hasMore = due.length > pageSize;
+  if (pageRows.length === 0) return { items: [], hasMore };
+  const ids = pageRows.map((r) => r.application_id);
+  const apps = await unwrap<ApplicationRow[]>(() => supabase.from('applications').select(SUMMARY_COLUMNS).in('id', ids)) ?? [];
+  const byId = new Map(apps.map((a) => [a.id, a]));
+  const items = pageRows.flatMap((r) => { const a = byId.get(r.application_id); return a ? [{ ...toSummary(a), followUp: toFollowUp(r) }] : []; });
+  return { items, hasMore };
 }

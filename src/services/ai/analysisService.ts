@@ -72,6 +72,24 @@ export async function generateCoverLetter(
   };
 }
 
+/** P2C: POST /api/rewrite-cv action=follow_up. Server reads the saved snapshot; only the id (and an explicit language) is sent. */
+export async function generateFollowUpDraft(
+  input: { applicationId: string; language?: 'vi' | 'en' },
+  authToken?: string
+): Promise<{ content: string; language: 'vi' | 'en'; fidelityFallback: boolean }> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  const res = await fetch('/api/rewrite-cv', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ action: 'follow_up', ...input }),
+    signal: AbortSignal.timeout(75_000),
+  });
+  if (!res.ok) throw new CoverLetterRequestError(res.status);
+  const data = (await res.json()) as { content?: string; language?: 'vi' | 'en'; fidelityFallback?: boolean };
+  return { content: data.content || '', language: data.language === 'en' ? 'en' : 'vi', fidelityFallback: data.fidelityFallback === true };
+}
+
 export type ApplicationReviewFinding = {
   category: 'unsupported_claim' | 'numeric_claim' | 'consistency' | 'requirement_gap' | 'relevance' | 'tone';
   severity: 'high' | 'medium' | 'low';
