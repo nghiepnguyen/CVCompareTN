@@ -204,11 +204,13 @@ kèm JD evidence và CV evidence khi có.
 
 ### Exit criteria
 
--   Không regression canonical scoring.
--   Không phát sinh claim mới không có source trong benchmark.
--   Payload cũ vẫn đọc được.
--   Mandatory requirements có trạng thái xác minh rõ ràng.
--   Không làm tăng đáng kể latency analyze.
+-   [x] Không regression canonical scoring. *(benchmark PRE vs final: median Δ 0, max 3.0)*
+-   [x] Không phát sinh claim mới không có source trong benchmark.
+-   [x] Payload cũ vẫn đọc được. *(backward compatibility history cũ)*
+-   [x] Mandatory requirements có trạng thái xác minh rõ ràng. *(`Đạt` / `Không đạt` / `Chưa xác minh`,
+    smoke production đủ ba nhánh)*
+-   [x] Không làm tăng đáng kể latency analyze. *(verification deterministic sau response, không thêm
+    Gemini call)*
 
 ------------------------------------------------------------------------
 
@@ -235,8 +237,8 @@ làm: edit/save (P2A), quota riêng ở DB.
 -   [x] Dùng CV/JD đã có trong analysis context (session; History disable).
 -   [x] Hỗ trợ Việt/Anh theo ngôn ngữ phù hợp với application.
 -   [x] Grounding rule giống Full CV: chỉ dùng facts có source.
--   [ ] Cho phép edit, copy, regenerate và save. *(copy + regenerate đã có;
-    edit/save → P2A)*
+-   [ ] Cho phép edit, copy, regenerate và save. *(copy + regenerate đã có; save có từ P2A —
+    thư được lưu vào snapshot application; edit trong UI chưa làm)*
 -   [x] Không tự thêm metric, certification, company knowledge hoặc
     achievement không có source.
 -   [x] Reuse handler hiện có: `rewrite-cv` với `action: 'cover_letter'`.
@@ -244,8 +246,8 @@ làm: edit/save (P2A), quota riêng ở DB.
 -   [x] Chốt quota riêng cho cover letter; không vô tình thừa hưởng miễn
     quota của rewrite hiện tại. *(document cap theo giờ, chung với P1B)*
 -   [x] Log latency/model/guard metrics tương tự AI actions khác.
--   [ ] Timeout/retry phải idempotent ở tầng persistence. *(chưa có
-    persistence → P2A)*
+-   [x] Timeout/retry phải idempotent ở tầng persistence. *(P2A: idempotency key theo Save intent,
+    retry replay đúng application)*
 
 ### UI
 
@@ -255,7 +257,7 @@ VI/EN, copy, tạo lại) thay vì tab riêng. Không thay upload/analyze flow.
 ### Exit criteria
 
 -   [x] Cover letter tạo được từ analysis hiện tại.
--   [ ] Có thể sửa/copy/lưu. *(copy ✅; sửa/lưu → P2A)*
+-   [ ] Có thể sửa/copy/lưu. *(copy ✅; lưu ✅ qua P2A; sửa chưa làm)*
 -   [x] Không có unsupported claims trong benchmark.
 -   [x] Lỗi AI không ảnh hưởng analysis result đã có.
 
@@ -376,19 +378,24 @@ Có thể tạo application ở trạng thái `drafted`.
 
 ### Storage & security
 
--   [ ] RLS theo owner.
--   [ ] Purpose riêng cho R2 application snapshots.
--   [ ] `pg_cron` không được xóa snapshot còn thuộc application.
--   [ ] Account deletion phải xóa application rows và documents.
--   [ ] Xóa history analysis không được xóa application snapshot.
--   [ ] Kiểm tra cross-account read/write/delete.
+-   [x] RLS theo owner. *(policy `*_select_own` / `*_delete_own` + RESTRICTIVE `account_unlocked_read`)*
+-   [ ] Purpose riêng cho R2 application snapshots. *(không áp dụng: snapshot lưu trong DB
+    (`application_documents.content`), không copy file gốc lên R2 — không cần cho MVP)*
+-   [x] `pg_cron` không được xóa snapshot còn thuộc application. *(các job cron chỉ dọn R2 tạm, history
+    free và rate limit; không job nào đụng `application_documents`)*
+-   [x] Account deletion phải xóa application rows và documents. *(FK `ON DELETE CASCADE` từ
+    `auth.users`; SQL test account delete)*
+-   [x] Xóa history analysis không được xóa application snapshot. *(không phụ thuộc history; SQL test
+    history delete)*
+-   [x] Kiểm tra cross-account read/write/delete. *(SQL test cross-user; smoke production bằng account
+    thứ hai vẫn là gap)*
 
 ### Exit criteria
 
--   Tạo application từ analysis mà không nhập lại CV/JD.
--   Snapshot tồn tại độc lập với history.
--   Xóa history không phá application.
--   Xóa account không để orphaned files.
+-   [x] Tạo application từ analysis mà không nhập lại CV/JD. *(smoke production P2A)*
+-   [x] Snapshot tồn tại độc lập với history.
+-   [x] Xóa history không phá application.
+-   [x] Xóa account không để orphaned files. *(snapshot trong DB, cascade; không có file R2 riêng)*
 
 ------------------------------------------------------------------------
 
@@ -512,10 +519,11 @@ Không chỉ lưu current status; phải giữ timeline.
 
 ### Exit criteria
 
--   Desktop/mobile cập nhật status ổn định.
--   Timeline không mất khi đổi status.
--   Không truy cập chéo account.
--   Application có thể được tạo từ result hoặc nhập tay.
+-   [x] Desktop/mobile cập nhật status ổn định. *(smoke production P2B, gồm mobile 375 px)*
+-   [x] Timeline không mất khi đổi status. *(`application_events` append-only)*
+-   [x] Không truy cập chéo account. *(SQL test cross-user + policy/grant production; smoke bằng account
+    thứ hai vẫn là gap)*
+-   [ ] Application có thể được tạo từ result hoặc nhập tay. *(từ result ✅; nhập tay DEFERRED)*
 
 ------------------------------------------------------------------------
 
