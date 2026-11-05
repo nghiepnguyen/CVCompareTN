@@ -204,11 +204,13 @@ kèm JD evidence và CV evidence khi có.
 
 ### Exit criteria
 
--   Không regression canonical scoring.
--   Không phát sinh claim mới không có source trong benchmark.
--   Payload cũ vẫn đọc được.
--   Mandatory requirements có trạng thái xác minh rõ ràng.
--   Không làm tăng đáng kể latency analyze.
+-   [x] Không regression canonical scoring. *(benchmark PRE vs final: median Δ 0, max 3.0)*
+-   [x] Không phát sinh claim mới không có source trong benchmark.
+-   [x] Payload cũ vẫn đọc được. *(backward compatibility history cũ)*
+-   [x] Mandatory requirements có trạng thái xác minh rõ ràng. *(`Đạt` / `Không đạt` / `Chưa xác minh`,
+    smoke production đủ ba nhánh)*
+-   [x] Không làm tăng đáng kể latency analyze. *(verification deterministic sau response, không thêm
+    Gemini call)*
 
 ------------------------------------------------------------------------
 
@@ -235,8 +237,8 @@ làm: edit/save (P2A), quota riêng ở DB.
 -   [x] Dùng CV/JD đã có trong analysis context (session; History disable).
 -   [x] Hỗ trợ Việt/Anh theo ngôn ngữ phù hợp với application.
 -   [x] Grounding rule giống Full CV: chỉ dùng facts có source.
--   [ ] Cho phép edit, copy, regenerate và save. *(copy + regenerate đã có;
-    edit/save → P2A)*
+-   [ ] Cho phép edit, copy, regenerate và save. *(copy + regenerate đã có; save có từ P2A —
+    thư được lưu vào snapshot application; edit trong UI chưa làm)*
 -   [x] Không tự thêm metric, certification, company knowledge hoặc
     achievement không có source.
 -   [x] Reuse handler hiện có: `rewrite-cv` với `action: 'cover_letter'`.
@@ -244,8 +246,8 @@ làm: edit/save (P2A), quota riêng ở DB.
 -   [x] Chốt quota riêng cho cover letter; không vô tình thừa hưởng miễn
     quota của rewrite hiện tại. *(document cap theo giờ, chung với P1B)*
 -   [x] Log latency/model/guard metrics tương tự AI actions khác.
--   [ ] Timeout/retry phải idempotent ở tầng persistence. *(chưa có
-    persistence → P2A)*
+-   [x] Timeout/retry phải idempotent ở tầng persistence. *(P2A: idempotency key theo Save intent,
+    retry replay đúng application)*
 
 ### UI
 
@@ -255,7 +257,7 @@ VI/EN, copy, tạo lại) thay vì tab riêng. Không thay upload/analyze flow.
 ### Exit criteria
 
 -   [x] Cover letter tạo được từ analysis hiện tại.
--   [ ] Có thể sửa/copy/lưu. *(copy ✅; sửa/lưu → P2A)*
+-   [ ] Có thể sửa/copy/lưu. *(copy ✅; lưu ✅ qua P2A; sửa chưa làm)*
 -   [x] Không có unsupported claims trong benchmark.
 -   [x] Lỗi AI không ảnh hưởng analysis result đã có.
 
@@ -376,19 +378,24 @@ Có thể tạo application ở trạng thái `drafted`.
 
 ### Storage & security
 
--   [ ] RLS theo owner.
--   [ ] Purpose riêng cho R2 application snapshots.
--   [ ] `pg_cron` không được xóa snapshot còn thuộc application.
--   [ ] Account deletion phải xóa application rows và documents.
--   [ ] Xóa history analysis không được xóa application snapshot.
--   [ ] Kiểm tra cross-account read/write/delete.
+-   [x] RLS theo owner. *(policy `*_select_own` / `*_delete_own` + RESTRICTIVE `account_unlocked_read`)*
+-   [ ] Purpose riêng cho R2 application snapshots. *(không áp dụng: snapshot lưu trong DB
+    (`application_documents.content`), không copy file gốc lên R2 — không cần cho MVP)*
+-   [x] `pg_cron` không được xóa snapshot còn thuộc application. *(các job cron chỉ dọn R2 tạm, history
+    free và rate limit; không job nào đụng `application_documents`)*
+-   [x] Account deletion phải xóa application rows và documents. *(FK `ON DELETE CASCADE` từ
+    `auth.users`; SQL test account delete)*
+-   [x] Xóa history analysis không được xóa application snapshot. *(không phụ thuộc history; SQL test
+    history delete)*
+-   [x] Kiểm tra cross-account read/write/delete. *(SQL test cross-user; smoke production bằng account
+    thứ hai vẫn là gap)*
 
 ### Exit criteria
 
--   Tạo application từ analysis mà không nhập lại CV/JD.
--   Snapshot tồn tại độc lập với history.
--   Xóa history không phá application.
--   Xóa account không để orphaned files.
+-   [x] Tạo application từ analysis mà không nhập lại CV/JD. *(smoke production P2A)*
+-   [x] Snapshot tồn tại độc lập với history.
+-   [x] Xóa history không phá application.
+-   [x] Xóa account không để orphaned files. *(snapshot trong DB, cascade; không có file R2 riêng)*
 
 ------------------------------------------------------------------------
 
@@ -512,10 +519,11 @@ Không chỉ lưu current status; phải giữ timeline.
 
 ### Exit criteria
 
--   Desktop/mobile cập nhật status ổn định.
--   Timeline không mất khi đổi status.
--   Không truy cập chéo account.
--   Application có thể được tạo từ result hoặc nhập tay.
+-   [x] Desktop/mobile cập nhật status ổn định. *(smoke production P2B, gồm mobile 375 px)*
+-   [x] Timeline không mất khi đổi status. *(`application_events` append-only)*
+-   [x] Không truy cập chéo account. *(SQL test cross-user + policy/grant production; smoke bằng account
+    thứ hai vẫn là gap)*
+-   [ ] Application có thể được tạo từ result hoặc nhập tay. *(từ result ✅; nhập tay DEFERRED)*
 
 ------------------------------------------------------------------------
 
@@ -530,8 +538,9 @@ migration `20261105000000_application_follow_up.sql` đã áp production 2026-11
 Smoke production 2026-11-05 (tài khoản smoke có kiểm soát, dữ liệu tổng hợp): 18 case, 1–14 PASS, 15 GAP
 (cross-account CHƯA xác minh, không có account thứ hai), 16 PASS WITH GAPS, 17–18 PASS. Gemini production:
 4 bản nháp/5 lần gọi/1 retry/0 fallback, mẫu nhỏ, không phải tỉ lệ hallucination. Nợ mở (Minor/known debt):
-cross-account, clipboard success, keyboard focus-visible, thông báo unknown-outcome bị lặp, độ phủ paraphrase
-của grounding. Chi tiết: `docs/15_applications.md`. Fallback P2C.0
+cross-account, clipboard success, keyboard focus-visible, thông báo unknown-outcome bị lặp, intent R1 chỉ giữ
+trong bộ nhớ trang (reload/tab khác là intent mới, có thể tạo event trùng), độ phủ paraphrase của grounding
+(chưa có tỉ lệ hallucination/fallback thống kê). Chi tiết: `docs/15_applications.md`. Fallback P2C.0
 đã deploy trước (#72, `b6e3c47` = SHA rollback tối thiểu; lịch sử: trước 05/11 trạng thái là IMPLEMENTED — NOT YET PRODUCTION VERIFIED). Authority:
 `docs/15_applications.md` (mục P2C); plan chi tiết:
 `docs/superpowers/plans/2026-11-03-p2c-follow-up-workflow.md`. Tóm tắt: 2 event type
@@ -547,11 +556,20 @@ Chênh lệch so với yêu cầu roadmap (có chủ đích):
 -   Bản nháp không được lưu; user phải tự xác nhận "đã gửi" thì mới ghi event.
 -   Stale/no-response sweep: không làm.
 
-**Open before release (cập nhật sau remediation R1-R3):** Cancel-after-unknown duplicate đã sửa ở R1
-(`90157dd`; intent chỉ trong bộ nhớ, reload/tab khác vẫn có thể trùng); copy kết quả không xác định
-đã sửa ở R3; grounding có lớp xác định từ R2 (`7cbc1ce`) nhưng còn giới hạn (diễn đạt khác, cụm
-ranh giới, tên trơn, ký tên một từ). Còn MỞ: alias PostgREST `language:metadata->>language`, Gemini
-thật VI/EN, browser 375 px/desktop, production migration preflight + smoke. Chi tiết: `docs/15_applications.md`.
+**Open before release — lịch sử (trước 05/11/2026), nay đã đóng:**
+
+-   Cancel-after-unknown duplicate: RESOLVED ở R1 (`90157dd`); còn giới hạn intent chỉ giữ trong bộ
+    nhớ (xem nợ mở ở trên).
+-   Copy kết quả không xác định: RESOLVED ở R3 (`284140a`).
+-   Grounding: lớp xác định R2 (`7cbc1ce`) + R4 (`eeaf2aa`, giảm false positive); giới hạn còn lại là
+    nợ mở (diễn đạt khác, tên trơn, ký tên một từ).
+-   Alias PostgREST `language:metadata->>language`: VERIFIED trên production (E1 parser/projection,
+    E2-D real-row + thứ tự ngôn ngữ).
+-   Gemini thật VI/EN: VERIFIED bằng smoke giới hạn (E1 local + E2-D production), không phải phép đo tỉ lệ.
+-   Browser 375 px/desktop: VERIFIED (E2-D case 16, còn gap clipboard success + focus-visible).
+-   Production migration preflight + áp + smoke: DONE (E1, E2-B, E2-D).
+
+Chi tiết: `docs/15_applications.md`.
 
 ### Logic
 
@@ -568,19 +586,23 @@ dụng vì chưa có hồ sơ nào được gửi.
 
 ### Công việc
 
--   [ ] Hiển thị application cần follow-up.
--   [ ] Draft follow-up dựa trên submitted snapshot.
--   [ ] Không cho follow-up thêm claim mới ngoài tài liệu đã gửi.
--   [ ] User phải xác nhận đã gửi trước khi ghi event.
--   [ ] Không tự động gửi email trong MVP.
+-   [x] Hiển thị application cần follow-up. *(chỉ báo trên list + bộ lọc "Cần follow-up")*
+-   [x] Draft follow-up dựa trên submitted snapshot. *(server nạp snapshot CV/JD/thư)*
+-   [x] Không cho follow-up thêm claim mới ngoài tài liệu đã gửi. *(guard CV-only + lớp claim/honorific
+    R2/R4; độ phủ paraphrase còn là nợ mở)*
+-   [x] User phải xác nhận đã gửi trước khi ghi event. *("Đánh dấu đã gửi follow-up"; sinh nháp không
+    ghi event)*
+-   [x] Không tự động gửi email trong MVP.
 -   [ ] Có thể bổ sung stale/no-response sweep sau khi tracker có usage
-    thực tế.
+    thực tế. *(không làm, có chủ đích)*
 
 ### Exit criteria
 
--   Không nhắc follow-up cho draft.
--   Follow-up draft dùng đúng application language/context.
--   Log follow-up không bị duplicate khi retry.
+-   [x] Không nhắc follow-up cho draft. *(smoke production case 14)*
+-   [x] Follow-up draft dùng đúng application language/context. *(case 5: snapshot + thứ tự ngôn ngữ
+    request → thư → application)*
+-   [x] Log follow-up không bị duplicate khi retry. *(case 7 double-click + R1 replay trên production;
+    giới hạn: intent chỉ trong bộ nhớ trang)*
 
 ------------------------------------------------------------------------
 
@@ -724,6 +746,7 @@ Không tạo một API file cho mỗi feature.
 -   `cover_letter` --- P1A
 -   `application_review` --- P1B (review + tối đa 1 revision trong cùng
     request; không có action `revise-after-review` riêng)
+-   `follow_up` --- P2C (body chỉ `action`, `applicationId`, `language`; snapshot do server nạp)
 
 Application CRUD ưu tiên route/handler phù hợp với architecture hiện tại
 hoặc Supabase RPC/direct client khi RLS đủ an toàn; phải audit function
@@ -789,7 +812,7 @@ Policy đã chốt (02/11/2026):
 
 -   Analyze: giữ policy hiện tại (monthly quota + cap theo giờ).
 -   Rewrite CV: cap theo giờ hiện tại, đếm mọi row `kind='rewrite'`.
--   Cover Letter + Review: chung một document cap theo giờ
+-   Cover Letter + Review + Follow-up (từ P2C): chung một document cap theo giờ
     `ceil(hourlyAiLimit/2)` request (free 5/giờ), không monthly quota.
 -   Review: chỉ tính khi user chủ động chạy.
 -   Revision: bundled trong request review (1 request = tối đa 2 Gemini
@@ -885,6 +908,9 @@ MVP hoàn thành khi user có thể:
 6.  Theo dõi trạng thái.
 7.  Nhận/draft follow-up hợp lý.
 
+**Trạng thái (05/11/2026):** cả 7 điểm đã đạt trên production (P0–P2C); MVP hoàn thành kèm nợ đã
+biết của P2C (xem mục P2C).
+
 Interview Prep và Multi-JD Intelligence là expansion sau MVP.
 
 ## 14. Thứ tự triển khai đề xuất
@@ -902,7 +928,7 @@ P2A  Save Application + Snapshot          ✅ deployed (PR #67)
  ↓
 P2B  Application Tracker                  ✅ deployed (PR #70)
  ↓
-P2C  Follow-up
+P2C  Follow-up                            ✅ deployed (PR #73, #74)
  ↓
 P3   Interview Preparation
  ↓
