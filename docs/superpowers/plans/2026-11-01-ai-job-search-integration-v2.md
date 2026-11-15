@@ -1,10 +1,15 @@
 # Kế hoạch tích hợp ý tưởng từ ai-job-search vào cvFit
 
 -   Ngày lập ban đầu: 24/10/2026.
--   Cập nhật: 05/11/2026.
+-   Cập nhật: 15/11/2026.
 -   Trạng thái: P0, P1A, P1B (+ P1B.1), P1C, P2A DEPLOYED / PRODUCTION
-    VERIFIED; P2B DEPLOYED / PRODUCTION VERIFIED (PR #70, `fa1a45f`); P2C DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT (PR #73, `15d90c1`). Triển khai theo từng stage, không port nguyên stack
-    upstream.
+    VERIFIED; P2B DEPLOYED / PRODUCTION VERIFIED (PR #70, `fa1a45f`); P2C DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT (PR #73, `15d90c1`).
+    - Cập nhật 15/11/2026:
+      - M1-B sửa chất lượng P2C: DEPLOYED / PRODUCTION SMOKE PASS (PR #77, `4367f56`).
+      - Sửa replay migration A1: DEPLOYED (PR #76, `d1ef961`).
+      - P3 Interview Prep: **PAUSED, chưa release**. CP6 ở trạng thái independent review RESOURCE-BLOCKED / PENDING.
+      - P4A: vẫn bị gate.
+    - Triển khai theo từng stage, không port nguyên stack upstream.
 -   Repo tham khảo: https://github.com/ai-job-search-dev/ai-job-search
     (nhánh `master`).
 -   Revision nghiên cứu ban đầu:
@@ -571,6 +576,29 @@ Chênh lệch so với yêu cầu roadmap (có chủ đích):
 
 Chi tiết: `docs/15_applications.md`.
 
+**Cập nhật 15/11/2026 — M1 (sửa chất lượng P2C, chi phí AI = 0): DEPLOYED / PRODUCTION SMOKE PASS.**
+
+- **Merge và deploy:** PR #77 squash-merge thành `4367f569d52d44f5d511b1dff4157ad8bcd4cf88`. Vercel production `dpl_FXsK465Jw4zav4G95e7KAcs1cz1h` Ready, build từ `main@4367f56`.
+- **Không đổi:** không migration, không đổi RPC hay idempotency.
+- **Đã sửa:**
+  - Thông báo unknown-outcome bị lặp: ba form note, follow_up_sent và contact_received chỉ còn một `role="alert"` giải thích, đặt trên Retry / Close / Abandon. Status và details giữ copy trung tính.
+  - Keyboard focus-visible: ring dùng chung cho nút, tab, toggle ngôn ngữ và Load more; input có ring 1px.
+- **Nợ intent R1 chỉ giữ trong bộ nhớ trang:** owner chấp nhận (Option A), không có runtime mitigation. Event trùng qua reload hay tab khác vẫn có thể xảy ra và không xoá được.
+- **Bằng chứng:**
+  - Full suite 1374/1374, lint, lint:api, build.
+  - Thêm test T1–T4. Riêng form details: retry tại chỗ dùng lại key; key mới chỉ sau Hủy.
+  - Browser local cô lập (Stage 1).
+  - Smoke production 15/11 bằng tài khoản smoke: tải trang, focus ring, lưu ghi chú trên S1 `999ab417`, đổi trạng thái trên P2B `f2b28420` (interview → offer, fixture nay ở `offer`). Đều PASS, 0 lỗi console.
+- **Còn mở:**
+  - Firefox và screen reader: gap đã chấp nhận, không phải PASS.
+  - Accessibility của ConfirmDialog: nợ có từ trước, ngoài phạm vi M1-B.
+  - Cross-account (case 15), clipboard success, độ phủ paraphrase của grounding.
+  - Unknown outcome chưa mô phỏng trên production (có chủ đích); đã kiểm ở local và bằng test.
+- **Kèm theo, A1 (PR #76, `d1ef961`):**
+  - Bọc guard quanh REVOKE/GRANT `activate_pro_plan` 4 tham số trong `20260602100000`.
+  - Fresh replay 88/88; metadata, body MD5 và quyền khớp production.
+  - Production không chạy lại migration này (version đã ghi nhận).
+
 ### Logic
 
 Follow-up chỉ áp dụng khi:
@@ -608,6 +636,16 @@ dụng vì chưa có hồ sơ nào được gửi.
 
 ## P3 --- Interview Preparation
 
+**Trạng thái (15/11/2026): PAUSED — CHƯA RELEASE.**
+
+- **Code:** P3A (AI, `action: 'interview_prep'`) chỉ nằm trên branch local `feat/p3a-interview-prep`. Branch này chưa từng push và không được merge, mở PR hay cherry-pick vào `main` (quyết định owner D-PAUSE-8 đến 12).
+- **CP6** (runner VM cô lập cho benchmark Gemini thật):
+  - PAUSED, không được duyệt. Freeze `0871d03`; independent human review **RESOURCE-BLOCKED / PENDING**.
+  - D-H7 NOT AUTHORIZED; financial gate BLOCKED; live smoke, CP6 execution và production NO-GO.
+- **Interview Prep không AI (deterministic):** khả thi về kỹ thuật, nhưng chỉ mới có tài liệu ranh giới và rủi ro, chưa được duyệt. Cần quyết định go/no-go riêng và waiver demand-gate riêng.
+- **Exit criteria P3** (STAR có evidence, feedback từng vòng) vẫn mở.
+- **Hồ sơ chi tiết:** `docs/audits/p3a-v2-cp6-pause-record.md` và `docs/superpowers/plans/2026-11-15-roadmap-reprioritization.md`. Cả hai hiện chỉ có trên branch tạm dừng; đưa lên `main` cần owner duyệt.
+
 **Mức tác động:** Backend trung bình, DB trung bình, UI trung bình.
 
 Chỉ triển khai sau khi P2 snapshot ổn định.
@@ -638,6 +676,14 @@ Chỉ triển khai sau khi P2 snapshot ổn định.
 MODEL_VARIANCE trên request giống hệt. Phương án (temperature, seed, median
 nhiều lần chạy, score deterministic) mới là ứng viên điều tra; phương án nào
 cũng phải qua calibration benchmark.
+
+**Trạng thái (15/11/2026): NOT STARTED, vẫn gated.**
+
+- Không tìm thấy raw response của chẩn đoán P2A.2, nên không có pha replay $0 trên dữ liệu thật.
+- Pha $0 chỉ tới mức decision-ready (so sánh phương án, protocol benchmark, ước lượng chi phí).
+- Benchmark thật cần owner duyệt chi tiêu Gemini.
+- Đổi cách suy ra điểm là đổi canonical authority (`docs/12_canonical_scoring.md`), cần owner quyết định.
+- Usage baseline (§12) chưa đo.
 
 **Mức tác động:** Backend/DB/UI cao.
 
@@ -930,9 +976,11 @@ P2B  Application Tracker                  ✅ deployed (PR #70)
  ↓
 P2C  Follow-up                            ✅ deployed (PR #73, #74)
  ↓
-P3   Interview Preparation
+M1   P2C quality fixes + A1 migration     ✅ deployed (PR #76, #77; 15/11/2026)
  ↓
-P4A  Multi-JD Intelligence
+P3   Interview Preparation                ⏸ paused, not released (CP6 review resource-blocked)
+ ↓
+P4A  Multi-JD Intelligence                ⛔ gated (Analyze stabilization + usage baseline)
  ↓
 P4B  Job Discovery
  ↓

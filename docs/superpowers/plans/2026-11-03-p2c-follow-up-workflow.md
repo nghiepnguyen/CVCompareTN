@@ -1,6 +1,6 @@
 # P2C Follow-up Workflow Implementation Plan
 
-> **Release status (2026-11-05):** P2C — DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT (PR #73, `15d90c1`). Authority: `docs/15_applications.md`. Task 1–12 steps are checked as executed (Task 4 decided NO INDEX, so it made no commit). Remediation R1–R4 and the E1/E2 rollout are recorded in docs/15. The task text and reports below are historical.
+> **Release status (2026-11-05; cập nhật 2026-11-15):** P2C — DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT (PR #73, `15d90c1`). Sửa chất lượng M1-B DEPLOYED 2026-11-15 (PR #77, `4367f56`): duplicate unknown-outcome message và focus-visible đã đóng (Chromium); rủi ro event trùng qua reload được owner chấp nhận (Option A). Authority: `docs/15_applications.md`. Task 1–12 steps are checked as executed (Task 4 decided NO INDEX, so it made no commit). Remediation R1–R4 and the E1/E2 rollout are recorded in docs/15. The task text and reports below are historical.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

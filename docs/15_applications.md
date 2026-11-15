@@ -4,6 +4,13 @@
 > PR #73, merge/production SHA `15d90c1`; migration `20261105000000` đã áp production. Bảng 18 case
 > và nợ mở: [P2C](#p2c--follow-up-workflow) (mục "Production verification" và "Known debt (open)").
 > Cross-account (case 15) là GAP, chưa được xác minh.
+>
+> **M1-B (sửa chất lượng P2C): DEPLOYED / PRODUCTION SMOKE PASS (15/11/2026).**
+> - PR #77, `4367f56`; production `dpl_FXsK465Jw4zav4G95e7KAcs1cz1h`. Không migration.
+> - Đã sửa: chỉ còn một thông báo khi kết quả không xác định; focus-visible thống nhất.
+> - Event trùng qua reload hoặc tab khác: rủi ro owner đã chấp nhận (Option A).
+> - Firefox và screen reader: gap đã chấp nhận.
+> - Chi tiết: "Known debt (open)" và "M1-B production smoke" bên dưới.
 
 > P2B (Application Tracker + `application_events`): **DEPLOYED / PRODUCTION VERIFIED**
 > (03/11/2026). PR #70 squash merge `fa1a45f`; migration `20261104000000` áp production
@@ -608,11 +615,28 @@ trừ phần nợ ở "Known debt (open)". Giữ nguyên nội dung remediation 
 
 Mọi mục dưới đây vẫn MỞ (Minor/known debt), chưa sửa. Danh sách nợ chấp nhận được ở (a) vẫn giữ nguyên.
 
-- **Khoảng trống xác minh:** (1) cross-account smoke xác thực bằng account thứ hai được ủy quyền (case 15); (2) đường clipboard thành công (case 16); (3) hành vi keyboard focus-visible (case 16) — M1-B (chưa release) thêm focus ring dùng chung; **xác minh trên browser vẫn MỞ** cho tới khi chạy checklist trên preview được ủy quyền.
+- **Khoảng trống xác minh:** (1) cross-account smoke xác thực bằng account thứ hai được ủy quyền (case 15); (2) đường clipboard thành công (case 16); (3) hành vi keyboard focus-visible (case 16) — **ĐÃ ĐÓNG cho Chromium** bởi M1-B: focus ring dùng chung; kiểm local light/dark ở 375 và 1024 px, và smoke production ngày 15/11. Firefox và screen reader: gap đã chấp nhận, không phải PASS.
 - **Intent R1 chỉ giữ trong bộ nhớ trang — RỦI RO ĐÃ ĐƯỢC OWNER CHẤP NHẬN (Option A, 15/11/2026, M1-B).** Phạm vi: chỉ `note`, `follow_up_sent`, `contact_received`; status/details được CAS chặn.
   - Kịch bản: request commit nhưng mất response (unknown), rồi user reload hoặc dùng tab khác và gửi lại cùng nội dung ⇒ key mới ⇒ **event trùng**.
   - Hệ quả: event không xóa được (chỉ cascade khi xóa application). Một `follow_up_sent` trùng tăng `follow_ups_since_reset` và có thể đưa application sang `limit_reached` sớm.
   - Không có runtime mitigation theo quyết định owner: không lưu intent vào browser storage (intent giữ nội dung note riêng tư), không dedupe theo nội dung. Lưu key qua reload bị loại vì server replay chỉ theo `(user_id, idempotency_key)` và bỏ qua payload ⇒ nội dung mới gửi bằng key cũ bị **mất im lặng**.
   - Retry trong cùng trang và remount vẫn replay đúng (test R1). Chưa quan sát thấy event trùng trên production (chưa query production).
-- **Minor UI:** thông báo kết quả không xác định bị lặp — M1-B (chưa release): ba form note/follow_up_sent/contact_received chỉ còn giải thích unresolved trong slot alert; status/details giữ copy trung tính.
+- ~~**Minor UI:** thông báo kết quả không xác định bị lặp~~ — **ĐÃ SỬA, M1-B deployed 15/11/2026 (PR #77, `4367f56`).** Ba form note, follow_up_sent và contact_received chỉ còn một `role="alert"` giải thích, đặt trên Retry / Close / Abandon; status và details giữ copy trung tính.
+- **Accessibility ConfirmDialog (nợ có từ trước, ngoài M1-B):** nút Cancel và Confirm không có focus-visible ring; input xác nhận dùng `outline-none`.
+- **Nút Load more (có từ trước):** thiếu `disabled:hover:scale-100`.
+- **Tên truy cập của nút có intent chưa xác nhận:** lấy từ `title` ("Có lần gửi chưa xác nhận"); chấm đánh dấu là `aria-hidden`. Cần kiểm bằng screen reader.
+### M1-B production smoke (2026-11-15)
+
+- **Phạm vi:** tài khoản smoke có kiểm soát (outlook.com, uid bắt đầu `044c3afb`), dữ liệu tổng hợp, build production `4367f56`.
+- **Kết quả:**
+
+| Case | Kết quả |
+|---|---|
+| Tải trang, Applications list và detail | PASS; 0 lỗi console |
+| Focus ring: nút back, tab, 6 nút hành động, textarea, select, Lưu | PASS (Chromium) |
+| Thêm ghi chú bằng bàn phím trên S1 `999ab417` | PASS. RPC 200, đúng 1 event "M1-B production smoke 2026-11-15 (synthetic)" |
+| Đổi trạng thái trên P2B `f2b28420`: interview → offer | PASS. RPC 200, 1 event. **Fixture này nay ở `offer`** |
+| Unknown outcome trên production | KHÔNG TEST (có chủ đích); đã kiểm ở local cô lập và bằng test T1–T4 |
+| Firefox, screen reader | KHÔNG TEST: gap đã chấp nhận |
+
 - **AI grounding:** độ phủ paraphrase chưa đầy đủ (các khoảng trống đã biết ở danh sách "Giới hạn còn lại" của Grounding R2 ở trên và trong comment của `followUpService`); mẫu smoke production nhỏ; chưa có tỉ lệ fallback thống kê; chưa có ước lượng thống kê tỉ lệ hallucination. E1 ghi thêm: 3/6 bản nháp local qua vòng đầu phải retry với lý do chưa ghi lại; smoke tiếp theo cần ghi `firstPassViolations` và loại không an toàn; Minor: tính từ "robust" thêm thắt, "trao đổi thêm" mềm, follow-up #2 chưa ghi nhận follow-up trước.

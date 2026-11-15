@@ -69,7 +69,7 @@ Local CLI: `vercel link --project cv-compare-tn --scope nghiepnguyens`.
     | `20260601110000`–`20260601150000_security_*.sql` | Security Advisor: revoke `anon` trên RPC nhạy cảm; `activate_pro_plan` chỉ `service_role`; SELECT bucket `cv-files` theo folder user; `search_path` cố định |
     | `20260601200000_admin_set_user_plan.sql` | RPC admin đổi plan free/pro (guard `is_admin()`) |
     | `20260601210000_activate_pro_plan_idempotent.sql` | `activate_pro_plan` idempotent (claim payment trước); **cần** migration security tiếp theo để giữ revoke EXECUTE |
-    | `20260602100000_security_reapply_function_grants.sql` | Re-apply revoke `anon`/`authenticated` sau recreate `activate_pro_plan`; revoke `anon` trên `admin_set_user_plan`, `get_default_monthly_analytics_limit` |
+    | `20260602100000_security_reapply_function_grants.sql` | Re-apply revoke `anon`/`authenticated` sau recreate `activate_pro_plan`; revoke `anon` trên `admin_set_user_plan`, `get_default_monthly_analytics_limit`. **Từ PR #76 (`d1ef961`, 15/11/2026):** REVOKE/GRANT trên `activate_pro_plan` 4 tham số được bọc trong `DO` block có guard `to_regprocedure(...) IS NOT NULL`, vì `20260601300000` (timestamp lùi về trước) đã thay function 4 tham số bằng bản 5 tham số trước khi file này chạy trên DB mới. Production không chạy lại file này (version đã ghi nhận) |
     | `20260602110000_security_revoke_resolve_limit_public.sql` | Revoke `PUBLIC` execute trên `resolve_monthly_analytics_limit` (anon kế thừa qua `=X/postgres`) |
     | `20260708000000_cv_analyze_tmp_bucket.sql` | Bucket **`cv-analyze-tmp`** (private, 15MB) — file tạm cho luồng phân tích khi CV 2–15MB, INSERT/DELETE RLS scope theo folder `{user_id}/...` |
 
@@ -185,6 +185,26 @@ Nếu đã commit nhầm secret: xoá khỏi lịch sử Git, **rotate** key tr�
 
 Sau `supabase link`, thư mục `supabase/.temp/` được tạo tự động — **không** add vào repo. Migrations trong `supabase/migrations/` vẫn được commit bình thường.
 
+
+## Production 2026-11-15 — A1 (migration replay) và M1-B (P2C quality)
+
+- **A1, PR #76** (squash `d1ef96125ee54ff9fe5706ee5e9817242263a0c1`):
+  - Thay đổi: guard trong `20260602100000` (xem bảng migration ở trên).
+  - Preflight production chỉ đọc (owner chạy SQL): có đúng 1 `activate_pro_plan` 5 tham số; ACL `{postgres=X/postgres,service_role=X/postgres}`; body MD5 `a2585848464759a7595f033585ac1f89`; version đã ghi nhận.
+  - So sánh version 88 migration giữa repo và remote: 0 thiếu, 0 chỉ có trên remote.
+  - Fresh replay local: 88/88, exit 0; metadata, MD5 và quyền khớp production. Harness `supabase/tests/local/run.sh`: 0 `MIGRATION-ERR`.
+  - Deploy production `dpl_67owWGxQ4ZPz9sMEz2GJLspizRvx`: Ready.
+  - **Không** chạy `supabase db push --linked --dry-run`. CLI 2.98.2 tạo login role tạm trên production nếu không truyền password; thay bằng phép so sánh version chỉ đọc ở trên.
+- **M1-B, PR #77** (squash `4367f569d52d44f5d511b1dff4157ad8bcd4cf88`):
+  - Chỉ đổi frontend P2C, không migration.
+  - Deploy production `dpl_FXsK465Jw4zav4G95e7KAcs1cz1h`: Ready, build từ `main@4367f56`; `cvfit.pro/vi/` và `/api/config` trả 200.
+  - Smoke production: xem `docs/15_applications.md` mục "M1-B production smoke".
+- **Hành vi Vercel Git integration (đã quan sát):**
+  - Push một branch tự tạo **preview công khai**. Preview **không có** biến Supabase, Gemini hay các biến khác (chúng chỉ được đặt cho Production), nên app không khởi tạo được trên preview.
+  - Merge vào `main` tự **deploy production**.
+- **Local stack Supabase CLI (2.98.2):**
+  - Publish Kong (54321) và Postgres (54322) trên `0.0.0.0`. Docker mặc định không có `"ip"` trong `daemon.json`.
+  - Chỉ dùng dữ liệu tổng hợp, và không bao giờ dùng `.env` production cho build local.
 
 ## Cập nhật storage R2 (2026-10-18)
 
