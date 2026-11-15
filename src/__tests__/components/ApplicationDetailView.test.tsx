@@ -309,7 +309,7 @@ describe('Notes', () => {
     expect(db.rpc).toHaveBeenCalledTimes(1);
     expect(db.rpc.mock.calls[0][1]).toMatchObject({ p_note: secret });
     call.resolve({ data: null, error: { message: 'Failed to fetch' } });
-    expect(await screen.findByText(vi_.trackerErrGeneric)).toBeTruthy();
+    expect(await screen.findByText(vi_.trackerUnresolvedExplain)).toBeTruthy();
     db.rpc.mockResolvedValueOnce({ data: { event_id: 'e5', replayed: true }, error: null });
     click(vi_.trackerRetry); // R1: unresolved mode replaces Save with Retry
     await waitFor(() => expect(db.rpc).toHaveBeenCalledTimes(2));
@@ -627,7 +627,7 @@ describe('Follow-up and contact actions (P2C)', () => {
     click(vi_.trackerMarkFollowUpSent);
     fireEvent.change(screen.getByLabelText(vi_.trackerNoteOptional), { target: { value: 'secret salary' } });
     click(vi_.trackerSave);
-    expect(await screen.findByText(vi_.trackerErrGeneric)).toBeTruthy();
+    expect(await screen.findByText(vi_.trackerUnresolvedExplain)).toBeTruthy();
     expect(sentry.captureException).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(sentry.captureException.mock.calls)).not.toContain('secret');
     db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
@@ -657,16 +657,16 @@ describe('Follow-up and contact actions (P2C)', () => {
     await renderDetail();
     click(vi_.trackerMarkFollowUpSent);
     click(vi_.trackerSave);
-    await screen.findByText(vi_.trackerErrGeneric);
+    await screen.findByText(vi_.trackerUnresolvedExplain);
     click(vi_.trackerUnresolvedClose); // R1: keeps follow_up_sent:A (outcome unknown)
     click(vi_.trackerEmployerReplied);
     db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
     click(vi_.trackerSave);
-    await screen.findByText(vi_.trackerErrGeneric);
+    await screen.findByText(vi_.trackerUnresolvedExplain);
     click(vi_.trackerMarkFollowUpSent); // switches panel; contact_received:A key persists
     db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
     click(vi_.trackerRetry);
-    await screen.findByText(vi_.trackerErrGeneric);
+    await screen.findByText(vi_.trackerUnresolvedExplain);
     click(vi_.trackerEmployerReplied);
     db.rpc.mockResolvedValueOnce(ok());
     click(vi_.trackerRetry);
@@ -986,7 +986,7 @@ describe('Unknown-outcome idempotency (R1: note / follow_up_sent / contact_recei
     click(s.open);
     fireEvent.change(noteBox(s), { target: { value: note } });
     click(vi_.trackerSave);
-    await screen.findByText(vi_.trackerErrGeneric);
+    await screen.findByText(vi_.trackerUnresolvedExplain);
   };
   // Server that commits on first sight of a key but loses that response; a seen key replays.
   const commitThenLose = () => {
@@ -1105,7 +1105,7 @@ describe('Unknown-outcome idempotency (R1: note / follow_up_sent / contact_recei
     fireEvent.change(noteBox(scopes[2]), { target: { value: 'cr A' } });
     db.rpc.mockResolvedValueOnce(NET);
     click(vi_.trackerSave);
-    await screen.findByText(vi_.trackerErrGeneric);
+    await screen.findByText(vi_.trackerUnresolvedExplain);
     click(vi_.trackerUnresolvedClose);
     await failFirst(scopes[0], 'note A');
     click(vi_.trackerUnresolvedClose);
@@ -1439,7 +1439,18 @@ describe('R3: neutral unknown-outcome copy', () => {
     fireEvent.click(screen.getByRole('button', { name: L.trackerSave }));
   };
 
-  it.each(['vi', 'en'] as const)('%s: unknown shows the neutral copy next to Retry, never the definite-failure copy; Retry reuses the key', async (lang) => {
+  // M1-B: preserving forms show ONE message, the specific explanation, as the form's alert.
+  const onlyUnresolvedAlert = async (L: typeof vi_, lang: 'vi' | 'en') => {
+    await waitFor(() => expect(screen.getAllByRole('alert').map((a) => a.textContent)).toEqual([L.trackerUnresolvedExplain]));
+    expect(screen.queryByText(NEUTRAL[lang])).toBeNull();
+    expect(screen.queryByText(FAILED[lang])).toBeNull();
+    expect(screen.getAllByText(L.trackerUnresolvedExplain)).toHaveLength(1);
+    // Placed above the action group: the alert precedes Retry in document order.
+    const pos = screen.getByRole('alert').compareDocumentPosition(screen.getByRole('button', { name: L.trackerRetry }));
+    expect(pos & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  };
+
+  it.each(['vi', 'en'] as const)('%s: unknown shows only the specific explanation (one alert) next to Retry, never the neutral or definite-failure copy; a second unknown on Retry still shows one; Retry reuses the key', async (lang) => {
     ui.lang = lang;
     const L = UI_LABELS[lang];
     app.status = 'applied';
@@ -1448,14 +1459,18 @@ describe('R3: neutral unknown-outcome copy', () => {
       db.rpc.mockResolvedValueOnce(NET);
       await renderDetail();
       save(L, s, 'x');
-      expect(await screen.findByText(NEUTRAL[lang])).toBeTruthy();
-      expect(screen.queryByText(FAILED[lang])).toBeNull();
-      expect(screen.getByRole('button', { name: L.trackerRetry })).toBeTruthy();
-      db.rpc.mockResolvedValueOnce({ data: { event_id: 'e9', replayed: false }, error: null });
+      await onlyUnresolvedAlert(L, lang);
+      db.rpc.mockResolvedValueOnce(NET);
       fireEvent.click(screen.getByRole('button', { name: L.trackerRetry }));
       await waitFor(() => expect(db.rpc).toHaveBeenCalledTimes(2));
-      const [k1, k2] = db.rpc.mock.calls.map((c) => c[1].p_idempotency_key);
+      await waitFor(() => expect(screen.getByRole('button', { name: L.trackerRetry }).hasAttribute('disabled')).toBe(false));
+      await onlyUnresolvedAlert(L, lang);
+      db.rpc.mockResolvedValueOnce({ data: { event_id: 'e9', replayed: false }, error: null });
+      fireEvent.click(screen.getByRole('button', { name: L.trackerRetry }));
+      await waitFor(() => expect(db.rpc).toHaveBeenCalledTimes(3));
+      const [k1, k2, k3] = db.rpc.mock.calls.map((c) => c[1].p_idempotency_key);
       expect(k2).toBe(k1);
+      expect(k3).toBe(k1);
     }
   });
 
@@ -1494,5 +1509,36 @@ describe('R3: neutral unknown-outcome copy', () => {
       expect(trackerErrorMessage(UI_LABELS[lang], 'unknown')).toBe(NEUTRAL[lang]);
       expect(trackerErrorMessage(UI_LABELS[lang], 'future_code' as never)).toBe(FAILED[lang]);
     }
+  });
+});
+
+describe('M1-B: keyboard focus-visible', () => {
+  const RING = ['focus-visible:outline-none', 'focus-visible:ring-2', 'focus-visible:ring-accent', 'focus-visible:ring-offset-2', 'focus-visible:ring-offset-surface'];
+  const hasRing = (el: Element) => RING.every((c) => el.classList.contains(c));
+
+  it('back, tabs, overview actions and tracker form buttons carry the shared focus ring; inputs get a focus-visible ring', async () => {
+    app.status = 'applied';
+    await renderDetail();
+    const named = [vi_.trackerBack, vi_.trackerChangeStatus, vi_.trackerEditDetails, vi_.trackerAddNote, vi_.trackerMarkFollowUpSent, vi_.trackerEmployerReplied, vi_.trackerDraftButton];
+    for (const name of named) expect(hasRing(screen.getByRole('button', { name }))).toBe(true);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.length).toBeGreaterThan(0);
+    for (const tab of tabs) expect(hasRing(tab)).toBe(true);
+    click(vi_.trackerAddNote);
+    expect(hasRing(screen.getByRole('button', { name: vi_.trackerSave }))).toBe(true);
+    expect(hasRing(screen.getByRole('button', { name: vi_.trackerCancel }))).toBe(true);
+    const box = screen.getByLabelText(vi_.trackerNoteLabel);
+    expect(box.classList.contains('focus-visible:ring-1')).toBe(true);
+    expect(box.classList.contains('focus:outline-none')).toBe(true); // text fields: :focus-visible also matches on click, so the 1px ring shows on pointer focus too (intentional)
+  });
+
+  it('draft language toggle carries the ring; disabled state classes are kept', async () => {
+    app.status = 'applied';
+    await renderDetail();
+    click(vi_.trackerDraftButton);
+    const toggle = screen.getByRole('button', { name: 'English' });
+    expect(hasRing(toggle)).toBe(true);
+    expect(toggle.classList.contains('disabled:opacity-50')).toBe(true);
+    expect(hasRing(screen.getByRole('button', { name: vi_.trackerDraftGenerate }))).toBe(true);
   });
 });

@@ -9,7 +9,7 @@ import type { ApplicationDetail, ApplicationDocument } from '../../../services/a
 import { logApplicationContact, type MutationResult } from '../../../services/applicationService';
 import { NOTE_MAX, type ContactEventType } from '../../../services/applicationTypes';
 import { trackerErrorMessage } from './status';
-import { FormShell, UnresolvedActions, fieldClass, occurredAtFor, primaryButton, secondaryButton } from './TrackerActions';
+import { FormShell, UnresolvedActions, fieldClass, focusRing, occurredAtFor, primaryButton, secondaryButton } from './TrackerActions';
 import { useTrackerMutation } from './useTrackerMutation';
 
 /** Sent values (occurredAt, note) plus the picked day, shown while unresolved. */
@@ -41,7 +41,7 @@ export function ContactEventForm({ applicationId, eventType, onDone, onClose }: 
   return (
     <FormShell
       title={eventType === 'follow_up_sent' ? t.trackerMarkFollowUpSent : t.trackerEmployerReplied}
-      error={error ? trackerErrorMessage(t, error) : noteTooLong ? formatLabel(t.trackerTooLong, { max: NOTE_MAX }) : null}
+      error={unresolved ? null : error ? trackerErrorMessage(t, error) : noteTooLong ? formatLabel(t.trackerTooLong, { max: NOTE_MAX }) : null}
     >
       <label className="block space-y-1 text-xs font-bold text-text-muted">
         <span>{t.trackerOccurredOn}</span>
@@ -129,7 +129,7 @@ export function FollowUpDraftPanel({ application, documents, onClose }: {
         {([['vi', 'Tiếng Việt'], ['en', 'English']] as const).map(([code, label]) => (
           <button key={code} type="button" disabled={loading} aria-pressed={language === code}
             onClick={() => { if (code !== language) { setLanguage(code); setTouched(true); } }}
-            className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 ${language === code ? 'border-accent text-accent' : 'border-border text-text-muted'}`}>
+            className={`${focusRing} rounded-xl border px-3 py-1.5 text-xs font-bold transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 ${language === code ? 'border-accent text-accent' : 'border-border text-text-muted'}`}>
             {label}
           </button>
         ))}
