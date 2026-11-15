@@ -6,7 +6,7 @@ import { useUI } from '../UIContext';
 import { formatLabel } from '../../translations';
 import { trackEvent } from '../../lib/ga4';
 import { supabase } from '../../lib/supabase';
-import { AnalysisResult, type ParsedCV, analyzeCV, rewriteFullCV, parseCV } from '../../services/ai';
+import { AnalysisResult, type ParsedCV, analyzeCV, rewriteFullCV, parseCV, localizeAiError } from '../../services/ai';
 import {
   saveToHistory,
   deleteFromHistory,
@@ -33,6 +33,10 @@ const AnalysisRunContext = createContext<AnalysisRunContextType | undefined>(und
 // analyze worker pool so a large batch cannot double unbounded Gemini load.
 export const PARSE_CONCURRENCY = 5;
 const limitParseCV = createConcurrencyLimiter(PARSE_CONCURRENCY);
+// Full CV starts automatically for every result once the batch settles; a
+// recruiter batch of 50 used to open 50 rewrite requests at once (M2-A P1-3).
+export const REWRITE_CONCURRENCY = 5;
+const limitRewriteCV = createConcurrencyLimiter(REWRITE_CONCURRENCY);
 
 type ParsedCVJob = {
   promise: Promise<ParsedCV | undefined>;
@@ -160,14 +164,14 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     ) => {
       setFullCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
-        const { fullRewrittenCV, fidelityFallback } = await rewriteFullCV(
+        const { fullRewrittenCV, fidelityFallback } = await limitRewriteCV(() => rewriteFullCV(
           jd,
           cvData,
           cvMimeType,
           language,
           authToken,
           cvDataStoragePath
-        );
+        ));
         if (fidelityFallback) {
           // Nothing to show or persist: no rewrite passed the factual check.
           setFullCVFallbackIds((prev) => new Set([...prev, resultId]));
@@ -228,7 +232,20 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     [startFakeProgress],
   );
 
+  // Set synchronously on click: `isAnalyzing` only flips after the quota
+  // check awaits, so a double click used to start two full runs (M2-A P1-2).
+  const runInFlightRef = useRef(false);
   const handleAnalyze = async () => {
+    if (runInFlightRef.current) return;
+    runInFlightRef.current = true;
+    try {
+      await runAnalyze();
+    } finally {
+      runInFlightRef.current = false;
+    }
+  };
+
+  const runAnalyze = async () => {
     if (!jd.trim()) return setError('Vui lòng cung cấp Mô tả công việc (JD).');
     if (cvInputMode === 'file' && files.length === 0) return setError('Vui lòng tải lên ít nhất một CV.');
     if (cvInputMode === 'text' && !cvText.trim()) return setError('Vui lòng dán nội dung CV của bạn.');
@@ -416,7 +433,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
               captureException(fileErr, { tags: { feature: 'analyze_cv_batch_item' } });
               failures.push({
                 name: fileOrRef.name,
-                message: fileErr instanceof Error ? fileErr.message : String(fileErr),
+                message: localizeAiError(fileErr, t),
               });
             } finally {
               completedCount++;
@@ -593,7 +610,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           },
         },
       });
-      const message = err instanceof Error ? err.message : String(err);
+      const message = localizeAiError(err, t);
       setError(message || 'Đã xảy ra lỗi trong quá trình phân tích.');
     } finally {
       progressStopRef.current?.();

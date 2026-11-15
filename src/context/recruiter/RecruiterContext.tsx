@@ -1,9 +1,9 @@
 // @refresh reset — provider and hook share this module; see UIContext.tsx.
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
-import { analyzeCV, deriveRequirementInsights, displayProbability, type AnalysisResult } from '../../services/ai';
+import { analyzeCV, deriveRequirementInsights, displayProbability, localizeAiError, type AnalysisResult } from '../../services/ai';
 import type { DetailedComparison } from '../../services/ai/types';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { processFile as processFileUtil } from '../../hooks/useFileProcessor';
@@ -178,7 +178,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
     [user?.id, loadCandidates, loadCampaigns],
   );
 
-  const handleAnalyzeCampaign = useCallback(
+  const runCampaignAnalysis = useCallback(
     async (campaignId: string) => {
       if (!user?.id) return;
       if (!activeCampaign) return;
@@ -300,7 +300,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             );
           } catch (err) {
             console.error(`Analysis failed for candidate ${candidate.id}:`, err);
-            const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            const errorMsg = err instanceof Error ? localizeAiError(err, t) : 'Unknown error';
 
             await updateCandidateStatus(candidate.id, 'error', errorMsg);
 
@@ -326,6 +326,22 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [user?.id, activeCampaign, candidates, reportLanguage, t, refreshUserProfile, loadCampaigns],
+  );
+
+  // Synchronous guard: `isAnalyzing` flips only after the quota check awaits,
+  // so a double click used to analyze the same candidates twice (M2-A P1-2).
+  const campaignRunInFlightRef = useRef(false);
+  const handleAnalyzeCampaign = useCallback(
+    async (campaignId: string) => {
+      if (campaignRunInFlightRef.current) return;
+      campaignRunInFlightRef.current = true;
+      try {
+        await runCampaignAnalysis(campaignId);
+      } finally {
+        campaignRunInFlightRef.current = false;
+      }
+    },
+    [runCampaignAnalysis],
   );
 
   const handleUpdateHrStatus = useCallback(

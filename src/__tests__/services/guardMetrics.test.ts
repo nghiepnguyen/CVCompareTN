@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Real handlers + services; only Gemini and Supabase are mocked, so the
 // guard_metrics asserted below is the exact object handed to analysis_log.
 const generateContent = vi.fn();
+// The atomic AI slot (M2-B) is covered by m2bStabilization.test.ts; this suite
+// is about other behavior, so the reservation always succeeds here.
+vi.mock('../../../_server-lib/rateLimit.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../_server-lib/rateLimit')>()),
+  reserveAiCall: async () => 'ok',
+}));
 vi.mock('../../../_server-lib/ai/geminiClient.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../_server-lib/ai/geminiClient')>()),
   getGeminiClient: () => ({ models: { generateContent } }),

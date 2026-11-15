@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Stage 3.7 invariants. Real analyzeCV / handler / localization; Gemini and
 // Supabase mocked. Scoring and localization calls are told apart by prompt.
 const generateContent = vi.fn();
+// The atomic AI slot (M2-B) is covered by m2bStabilization.test.ts; this suite
+// is about other behavior, so the reservation always succeeds here.
+vi.mock('../../../_server-lib/rateLimit.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../_server-lib/rateLimit')>()),
+  reserveAiCall: async () => 'ok',
+}));
 vi.mock('../../../_server-lib/ai/geminiClient.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../_server-lib/ai/geminiClient')>()),
   getGeminiClient: () => ({ models: { generateContent } }),

@@ -47,6 +47,9 @@ function readAsDataURL(file: File): Promise<string> {
  * MAX_INLINE_BINARY_SIZE is uploaded to Supabase Storage instead of being
  * inlined, so `uid` is required to scope the upload path.
  */
+const emptyContentMessage = (name: string) =>
+  `Không thể đọc nội dung "${name}". File không có văn bản — vui lòng dùng PDF có thể chọn text hoặc dán nội dung thủ công.`;
+
 export async function processFile(
   file: File,
   uid: string
@@ -97,7 +100,9 @@ export async function processFile(
     const arrayBuffer = await file.arrayBuffer();
     const mammoth = (await import("mammoth")).default;
     const result = await mammoth.extractRawText({ arrayBuffer });
-    return { data: cleanText(result.value), mimeType: "text/plain" };
+    const data = cleanText(result.value);
+    if (!data) throw new Error(emptyContentMessage(file.name));
+    return { data, mimeType: "text/plain" };
   }
 
   // Image → base64 data-URL when small, Storage upload otherwise
@@ -115,5 +120,8 @@ export async function processFile(
 
   // Fallback: read as plain text
   const text = await file.text();
-  return { data: cleanText(text), mimeType: "text/plain" };
+  const data = cleanText(text);
+  // Empty extraction used to reach the server as a raw "Missing cvData" 400.
+  if (!data) throw new Error(emptyContentMessage(file.name));
+  return { data, mimeType: "text/plain" };
 }

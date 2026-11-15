@@ -88,7 +88,7 @@ flowchart TB
 
 - **Local development** full-stack: Vite dev server proxies or hits Express for `/api`.
 - **Paths và behavior giống hệt Vercel** — cả hai gọi cùng `_server-lib/` handlers.
-- Rate limiting: Express dùng `server/lib/rateLimiter.ts`; ngoài ra cả Vercel và Express dùng bộ đếm chung Postgres `consume_api_rate_limit` qua `_server-lib/rateLimit.ts` (migration `20261101100000`) cho `extract-pdf`, `storage`, `send-email`.
+- Rate limiting: Express dùng `server/lib/rateLimiter.ts`; ngoài ra cả Vercel và Express dùng bộ đếm chung Postgres `consume_api_rate_limit` qua `_server-lib/rateLimit.ts` (migration `20261101100000`) cho `extract-pdf`, `storage`, `send-email`, và (M2-B, fail-closed) slot AI `ai_analyze` / `ai_parse_cv` / `ai_rewrite` — xem [5_api.md](5_api.md).
 
 ### Supabase Edge Functions — không còn
 

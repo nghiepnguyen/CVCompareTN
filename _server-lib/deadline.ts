@@ -15,6 +15,9 @@ export type FailureCategory =
   | 'storage_error'
   | 'gemini_timeout'
   | 'gemini_error'
+  // Provider HTTP 429 / 5xx (M2-B): transient, surfaced as 503 retryable.
+  | 'gemini_rate_limited'
+  | 'gemini_unavailable'
   | 'request_budget_exhausted';
 
 // A failure with a stable category; `message` is safe to persist ("[category]").
@@ -66,4 +69,31 @@ export function aiFailureCategory(err: unknown): FailureCategory {
 // Throws request_budget_exhausted when less than minMs is left.
 export function assertBudget(deadline: Deadline, minMs: number): void {
   if (deadline.remainingMs() < minMs) throw new ControlledError('request_budget_exhausted');
+}
+
+// Provider status on a raw @google/genai ApiError (it carries a numeric `status`).
+export function providerFailureCategory(err: unknown): 'gemini_rate_limited' | 'gemini_unavailable' | null {
+  const status = (err as { status?: unknown } | null)?.status;
+  if (typeof status !== 'number') return null;
+  if (status === 429) return 'gemini_rate_limited';
+  if (status >= 500 && status <= 599) return 'gemini_unavailable';
+  return null;
+}
+
+// Category for analyze / parse-cv / Full CV rewrite failures. Unlike
+// aiFailureCategory (still used by the document actions), provider 429/5xx
+// get their own categories instead of collapsing into gemini_error.
+export function classifyAiFailure(err: unknown): FailureCategory {
+  if (err instanceof ControlledError) return err.category;
+  return providerFailureCategory(err) ?? aiFailureCategory(err);
+}
+
+export type AiFailureResponse = { status: number; retryable: boolean; kind: 'timeout' | 'busy' | 'error' };
+
+// HTTP shape per category: provider throttling/outage → 503 retryable,
+// timeouts/budget → 504 retryable, anything else → 500.
+export function aiFailureResponse(category: FailureCategory): AiFailureResponse {
+  if (category === 'gemini_rate_limited' || category === 'gemini_unavailable') return { status: 503, retryable: true, kind: 'busy' };
+  if (category === 'gemini_error') return { status: 500, retryable: false, kind: 'error' };
+  return { status: 504, retryable: true, kind: 'timeout' };
 }

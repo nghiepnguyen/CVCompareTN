@@ -1,12 +1,15 @@
 import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 import { generateParsedCV } from '../ai/parseCvService.js';
 import { withTimeout } from '../withTimeout.js';
-import { checkAiAccess } from '../accountLock.js';
+import { getAiAccess } from '../accountLock.js';
+import { reserveAiCall } from '../rateLimit.js';
+import { checkInputSize } from '../inputLimits.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
 import { resolveStorageRef } from '../storage/tempFile.js';
 import { GEMINI_PARSE_MODEL } from '../ai/geminiClient.js';
 import {
-  aiFailureCategory,
+  aiFailureResponse,
+  classifyAiFailure,
   ControlledError,
   createDeadline,
   MIN_GEMINI_BUDGET_MS,
@@ -18,6 +21,7 @@ export type HandlerResult = { status: number; body: Record<string, unknown> };
 
 const AUTH_TIMEOUT_MS = 4_000;
 const TIMEOUT_MESSAGE = 'CV parsing is taking too long. Please try again. (Timeout)';
+const BUSY_MESSAGE = 'Hệ thống AI đang quá tải. Vui lòng thử lại sau ít phút.';
 
 export async function handleParseCv(
   authHeader: string | undefined,
@@ -43,6 +47,8 @@ export async function handleParseCv(
   const cvDataStoragePath = b.cvDataStoragePath?.trim() || undefined;
 
   if (!cvData && !cvDataStoragePath) return { status: 400, body: { error: 'Missing cvData' } };
+  const tooLargeInline = checkInputSize({ cvData, cvMimeType });
+  if (tooLargeInline) return tooLargeInline;
 
   const user = await withTimeout(
     getUserFromBearerToken(authHeader),
@@ -56,7 +62,7 @@ export async function handleParseCv(
   if (!user) {
     return { status: 401, body: { error: 'Authentication required' } };
   }
-  const access = await checkAiAccess(user.id, 'parse_cv', Math.min(AUTH_TIMEOUT_MS, deadline.remainingMs()), deadline.signal(AUTH_TIMEOUT_MS));
+  const { access, plan } = await getAiAccess(user.id, 'parse_cv', Math.min(AUTH_TIMEOUT_MS, deadline.remainingMs()), deadline.signal(AUTH_TIMEOUT_MS));
   if (access === 'locked') return { status: 403, body: { error: 'Account locked' } };
   if (access === 'unavailable') return { status: 503, body: { error: 'Account verification unavailable' } };
   if (access === 'rate_limited') return { status: 429, body: { error: 'Too many requests. Please try again later.' } };
@@ -85,6 +91,20 @@ export async function handleParseCv(
     };
   }
 
+  const tooLargeStored = cvDataStoragePath ? checkInputSize({ cvData, cvMimeType }) : null;
+  if (tooLargeStored) return tooLargeStored;
+
+  // Atomic slot before Gemini (M2-A P1-1); fails closed.
+  const slot = await reserveAiCall(user.id, 'parse_cv', plan, deadline);
+  if (slot === 'rate_limited') {
+    await logFailure('ai_rate_limited');
+    return { status: 429, body: { error: 'Too many requests. Please try again later.' } };
+  }
+  if (slot === 'unavailable') {
+    await logFailure('rate_limit_unavailable');
+    return { status: 503, body: { error: 'Rate limit verification unavailable', retryable: true } };
+  }
+
   if (aiDeadline.remainingMs() < MIN_GEMINI_BUDGET_MS) {
     await logFailure('request_budget_exhausted');
     return { status: 504, body: { error: TIMEOUT_MESSAGE, retryable: true } };
@@ -98,10 +118,11 @@ export async function handleParseCv(
     return { status: 200, body: { parsedCV } };
   } catch (err) {
     console.error('CV parsing failed:', err);
-    const category = aiFailureCategory(err);
-    const isTimeout = category !== 'gemini_error';
+    const category = classifyAiFailure(err);
+    const failure = aiFailureResponse(category);
     await logFailure(category, category !== 'request_budget_exhausted'); // model only if Gemini ran
-    const message = isTimeout ? TIMEOUT_MESSAGE : 'Không thể đọc thông tin CV. Vui lòng thử lại.';
-    return { status: isTimeout ? 504 : 500, body: { error: message, retryable: isTimeout } };
+    const message =
+      failure.kind === 'busy' ? BUSY_MESSAGE : failure.kind === 'timeout' ? TIMEOUT_MESSAGE : 'Không thể đọc thông tin CV. Vui lòng thử lại.';
+    return { status: failure.status, body: { error: message, retryable: failure.retryable } };
   }
 }
