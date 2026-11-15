@@ -11,9 +11,11 @@ import {
 import { statusLabel, trackerErrorMessage } from './status';
 import { useTrackerMutation } from './useTrackerMutation';
 
-export const fieldClass = 'w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none';
-export const primaryButton = 'rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100';
-export const secondaryButton = 'rounded-xl border border-border px-4 py-2 text-sm font-bold text-text-muted transition-all cursor-pointer hover:scale-105 hover:text-text-main active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100';
+// Keyboard focus ring (AdminView pattern); focus-visible only, so pointer focus is unchanged. Offset matches the surface.
+export const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
+export const fieldClass = 'w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-accent';
+export const primaryButton = `${focusRing} rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition-all cursor-pointer hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100`;
+export const secondaryButton = `${focusRing} rounded-xl border border-border px-4 py-2 text-sm font-bold text-text-muted transition-all cursor-pointer hover:scale-105 hover:text-text-main active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100`;
 
 export function FormShell({ title, error, children }: { title: string; error: string | null; children: React.ReactNode }) {
   return (
@@ -95,13 +97,14 @@ export function StatusChangeForm({ application, onDone, onClose }: { application
   );
 }
 
-/** Shown while an earlier submission's outcome is unknown: Retry resends it, Close keeps it, Abandon (confirmed) drops it. */
+/** Shown while an earlier submission's outcome is unknown: Retry resends it, Close keeps it, Abandon (confirmed) drops it.
+ * Its explanation is the form's only message (callers pass no FormShell error while unresolved), placed above the actions. */
 export function UnresolvedActions({ busy, onRetry, onClose, onAbandon }: { busy: boolean; onRetry: () => void; onClose: () => void; onAbandon: () => void }) {
   const { t } = useUI();
   const [confirming, setConfirming] = React.useState(false);
   return (
     <>
-      <p role="status" className="text-xs font-medium text-text-muted">{t.trackerUnresolvedExplain}</p>
+      <p role="alert" className="text-xs font-medium text-error">{t.trackerUnresolvedExplain}</p>
       <div className="flex flex-wrap justify-end gap-2">
         <button type="button" className={secondaryButton} onClick={onClose}>{t.trackerUnresolvedClose}</button>
         <button type="button" className={secondaryButton} disabled={busy} onClick={() => setConfirming(true)}>{t.trackerUnresolvedAbandon}</button>
@@ -144,7 +147,7 @@ export function NoteForm({ applicationId, onDone, onClose }: {
 
   const shown = locked ? locked.note : note;
   return (
-    <FormShell title={t.trackerAddNote} error={error ? trackerErrorMessage(t, error) : touched && !locked ? invalid : null}>
+    <FormShell title={t.trackerAddNote} error={unresolved ? null : error ? trackerErrorMessage(t, error) : touched && !locked ? invalid : null}>
       <label className="block space-y-1 text-xs font-bold text-text-muted">
         <span>{t.trackerNoteLabel}</span>
         <textarea className={fieldClass} rows={3} value={shown} disabled={!!locked} onChange={(e) => setNote(e.target.value)} />

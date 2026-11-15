@@ -608,7 +608,11 @@ trừ phần nợ ở "Known debt (open)". Giữ nguyên nội dung remediation 
 
 Mọi mục dưới đây vẫn MỞ (Minor/known debt), chưa sửa. Danh sách nợ chấp nhận được ở (a) vẫn giữ nguyên.
 
-- **Khoảng trống xác minh:** (1) cross-account smoke xác thực bằng account thứ hai được ủy quyền (case 15); (2) đường clipboard thành công (case 16); (3) hành vi keyboard focus-visible (case 16).
-- **Intent R1 chỉ giữ trong bộ nhớ trang** (reload/tab khác là intent mới, có thể tạo event trùng).
-- **Minor UI:** thông báo kết quả không xác định bị lặp (copy trung tính của FormShell cộng giải thích unresolved).
+- **Khoảng trống xác minh:** (1) cross-account smoke xác thực bằng account thứ hai được ủy quyền (case 15); (2) đường clipboard thành công (case 16); (3) hành vi keyboard focus-visible (case 16) — M1-B (chưa release) thêm focus ring dùng chung; **xác minh trên browser vẫn MỞ** cho tới khi chạy checklist trên preview được ủy quyền.
+- **Intent R1 chỉ giữ trong bộ nhớ trang — RỦI RO ĐÃ ĐƯỢC OWNER CHẤP NHẬN (Option A, 15/11/2026, M1-B).** Phạm vi: chỉ `note`, `follow_up_sent`, `contact_received`; status/details được CAS chặn.
+  - Kịch bản: request commit nhưng mất response (unknown), rồi user reload hoặc dùng tab khác và gửi lại cùng nội dung ⇒ key mới ⇒ **event trùng**.
+  - Hệ quả: event không xóa được (chỉ cascade khi xóa application). Một `follow_up_sent` trùng tăng `follow_ups_since_reset` và có thể đưa application sang `limit_reached` sớm.
+  - Không có runtime mitigation theo quyết định owner: không lưu intent vào browser storage (intent giữ nội dung note riêng tư), không dedupe theo nội dung. Lưu key qua reload bị loại vì server replay chỉ theo `(user_id, idempotency_key)` và bỏ qua payload ⇒ nội dung mới gửi bằng key cũ bị **mất im lặng**.
+  - Retry trong cùng trang và remount vẫn replay đúng (test R1). Chưa quan sát thấy event trùng trên production (chưa query production).
+- **Minor UI:** thông báo kết quả không xác định bị lặp — M1-B (chưa release): ba form note/follow_up_sent/contact_received chỉ còn giải thích unresolved trong slot alert; status/details giữ copy trung tính.
 - **AI grounding:** độ phủ paraphrase chưa đầy đủ (các khoảng trống đã biết ở danh sách "Giới hạn còn lại" của Grounding R2 ở trên và trong comment của `followUpService`); mẫu smoke production nhỏ; chưa có tỉ lệ fallback thống kê; chưa có ước lượng thống kê tỉ lệ hallucination. E1 ghi thêm: 3/6 bản nháp local qua vòng đầu phải retry với lý do chưa ghi lại; smoke tiếp theo cần ghi `firstPassViolations` và loại không an toàn; Minor: tính từ "robust" thêm thắt, "trao đổi thêm" mềm, follow-up #2 chưa ghi nhận follow-up trước.

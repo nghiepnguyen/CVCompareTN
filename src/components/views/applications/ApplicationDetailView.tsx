@@ -11,7 +11,7 @@ import {
 import type { ApplicationDetail, ApplicationDocument, ApplicationEvent, FollowUpInfo } from '../../../services/applicationTypes';
 import { StatusBadge, statusLabel, trackerErrorMessage } from './status';
 import { ContactEventForm, FollowUpDraftPanel } from './FollowUpActions';
-import { DetailsForm, NoteForm, StatusChangeForm } from './TrackerActions';
+import { DetailsForm, NoteForm, StatusChangeForm, focusRing } from './TrackerActions';
 import { hasUnresolvedIntent, useIntentsVersion } from './useTrackerMutation';
 
 type DetailTab = 'overview' | 'documents' | 'timeline';
@@ -94,7 +94,7 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
   };
 
   const back = (
-    <button type="button" onClick={onBack} className="flex items-center gap-2 text-sm font-bold text-text-muted transition-all cursor-pointer hover:scale-105 hover:text-accent active:scale-95">
+    <button type="button" onClick={onBack} className={cn(focusRing, "flex items-center gap-2 text-sm font-bold text-text-muted transition-all cursor-pointer hover:scale-105 hover:text-accent active:scale-95")}>
       <ArrowLeft className="h-4 w-4" /> {t.trackerBack}
     </button>
   );
@@ -105,7 +105,7 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
         {back}
         <div className="rounded-2xl border border-border bg-surface p-8 text-center">
           <p role="alert" className="text-sm font-bold text-text-muted">{loadError}</p>
-          <button type="button" onClick={() => void load()} className="mt-4 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition-all cursor-pointer hover:scale-105 active:scale-95">{t.trackerRetry}</button>
+          <button type="button" onClick={() => void load()} className={cn(focusRing, "mt-4 rounded-xl bg-accent px-4 py-2 text-sm font-bold text-white transition-all cursor-pointer hover:scale-105 active:scale-95")}>{t.trackerRetry}</button>
         </div>
       </section>
     );
@@ -145,7 +145,7 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
             role="tab"
             aria-selected={tab === id}
             onClick={() => setTab(id)}
-            className={cn('relative flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95', tab === id ? 'text-accent' : 'text-text-muted hover:text-text-main')}
+            className={cn(focusRing, 'relative flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95', tab === id ? 'text-accent' : 'text-text-muted hover:text-text-main')}
           >
             {tab === id && <motion.span layoutId="applicationDetailTab" className="absolute inset-0 rounded-lg bg-surface" />}
             <span className="relative">{label}</span>
@@ -183,7 +183,7 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
                 type="button"
                 onClick={() => { setReplayNotice(false); setPanel(panel === id ? null : id); }}
                 title={hasUnresolvedIntent(`${id}:${app.id}`) ? t.trackerUnconfirmedMarker : undefined}
-                className={cn('rounded-xl border px-4 py-2 text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95', panel === id ? 'border-accent text-accent' : 'border-border text-text-main hover:border-accent')}
+                className={cn(focusRing, 'rounded-xl border px-4 py-2 text-sm font-bold transition-all cursor-pointer hover:scale-105 active:scale-95', panel === id ? 'border-accent text-accent' : 'border-border text-text-main hover:border-accent')}
               >
                 {label}
                 {hasUnresolvedIntent(`${id}:${app.id}`) && <span aria-hidden="true" className="ml-1.5 inline-block h-2 w-2 rounded-full bg-accent" />}
@@ -212,7 +212,7 @@ export function ApplicationDetailView({ applicationId, onBack }: { applicationId
                 type="button"
                 disabled={moreBusy}
                 onClick={() => void loadMoreEvents()}
-                className="rounded-xl border border-border px-5 py-2 text-sm font-bold text-text-main transition-all cursor-pointer hover:scale-105 hover:border-accent active:scale-95 disabled:opacity-50"
+                className={cn(focusRing, "rounded-xl border border-border px-5 py-2 text-sm font-bold text-text-main transition-all cursor-pointer hover:scale-105 hover:border-accent active:scale-95 disabled:opacity-50")}
               >
                 {moreBusy ? t.trackerLoading : t.trackerTimelineMore}
               </button>
