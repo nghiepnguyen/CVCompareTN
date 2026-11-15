@@ -1,0 +1,228 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import React from 'react';
+import type { AnalysisResult, ParsedCV } from '../../services/ai';
+
+const mocks = vi.hoisted(() => ({
+  analyzeCV: vi.fn(),
+  parseCV: vi.fn(),
+  rewriteFullCV: vi.fn(),
+  processFile: vi.fn(),
+  saveToHistory: vi.fn(),
+  updateHistoryField: vi.fn(),
+  getUserHistory: vi.fn(),
+  cleanupTempAnalysisFiles: vi.fn(),
+  checkAnalyticsQuota: vi.fn(),
+  trackEvent: vi.fn(),
+  setError: vi.fn(),
+  plan: 'pro' as string,
+}));
+
+vi.mock('../../services/ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/ai')>();
+  return {
+    ...actual,
+    analyzeCV: mocks.analyzeCV,
+    parseCV: mocks.parseCV,
+    rewriteFullCV: mocks.rewriteFullCV,
+  };
+});
+
+vi.mock('../../services/historyService', () => ({
+  saveToHistory: mocks.saveToHistory,
+  updateHistoryField: mocks.updateHistoryField,
+  getUserHistory: mocks.getUserHistory,
+  deleteFromHistory: vi.fn(),
+  clearUserHistory: vi.fn(),
+  rateAnalysis: vi.fn(),
+}));
+
+vi.mock('../../services/cvService', () => ({
+  isStoredCVRef: () => false,
+  resolveToFile: vi.fn(),
+  makeStoredCVRef: vi.fn(),
+  downloadCVFromStorage: vi.fn(),
+  cleanupTempAnalysisFiles: mocks.cleanupTempAnalysisFiles,
+}));
+
+vi.mock('../../hooks/useFileProcessor', () => ({
+  cleanText: (s: string) => s,
+  processFile: mocks.processFile,
+}));
+
+vi.mock('../../hooks/useProgressSimulator', () => ({
+  createProgressSimulator: () => ({ stop: vi.fn() }),
+}));
+
+vi.mock('../../services/analyticsQuotaService', () => ({
+  checkAnalyticsQuota: mocks.checkAnalyticsQuota,
+}));
+
+vi.mock('../../lib/ga4', () => ({ trackEvent: mocks.trackEvent }));
+
+vi.mock('../../lib/sentry', () => ({ captureException: vi.fn() }));
+
+vi.mock('../../context/UIContext', () => ({
+  useUI: () => ({ reportLanguage: 'en', t: {}, navigateToUpgrade: vi.fn() }),
+}));
+
+vi.mock('../../context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 'u1' },
+    userProfile: { role: 'user' },
+    get effectivePlan() { return mocks.plan; },
+    setError: mocks.setError,
+    refreshUserProfile: vi.fn(),
+  }),
+}));
+
+vi.mock('../../lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn(async () => ({ data: { session: { access_token: 'token' } } })),
+    },
+  },
+}));
+
+import { AnalysisRunProvider, useAnalysisRun } from '../../context/analysis/AnalysisRunContext';
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+const PARSED = {
+  personal_information: { full_name: 'Test', contact: { email: '', phone: '', location: '' }, summary: '' },
+  education: [],
+  work_experience: [],
+  skills: { technical_skills: [], soft_skills: [], hard_skills: [], tools_software: [], languages: [] },
+  projects: [],
+  certifications: [],
+  ats_evaluation: { years_of_experience: 5 },
+} as ParsedCV;
+
+function makeResult(id: string): AnalysisResult {
+  return {
+    id,
+    timestamp: 1,
+    matchScore: 80,
+    categoryScores: {},
+    matchingPoints: [],
+    missingGaps: [],
+    successProbability: 'High',
+    passProbability: 'High',
+    passExplanation: '',
+    probabilityVersion: 'canonical-score-v1',
+    mainFactor: '',
+    atsKeywords: [],
+    rewriteSuggestions: [],
+    detailedComparison: { skills: [], experience: [], tools: [], education: [], keywords: [] },
+  } as unknown as AnalysisResult;
+}
+
+function file(name: string) {
+  return new File(['cv'], name, { type: 'text/plain' });
+}
+
+function setup(files = [file('cv.txt')]) {
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <AnalysisRunProvider>{children}</AnalysisRunProvider>
+  );
+  const { result } = renderHook(() => useAnalysisRun(), { wrapper });
+  act(() => {
+    result.current.setJd('Senior Data Analyst');
+    result.current.setCvInputMode('file');
+    result.current.setFiles(files);
+  });
+  return result;
+}
+
+function start(result: ReturnType<typeof setup>) {
+  let run!: Promise<void>;
+  act(() => {
+    run = result.current.handleAnalyze();
+  });
+  return () => run;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.processFile.mockResolvedValue({ data: 'CV text', mimeType: 'text/plain' });
+  mocks.checkAnalyticsQuota.mockResolvedValue({ allowed: true });
+  mocks.saveToHistory.mockResolvedValue(undefined);
+  mocks.updateHistoryField.mockResolvedValue(undefined);
+  mocks.getUserHistory.mockResolvedValue([]);
+  // fidelityFallback avoids the unrelated Full CV history update.
+  mocks.rewriteFullCV.mockResolvedValue({ fullRewrittenCV: '', fidelityFallback: true });
+  mocks.cleanupTempAnalysisFiles.mockResolvedValue(undefined);
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+
+describe('M2-A client repro', () => {
+  it('R-C1: double submit before quota check resolves starts two full runs', async () => {
+    const quota = deferred<{ allowed: boolean }>();
+    mocks.checkAnalyticsQuota.mockReturnValue(quota.promise);
+    mocks.analyzeCV.mockImplementation(async () => makeResult(crypto.randomUUID()));
+    mocks.parseCV.mockResolvedValue(PARSED);
+    const result = setup();
+    const a = start(result);
+    const b = start(result); // second click: isAnalyzing still false
+    quota.resolve({ allowed: true });
+    await act(async () => { await a(); await b(); });
+    console.log(JSON.stringify({ analyzeCalls: mocks.analyzeCV.mock.calls.length, parseCalls: mocks.parseCV.mock.calls.length, quotaChecks: mocks.checkAnalyticsQuota.mock.calls.length }));
+    expect(mocks.analyzeCV).toHaveBeenCalledTimes(2);
+  });
+
+  it('R-C2: auto Full CV rewrite fan-out is unbounded (recruiter batch of 50)', async () => {
+    mocks.plan = 'recruiter';
+    let active = 0, peak = 0;
+    mocks.analyzeCV.mockImplementation(async () => makeResult(crypto.randomUUID()));
+    mocks.parseCV.mockResolvedValue(PARSED);
+    const gate = deferred<void>();
+    mocks.rewriteFullCV.mockImplementation(async () => { active++; peak = Math.max(peak, active); await gate.promise; active--; return { fullRewrittenCV: '', fidelityFallback: true }; });
+    const result = setup(Array.from({ length: 50 }, (_, i) => file(`cv${i}.txt`)));
+    const run = start(result);
+    await act(async () => { await run(); });
+    await waitFor(() => expect(mocks.rewriteFullCV).toHaveBeenCalledTimes(50));
+    console.log(JSON.stringify({ rewritePeakConcurrency: peak }));
+    gate.resolve();
+    expect(peak).toBe(50);
+    mocks.plan = 'pro';
+  });
+
+  it('R-C3: partial batch failure — re-run re-analyzes the successful CVs too', async () => {
+    let n = 0;
+    mocks.analyzeCV.mockImplementation(async () => { if (++n === 2) throw new Error('Phân tích thất bại (HTTP 504)'); return makeResult(crypto.randomUUID()); });
+    mocks.parseCV.mockResolvedValue(PARSED);
+    const result = setup([file('a.txt'), file('b.txt'), file('c.txt')]);
+    const r1 = start(result); await act(async () => { await r1(); });
+    const afterFirst = mocks.analyzeCV.mock.calls.length;
+    const filesKept = result.current.files.length;
+    const r2 = start(result); await act(async () => { await r2(); });
+    console.log(JSON.stringify({ afterFirst, filesKept, afterRetry: mocks.analyzeCV.mock.calls.length, parseCalls: mocks.parseCV.mock.calls.length, quotaAskedOnRetry: mocks.checkAnalyticsQuota.mock.calls.at(-1)?.[1] }));
+    expect(mocks.analyzeCV.mock.calls.length).toBe(6);
+  });
+
+  it('R-C4: failed analyze still pays for the parse call, result discarded', async () => {
+    mocks.analyzeCV.mockRejectedValue(new Error('boom'));
+    mocks.parseCV.mockResolvedValue(PARSED);
+    const result = setup();
+    const r = start(result); await act(async () => { await r(); });
+    console.log(JSON.stringify({ parseCalls: mocks.parseCV.mock.calls.length, results: result.current.results.length }));
+    expect(mocks.parseCV).toHaveBeenCalledTimes(1);
+    expect(result.current.results).toHaveLength(0);
+  });
+});

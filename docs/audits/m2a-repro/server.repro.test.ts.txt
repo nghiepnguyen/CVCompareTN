@@ -1,0 +1,113 @@
+// M2-A audit repro — TEMPORARY, offline mocks only, never committed.
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ApiError } from '@google/genai';
+
+const generateContent = vi.fn();
+vi.mock('../../../_server-lib/ai/geminiClient.js', async (orig) => ({
+  ...(await orig<typeof import('../../../_server-lib/ai/geminiClient')>()),
+  getGeminiClient: () => ({ models: { generateContent } }),
+}));
+
+const state = { used: 0, limit: 5, log: [] as Record<string, unknown>[], incrementErrors: 0 };
+function thenable(run: () => Promise<unknown>) {
+  const b: Record<string, unknown> = {};
+  Object.assign(b, {
+    select: () => b, eq: () => b, gte: () => b, or: () => b,
+    abortSignal: () => b,
+    maybeSingle: () => run(),
+    then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) => run().then(res, rej),
+  });
+  return b;
+}
+vi.mock('../../../_server-lib/payment/supabaseAdmin.js', () => ({
+  getUserFromBearerToken: async () => ({ id: '11111111-1111-4111-8111-111111111111' }),
+  getSupabaseAdmin: () => ({
+    from: (table: string) =>
+      table === 'analysis_log'
+        ? {
+            insert: (row: Record<string, unknown>) => thenable(async () => { state.log.push(row); return { error: null }; }),
+            select: () => thenable(async () => ({ count: state.log.filter((r) => r.kind === 'analyze').length })),
+          }
+        : thenable(async () => ({ data: { has_permission: true, role: 'user', plan: 'free', plan_expires_at: null }, error: null })),
+    rpc: (name: string) => thenable(async () => {
+      if (name === 'check_analytics_quota') return { data: { allowed: state.used + 1 <= state.limit, used: state.used, limit: state.limit }, error: null };
+      if (name === 'increment_usage_count') {
+        if (state.used >= state.limit) { state.incrementErrors++; return { data: null, error: { message: 'Monthly analytics limit reached' } }; }
+        state.used++; return { data: null, error: null };
+      }
+      return { data: null, error: null };
+    }),
+  }),
+}));
+
+import { handleAnalyze } from '../../../_server-lib/analyze/handler';
+import { hourlyAiLimit } from '../../../_server-lib/accountLock';
+
+const okReply = () => new Promise((r) => setTimeout(() => r({ text: JSON.stringify({ matchScore: 70, jobTitle: 'X' }), usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 500 } }), 20));
+const body = { jd: 'Need SQL analytics', cvData: 'Data analyst with SQL experience '.repeat(5), language: 'en' };
+
+beforeEach(() => {
+  generateContent.mockReset();
+  Object.assign(state, { used: 0, limit: 5, log: [], incrementErrors: 0 });
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(console, 'info').mockImplementation(() => {});
+  process.env.GEMINI_API_KEY = 'test';
+});
+
+describe('M2-A server repro', () => {
+  it('R-S1: concurrent requests bypass both the hourly cap and monthly quota (check-then-increment, log-at-end)', async () => {
+    state.used = 4; // free plan, 1 analysis left this month
+    generateContent.mockImplementation(okReply);
+    const N = 15;
+    const results = await Promise.all(Array.from({ length: N }, () => handleAnalyze('Bearer x', body)));
+    const ok = results.filter((r) => r.status === 200).length;
+    console.log(JSON.stringify({ N, ok, geminiCalls: generateContent.mock.calls.length, hourlyLimit: hourlyAiLimit('free'), quotaLeftBefore: 1, usedAfter: state.used, incrementErrors: state.incrementErrors }));
+    expect(ok).toBe(N);                       // every request got a full result
+    expect(generateContent).toHaveBeenCalledTimes(N); // N paid Gemini calls
+    expect(state.used).toBe(5);              // only 1 counted against quota
+    // and a follow-up request is now (correctly) blocked
+    const after = await handleAnalyze('Bearer x', body);
+    expect(after.status).toBe(429);
+  });
+
+  it('R-S2: sequential requests ARE capped (safeguard works when not concurrent)', async () => {
+    state.limit = 1000;
+    generateContent.mockImplementation(okReply);
+    const statuses: number[] = [];
+    for (let i = 0; i < 12; i++) statuses.push((await handleAnalyze('Bearer x', body)).status);
+    console.log(JSON.stringify({ statuses }));
+    expect(statuses.filter((s) => s === 200).length).toBe(hourlyAiLimit('free'));
+    expect(statuses.slice(-2)).toEqual([429, 429]);
+  });
+
+  it('R-S3: Gemini 429 / 503 are reported as non-retryable 500 with a generic message', async () => {
+    for (const code of [429, 503]) {
+      generateContent.mockRejectedValueOnce(new ApiError({ message: `{"error":{"code":${code}}}`, status: code }));
+      const r = await handleAnalyze('Bearer x', body);
+      console.log(JSON.stringify({ provider: code, status: r.status, body: r.body, logRow: state.log.at(-1)?.error_message }));
+      expect(r.status).toBe(500);
+      expect(r.body.retryable).toBe(false);
+    }
+  });
+
+  it('R-S4: hourly count includes rejected/failed rows (429 rows extend the lockout)', async () => {
+    state.limit = 1000;
+    generateContent.mockRejectedValue(new ApiError({ message: 'x', status: 503 }));
+    for (let i = 0; i < 10; i++) await handleAnalyze('Bearer x', body); // 10 provider failures, 0 results
+    const r = await handleAnalyze('Bearer x', body);
+    console.log(JSON.stringify({ failedRows: state.log.length, nextStatus: r.status }));
+    expect(r.status).toBe(429); // user locked out for an hour after 10 provider errors
+  });
+  it('R-S5: no JD/CV length cap — 3M-char JD is forwarded to Gemini; empty DOCX text → raw "Missing cvData"', async () => {
+    state.limit = 1000;
+    generateContent.mockImplementation(okReply);
+    const big = 'SQL analytics requirement. '.repeat(111_112); // ~3.0M chars
+    const r = await handleAnalyze('Bearer x', { ...body, jd: big });
+    const promptChars = (generateContent.mock.calls[0][0].contents[0].parts[0].text as string).length;
+    const empty = await handleAnalyze('Bearer x', { ...body, cvData: '' });
+    console.log(JSON.stringify({ status: r.status, jdChars: big.length, promptChars, emptyCv: empty }));
+    expect(r.status).toBe(200);
+    expect(promptChars).toBeGreaterThan(3_000_000);
+  });
+});
