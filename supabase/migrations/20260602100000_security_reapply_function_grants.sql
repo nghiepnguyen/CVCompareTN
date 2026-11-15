@@ -2,10 +2,19 @@
 -- REVOKE FROM PUBLIC does not remove anon/authenticated on Supabase.
 
 -- activate_pro_plan: service_role only (PayOS webhook)
-REVOKE EXECUTE ON FUNCTION public.activate_pro_plan(uuid, bigint, integer, jsonb)
-  FROM anon, authenticated, PUBLIC;
-GRANT EXECUTE ON FUNCTION public.activate_pro_plan(uuid, bigint, integer, jsonb)
-  TO service_role;
+-- Guarded: 20260601300000 (back-dated, written later) replaces this 4-arg signature with a
+-- 5-arg one, so on a fresh replay the 4-arg function no longer exists here. Databases that
+-- applied this file while the 4-arg function existed got exactly these two statements.
+DO $$
+BEGIN
+  IF to_regprocedure('public.activate_pro_plan(uuid,bigint,integer,jsonb)') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.activate_pro_plan(uuid, bigint, integer, jsonb)
+      FROM anon, authenticated, PUBLIC;
+    GRANT EXECUTE ON FUNCTION public.activate_pro_plan(uuid, bigint, integer, jsonb)
+      TO service_role;
+  END IF;
+END
+$$;
 
 -- admin_set_user_plan: authenticated only (is_admin() guard inside function)
 REVOKE EXECUTE ON FUNCTION public.admin_set_user_plan(uuid, text, integer)
