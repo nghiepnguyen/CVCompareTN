@@ -1542,3 +1542,98 @@ describe('M1-B: keyboard focus-visible', () => {
     expect(hasRing(screen.getByRole('button', { name: vi_.trackerDraftGenerate }))).toBe(true);
   });
 });
+
+describe('M1-B hardening (T1–T4)', () => {
+  const NET = { data: null, error: { message: 'Failed to fetch' } };
+  const RING = ['focus-visible:outline-none', 'focus-visible:ring-2', 'focus-visible:ring-accent', 'focus-visible:ring-offset-2', 'focus-visible:ring-offset-surface'];
+  const hasRing = (el: Element) => RING.every((c) => el.classList.contains(c));
+  const DISABLED = ['disabled:cursor-not-allowed', 'disabled:opacity-50', 'disabled:hover:scale-100'];
+  const hasDisabledStyles = (el: Element) => DISABLED.every((c) => el.classList.contains(c));
+
+  beforeEach(() => { intentsModule.resetIntents?.(); });
+
+  it.each(['vi', 'en'] as const)('T1 (%s): details unknown outcome = one neutral alert, no unresolved UI, fields editable; retry in place reuses the key, a new intent after Cancel gets a fresh key', async (lang) => {
+    ui.lang = lang;
+    const L = UI_LABELS[lang];
+    db.rpc.mockResolvedValueOnce(NET);
+    await renderDetail();
+    click(L.trackerEditDetails);
+    fireEvent.change(screen.getByLabelText(L.trackerCompanyLabel), { target: { value: 'First' } });
+    click(L.trackerSave);
+    await waitFor(() => expect(screen.getAllByRole('alert').map((a) => a.textContent)).toEqual([L.trackerErrGeneric]));
+    expect(screen.queryByText(L.trackerUnresolvedExplain)).toBeNull();
+    expect(screen.queryByRole('button', { name: L.trackerRetry })).toBeNull();
+    expect(screen.queryByRole('button', { name: L.trackerUnresolvedAbandon })).toBeNull();
+    const company = screen.getByLabelText(L.trackerCompanyLabel) as HTMLInputElement;
+    expect(company.disabled).toBe(false);
+    fireEvent.change(company, { target: { value: 'First edited' } });
+    expect(company.value).toBe('First edited');
+    // Details is a CAS scope without unresolved mode: an in-place retry is the same intent (same key, same base version).
+    db.rpc.mockResolvedValueOnce(NET);
+    click(L.trackerSave);
+    await waitFor(() => expect(keysOf('update_application_details')).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(1));
+    // Cancel ends the intent: the next save is a new intent with a fresh key.
+    click(L.trackerCancel);
+    db.rpc.mockResolvedValueOnce({ data: { event_id: 'e7', changed: true, replayed: false }, error: null });
+    click(L.trackerEditDetails);
+    fireEvent.change(screen.getByLabelText(L.trackerCompanyLabel), { target: { value: 'Second' } });
+    click(L.trackerSave);
+    await waitFor(() => expect(keysOf('update_application_details')).toHaveLength(3));
+    const [k1, k2, k3] = keysOf('update_application_details');
+    expect(k2).toBe(k1);
+    expect(k3).not.toBe(k1);
+  });
+
+  it('T2: Retry / Close / Abandon keep the focus ring on note, follow-up sent and employer replied; Retry keeps disabled hover suppression', async () => {
+    app.status = 'applied';
+    const forms = [vi_.trackerAddNote, vi_.trackerMarkFollowUpSent, vi_.trackerEmployerReplied];
+    for (const open of forms) {
+      cleanup(); db.rpc.mockReset(); seq += 1; app = { ...app, id: `app-${seq}` };
+      db.rpc.mockResolvedValueOnce(NET);
+      await renderDetail();
+      click(open);
+      fireEvent.change(screen.getAllByRole('textbox').at(-1)!, { target: { value: 'x' } });
+      click(vi_.trackerSave);
+      const retry = await screen.findByRole('button', { name: vi_.trackerRetry });
+      const close = screen.getByRole('button', { name: vi_.trackerUnresolvedClose });
+      const abandon = screen.getByRole('button', { name: vi_.trackerUnresolvedAbandon });
+      for (const el of [retry, close, abandon]) expect(hasRing(el)).toBe(true);
+      expect(hasDisabledStyles(retry)).toBe(true);
+    }
+  });
+
+  it('T3: status-form date input and select carry the focus-visible ring; timeline Load more carries the focus ring', async () => {
+    const many = Array.from({ length: 60 }, (_, i) => ({ id: `ev-${i}`, event_type: 'note', from_status: null, to_status: null, note: `n${i}`, metadata: {}, occurred_at: '2026-11-01T03:00:00Z', created_at: '2026-11-01T03:00:00Z' }));
+    db.respond = (table, calls) => {
+      if (table === 'application_follow_up_state') return { data: [], error: null };
+      if (table !== 'application_events') return { data: table === 'applications' ? app : docs, error: null };
+      const [from, to] = calls.find((c) => c[1] === 'range')!.slice(2) as [number, number];
+      return { data: many.slice(from, to + 1), error: null };
+    };
+    await renderDetail();
+    click(vi_.trackerChangeStatus);
+    for (const label of [vi_.trackerOccurredOn, vi_.trackerNewStatus]) {
+      const field = screen.getByLabelText(label);
+      expect(field.classList.contains('focus-visible:ring-1')).toBe(true);
+      expect(field.classList.contains('focus-visible:ring-accent')).toBe(true);
+    }
+    openTab(vi_.trackerTabTimeline);
+    expect(hasRing(await screen.findByRole('button', { name: vi_.trackerTimelineMore }))).toBe(true);
+  });
+
+  it('T4: Save is disabled while the request is pending and keeps disabled cursor, opacity and hover suppression', async () => {
+    const call = pending();
+    db.rpc.mockReturnValueOnce(call.p);
+    await renderDetail();
+    click(vi_.trackerAddNote);
+    fireEvent.change(screen.getByLabelText(vi_.trackerNoteLabel), { target: { value: 'pending note' } });
+    click(vi_.trackerSave);
+    const saving = screen.getByRole('button', { name: vi_.trackerSaving }) as HTMLButtonElement;
+    expect(saving.disabled).toBe(true);
+    expect(saving.getAttribute('aria-busy')).toBe('true');
+    expect(hasDisabledStyles(saving)).toBe(true);
+    call.resolve({ data: { event_id: 'e8', replayed: false }, error: null });
+    await waitFor(() => expect(screen.queryByRole('button', { name: vi_.trackerSaving })).toBeNull());
+  });
+});
