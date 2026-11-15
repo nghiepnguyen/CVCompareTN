@@ -108,16 +108,26 @@ export async function checkAiAccess(
   timeoutMs: number,
   signal?: AbortSignal
 ): Promise<'ok' | 'locked' | 'rate_limited' | 'unavailable'> {
+  return (await getAiAccess(userId, kind, timeoutMs, signal)).access;
+}
+
+/** checkAiAccess plus the effective plan (needed for the atomic AI bucket limit). */
+export async function getAiAccess(
+  userId: string,
+  kind: 'rewrite' | 'parse_cv' | 'cover_letter' | 'application_review' | 'follow_up',
+  timeoutMs: number,
+  signal?: AbortSignal
+): Promise<{ access: 'ok' | 'locked' | 'rate_limited' | 'unavailable'; plan: 'free' | 'pro' | 'recruiter' }> {
   let profile: ProfileRow | null = null;
   try {
     profile = await getAccountProfile(userId, timeoutMs, signal);
   } catch {
-    return 'unavailable';
+    return { access: 'unavailable', plan: 'free' };
   }
-  if (isLockedProfile(profile)) return 'locked';
+  if (isLockedProfile(profile)) return { access: 'locked', plan: 'free' };
 
   const plan = profile
     ? getEffectivePlan({ plan: profile.plan, planExpiresAt: profile.plan_expires_at, role: profile.role })
     : 'free';
-  return checkHourlyAiLimit(userId, kind, plan, timeoutMs, signal);
+  return { access: await checkHourlyAiLimit(userId, kind, plan, timeoutMs, signal), plan };
 }

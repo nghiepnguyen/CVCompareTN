@@ -2,6 +2,8 @@ import { createHmac } from 'node:crypto';
 import { isIP } from 'node:net';
 import { getSupabaseAdmin } from './payment/supabaseAdmin.js';
 import { withTimeout } from './withTimeout.js';
+import { hourlyAiLimit } from './accountLock.js';
+import type { Deadline } from './deadline.js';
 
 /**
  * Shared request limits for the Vercel surface. Express uses
@@ -125,5 +127,65 @@ export async function enforceRateLimit(input: {
   } catch (err) {
     console.warn('Rate limit check skipped:', err instanceof Error ? err.message : err);
     return true;
+  }
+}
+
+/**
+ * Atomic per-request slot for Gemini work (M2-B). The analysis_log hourly
+ * count only sees finished requests, so concurrent requests all passed it
+ * (M2-A P1-1). Each request now consumes one slot in its own fixed hourly
+ * window before Gemini starts.
+ *
+ * Bucket names are prefixed `ai_` so they never collide with RATE_LIMITS
+ * buckets (rows are keyed by subject + bucket). The limit equals the existing
+ * hourly cap for the plan; the monthly quota is untouched and still has a
+ * concurrency gap (check-then-increment) until its reserve/refund stage.
+ *
+ * Unlike enforceRateLimit this FAILS CLOSED: if the slot cannot be verified
+ * (no subject, RPC error, timeout, malformed row) no Gemini call is made.
+ */
+export const AI_RATE_LIMIT_BUCKETS = {
+  analyze: 'ai_analyze',
+  parse_cv: 'ai_parse_cv',
+  rewrite: 'ai_rewrite',
+} as const;
+export type AiRateLimitKind = keyof typeof AI_RATE_LIMIT_BUCKETS;
+export const AI_RATE_LIMIT_WINDOW_SECONDS = 3600;
+
+export async function reserveAiCall(
+  userId: string,
+  kind: AiRateLimitKind,
+  plan: 'free' | 'pro' | 'recruiter',
+  deadline: Deadline
+): Promise<'ok' | 'rate_limited' | 'unavailable'> {
+  const subject = rateLimitSubject(userId);
+  if (!subject) return 'unavailable';
+  const timeoutMs = Math.min(TIMEOUT_MS, deadline.remainingMs());
+  if (timeoutMs <= 0) return 'unavailable';
+  try {
+    const response = await withTimeout(
+      Promise.resolve(
+        getSupabaseAdmin()
+          .rpc('consume_api_rate_limit', {
+            p_subject: subject,
+            p_bucket: AI_RATE_LIMIT_BUCKETS[kind],
+            p_limit: hourlyAiLimit(plan),
+            p_window_seconds: AI_RATE_LIMIT_WINDOW_SECONDS,
+          })
+          .abortSignal(deadline.signal(TIMEOUT_MS))
+      ),
+      timeoutMs,
+      'AI rate limit reservation'
+    );
+    if (response.error) throw new Error(response.error.message);
+    const row = (Array.isArray(response.data) ? response.data[0] : response.data) as
+      | { allowed?: unknown }
+      | null
+      | undefined;
+    if (!row || typeof row.allowed !== 'boolean') throw new Error('Invalid rate limit response');
+    return row.allowed ? 'ok' : 'rate_limited';
+  } catch (err) {
+    console.warn('AI rate limit reservation unavailable:', err instanceof Error ? err.message : err);
+    return 'unavailable';
   }
 }

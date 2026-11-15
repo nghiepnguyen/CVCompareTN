@@ -1,5 +1,5 @@
 import { extractText } from 'unpdf';
-import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS } from '../deadline.js';
+import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS, providerFailureCategory } from '../deadline.js';
 import { getGeminiClient, GEMINI_ANALYZE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 import { ANALYSIS_RESPONSE_SCHEMA } from './responseSchema.js';
 import {
@@ -298,6 +298,10 @@ export async function analyzeCV(
         );
       }
     }
+
+    // Keep provider 429/5xx distinguishable; the rewrap below drops `status`.
+    const provider = providerFailureCategory(error);
+    if (provider) throw new ControlledError(provider);
 
     if (error instanceof SyntaxError) {
       throw new Error(`Invalid AI data (JSON Error). Please try again. Detail: ${error.message}`);

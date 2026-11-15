@@ -9,6 +9,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // benchmarks), one call only, and verification is derived after the response
 // without touching score/status/probability.
 const generateContent = vi.fn();
+// The atomic AI slot (M2-B) is covered by m2bStabilization.test.ts; this suite
+// is about other behavior, so the reservation always succeeds here.
+vi.mock('../../../_server-lib/rateLimit.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../_server-lib/rateLimit')>()),
+  reserveAiCall: async () => 'ok',
+}));
 vi.mock('../../../_server-lib/ai/geminiClient.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../_server-lib/ai/geminiClient')>()),
   getGeminiClient: () => ({ models: { generateContent } }),

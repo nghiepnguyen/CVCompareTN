@@ -203,6 +203,12 @@ export interface UiLabels extends ApplicationsLabels {
   appLoadingContent: string;
   appRefresh: string;
   appUnknownError: string;
+  aiErrorAuthRequired: string;
+  aiErrorAccountLocked: string;
+  aiErrorInputTooLarge: string;
+  aiErrorRateLimited: string;
+  aiErrorBusy: string;
+  aiErrorTimeout: string;
   monthlyUsageLimitExceeded: string;
   monthlyUsageLimitExceededDetail: string;
   quotaExhaustedBuyMore: string;

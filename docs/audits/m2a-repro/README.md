@@ -7,5 +7,8 @@ vitest. To re-run against the baseline: check out `254cae1`, copy both files to
 `npx vitest run src/__tests__/m2a-audit`.
 
 The inverted, post-fix versions live in the regular test suite (M2-B):
-`src/__tests__/services/m2bStabilization.test.ts` and
-`src/__tests__/context/m2bRunGuards.test.tsx`.
+`src/__tests__/services/m2bStabilization.test.ts` (server: atomic slot,
+fail-closed, buckets, provider 503, 413),
+`src/__tests__/context/m2bRunGuards.test.tsx` (double submit, rewrite fan-out,
+localized error), `src/__tests__/context/m2bRecruiterGuard.test.tsx`, and
+`src/__tests__/services/aiRequestError.test.ts`.

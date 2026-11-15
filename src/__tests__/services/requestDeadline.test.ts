@@ -5,6 +5,12 @@ import { PassThrough } from 'node:stream';
 // services and storage helpers; only Gemini, Supabase, R2 and unpdf are mocked.
 
 const generateContent = vi.fn();
+// The atomic AI slot (M2-B) is covered by m2bStabilization.test.ts; this suite
+// is about other behavior, so the reservation always succeeds here.
+vi.mock('../../../_server-lib/rateLimit.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../_server-lib/rateLimit')>()),
+  reserveAiCall: async () => 'ok',
+}));
 vi.mock('../../../_server-lib/ai/geminiClient.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../_server-lib/ai/geminiClient')>()),
   getGeminiClient: () => ({ models: { generateContent } }),

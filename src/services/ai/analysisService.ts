@@ -1,5 +1,52 @@
 import type { AnalysisResult, ParsedCV } from './types.js';
 
+/**
+ * Non-2xx from /api/analyze, /api/parse-cv or the Full CV rewrite. Keeps the
+ * HTTP status and the server's `retryable` flag (M2-A P2-5) so the UI can pick
+ * a localized message; `message` stays the server text for compatibility.
+ */
+export class AiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly retryable: boolean,
+    readonly body: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = 'AiRequestError';
+  }
+}
+
+async function aiRequestError(res: Response, fallback: string): Promise<AiRequestError> {
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const message = typeof body.error === 'string' && body.error ? body.error : fallback;
+  return new AiRequestError(message, res.status, body.retryable === true, body);
+}
+
+type AiErrorStrings = {
+  aiErrorAuthRequired: string;
+  aiErrorAccountLocked: string;
+  aiErrorInputTooLarge: string;
+  aiErrorRateLimited: string;
+  aiErrorBusy: string;
+  aiErrorTimeout: string;
+  monthlyUsageLimitExceeded: string;
+};
+
+/** Localized text for a failed AI request; other errors keep their message. */
+export function localizeAiError(err: unknown, t: AiErrorStrings): string {
+  if (!(err instanceof AiRequestError)) return err instanceof Error ? err.message : String(err);
+  switch (err.status) {
+    case 401: return t.aiErrorAuthRequired;
+    case 403: return t.aiErrorAccountLocked;
+    case 413: return t.aiErrorInputTooLarge.replace('{max}', String(err.body.maxChars ?? ''));
+    case 429: return typeof err.body.limit === 'number' ? t.monthlyUsageLimitExceeded : t.aiErrorRateLimited;
+    case 503: return err.retryable ? t.aiErrorBusy : err.message;
+    case 504: return t.aiErrorTimeout;
+    default: return err.message;
+  }
+}
+
 export async function rewriteFullCV(
   jd: string,
   cvData: string,
@@ -20,10 +67,7 @@ export async function rewriteFullCV(
     signal: AbortSignal.timeout(75_000),
   });
 
-  if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(err.error || `Rewrite failed (HTTP ${res.status})`);
-  }
+  if (!res.ok) throw await aiRequestError(res, `Rewrite failed (HTTP ${res.status})`);
 
   const data = (await res.json()) as { fullRewrittenCV: string; fidelityFallback?: boolean };
   return { fullRewrittenCV: data.fullRewrittenCV || '', fidelityFallback: data.fidelityFallback === true };
@@ -159,10 +203,7 @@ export async function parseCV(
     signal: AbortSignal.timeout(75_000),
   });
 
-  if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(err.error || `CV parsing failed (HTTP ${res.status})`);
-  }
+  if (!res.ok) throw await aiRequestError(res, `CV parsing failed (HTTP ${res.status})`);
 
   const data = (await res.json()) as { parsedCV?: ParsedCV };
   return data.parsedCV;
@@ -199,10 +240,7 @@ export async function analyzeCV(
     signal: AbortSignal.timeout(75_000),
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error || `Phân tích thất bại (HTTP ${res.status})`);
-  }
+  if (!res.ok) throw await aiRequestError(res, `Phân tích thất bại (HTTP ${res.status})`);
 
   return res.json() as Promise<AnalysisResult>;
 }

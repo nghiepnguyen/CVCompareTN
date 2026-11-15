@@ -159,3 +159,13 @@ Scope: items 1–6 only. No change to prompts, models, schema, scoring, probabil
 
 ## Recommendation
 GO for M2-B with the scope above (items 1–6). Residual after M2-B: monthly quota still bypassable up to the hourly cap per burst until owner picks Option A/B (P1-1). NO-GO on quota reserve, count-policy and retry-UX changes until owner decides. P3A/CP6 untouched.
+
+## M2-B status (2026-11-15, branch `fix/m2b-analyze-stabilization`, local only)
+Approved items 1–6 implemented; see docs/5_api.md "M2-B stabilization".
+- P1-1: atomic fail-closed `ai_*` slot before Gemini. Burst of 15 (free): Gemini calls 15 → 10. **Monthly quota NOT fixed** — residual bypass up to `hourlyAiLimit` per burst; Option B (reserve/refund RPC, migration) is a separate stage.
+- P1-2: synchronous in-flight guards (personal + recruiter). Double click: 2 runs → 1.
+- P1-3: Full CV limiter 5. Recruiter batch 50: peak 50 → 5.
+- P2-1: provider 429/5xx → 503 retryable, `[gemini_rate_limited]` / `[gemini_unavailable]`.
+- P2-4: 413 for JD > 50k / text CV > 100k chars (safety ceilings, not production percentiles).
+- P2-5 / P2-6: `AiRequestError` + `localizeAiError`; empty DOCX/text rejected client-side.
+Not in M2-B: P2-2, P2-3, P2-7, P2-8, K0–K8.

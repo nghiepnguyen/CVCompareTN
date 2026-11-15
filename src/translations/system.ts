@@ -80,6 +80,30 @@ export const system = {
     vi: "Đã xảy ra lỗi không xác định",
     en: "An unknown error occurred",
   },
+  aiErrorAuthRequired: {
+    vi: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    en: "Your session has expired. Please sign in again.",
+  },
+  aiErrorAccountLocked: {
+    vi: "Tài khoản của bạn đang bị khóa.",
+    en: "Your account is locked.",
+  },
+  aiErrorInputTooLarge: {
+    vi: "Nội dung quá dài (tối đa {max} ký tự). Vui lòng rút gọn JD hoặc CV.",
+    en: "Content is too long (max {max} characters). Please shorten the JD or CV.",
+  },
+  aiErrorRateLimited: {
+    vi: "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.",
+    en: "Too many requests. Please try again later.",
+  },
+  aiErrorBusy: {
+    vi: "Hệ thống AI đang quá tải. Vui lòng thử lại sau ít phút.",
+    en: "The AI service is busy. Please try again in a few minutes.",
+  },
+  aiErrorTimeout: {
+    vi: "Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại.",
+    en: "Analysis is taking longer than usual. Please try again.",
+  },
   monthlyUsageLimitExceeded: {
     vi: "Bạn đã vượt quá số lượng sử dụng của tháng này.",
     en: "You have exceeded your usage limit for this month.",

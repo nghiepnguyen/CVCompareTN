@@ -7,8 +7,11 @@ import { logAnalysisAttempt } from '../analysisLog.js';
 import { MAX_BATCH_BY_PLAN } from '../../src/lib/planLimits.js';
 import { resolveStorageRef } from '../storage/tempFile.js';
 import { stripInvisibleControls } from '../untrustedText.js';
+import { reserveAiCall } from '../rateLimit.js';
+import { checkInputSize } from '../inputLimits.js';
 import {
-  aiFailureCategory,
+  aiFailureResponse,
+  classifyAiFailure,
   ControlledError,
   createDeadline,
   MIN_GEMINI_BUDGET_MS,
@@ -32,6 +35,7 @@ const INCREMENT_TIMEOUT_MS = 5_000;
 // increment, the log row and the response. Vercel's maxDuration (300s) is only
 // a safety ceiling; no step is meant to run toward it.
 const STORAGE_TIMEOUT_MESSAGE = 'Tải file CV quá thời gian. Vui lòng thử lại. (Timeout)';
+const ANALYZE_BUSY_MESSAGE = 'Hệ thống AI đang quá tải. Vui lòng thử lại sau ít phút.';
 const ANALYZE_TIMEOUT_MESSAGE =
   'Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại với JD ngắn hơn hoặc CV đơn giản hơn. (Timeout)';
 
@@ -71,6 +75,11 @@ export async function handleAnalyze(
   if (!cvData && !cvDataStoragePath) {
     await logAnalysisAttempt(null, 'error', 'analyze', 'Missing cvData', undefined, undefined, deadline);
     return { status: 400, body: { error: 'Missing cvData' } };
+  }
+  const tooLargeInline = checkInputSize({ jd, cvData, cvMimeType });
+  if (tooLargeInline) {
+    await logAnalysisAttempt(null, 'error', 'analyze', `[input_too_large:${tooLargeInline.body.field}]`, undefined, undefined, deadline);
+    return tooLargeInline;
   }
 
   const user = await withTimeout(
@@ -155,6 +164,11 @@ export async function handleAnalyze(
     const message = 'Không thể tải file CV. Vui lòng tải lại file.';
     return { status: 400, body: { error: message } };
   }
+  const tooLargeStored = cvDataStoragePath ? checkInputSize({ cvData, cvMimeType }) : null;
+  if (tooLargeStored) {
+    await logAnalysisAttempt(userId, 'error', 'analyze', `[input_too_large:${tooLargeStored.body.field}]`, undefined, undefined, deadline);
+    return tooLargeStored;
+  }
 
   try {
     const adminClient = getSupabaseAdmin();
@@ -182,6 +196,19 @@ export async function handleAnalyze(
   } catch (quotaErr) {
     // Quota check timed out — log and proceed (fail-open for paying users)
     console.warn('Quota check skipped (timeout):', quotaErr);
+  }
+
+  // Atomic slot right before Gemini (M2-A P1-1): concurrent requests can no
+  // longer all pass the log-based hourly count. Fails closed. The monthly
+  // quota above is still check-then-increment (separate reserve/refund stage).
+  const slot = await reserveAiCall(userId, 'analyze', effectivePlan, deadline);
+  if (slot === 'rate_limited') {
+    await logAnalysisAttempt(userId, 'error', 'analyze', '[ai_rate_limited]', undefined, undefined, deadline);
+    return { status: 429, body: { error: 'Too many requests. Please try again later.' } };
+  }
+  if (slot === 'unavailable') {
+    await logAnalysisAttempt(userId, 'error', 'analyze', '[rate_limit_unavailable]', undefined, undefined, deadline);
+    return { status: 503, body: { error: 'Rate limit verification unavailable', retryable: true } };
   }
 
   if (aiDeadline.remainingMs() < MIN_GEMINI_BUDGET_MS) {
@@ -215,20 +242,22 @@ export async function handleAnalyze(
     return { status: 200, body: result as unknown as Record<string, unknown> };
   } catch (analysisError) {
     console.error('Analysis failed:', analysisError);
-    const category = aiFailureCategory(analysisError);
-    const isTimeout = category !== 'gemini_error';
+    const category = classifyAiFailure(analysisError);
+    const failure = aiFailureResponse(category);
     // Keep provider details out of both telemetry and the response.
     const usage = category === 'request_budget_exhausted' ? undefined : { model: GEMINI_ANALYZE_MODEL }; // model only if Gemini ran
     await logAnalysisAttempt(userId, 'error', 'analyze', `[${category}]`, usage, undefined, deadline);
     const message =
-      isTimeout
-        ? ANALYZE_TIMEOUT_MESSAGE
-        : 'Không thể phân tích CV. Vui lòng thử lại.';
+      failure.kind === 'busy'
+        ? ANALYZE_BUSY_MESSAGE
+        : failure.kind === 'timeout'
+          ? ANALYZE_TIMEOUT_MESSAGE
+          : 'Không thể phân tích CV. Vui lòng thử lại.';
     return {
-      status: isTimeout ? 504 : 500,
+      status: failure.status,
       body: {
         error: message,
-        retryable: isTimeout,
+        retryable: failure.retryable,
       },
     };
   }
