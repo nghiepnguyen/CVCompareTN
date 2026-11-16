@@ -22,9 +22,9 @@ UNION ALL SELECT 'table exists, RLS on, no policies',
   to_regclass('public.analytics_quota_reservations') IS NOT NULL
   AND (SELECT relrowsecurity FROM pg_class WHERE oid = to_regclass('public.analytics_quota_reservations'))
   AND NOT EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = to_regclass('public.analytics_quota_reservations'))
-UNION ALL SELECT 'table: no anon/authenticated privileges',
-  NOT EXISTS (SELECT 1 FROM information_schema.role_table_grants
-               WHERE table_schema = 'public' AND table_name = 'analytics_quota_reservations' AND grantee IN ('anon','authenticated','PUBLIC'))
+UNION ALL SELECT 'table: no anon/authenticated privileges (effective)',
+  NOT has_table_privilege('anon', 'public.analytics_quota_reservations', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+  AND NOT has_table_privilege('authenticated', 'public.analytics_quota_reservations', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
 UNION ALL SELECT 'table columns match (md5)',
   (SELECT md5(string_agg(column_name||':'||data_type||':'||is_nullable||':'||coalesce(column_default,''), ',' ORDER BY ordinal_position))
      FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'analytics_quota_reservations') = 'cb92782783445a97dd202e49236f68d6'
