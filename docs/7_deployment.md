@@ -199,12 +199,31 @@ Sau `supabase link`, thư mục `supabase/.temp/` được tạo tự động �
   - Chỉ đổi frontend P2C, không migration.
   - Deploy production `dpl_FXsK465Jw4zav4G95e7KAcs1cz1h`: Ready, build từ `main@4367f56`; `cvfit.pro/vi/` và `/api/config` trả 200.
   - Smoke production: xem `docs/15_applications.md` mục "M1-B production smoke".
-- **Hành vi Vercel Git integration (đã quan sát):**
-  - Push một branch tự tạo **preview công khai**. Preview **không có** biến Supabase, Gemini hay các biến khác (chúng chỉ được đặt cho Production), nên app không khởi tạo được trên preview.
+- **Hành vi Vercel Git integration (đã quan sát; cập nhật 16/11/2026):**
+  - Push một branch tự tạo **preview**, có **Vercel Deployment Protection** (cần đăng nhập Vercel để xem).
+  - Từ M2-B, environment Preview có biến Supabase và `GEMINI_API_KEY`. Đổi biến env chỉ có hiệu lực ở deployment **build sau đó** → phải Redeploy. URL deployment cũ (immutable) giữ env lúc build.
+  - Preview dùng **chung Supabase production**: mọi smoke trên Preview ghi dữ liệu thật (history, `analysis_log`, quota của account test) và gọi Gemini thật.
+  - Đăng nhập Google trên Preview bị redirect về `cvfit.pro` (alias preview không nằm trong redirect allowlist Supabase) → smoke Preview dùng đăng nhập email/password.
   - Merge vào `main` tự **deploy production**.
 - **Local stack Supabase CLI (2.98.2):**
   - Publish Kong (54321) và Postgres (54322) trên `0.0.0.0`. Docker mặc định không có `"ip"` trong `daemon.json`.
   - Chỉ dùng dữ liệu tổng hợp, và không bao giờ dùng `.env` production cho build local.
+
+## Production 2026-11-15/16 — M2-B và M2-C2 (Analyze stabilization)
+
+- **M2-A** (audit chỉ đọc, 15/11): `docs/audits/2026-11-15-m2a-analyze-stabilization-audit.md`, repro trong `docs/audits/m2a-repro/`.
+- **M2-B, PR #79** (squash `375b13e6f8fb8b86c888325d9168793cf006e55f`), không migration:
+  - Guard double-submit (personal + recruiter), Full CV tối đa 5 song song, slot giờ nguyên tử `ai_analyze`/`ai_parse_cv`/`ai_rewrite` qua `consume_api_rate_limit` (fail-closed), 413 cho JD > 50k / CV text > 100k, Gemini 429/5xx → 503 retryable, lỗi client có kiểu + dịch.
+  - Deploy production `dpl_aW5A4b9WmqYHooRZ5unhfojhfX1J`; smoke production PASS WITH KNOWN DEBT.
+- **M2-C2 migration `20261116000000`** (áp production 16/11 04:41:54Z):
+  - Áp từ checkout cô lập tại `1844d94`, sha256 `c67fbae5668d28fefe7841988ff2ebd1feff55c18d982b656b623190c4293820`. `supabase db push --dry-run --linked` liệt kê đúng 1 migration trước khi áp (CLI có tạo login role tạm — chấp nhận cho bước này).
+  - Verify chỉ đọc 16/16 PASS; fingerprint `usage_count` của mọi user không đổi; theo dõi 15 phút: 0 lock wait, 0 lỗi.
+  - Preflight: `docs/audits/2026-11-16-m2c2a-migration-preflight.md` (version set khớp, atomic apply, khóa `profiles` ~13 ms, concurrency DB thật, rollback).
+- **M2-C2 app, PR #80** (squash `f1ced359b12325adca33ea86a65a50c5e1fe3f9b`, tree = `fbbc667` đã test):
+  - `/api/analyze` dùng reserve → commit/release thay check-then-increment; client gửi `idempotencyKey`.
+  - Preview `dpl_7WcXAnZ4eFFEUZxtjAPJs9RA45Ko` và production `dpl_zQjm8f9vF1y2w8yTK6vGSyzY3u9u`: smoke PASS (double-click → 1 lượt; reservation committed + charged; `usage_count` +1; trùng key → 409, không gọi Gemini, không trừ lượt).
+- **Không áp từ main checkout** khi đang ở branch khác: `db push` đẩy mọi migration local chưa có trên remote. Luôn dùng checkout sạch tại commit đã duyệt + dry-run.
+- **Lỗi Postgres local (supautils):** session đăng nhập bằng `postgres` → `SET ROLE authenticated` → gọi function không có quyền EXECUTE làm backend segfault (PG 17.6). Không tái hiện qua PostgREST (`authenticator`). Production cùng cấu hình → không chạy pattern này trên SQL editor production.
 
 ## Cập nhật storage R2 (2026-10-18)
 
@@ -243,6 +262,7 @@ Các mô tả Supabase Storage ở trên là luồng legacy. Tích hợp mới g
 | `20261101260000` | `get_public_plan_limits`: RPC public (anon) trả free/pro/recruiter cho bảng giá landing + upgrade |
 | `20261101270000` | `admin_list_profiles_v2`: thêm quick filter `new` / `expiring` (7 ngày), giữ RPC cũ cho bundle đang chạy |
 | `20261101280000` | `admin_action_requests` + `admin_update_user_v2`: idempotency theo `request_id` cho retry mạng |
+| `20261116000000` | M2-C2: ledger `analytics_quota_reservations` + RPC service_role `reserve`/`commit`/`release_analytics_quota` (quota tháng nguyên tử). Rollback: `supabase/rollback/20261116000000_analytics_quota_reservations.sql` + `supabase migration repair --status reverted 20261116000000`. Verify chỉ đọc: `supabase/tests/analytics_quota_reservations.prod_verify.sql` (16 check). |
 
 **Trạng thái production 2026-10-31 (admin-only unlimited):** migration `20261101150000` đã áp; verify `pg_constraint` trả `profiles_admin_only_unlimited_limit` với `convalidated = true`. A7 audit trước đó trả 0 row non-admin `custom=true, limit=NULL`, nên không cần backfill.
 

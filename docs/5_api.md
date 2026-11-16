@@ -160,8 +160,9 @@ Frontend dùng `src/lib/supabase.ts` (REST / Auth / Storage).
 
 | RPC | Gọi từ | Mô tả |
 |-----|---------|--------|
-| `check_analytics_quota(p_user_id, p_additional?)` | `analyticsQuotaService.ts` (client, UX) + `api/analyze.ts` (server, enforce) | Kiểm tra còn quota trước batch analyze; trả `allowed`, `used`, `limit`. |
-| `increment_usage_count(user_id)` | `api/analyze.ts` / `server/routes/analyze.ts` (server-side, fire-and-forget) | Tăng `usage_count` sau mỗi lần phân tích thành công. **Không còn gọi từ client.** |
+| `check_analytics_quota(p_user_id, p_additional?)` | `analyticsQuotaService.ts` (client, UX) | Pre-check trước batch analyze; trả `allowed`, `used`, `limit`. Từ M2-C2 server **không** dùng để enforce; chưa tính reservation đang chạy. |
+| `reserve_analytics_quota(p_user_id, p_request_key, p_ttl_seconds?)` / `commit_analytics_quota(p_user_id, p_reservation_id)` / `release_analytics_quota(p_user_id, p_reservation_id, p_outcome)` | `_server-lib/quota/monthlyQuota.ts` ← `_server-lib/analyze/handler.ts` (service_role only) | **Enforce quota tháng từ M2-C2** (migration `20261116000000`). Lock dòng `profiles` trước; ledger `analytics_quota_reservations`. |
+| `increment_usage_count(user_id)` | Không còn caller (legacy, giữ cho rollback) | Tăng `usage_count`. Trước M2-C2 được `/api/analyze` gọi sau mỗi lần thành công. |
 | `get_default_monthly_analytics_limit()` | (SQL nội bộ / có thể gọi từ client) | Đọc default từ `app_settings`. |
 
 Chi tiết semantics, Admin UI, migration: [8_analytics.md](8_analytics.md).
