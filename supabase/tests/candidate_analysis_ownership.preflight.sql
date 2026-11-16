@@ -44,4 +44,56 @@ UNION ALL
 SELECT 'default_acl_functions', string_agg(pg_get_userbyid(defaclrole) || ':' || array_to_string(defaclacl, ' '), ' | ')
   FROM pg_default_acl WHERE defaclobjtype = 'f' AND defaclnamespace = 'public'::regnamespace
 UNION ALL
+SELECT 'error_rows_age_buckets', string_agg(b || '=' || n, ',' ORDER BY b)
+  FROM (SELECT CASE WHEN created_at > now() - interval '1 day' THEN '<1d' WHEN created_at > now() - interval '30 days' THEN '<30d' ELSE '>=30d' END AS b,
+               count(*) AS n
+          FROM public.candidate_cvs WHERE status = 'error' GROUP BY 1) e
+UNION ALL
+SELECT 'candidate_storage_status_counts', string_agg(storage_status || '=' || n, ',' ORDER BY storage_status)
+  FROM (SELECT storage_status, count(*) AS n FROM public.candidate_cvs GROUP BY storage_status) s
+-- Columns the M2-D3 functions read or write (name:type:nullable).
+UNION ALL
+SELECT 'candidate_columns_used', string_agg(column_name || ':' || data_type || ':' || is_nullable, ',' ORDER BY column_name)
+  FROM information_schema.columns
+ WHERE table_schema = 'public' AND table_name = 'candidate_cvs'
+   AND column_name IN ('id','campaign_id','status','storage_status','error_message','analysis_result','match_score',
+                       'score_version','probability_version','analyzed_at','parsed_text','created_at')
+UNION ALL
+SELECT 'candidate_columns_md5', md5(string_agg(column_name || ':' || data_type || ':' || is_nullable || ':' || coalesce(column_default,''), ',' ORDER BY column_name))
+  FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'candidate_cvs'
+UNION ALL
+SELECT 'candidate_constraints', string_agg(conname || '=' || pg_get_constraintdef(oid), ' | ' ORDER BY conname)
+  FROM pg_constraint WHERE conrelid = 'public.candidate_cvs'::regclass AND contype IN ('c','f','p')
+UNION ALL
+SELECT 'candidate_indexes', string_agg(indexrelid::regclass::text, ',' ORDER BY indexrelid::regclass::text)
+  FROM pg_index WHERE indrelid = 'public.candidate_cvs'::regclass
+UNION ALL
+SELECT 'campaign_owner_column', string_agg(column_name || ':' || data_type || ':' || is_nullable, ',')
+  FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'recruitment_campaigns' AND column_name = 'user_id'
+UNION ALL
+SELECT 'orphan_candidates', count(*)::text FROM public.candidate_cvs cc
+ WHERE NOT EXISTS (SELECT 1 FROM public.recruitment_campaigns c WHERE c.id = cc.campaign_id)
+-- Ledger columns/constraints the claim reads.
+UNION ALL
+SELECT 'ledger_columns_used', string_agg(column_name || ':' || data_type || ':' || is_nullable, ',' ORDER BY column_name)
+  FROM information_schema.columns
+ WHERE table_schema = 'public' AND table_name = 'analytics_quota_reservations'
+   AND column_name IN ('user_id','request_key','state','expires_at','charged')
+UNION ALL
+SELECT 'ledger_constraints', string_agg(conname || '=' || pg_get_constraintdef(oid), ' | ' ORDER BY conname)
+  FROM pg_constraint WHERE conrelid = 'public.analytics_quota_reservations'::regclass
+UNION ALL
+SELECT 'ledger_indexes', string_agg(indexrelid::regclass::text, ',' ORDER BY indexrelid::regclass::text)
+  FROM pg_index WHERE indrelid = 'public.analytics_quota_reservations'::regclass
+UNION ALL
+SELECT 'ledger_state_counts', coalesce(string_agg(state || '=' || n, ',' ORDER BY state), 'none')
+  FROM (SELECT state, count(*) AS n FROM public.analytics_quota_reservations GROUP BY state) l
+UNION ALL
+SELECT 'ledger_rls_on', relrowsecurity::text FROM pg_class WHERE oid = 'public.analytics_quota_reservations'::regclass
+UNION ALL
+SELECT 'dep_signatures', string_agg(p.oid::regprocedure::text, ',' ORDER BY p.oid::regprocedure::text)
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE (n.nspname = 'public' AND p.proname IN ('sync_campaign_counters','storage_protect_metadata','enforce_account_unlocked','reserve_analytics_quota'))
+    OR (n.nspname = 'auth' AND p.proname IN ('uid','role'))
+UNION ALL
 SELECT 'pg_version', current_setting('server_version');

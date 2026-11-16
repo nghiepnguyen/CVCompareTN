@@ -180,7 +180,10 @@ Required scenarios and where each is covered:
 - **D4: legacy `analyzing` rows.** Recommended (implemented): confirmation required. Preflight should count these first.
 - **D5: lease length.** 600 s, changed only by migration. The client mirror (`ANALYSIS_LEASE_MS`) is a UI hint only.
 
-## 9. Production preflight (not yet run)
+## 9. Production preflight
+
+**Update 2026-11-16:** the preflight was run read-only through the Dashboard SQL Editor. 34/34 checks PASS, with no drift and no legacy `analyzing`/`error` rows. See [2026-11-16-m2d3-production-preflight.md](2026-11-16-m2d3-production-preflight.md). Owner decisions: D1 approved (with explicit additional-quota confirmation), D2 deferred, D3 and D4 approved.
+
 
 The read-only production query was **blocked by the session's permission policy** and was not attempted another way. The SELECT-only file is ready: `supabase/tests/candidate_analysis_ownership.preflight.sql`. It returns counts, names and md5 values only, no PII.
 
