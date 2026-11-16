@@ -7,8 +7,9 @@
 // benchmark JDs (scripts/benchmark-gemini-fixtures.ts) top out under 1k chars;
 // the in-repo CV precedent is MAX_COVER_LETTER_CV_CHARS = 30k. Tighten only
 // after checking real analyze input sizes (analysis_log.input_tokens).
-export const MAX_JD_CHARS = 50_000;
-export const MAX_CV_TEXT_CHARS = 100_000;
+import { MAX_CV_TEXT_CHARS, MAX_JD_CHARS } from '../src/lib/inputLimits.js';
+
+export { MAX_CV_TEXT_CHARS, MAX_JD_CHARS };
 
 export type InputTooLarge = { status: 413; body: { error: string; field: 'jd' | 'cv'; maxChars: number } };
 

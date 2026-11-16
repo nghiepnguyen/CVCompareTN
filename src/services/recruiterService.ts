@@ -213,10 +213,14 @@ export async function createCandidate(params: {
 export async function updateCandidateStatus(
   candidateId: string,
   status: CandidateStatus,
-  parsedText?: string | null
+  errorMessage?: string | null
 ): Promise<void> {
-  const update: Record<string, unknown> = { status };
-  if (parsedText !== undefined) update.parsed_text = parsedText;
+  // M2-D2 F2: the error goes to error_message (never parsed_text); any other
+  // status clears a stale error.
+  const update: Record<string, unknown> = {
+    status,
+    error_message: status === 'error' ? (errorMessage ?? null) : null,
+  };
 
   const { error } = await supabase
     .from('candidate_cvs')
