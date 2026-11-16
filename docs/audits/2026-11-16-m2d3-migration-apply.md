@@ -112,3 +112,33 @@ No unexpected schema drift was found.
   2. A second tab during the run shows the candidate as analyzing and does not analyze it.
   3. "Để sau" / "Not now" in the confirmation dialog makes no `/api/analyze` call.
 - Watch save-analysis 409s, claim RPC errors and stuck `analyzing` rows for 30 minutes.
+
+## 9. Release: code deploy and production smoke test
+
+### Code deploy
+- **PR #83:** squash-merged by the owner as `095b993` at 10:26:01Z. Its tree is identical to `d3c9c87`.
+- **CI on `main`:** passed.
+- **Vercel production deploy** `7821429109`: Ready. The live bundle `index-Kph6mayE.js` contains `claim_candidate_analysis`.
+
+### Smoke test
+- **Account:** test account `044c3afb` (email login), upgraded by the owner to the Recruiter plan for this test.
+- **Data:** campaign "M2-D3 smoke 2026-11-16" with one synthetic, fictional CV taken from `scripts/benchmark-gemini-fixtures.ts`.
+
+| # | Scenario | Result |
+|---|---|---|
+| 1 | Analyze one candidate | **PASS.** `done`, score 68, run in 21 s. `analysis_attempt_id` is set (started 10:34:06Z, analyzed 10:34:25Z). The ledger row with `request_key` equal to the attempt id is `committed`, charged once. `parsed_text` is NULL and `error_message` is NULL. |
+| 2 | A second tab clicks Analyze on the same pending candidate right after the first tab | **PASS.** The second tab shows "Đang PT" (analyzing) and made **no** `/api/analyze` request. Exactly one ledger row was created, so there was one Gemini call and one charge. |
+| 3 | Charge-confirm dialog: "Để sau" makes no analyze call | **Not run in production.** Production has no `needs_confirm` candidates, and creating one would need direct data manipulation. Covered by `CampaignDetailView.chargeConfirm.test.tsx` and the local real-database suite. |
+
+### 30-minute watch (10:27 to 11:05Z, read-only)
+- **Vercel production:** 9 requests, all 200 (storage, config, analyze, save-analysis, admin update-user). No 5xx, no `save-analysis` 409, no error-level logs.
+- **Database:**
+  - 0 `analyzing` rows;
+  - 1 claimed row, and it has its ledger row;
+  - ledger rows created since the deploy: `committed=1`;
+  - 0 open `reserved` rows.
+
+### Verdict
+**M2-D3 is released.** Production smoke for scenarios 1 and 2 passed. Scenario 3 is verified offline only.
+
+The smoke campaign is still in the test account. Leftover debt is listed in §7.
