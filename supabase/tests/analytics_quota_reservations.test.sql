@@ -31,6 +31,14 @@ BEGIN
    ASSERT NOT has_function_privilege('anon', f, 'EXECUTE'), 'anon can execute '||f;
    ASSERT NOT has_function_privilege('authenticated', f, 'EXECUTE'), 'authenticated can execute '||f;
  END LOOP;
+ FOREACH f IN ARRAY ARRAY[
+   'public.analytics_quota_lock_state(uuid)',
+   'public.analytics_quota_mark_uncertain(uuid,text,integer,integer,text)',
+   'public.analytics_quota_expire(uuid,integer,text)',
+   'public.analytics_quota_forgiven_per_cycle()']
+ LOOP
+   ASSERT NOT has_function_privilege('service_role', f, 'EXECUTE'), 'service_role can bypass the lock via '||f;
+ END LOOP;
  ASSERT has_function_privilege('service_role','public.reserve_analytics_quota(uuid,uuid,integer)','EXECUTE'), 'service_role cannot reserve';
  ASSERT has_function_privilege('service_role','public.commit_analytics_quota(uuid,uuid)','EXECUTE'), 'service_role cannot commit';
  ASSERT has_function_privilege('service_role','public.release_analytics_quota(uuid,uuid,text)','EXECUTE'), 'service_role cannot release';

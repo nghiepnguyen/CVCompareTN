@@ -364,6 +364,13 @@ REVOKE ALL ON FUNCTION public.reserve_analytics_quota(uuid, uuid, integer) FROM 
 REVOKE ALL ON FUNCTION public.commit_analytics_quota(uuid, uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.release_analytics_quota(uuid, uuid, text) FROM PUBLIC, anon, authenticated;
 
+-- Internal helpers are only reachable through the definer RPCs (which run as
+-- the owner); not even service_role may call them directly and skip the lock.
+REVOKE ALL ON FUNCTION public.analytics_quota_forgiven_per_cycle() FROM service_role;
+REVOKE ALL ON FUNCTION public.analytics_quota_lock_state(uuid) FROM service_role;
+REVOKE ALL ON FUNCTION public.analytics_quota_mark_uncertain(uuid, text, integer, integer, text) FROM service_role;
+REVOKE ALL ON FUNCTION public.analytics_quota_expire(uuid, integer, text) FROM service_role;
+
 GRANT EXECUTE ON FUNCTION public.reserve_analytics_quota(uuid, uuid, integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.commit_analytics_quota(uuid, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.release_analytics_quota(uuid, uuid, text) TO service_role;
