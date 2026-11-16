@@ -209,6 +209,8 @@ export interface UiLabels extends ApplicationsLabels {
   aiErrorRateLimited: string;
   aiErrorBusy: string;
   aiErrorTimeout: string;
+  aiErrorDuplicateRequest: string;
+  aiErrorQuotaUnavailable: string;
   monthlyUsageLimitExceeded: string;
   monthlyUsageLimitExceededDetail: string;
   quotaExhaustedBuyMore: string;

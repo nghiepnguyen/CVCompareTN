@@ -21,6 +21,7 @@ const state = {
   hits: new Map<string, number>(),
   rateCalls: [] as RateRpc[],
   rateMode: 'ok' as 'ok' | 'error' | 'hang' | 'malformed',
+  reservations: new Map<string, string>(),
 };
 function thenable(run: () => Promise<unknown>) {
   const b: Record<string, unknown> = {};
@@ -54,11 +55,24 @@ vi.mock('../../../_server-lib/payment/supabaseAdmin.js', () => ({
         state.hits.set(key, hits);
         return { data: [{ allowed: hits <= a.p_limit, remaining: Math.max(a.p_limit - hits, 0), retry_after: 0 }], error: null };
       }
-      if (name === 'check_analytics_quota') return { data: { allowed: state.used + 1 <= state.limit, used: state.used, limit: state.limit }, error: null };
-      if (name === 'increment_usage_count') {
-        if (state.used >= state.limit) return { data: null, error: { message: 'Monthly analytics limit reached' } };
-        state.used++;
-        return { data: null, error: null };
+      // Minimal single-threaded stand-in for the M2-C2 ledger (real atomicity is
+      // proven against Postgres in scripts/db-quota-concurrency.ts).
+      if (name === 'reserve_analytics_quota') {
+        const active = [...state.reservations.values()].filter((v) => v === 'reserved').length;
+        if (state.used + active + 1 > state.limit) return { data: { status: 'denied', used: state.used, limit: state.limit }, error: null };
+        const id = `res-${state.reservations.size + 1}`;
+        state.reservations.set(id, 'reserved');
+        return { data: { status: 'reserved', reservation_id: id }, error: null };
+      }
+      if (name === 'commit_analytics_quota') {
+        const id = args.p_reservation_id as string;
+        if (state.reservations.get(id) === 'reserved') { state.reservations.set(id, 'committed'); state.used++; }
+        return { data: { status: 'committed', charged: true }, error: null };
+      }
+      if (name === 'release_analytics_quota') {
+        const id = args.p_reservation_id as string;
+        if (state.reservations.get(id) === 'reserved') state.reservations.set(id, args.p_outcome === 'uncertain' ? 'uncertain' : 'refunded');
+        return { data: { status: state.reservations.get(id) }, error: null };
       }
       return { data: null, error: null };
     }),
@@ -85,6 +99,7 @@ beforeEach(() => {
   generateContent.mockReset();
   Object.assign(state, {
     userId: USER_ID, plan: 'free', used: 0, limit: 1000, log: [], hits: new Map(), rateCalls: [], rateMode: 'ok',
+    reservations: new Map(),
   });
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -106,15 +121,17 @@ describe('M2-B atomic AI slot (M2-A P1-1)', () => {
     expect(state.log.filter((r) => r.error_message === '[ai_rate_limited]')).toHaveLength(5);
   });
 
-  it('RESIDUAL (not fixed in M2-B): monthly quota stays check-then-increment inside the hourly cap', async () => {
-    // Documents the known gap for the reserve/refund stage: 1 unit left, a
-    // burst still yields up to hourlyAiLimit results while usage_count stops at the limit.
+  it('M2-C2: a burst with 1 monthly unit left yields exactly 1 result (was: up to hourlyAiLimit)', async () => {
     state.limit = 5;
     state.used = 4;
     generateContent.mockImplementation(analysisReply);
     const results = await Promise.all(Array.from({ length: 15 }, () => handleAnalyze('Bearer x', body)));
-    expect(results.filter((r) => r.status === 200).length).toBe(10);
+    expect(results.filter((r) => r.status === 200).length).toBe(1);
+    expect(results.filter((r) => r.status === 429 && r.body.limit === 5).length).toBe(14);
+    expect(generateContent).toHaveBeenCalledTimes(1);
     expect(state.used).toBe(5);
+    // Quota rejections never consume the non-refundable hourly slot.
+    expect(state.rateCalls).toHaveLength(1);
   });
 
   it('sequential requests are still capped', async () => {
@@ -205,12 +222,12 @@ describe('M2-B provider failure classification (M2-A P2-1)', () => {
     });
   }
 
-  it('a non-transient provider error (400) stays 500 non-retryable [gemini_error]', async () => {
+  it('a non-transient provider error (400) stays 500 non-retryable, logged [gemini_rejected] (M2-C2)', async () => {
     generateContent.mockRejectedValue(new ApiError({ message: 'bad request', status: 400 }));
     const res = await handleAnalyze('Bearer x', body);
     expect(res.status).toBe(500);
     expect(res.body.retryable).toBe(false);
-    expect(state.log.at(-1)?.error_message).toBe('[gemini_error]');
+    expect(state.log.at(-1)?.error_message).toBe('[gemini_rejected]');
   });
 });
 
