@@ -1,7 +1,7 @@
 # Kế hoạch tích hợp ý tưởng từ ai-job-search vào cvFit
 
 -   Ngày lập ban đầu: 24/10/2026.
--   Cập nhật: 15/11/2026.
+-   Cập nhật: 16/11/2026.
 -   Trạng thái: P0, P1A, P1B (+ P1B.1), P1C, P2A DEPLOYED / PRODUCTION
     VERIFIED; P2B DEPLOYED / PRODUCTION VERIFIED (PR #70, `fa1a45f`); P2C DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT (PR #73, `15d90c1`).
     - Cập nhật 15/11/2026:
@@ -9,6 +9,11 @@
       - Sửa replay migration A1: DEPLOYED (PR #76, `d1ef961`).
       - P3 Interview Prep: **PAUSED, chưa release**. CP6 ở trạng thái independent review RESOURCE-BLOCKED / PENDING.
       - P4A: vẫn bị gate.
+    - Cập nhật 16/11/2026 — **M2 Analyze stabilization (độ tin cậy):**
+      - M2-A audit: xong (`docs/audits/2026-11-15-m2a-analyze-stabilization-audit.md`).
+      - M2-B: DEPLOYED / PRODUCTION SMOKE PASS WITH KNOWN DEBT (PR #79, `375b13e`).
+      - M2-C2 quota tháng nguyên tử: migration `20261116000000` áp production; app DEPLOYED / PRODUCTION SMOKE PASS (PR #80, `f1ced35`). Lỗ hổng vượt quota khi request đồng thời đã đóng.
+      - Độ dao động điểm (score variance) **chưa** được xử lý: vẫn là gate của P4A (`docs/16_analyze_score_variance.md`).
     - Triển khai theo từng stage, không port nguyên stack upstream.
 -   Repo tham khảo: https://github.com/ai-job-search-dev/ai-job-search
     (nhánh `master`).
@@ -633,6 +638,30 @@ dụng vì chưa có hồ sơ nào được gửi.
     giới hạn: intent chỉ trong bộ nhớ trang)*
 
 ------------------------------------------------------------------------
+
+## M2 --- Analyze Stabilization (độ tin cậy)
+
+**Trạng thái (16/11/2026): M2-A, M2-B, M2-C2 RELEASED.** Ngoài phạm vi: prompt, model, canonical scoring, probability, ngưỡng.
+
+| Stage | Nội dung | Trạng thái |
+|---|---|---|
+| M2-A | Audit chỉ đọc pipeline analyze (timeout, 429/5xx, concurrency, retry, cost) + 9 repro offline | Xong. `docs/audits/2026-11-15-m2a-analyze-stabilization-audit.md` |
+| M2-B | Guard double-submit, giới hạn Full CV 5 song song, slot giờ nguyên tử fail-closed, 413 JD/CV, Gemini 429/5xx → 503, lỗi client có kiểu + dịch | DEPLOYED / SMOKE PASS WITH KNOWN DEBT — PR #79 `375b13e` |
+| M2-C1 | Thiết kế quota tháng reserve/commit/release (owner chọn Option B; D1 = miễn 2 uncertain/chu kỳ, D2 = idempotency key UUID → 409, D3 = fail-closed) | Xong. `docs/audits/2026-11-15-m2c1-monthly-quota-integrity-design.md` (+ amendments) |
+| M2-C2 | Ledger `analytics_quota_reservations` + RPC service_role, handler + client | Migration áp production 16/11; app DEPLOYED / SMOKE PASS — PR #80 `f1ced35`. Preflight: `docs/audits/2026-11-16-m2c2a-migration-preflight.md` |
+
+**Nợ còn mở (sau M2-C2):**
+- Pre-check client (`check_analytics_quota`) chưa tính reservation đang chạy → batch có thể qua pre-check rồi nhận 429 từ server.
+- Ledger chưa có job dọn dữ liệu cũ (retention).
+- Release `pre_gemini` thất bại → hết TTL thành `uncertain` (tốn lượt miễn hoặc bị trừ).
+- Commit thành công nhưng mất phản hồi → user bị trừ lượt mà không nhận kết quả.
+- Test DB (SQL + concurrency, `npm run test:db:quota`) chưa chạy trong CI.
+- Nhánh commit `over_limit_waived` chỉ test single-session; burst chưa test trên Preview (chỉ Postgres local).
+- Slot giờ cửa sổ cố định: burst qua ranh giới giờ được ~2× cap; các action tài liệu (cover letter / review / follow-up) chỉ có cap giờ đếm log.
+- Drift production: fallback `get_default_monthly_analytics_limit()` = 20, repo = 5 (vô hại khi `app_settings` = 5).
+- Hygiene quyền: `authenticated` còn EXECUTE `increment_usage_count`/`check_analytics_quota` trên chính mình; `anon`/`authenticated` còn TRUNCATE trên `profiles` (PostgREST không với tới).
+- Từ M2-A, chưa làm: P2-2 (dòng lỗi tính vào cap giờ), P2-3 (chạy lại batch phân tích lại cả CV đã xong), P2-7 (recruiter ghi lỗi vào `parsed_text`, ứng viên kẹt `analyzing`), P2-8 (banner báo "đã lưu" dù lưu lỗi), K0 (parse vẫn tốn khi analyze lỗi/413).
+- Score variance (A2 live benchmark) vẫn BLOCKED; gate P4A không đổi.
 
 ## P3 --- Interview Preparation
 

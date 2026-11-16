@@ -156,7 +156,7 @@ Mỗi user có **`quota_reset_day`** (1–28) — ngày trong tháng mà `usage_
 
 `usage_month` lưu key chu kỳ dạng `YYYY-MM-DD` (ngày bắt đầu chu kỳ hiện tại). Hàm `current_quota_cycle(reset_day)` trả về key này.
 
-**Reset hoàn toàn lazy — không có cron.** `sync_profile_usage_month` chỉ chạy khi `check_analytics_quota`/`increment_usage_count` được gọi (tức user tự phân tích hoặc mở Profile). Một user chưa phân tích gì kể từ khi qua chu kỳ mới vẫn giữ `usage_count` **cũ** trong DB cho tới lần gọi tiếp theo. **Hệ quả:** đọc thẳng cột `profiles.usage_count` (như Admin Users table từng làm) có thể ra số cũ trong khi Profile page (luôn gọi RPC) đã đúng. Từ `20260703050000`, Admin đọc qua computed column `effective_usage_count` (xem bảng Hàm SQL) để luôn khớp với Profile mà không cần ghi DB chỉ vì admin mở trang xem.
+**Reset hoàn toàn lazy — không có cron.** `sync_profile_usage_month` chỉ chạy khi `check_analytics_quota`/`increment_usage_count` hoặc các RPC ledger M2-C2 (`reserve`/`commit`/`release_analytics_quota`, sau khi lock dòng `profiles`) được gọi (tức user tự phân tích hoặc mở Profile). Một user chưa phân tích gì kể từ khi qua chu kỳ mới vẫn giữ `usage_count` **cũ** trong DB cho tới lần gọi tiếp theo. **Hệ quả:** đọc thẳng cột `profiles.usage_count` (như Admin Users table từng làm) có thể ra số cũ trong khi Profile page (luôn gọi RPC) đã đúng. Từ `20260703050000`, Admin đọc qua computed column `effective_usage_count` (xem bảng Hàm SQL) để luôn khớp với Profile mà không cần ghi DB chỉ vì admin mở trang xem.
 
 ### Gói Free vs Pro vs Recruiter
 

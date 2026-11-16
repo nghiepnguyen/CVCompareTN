@@ -24,7 +24,7 @@ graph TD
     F --> API
     IMG --> API
     IMGS --> API
-    API --> SRV[Server: validate batchTotal vs plan\n check quota\n Gemini API call\n increment_usage_count]
+    API --> SRV[Server: validate batchTotal vs plan\n reserve monthly quota (atomic)\n hourly slot + Gemini API call\n commit or release reservation]
     SRV --> J[AnalysisResult JSON]
     J --> K[Hiển thị bảng so khớp & Phân tích chi tiết]
     K --> L[Lưu vào lịch sử Supabase]
@@ -33,7 +33,7 @@ graph TD
 
 ### Các bước trọng tâm:
 1.  **Thu thập JD:** JD có thể được lấy từ nhiều nguồn: nhập tay trực tiếp, trích xuất tự động từ đường link tuyển dụng hoặc chọn nhanh từ **Kho lưu trữ JD cá nhân (JD Store)** (`SavedJdContext` / modal trong `AppContent`). Lưu JD mới: `confirmSaveJD(title, jdContent)`.
-2.  **Kiểm tra hạn mức tháng:** `AnalysisRunContext` gọi RPC `check_analytics_quota` client-side (cho UX — hiển thị thông báo nhanh). Quota cũng được enforce server-side trong `/api/analyze`. Hạn mức lấy từ `app_settings.default_monthly_analytics_limit` (mặc định **5**, đổi qua Admin/SQL không cần deploy). Xem [8_analytics.md](8_analytics.md).
+2.  **Kiểm tra hạn mức tháng:** `AnalysisRunContext` gọi RPC `check_analytics_quota` client-side (cho UX — hiển thị thông báo nhanh). Quota được enforce server-side trong `/api/analyze` bằng reservation nguyên tử (M2-C2: reserve → commit/release); pre-check client chỉ là UX và chưa tính các request đang chạy. Hạn mức lấy từ `app_settings.default_monthly_analytics_limit` (mặc định **5**, đổi qua Admin/SQL không cần deploy). Xem [8_analytics.md](8_analytics.md).
 3.  **Xử lý file trước khi gửi (cập nhật 2026-07):** PDF → `unpdf` extract text client-side; file gốc ≤2MB (`MAX_INLINE_BINARY_SIZE`) → gửi kèm `pdfInlineData` base64 như cũ; **2–15MB** (`MAX_STORAGE_UPLOAD_SIZE`) → `uploadTempAnalysisFile(uid, file)` upload thẳng lên bucket `cv-analyze-tmp`, gửi `pdfStoragePath` (path) thay vì base64 — né hẳn giới hạn 4.5MB body Vercel thay vì chỉ giữ text làm nguồn chính; PDF scan/ảnh không extract được text theo cùng logic 2 bậc trên chính `data` (`dataStoragePath` khi 2–15MB); Image cũng 2 bậc tương tự; DOCX → mammoth → text. Chỉ hard-fail khi file vượt 15MB.
 4.  **Gemini chạy server-side:** `POST /api/analyze` nhận text/base64 hoặc storage path (+ `cvPdfInlineData`/`cvPdfStoragePath`/`cvDataStoragePath` optional), handler resolve storage path thành base64 qua `_server-lib/storage/tempFile.ts` (service-role download + check ownership path) trước khi gọi Gemini, trả `AnalysisResult` (gồm `formatAssessment` — đánh giá layout/khả năng đọc ATS dựa trên file gốc nếu có kèm theo). `GEMINI_API_KEY` chỉ tồn tại trên server — không expose ra browser (SEC-4).
 5.  **So sánh chi tiết (Detailed Comparison):** AI không chỉ chấm điểm mà còn chỉ ra minh chứng trực tiếp (`cvEvidence`) từ hồ sơ để giải thích tại sao một yêu cầu được coi là "Đạt" (Matched) hoặc "Thiếu" (Missing) — mỗi yêu cầu còn được gắn `priority` (`required`/`nice-to-have`) do model phân loại từ JD trước khi chấm điểm.
