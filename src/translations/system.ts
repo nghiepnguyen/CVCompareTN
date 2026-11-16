@@ -104,6 +104,14 @@ export const system = {
     vi: "Quá trình phân tích đang mất nhiều thời gian hơn bình thường. Vui lòng thử lại.",
     en: "Analysis is taking longer than usual. Please try again.",
   },
+  aiErrorDuplicateRequest: {
+    vi: "Yêu cầu phân tích này đã được gửi. Vui lòng kiểm tra Lịch sử.",
+    en: "This analysis request was already submitted. Please check History.",
+  },
+  aiErrorQuotaUnavailable: {
+    vi: "Không thể xác minh lượt phân tích lúc này. Vui lòng thử lại sau ít phút.",
+    en: "Your analysis quota can't be verified right now. Please try again in a few minutes.",
+  },
   monthlyUsageLimitExceeded: {
     vi: "Bạn đã vượt quá số lượng sử dụng của tháng này.",
     en: "You have exceeded your usage limit for this month.",

@@ -7,7 +7,7 @@ import { processFile } from '../../hooks/useFileProcessor';
 
 const T = {
   aiErrorAuthRequired: 'AUTH', aiErrorAccountLocked: 'LOCKED', aiErrorInputTooLarge: 'TOO_LARGE {max}',
-  aiErrorRateLimited: 'RATE', aiErrorBusy: 'BUSY', aiErrorTimeout: 'TIMEOUT', monthlyUsageLimitExceeded: 'MONTHLY',
+  aiErrorRateLimited: 'RATE', aiErrorBusy: 'BUSY', aiErrorTimeout: 'TIMEOUT', aiErrorDuplicateRequest: 'DUP', aiErrorQuotaUnavailable: 'QUOTA_UNAVAILABLE', monthlyUsageLimitExceeded: 'MONTHLY',
 };
 
 const respond = (status: number, body: unknown) =>
@@ -34,6 +34,17 @@ describe('AiRequestError from the AI fetch wrappers', () => {
   });
 });
 
+describe('M2-C2 idempotency key', () => {
+  it('analyzeCV sends a fresh UUID idempotencyKey per call', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ matchScore: 1 }), { status: 200 }));
+    await analyzeCV('jd', 'cv', 'text/plain');
+    await analyzeCV('jd', 'cv', 'text/plain');
+    const keys = spy.mock.calls.map((c) => JSON.parse(String((c[1] as RequestInit).body)).idempotencyKey);
+    expect(keys[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+});
+
 describe('localizeAiError', () => {
   const e = (status: number, body: Record<string, unknown> = {}) =>
     new AiRequestError('server text', status, body.retryable === true, body);
@@ -45,6 +56,9 @@ describe('localizeAiError', () => {
     expect(localizeAiError(e(429, { used: 5, limit: 5 }), T)).toBe('MONTHLY');
     expect(localizeAiError(e(503, { retryable: true }), T)).toBe('BUSY');
     expect(localizeAiError(e(504, { retryable: true }), T)).toBe('TIMEOUT');
+    expect(localizeAiError(e(409, { code: 'duplicate_request' }), T)).toBe('DUP');
+    expect(localizeAiError(e(503, { code: 'quota_unavailable', retryable: true }), T)).toBe('QUOTA_UNAVAILABLE');
+    expect(localizeAiError(e(503, { code: 'quota_settlement_unavailable', retryable: true }), T)).toBe('QUOTA_UNAVAILABLE');
   });
   it('keeps the server message for other statuses and plain errors', () => {
     expect(localizeAiError(e(500), T)).toBe('server text');

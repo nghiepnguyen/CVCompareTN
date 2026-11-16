@@ -71,6 +71,13 @@ import { handleAnalyze } from '../../../_server-lib/analyze/handler';
 import { handleRewriteCv } from '../../../_server-lib/rewriteCv/handler';
 import { handleParseCv } from '../../../_server-lib/parseCv/handler';
 
+// M2-C2 quota ledger replies (the ledger itself is covered against a real DB).
+const quotaReply = (name: string) =>
+  name === 'reserve_analytics_quota' ? { status: 'reserved', reservation_id: 'res-1' }
+    : name === 'commit_analytics_quota' ? { status: 'committed', charged: true }
+      : name === 'release_analytics_quota' ? { status: 'refunded' }
+        : null;
+
 // A call that never settles on its own: it only ends when its signal aborts.
 const hang = (signal?: AbortSignal) =>
   new Promise((_, reject) => {
@@ -114,7 +121,7 @@ beforeEach(() => {
   extractText.mockReset();
   s3Send.mockReset();
   db.insert = async () => ({ error: null });
-  db.rpc = async (name) => ({ data: name === 'check_analytics_quota' ? { allowed: true } : null, error: null });
+  db.rpc = async (name) => ({ data: quotaReply(name), error: null });
   db.profile = async () => ({ data: { plan: 'free', role: 'user', has_permission: true } });
   db.count = async () => ({ count: 0, error: null });
   db.upload = async () => ({ data: null, error: null });
@@ -293,15 +300,26 @@ describe('/api/analyze deadline', () => {
     noFixtureLeak(lastRow());
   });
 
-  it('slow Gemini + hung quota increment + hung telemetry still return the result within 65s', async () => {
+  it('slow Gemini + hung telemetry still return the result within 65s', async () => {
     generateContent.mockImplementation(() => after(TOTAL_BUDGET_MS - POST_RESERVE_MS - 2000, reply({ matchScore: 70, rewriteSuggestions: [] })));
-    db.rpc = (name, s) => (name === 'increment_usage_count' ? hang(s) : Promise.resolve({ data: { allowed: true }, error: null }));
     db.insert = hang;
     const { res, elapsed } = await run(() => analyze());
     expect(res.status).toBe(200);
     expect(res.body.matchScore).toBe(70);
     expect(elapsed).toBeLessThanOrEqual(TOTAL_BUDGET_MS);
     // Nothing is left running toward the platform ceiling.
+    expect(signals.every((s) => s.aborted)).toBe(true);
+  });
+
+  it('slow Gemini + hung quota commit: result withheld (M2-C2 A4), answered within 65s', async () => {
+    generateContent.mockImplementation(() => after(TOTAL_BUDGET_MS - POST_RESERVE_MS - 2000, reply({ matchScore: 70, rewriteSuggestions: [] })));
+    db.rpc = (name, s) => (name === 'commit_analytics_quota' ? hang(s) : Promise.resolve({ data: quotaReply(name), error: null }));
+    db.insert = hang;
+    const { res, elapsed } = await run(() => analyze());
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({ code: 'quota_settlement_unavailable', retryable: true });
+    expect(res.body.matchScore).toBeUndefined();
+    expect(elapsed).toBeLessThanOrEqual(TOTAL_BUDGET_MS);
     expect(signals.every((s) => s.aborted)).toBe(true);
   });
 

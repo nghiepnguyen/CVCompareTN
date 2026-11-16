@@ -30,6 +30,8 @@ type AiErrorStrings = {
   aiErrorRateLimited: string;
   aiErrorBusy: string;
   aiErrorTimeout: string;
+  aiErrorDuplicateRequest: string;
+  aiErrorQuotaUnavailable: string;
   monthlyUsageLimitExceeded: string;
 };
 
@@ -40,8 +42,11 @@ export function localizeAiError(err: unknown, t: AiErrorStrings): string {
     case 401: return t.aiErrorAuthRequired;
     case 403: return t.aiErrorAccountLocked;
     case 413: return t.aiErrorInputTooLarge.replace('{max}', String(err.body.maxChars ?? ''));
+    case 409: return t.aiErrorDuplicateRequest;
     case 429: return typeof err.body.limit === 'number' ? t.monthlyUsageLimitExceeded : t.aiErrorRateLimited;
-    case 503: return err.retryable ? t.aiErrorBusy : err.message;
+    case 503:
+      if (err.body.code === 'quota_unavailable' || err.body.code === 'quota_settlement_unavailable') return t.aiErrorQuotaUnavailable;
+      return err.retryable ? t.aiErrorBusy : err.message;
     case 504: return t.aiErrorTimeout;
     default: return err.message;
   }
@@ -234,6 +239,8 @@ export async function analyzeCV(
     body: JSON.stringify({
       jd, cvData, cvMimeType, cvName, language, cvPdfInlineData, batchTotal,
       cvPdfStoragePath, cvDataStoragePath,
+      // M2-C2: one key per CV per run; the server meters each key once.
+      idempotencyKey: crypto.randomUUID(),
     }),
     // Server answers within its 65s request deadline (_server-lib/deadline.ts);
     // 75s here leaves room for the response to arrive before we give up client-side.

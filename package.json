@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:db:quota": "tsx scripts/db-quota-concurrency.ts && tsx scripts/db-quota-plan-concurrency.ts",
     "vercel-dev": "vercel dev",
     "vercel-link": "vercel link --project cvcompare"
   },

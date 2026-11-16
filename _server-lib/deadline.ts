@@ -18,6 +18,8 @@ export type FailureCategory =
   // Provider HTTP 429 / 5xx (M2-B): transient, surfaced as 503 retryable.
   | 'gemini_rate_limited'
   | 'gemini_unavailable'
+  // Provider HTTP 4xx (other than 429): request rejected, no result (M2-C2).
+  | 'gemini_rejected'
   | 'request_budget_exhausted';
 
 // A failure with a stable category; `message` is safe to persist ("[category]").
@@ -72,11 +74,14 @@ export function assertBudget(deadline: Deadline, minMs: number): void {
 }
 
 // Provider status on a raw @google/genai ApiError (it carries a numeric `status`).
-export function providerFailureCategory(err: unknown): 'gemini_rate_limited' | 'gemini_unavailable' | null {
+export function providerFailureCategory(
+  err: unknown
+): 'gemini_rate_limited' | 'gemini_unavailable' | 'gemini_rejected' | null {
   const status = (err as { status?: unknown } | null)?.status;
   if (typeof status !== 'number') return null;
   if (status === 429) return 'gemini_rate_limited';
   if (status >= 500 && status <= 599) return 'gemini_unavailable';
+  if (status >= 400 && status <= 499) return 'gemini_rejected';
   return null;
 }
 
@@ -94,6 +99,6 @@ export type AiFailureResponse = { status: number; retryable: boolean; kind: 'tim
 // timeouts/budget → 504 retryable, anything else → 500.
 export function aiFailureResponse(category: FailureCategory): AiFailureResponse {
   if (category === 'gemini_rate_limited' || category === 'gemini_unavailable') return { status: 503, retryable: true, kind: 'busy' };
-  if (category === 'gemini_error') return { status: 500, retryable: false, kind: 'error' };
+  if (category === 'gemini_error' || category === 'gemini_rejected') return { status: 500, retryable: false, kind: 'error' };
   return { status: 504, retryable: true, kind: 'timeout' };
 }

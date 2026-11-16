@@ -243,6 +243,7 @@ flowchart TD
 | `resolve_monthly_analytics_limit(plan, custom, stored_limit)` | **Custom limit luôn thắng plan** (từ `20260703040000`): `custom = true` → `stored_limit` (`NULL` = unlimited, **chỉ admin**), bất kể plan. Chỉ khi `custom = false` mới xét plan: `recruiter` = 500, `pro` = 100, `free` = `app_settings` default. Admin luôn unlimited theo role. |
 | `check_analytics_quota(user_id, additional?)` | Trả JSON `allowed`, `used`, `limit`, `month` (chu kỳ `YYYY-MM-DD`), `plan`, `resetDay`, `reason`. Gọi **trước** khi chạy batch analyze. |
 | `increment_usage_count(user_id)` | Tăng `usage_count` sau mỗi CV thành công; chặn nếu đã đạt limit. |
+| `reserve_analytics_quota` / `commit_analytics_quota` / `release_analytics_quota` (M2-C2, `20261116000000`) | **Đường enforce của `/api/analyze` từ M2-C2** (service_role only). Ledger `analytics_quota_reservations`; `usage_count` vẫn là bộ đếm đã tính lượt. Uncertain: 2 lần/chu kỳ được miễn, sau đó tính lượt. `check_analytics_quota`/`increment_usage_count` không còn được `/api/analyze` gọi (giữ cho client pre-check và rollback). |
 | `sync_profile_usage_month(user_id)` | Reset `usage_count` khi chu kỳ thay đổi (theo `quota_reset_day`) **HOẶC** khi plan pro/recruiter hết hạn → tự động downgrade về free + reset usage. |
 | `current_quota_cycle(reset_day)` | Trả về key chu kỳ `YYYY-MM-DD` cho `reset_day` (1–28). |
 | `effective_plan_from_row(plan, expires_at)` | Trả về plan hiệu lực (`free`/`pro`/`recruiter`) dựa trên `plan_expires_at`. |

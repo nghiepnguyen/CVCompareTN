@@ -6,7 +6,7 @@ import type { AnalysisResult, ParsedCV } from '../../services/ai';
 
 const T = vi.hoisted(() => ({
   aiErrorAuthRequired: 'AUTH', aiErrorAccountLocked: 'LOCKED', aiErrorInputTooLarge: 'TOO_LARGE {max}',
-  aiErrorRateLimited: 'RATE', aiErrorBusy: 'BUSY', aiErrorTimeout: 'TIMEOUT', monthlyUsageLimitExceeded: 'MONTHLY',
+  aiErrorRateLimited: 'RATE', aiErrorBusy: 'BUSY', aiErrorTimeout: 'TIMEOUT', aiErrorDuplicateRequest: 'DUP', aiErrorQuotaUnavailable: 'QUOTA_UNAVAILABLE', monthlyUsageLimitExceeded: 'MONTHLY',
 }));
 const mocks = vi.hoisted(() => ({
   analyzeCV: vi.fn(),

@@ -1,4 +1,5 @@
-import { getUserFromBearerToken, getSupabaseAdmin } from '../payment/supabaseAdmin.js';
+import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
+import { Sentry } from '../sentry.js';
 import { getAccountProfile, getEffectivePlan, isLockedProfile, checkHourlyAiLimit } from '../accountLock.js';
 import { analyzeCV } from '../ai/analysisService.js';
 import { GEMINI_ANALYZE_MODEL } from '../ai/geminiClient.js';
@@ -8,6 +9,13 @@ import { MAX_BATCH_BY_PLAN } from '../../src/lib/planLimits.js';
 import { resolveStorageRef } from '../storage/tempFile.js';
 import { stripInvisibleControls } from '../untrustedText.js';
 import { reserveAiCall } from '../rateLimit.js';
+import {
+  commitMonthlyQuota,
+  isValidIdempotencyKey,
+  releaseMonthlyQuota,
+  reserveMonthlyQuota,
+  type ReleaseOutcome,
+} from '../quota/monthlyQuota.js';
 import { checkInputSize } from '../inputLimits.js';
 import {
   aiFailureResponse,
@@ -23,9 +31,7 @@ export type HandlerResult = { status: number; body: Record<string, unknown> };
 
 // Timeouts for Supabase operations — keep them short to preserve budget for AI analysis.
 const AUTH_TIMEOUT_MS = 4_000;
-const QUOTA_CHECK_TIMEOUT_MS = 5_000;
 const PLAN_CHECK_TIMEOUT_MS = 4_000;
-const INCREMENT_TIMEOUT_MS = 5_000;
 
 // One request deadline (TOTAL_BUDGET_MS, see _server-lib/deadline.ts) from the
 // first line of handleAnalyze: every step — storage, plan/quota checks,
@@ -55,6 +61,7 @@ export async function handleAnalyze(
     cvPdfStoragePath?: string;
     cvDataStoragePath?: string;
     batchTotal?: number;
+    idempotencyKey?: unknown;
   };
 
   // Before the empty check so guards, jdTitle and logs all see the same JD.
@@ -76,6 +83,12 @@ export async function handleAnalyze(
     await logAnalysisAttempt(null, 'error', 'analyze', 'Missing cvData', undefined, undefined, deadline);
     return { status: 400, body: { error: 'Missing cvData' } };
   }
+  // D2: one UUID per CV per run, scoped per user by the ledger. Old clients
+  // send none and get a server key (no dedupe, still atomically metered).
+  if (b.idempotencyKey !== undefined && !isValidIdempotencyKey(b.idempotencyKey)) {
+    return { status: 400, body: { error: 'Invalid idempotency key' } };
+  }
+  const requestKey = isValidIdempotencyKey(b.idempotencyKey) ? b.idempotencyKey : crypto.randomUUID();
   const tooLargeInline = checkInputSize({ jd, cvData, cvMimeType });
   if (tooLargeInline) {
     await logAnalysisAttempt(null, 'error', 'analyze', `[input_too_large:${tooLargeInline.body.field}]`, undefined, undefined, deadline);
@@ -141,6 +154,41 @@ export async function handleAnalyze(
     return { status: 429, body: { error: 'Too many requests. Please try again later.' } };
   }
 
+  // M2-C2 monthly quota: atomic reservation before any AI work (D3: fails
+  // closed). Exactly one settle per reservation: commit on a delivered
+  // result, otherwise release with how far the request got.
+  const reservation = await reserveMonthlyQuota(userId, requestKey, deadline);
+  if (reservation.status === 'unavailable') {
+    await logAnalysisAttempt(userId, 'error', 'analyze', '[quota_unavailable]', undefined, undefined, deadline);
+    return { status: 503, body: { error: 'Quota verification unavailable', code: 'quota_unavailable', retryable: true } };
+  }
+  if (reservation.status === 'duplicate') {
+    await logAnalysisAttempt(userId, 'error', 'analyze', '[duplicate_request]', undefined, undefined, deadline);
+    return { status: 409, body: { error: 'Duplicate request', code: 'duplicate_request', state: reservation.state } };
+  }
+  if (reservation.status === 'denied') {
+    await logAnalysisAttempt(userId, 'error', 'analyze', 'Monthly analysis limit exceeded', undefined, undefined, deadline);
+    return {
+      status: 429,
+      body: { error: 'Monthly analysis limit exceeded', used: reservation.used, limit: reservation.limit },
+    };
+  }
+  const reservationId = reservation.reservationId;
+  const release = (outcome: ReleaseOutcome) => releaseMonthlyQuota(userId, reservationId, outcome, deadline);
+
+  // Atomic hourly slot (M2-B), after the refundable quota reservation so a
+  // quota rejection never burns the non-refundable slot. Fails closed.
+  const slot = await reserveAiCall(userId, 'analyze', effectivePlan, deadline);
+  if (slot !== 'ok') {
+    await release('pre_gemini');
+    if (slot === 'rate_limited') {
+      await logAnalysisAttempt(userId, 'error', 'analyze', '[ai_rate_limited]', undefined, undefined, deadline);
+      return { status: 429, body: { error: 'Too many requests. Please try again later.' } };
+    }
+    await logAnalysisAttempt(userId, 'error', 'analyze', '[rate_limit_unavailable]', undefined, undefined, deadline);
+    return { status: 503, body: { error: 'Rate limit verification unavailable', retryable: true } };
+  }
+
   // Client uploaded the raw file to Storage instead of inlining base64 (large
   // files) — resolve it into the same base64 shape analyzeCV already expects.
   // Same path is reused by the client's follow-up rewrite/parse-cv calls, so
@@ -156,6 +204,7 @@ export async function handleAnalyze(
       cvPdfInlineData = await resolveStorageRef(cvPdfStoragePath, userId, storageDeadline);
     }
   } catch (err) {
+    await release('pre_gemini');
     const category = err instanceof ControlledError ? err.category : 'storage_error';
     await logAnalysisAttempt(userId, 'error', 'analyze', `[${category}]`, undefined, undefined, deadline);
     if (category === 'storage_timeout') {
@@ -166,76 +215,34 @@ export async function handleAnalyze(
   }
   const tooLargeStored = cvDataStoragePath ? checkInputSize({ cvData, cvMimeType }) : null;
   if (tooLargeStored) {
+    await release('pre_gemini');
     await logAnalysisAttempt(userId, 'error', 'analyze', `[input_too_large:${tooLargeStored.body.field}]`, undefined, undefined, deadline);
     return tooLargeStored;
   }
 
-  try {
-    const adminClient = getSupabaseAdmin();
-    const { data: quota, error: quotaError } = await withTimeout(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      adminClient.rpc('check_analytics_quota', {
-        p_user_id: userId,
-        p_additional: 1,
-      }).abortSignal(deadline.signal(QUOTA_CHECK_TIMEOUT_MS)) as unknown as Promise<{ data: unknown; error: unknown }>,
-      Math.min(QUOTA_CHECK_TIMEOUT_MS, deadline.remainingMs()),
-      'Quota check'
-    );
-    if (quotaError) {
-      console.error('Quota check error:', quotaError);
-    } else if (quota && typeof quota === 'object') {
-      const q = quota as { allowed?: boolean; used?: number; limit?: number };
-      if (!q.allowed) {
-        await logAnalysisAttempt(userId, 'error', 'analyze', 'Monthly analysis limit exceeded', undefined, undefined, deadline);
-        return {
-          status: 429,
-          body: { error: 'Monthly analysis limit exceeded', used: q.used, limit: q.limit },
-        };
-      }
-    }
-  } catch (quotaErr) {
-    // Quota check timed out — log and proceed (fail-open for paying users)
-    console.warn('Quota check skipped (timeout):', quotaErr);
-  }
-
-  // Atomic slot right before Gemini (M2-A P1-1): concurrent requests can no
-  // longer all pass the log-based hourly count. Fails closed. The monthly
-  // quota above is still check-then-increment (separate reserve/refund stage).
-  const slot = await reserveAiCall(userId, 'analyze', effectivePlan, deadline);
-  if (slot === 'rate_limited') {
-    await logAnalysisAttempt(userId, 'error', 'analyze', '[ai_rate_limited]', undefined, undefined, deadline);
-    return { status: 429, body: { error: 'Too many requests. Please try again later.' } };
-  }
-  if (slot === 'unavailable') {
-    await logAnalysisAttempt(userId, 'error', 'analyze', '[rate_limit_unavailable]', undefined, undefined, deadline);
-    return { status: 503, body: { error: 'Rate limit verification unavailable', retryable: true } };
-  }
-
   if (aiDeadline.remainingMs() < MIN_GEMINI_BUDGET_MS) {
+    await release('pre_gemini');
     await logAnalysisAttempt(userId, 'error', 'analyze', '[request_budget_exhausted]', undefined, undefined, deadline);
     return { status: 504, body: { error: ANALYZE_TIMEOUT_MESSAGE, retryable: true } };
   }
 
+  let geminiStarted = false;
   try {
     const { result, usage, guardMetrics, verificationMetrics } = await analyzeCV(
-      jd, cvData as string, cvMimeType, cvName, language, aiDeadline.remainingMs(), cvPdfInlineData
+      jd, cvData as string, cvMimeType, cvName, language, aiDeadline.remainingMs(), cvPdfInlineData,
+      () => { geminiStarted = true; }
     );
 
-    // Fail-open as before: a timed-out or failed increment still returns the result.
-    try {
-      const { error: incrementError } = await withTimeout(
-        getSupabaseAdmin()
-          .rpc('increment_usage_count', { user_id: userId })
-          .abortSignal(deadline.signal(INCREMENT_TIMEOUT_MS)) as unknown as Promise<{
-          data: unknown;
-          error: unknown;
-        }>,
-        Math.min(INCREMENT_TIMEOUT_MS, deadline.remainingMs()),
-        'Usage increment'
-      );
-      if (incrementError) console.error('increment_usage_count failed:', incrementError);
-    } catch (err) {
-      console.error('increment_usage_count failed:', err);
+    // Amendment A4: a result is only delivered once its charge is recorded.
+    // Unsettled after bounded retries → withheld; the reservation expires and
+    // is settled as uncertain (first 2 per cycle forgiven).
+    if (!(await commitMonthlyQuota(userId, reservationId, deadline))) {
+      Sentry.captureMessage('quota_commit_failed', { level: 'error', tags: { route: 'analyze' } });
+      await logAnalysisAttempt(userId, 'error', 'analyze', '[quota_settlement_unavailable]', usage, undefined, deadline);
+      return {
+        status: 503,
+        body: { error: 'Quota settlement unavailable', code: 'quota_settlement_unavailable', retryable: true },
+      };
     }
     await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics, requirementVerification: verificationMetrics }, deadline);
 
@@ -244,6 +251,13 @@ export async function handleAnalyze(
     console.error('Analysis failed:', analysisError);
     const category = classifyAiFailure(analysisError);
     const failure = aiFailureResponse(category);
+    // Amendment A8: refund only when no result can exist.
+    const outcome: ReleaseOutcome = !geminiStarted
+      ? 'pre_gemini'
+      : category === 'gemini_rate_limited' || category === 'gemini_unavailable' || category === 'gemini_rejected'
+        ? 'provider_error'
+        : 'uncertain';
+    await release(outcome);
     // Keep provider details out of both telemetry and the response.
     const usage = category === 'request_budget_exhausted' ? undefined : { model: GEMINI_ANALYZE_MODEL }; // model only if Gemini ran
     await logAnalysisAttempt(userId, 'error', 'analyze', `[${category}]`, usage, undefined, deadline);

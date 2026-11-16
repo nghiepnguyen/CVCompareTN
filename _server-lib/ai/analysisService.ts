@@ -56,7 +56,10 @@ export async function analyzeCV(
   cvName?: string,
   language: 'vi' | 'en' = 'vi',
   timeoutMs = 45_000,
-  cvPdfInlineData?: string
+  cvPdfInlineData?: string,
+  // Fired right before the Gemini request is sent; the monthly quota uses it
+  // to tell "never called" (refund) from "outcome unknown" (M2-C2).
+  onGeminiStart?: () => void
 ): Promise<{
   result: AnalysisResult;
   usage: AiCallUsage;
@@ -162,6 +165,7 @@ export async function analyzeCV(
     // and never start Gemini without enough time left.
     assertBudget(deadline, MIN_GEMINI_BUDGET_MS);
     const geminiStart = Date.now();
+    onGeminiStart?.();
     const geminiPromise = client.models.generateContent({
       model: GEMINI_ANALYZE_MODEL,
       contents: [{ role: 'user', parts }],

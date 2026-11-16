@@ -3,6 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const fail = vi.hoisted(() => vi.fn());
 // The atomic AI slot (M2-B) is covered by m2bStabilization.test.ts; this suite
 // is about other behavior, so the reservation always succeeds here.
+// The M2-C2 monthly quota ledger is covered by m2c2MonthlyQuota.test.ts and the
+// real-DB suite; here every reservation succeeds and settles.
+vi.mock('../quota/monthlyQuota.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../quota/monthlyQuota.js')>()),
+  reserveMonthlyQuota: async () => ({ status: 'reserved', reservationId: 'res-1' }),
+  commitMonthlyQuota: async () => true,
+  releaseMonthlyQuota: async () => true,
+}));
 vi.mock('../rateLimit.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../rateLimit.js')>()),
   reserveAiCall: async () => 'ok',
