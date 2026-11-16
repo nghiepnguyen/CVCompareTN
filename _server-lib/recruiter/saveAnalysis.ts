@@ -13,8 +13,8 @@ const rpcFailure = (code?: string): SaveAnalysisResult =>
 /**
  * Shared by api/recruiter/save-analysis.ts and server/routes/recruiter.ts.
  * `userId` must come from the verified bearer token, never from the body.
- * With `attemptId` (M2-D3 clients) the save is fenced by the attempt that owns
- * the row; without it (clients deployed before M2-D3) the legacy RPC runs.
+ * Every save is fenced by the attempt that owns the row (M2-D3); clients
+ * deployed before M2-D3 send no attemptId and are fenced as attempt NULL.
  */
 export async function saveCandidateAnalysisForUser(userId: string, rawBody: unknown): Promise<SaveAnalysisResult> {
   const body = rawBody as {
@@ -36,34 +36,28 @@ export async function saveCandidateAnalysisForUser(userId: string, rawBody: unkn
     return { status: 400, body: { error: 'Invalid attemptId' } };
   }
 
-  if (body?.attemptId !== undefined) {
-    const { data, error } = await getSupabaseAdmin().rpc('save_candidate_analysis_attempt', {
-      p_user_id: userId,
-      p_candidate_id: candidateId,
-      p_attempt_id: body.attemptId,
-      p_analysis_result: analysisResult,
-      p_match_score: matchScore,
-    });
-    if (error) {
-      console.error('save_candidate_analysis_attempt failed:', error);
-      return rpcFailure(error.code);
-    }
-    if ((data as { result?: string } | null)?.result === 'superseded') {
-      return { status: 409, body: { error: 'Superseded by a newer saved analysis', code: 'superseded' } };
-    }
-    return { status: 200, body: { success: true } };
+  // Pre-M2-D3 clients send no attemptId: they go through the same fence with
+  // a NULL attempt, which only matches rows no claim has ever owned. Their
+  // legacy 'error' saves are refused (error text never becomes a result).
+  if (body?.attemptId === undefined && body?.status === 'error') {
+    return { status: 400, body: { error: 'Unsupported legacy error save' } };
   }
 
-  const { error } = await getSupabaseAdmin().rpc('save_candidate_analysis', {
+  const { data, error } = await getSupabaseAdmin().rpc('save_candidate_analysis_attempt', {
     p_user_id: userId,
     p_candidate_id: candidateId,
+    p_attempt_id: body?.attemptId ?? null,
     p_analysis_result: analysisResult,
     p_match_score: matchScore,
-    p_status: body?.status === 'error' ? 'error' : 'done',
   });
   if (error) {
-    console.error('save_candidate_analysis failed:', error);
+    console.error('save_candidate_analysis_attempt failed:', error);
     return rpcFailure(error.code);
+  }
+  const result = (data as { result?: string } | null)?.result;
+  if (result !== 'saved') {
+    // superseded: a newer attempt already saved; not_owner: another attempt owns the row.
+    return { status: 409, body: { error: 'Analysis attempt does not own this candidate', code: result ?? 'conflict' } };
   }
   return { status: 200, body: { success: true } };
 }

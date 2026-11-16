@@ -9,7 +9,7 @@ Not done:
 - no live Gemini call was made;
 - the production preflight has not run (see §9).
 
-Migration: `supabase/migrations/20261117000000_candidate_analysis_ownership.sql`, sha256 `710123760aeebde3c3b3a60bbc47c61fdda5b170df05eecd069661b628951b9a`.
+Migration: `supabase/migrations/20261117000000_candidate_analysis_ownership.sql`, sha256 `45aa51618439a10da83e44cce281ece0d3e5cc42eaf36e0e521c1dd1f54f160b` (strict fence fix; it supersedes `710123760…51b9a`).
 
 ## 1. Architecture and failure windows
 
@@ -64,9 +64,12 @@ A timestamp is never treated as proof that Gemini did not run. The only automati
 | `error`(no attempt, legacy) | claim | none | `analyzing`(B) | unchanged from M2-D2 (D3) |
 | `error`(A) | claim | ledger(A) has no row or is `refunded` | `analyzing`(B) | the new attempt only |
 | `analyzing`(A) | release (client error) | `attempt_id = A AND status = 'analyzing'` | `error`(A), message in `error_message` | none |
-| not `done` | save(A) | none | `done`(A) | none (paid result kept) |
-| `done`(A) | save(A) | replay | unchanged, `saved` with replay | none |
-| `done`(B) | save(A) | none | unchanged, `superseded` (HTTP 409) | the paid A result is discarded (rare) |
+| `analyzing`(A) | save(A) | the row is owned by A | `done`(A), attempt id unchanged | none |
+| `analyzing`(B), `pending`, or `error`(any) | save(A) | not owned by A, or released | unchanged, `not_owner` (HTTP 409) | A's result is discarded (only reachable after B's claim, which needed confirmation if A had been charged) |
+| `done`(A) | save(A) | replay | unchanged, `saved` with replay, no write | none |
+| `done`(B) | save(A) | none | unchanged, `superseded` (HTTP 409) | A's result is discarded |
+| `analyzing`(no attempt, legacy) | save(no attempt) from a pre-M2-D3 client | the row was never claimed | `done` | none |
+| row with any attempt id | save(no attempt) | none | unchanged, `not_owner` | none |
 | `done` | claim | none | `done` | none |
 
 ## 3. Migration
@@ -94,7 +97,13 @@ Existing triggers still run inside the definer calls: `account_unlocked` (locked
 
 - **Acquire:** the claim locks one `candidate_cvs` row with `SELECT … FOR UPDATE OF cc`, so concurrent claims of a candidate are serialized. The first claim sets a fresh `started_at`, and every later one sees `active`.
 - **Release:** the client's error write is now `UPDATE … WHERE id AND analysis_attempt_id = mine AND status = 'analyzing'` (through RLS). A stale worker cannot flip another tab's claim or a saved `done` row.
-- **Save:** `save_candidate_analysis_attempt` locks the row. It writes unless the row is already `done` under another attempt (rule 8). A paid result is therefore kept whenever no newer result exists.
+- **Save (strict fence, blocking-review fix):**
+  - `save_candidate_analysis_attempt` locks the row and writes **only** when `analysis_attempt_id IS NOT DISTINCT FROM p_attempt_id` and `status = 'analyzing'`.
+  - The same attempt on a `done` row is an idempotent replay with no write.
+  - Otherwise it returns `superseded` (row `done` under another attempt) or `not_owner`, and writes nothing.
+  - It never changes `analysis_attempt_id`.
+  - `/api/recruiter/save-analysis` sends **every** save through this function. Pre-M2-D3 clients are treated as attempt NULL, which only matches rows no claim has ever owned, and their legacy `status='error'` saves get 400.
+  - The unfenced 5-arg function is no longer called by the new code. It stays only for app rollback.
 - **Dispatch guard:**
   - the client refuses to call Gemini when more than 8 of the 10 lease minutes have passed since it claimed;
   - this covers the unbounded temp upload and tabs that resume after being suspended;
@@ -130,11 +139,11 @@ The M2-D2 save-only path is unchanged, except that it now saves under the origin
 | Check | Result |
 |---|---|
 | `npm run lint` / `npm run lint:api` | PASS |
-| `npm test` | PASS, 106 files and 1480 tests |
+| `npm test` | PASS, 106 files and 1482 tests |
 | `npm run build` | PASS. No new `api/` handler; the Vercel function count is unchanged. |
 | Migration replay (isolated local Supabase, PG 17.6, project `m2d3db` in scratch; `supabase db reset`) | PASS, 90 migrations |
 | `supabase/tests/candidate_analysis_ownership.test.sql` (grants, definer and search_path, one overload, 5-arg save present, decision table cases 1–12, fenced save/release, no quota effect) | PASS |
-| `scripts/db-candidate-claim-concurrency.ts`: real PostgREST calls as a signed-in user | 9/9 on 3 runs: 20 parallel claims from 2 tabs → 1 owner; stale row → 1 owner; 20 **confirmed** claims of a paid-lost row → 1 owner; concurrent A/B saves → exactly one lands, both orders seen across runs, `analyzed_count=1`; claims never change `usage_count` or ledger rows; foreign claim returns `not_found`; fenced release through RLS; legacy app path (direct status write plus 5-arg save) still works |
+| `scripts/db-candidate-claim-concurrency.ts`: real PostgREST calls (signed-in users and service_role) | **13/13 on 3 runs** after the strict-fence fix:<ul><li>20 parallel claims from 2 tabs → 1 owner</li><li>a stale row → 1 owner</li><li>20 confirmed claims of a paid-lost row → 1 owner</li><li>A claims, the lease expires, B claims; 10 concurrent A saves while B analyzes → all `not_owner`, row byte-identical</li><li>B saves; 10 A retries afterwards → `superseded`</li><li>10 parallel B replays → no write, `analyzed_count=1`</li><li>10 stale saves racing the owner's save → only the owner lands</li><li>wrong user → 42501; unclaimed attempt → `not_owner`, row untouched</li><li>claims never change `usage_count` or the ledger</li><li>foreign claim → `not_found`</li><li>fenced release through RLS</li><li>legacy app path (direct write plus 5-arg save) still works</li><li>legacy NULL-attempt save: allowed on an unclaimed row, rejected on a claimed row</li></ul> |
 | M2-C2 regression: `scripts/db-quota-concurrency.ts` and `analytics_quota_reservations.test.sql` | 12/12, PASS |
 | Other SQL suites: `account_lock`, `campaign_caps`, `plan_caps` | PASS |
 | `pg_stat_database.deadlocks` | 0 |
@@ -161,10 +170,12 @@ Required scenarios and where each is covered:
 ## 7. Remaining double-charge risks
 
 1. **Confirmed re-analysis (by design).** A `paid_result_lost` candidate costs a second credit if the user confirms. Avoiding that needs a server-side result store (see D2).
-2. **Same-tab unsaved result versus a confirmed re-run from another tab.** Tab A holds an unsaved paid result; after the lease, tab B confirms a re-run. Whichever saves first wins, and the other paid result is discarded. Both attempts were charged, and B's charge required explicit confirmation.
+2. **Same-tab unsaved result versus a re-run from another tab.** Tab A holds an unsaved paid result; after the lease, tab B claims the row. A's save-only retry is then rejected (`not_owner`) and A's paid result is discarded. If A's attempt was committed, B's claim needed explicit confirmation, so a second charge only happens when the user agrees. This is the cost of the strict fence the owner required.
 3. **`error` row with no ledger row, but the request still in transit.** Possible only if a request reaches the server well after the client errored (for example, an analyze request delayed more than about 10 s in the network). An immediate retry with a new key could then be charged twice. This is the same class as the M2-Q lost-confirmation item.
 4. **Legacy `error` rows** written before M2-D3 have no attempt id. They keep the M2-D2 behaviour (retry on click, D3), so a legacy W4 row can still be charged again once.
-5. **Mixed versions during rollout.** Tabs still running the old bundle use direct status writes and the 5-arg save. They are not fenced. An old tab and a new tab on the same campaign can still both analyze a candidate until the old tab reloads. A follow-up migration could block direct `status` writes by authenticated users once the code is live. It is not included: it would break old tabs between migration and deploy.
+5. **Mixed versions during rollout.**
+   - **Before the app deploy:** the old server code calls the unfenced 5-arg save.
+   - **After the app deploy:** old bundles are fenced as attempt NULL, so they can no longer overwrite rows an M2-D3 claim owns. Their direct status writes are still unfenced. An old tab and a new tab on the same campaign can still both analyze a candidate until the old tab reloads. A follow-up migration could block direct `status` writes by authenticated users once the code is live. It is not included: it would break old tabs between migration and deploy.
 6. **Ledger retention is now load-bearing.**
    - The claim treats a *missing* ledger row as proof that Gemini never ran.
    - That holds only while ledger rows are never deleted. True today: no purge exists.
@@ -241,7 +252,11 @@ Rollback triggers:
 
 ## 12. Verdict
 
-- **Code correctness: GO.** Lint, API lint, 1480 tests and the build pass. The M2-D2 invariants are kept and covered by tests: same-tab save-only with no Gemini call, errors never in `parsed_text`, a failed claim skips the candidate.
+- **Code correctness: GO.** Lint, API lint, 1482 tests and the build pass. The M2-D2 invariants are kept and covered by tests: same-tab save-only with no Gemini call, errors never in `parsed_text`, a failed claim skips the candidate.
 - **Database concurrency safety: GO (local evidence).** Row-locked claims and fenced save and release were proven on real Postgres 17.6 through PostgREST with parallel callers, repeated 3 times, with no deadlocks. Not yet proven on production: no preflight yet.
 - **Billing safety: CONDITIONAL GO.** No automatic paid retry exists. Every recovery whose outcome is charged or uncertain needs an explicit confirmation, and this also closes the old W4 path where `error` → click charged again. The residual risks in §7 remain, and D1 needs the owner's sign-off.
-- **Release: NO-GO until** the preflight has run and matches §9, and the owner approves D1 to D4. Then follow §11.
+- **Release:**
+  - **Blocking finding fixed:** the fenced save now accepts only the owning attempt; it was previously possible for a stale attempt to save over another attempt's claim.
+  - Preflight: 34/34 (§9).
+  - D1, D3 and D4 approved; D2 deferred.
+  - Migration apply: GO for owner approval, only once the corrected commit has been pushed and passed CI. Then follow §11.

@@ -10,6 +10,8 @@
 --
 -- DEPLOY ORDER: this migration -> app. Purely additive: the deployed app
 -- keeps using direct status writes and the 5-arg save_candidate_analysis.
+-- After the app deploy, /api/recruiter/save-analysis only calls the fenced
+-- save (the 5-arg stays for app rollback).
 
 ALTER TABLE public.candidate_cvs
   ADD COLUMN analysis_started_at timestamptz,
@@ -121,9 +123,13 @@ END;
 $$;
 
 -- Fenced save (service_role, called by /api/recruiter/save-analysis with the
--- verified user id). A paid result is kept whenever possible: it is written
--- unless the row is already 'done' under a different attempt (rule 8: never
--- overwrite a newer saved result). Same attempt already done = idempotent replay.
+-- verified user id). Only the attempt that currently owns the row may write:
+--   * row 'done' under the same attempt -> idempotent replay, no write;
+--   * row 'done' under another attempt  -> 'superseded', no write;
+--   * row not owned by this attempt, or not 'analyzing' (released/pending)
+--     -> 'not_owner', no write. analysis_attempt_id is never changed here.
+-- p_attempt_id NULL is the pre-M2-D3 client path: it only matches rows that
+-- no M2-D3 claim has ever owned (analysis_attempt_id IS NULL).
 CREATE FUNCTION public.save_candidate_analysis_attempt(
   p_user_id uuid,
   p_candidate_id uuid,
@@ -139,7 +145,7 @@ AS $$
 DECLARE
   v_row record;
 BEGIN
-  IF p_user_id IS NULL OR p_candidate_id IS NULL OR p_attempt_id IS NULL OR p_analysis_result IS NULL THEN
+  IF p_user_id IS NULL OR p_candidate_id IS NULL OR p_analysis_result IS NULL THEN
     RAISE EXCEPTION 'invalid_arguments' USING ERRCODE = '22023';
   END IF;
   IF p_match_score IS NULL OR p_match_score < 0 OR p_match_score > 100 THEN
@@ -160,11 +166,14 @@ BEGIN
     RAISE EXCEPTION 'not_allowed' USING ERRCODE = '42501';
   END IF;
 
+  IF v_row.analysis_attempt_id IS DISTINCT FROM p_attempt_id THEN
+    RETURN jsonb_build_object('result', CASE WHEN v_row.status = 'done' THEN 'superseded' ELSE 'not_owner' END);
+  END IF;
   IF v_row.status = 'done' THEN
-    IF v_row.analysis_attempt_id IS NOT DISTINCT FROM p_attempt_id THEN
-      RETURN jsonb_build_object('result', 'saved', 'replay', true);
-    END IF;
-    RETURN jsonb_build_object('result', 'superseded');
+    RETURN jsonb_build_object('result', 'saved', 'replay', true);
+  END IF;
+  IF v_row.status <> 'analyzing' THEN
+    RETURN jsonb_build_object('result', 'not_owner');
   END IF;
 
   UPDATE public.candidate_cvs SET
@@ -174,8 +183,7 @@ BEGIN
     probability_version = p_analysis_result->>'probabilityVersion',
     status = 'done',
     analyzed_at = now(),
-    error_message = NULL,
-    analysis_attempt_id = p_attempt_id
+    error_message = NULL
   WHERE id = p_candidate_id;
 
   PERFORM public.sync_campaign_counters(v_row.campaign_id);

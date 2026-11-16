@@ -284,7 +284,7 @@ export async function updateCandidateHrStatus(
   if (error) throw error;
 }
 
-/** 'superseded' = the row is already 'done' under another attempt (kept as is). */
+/** 'superseded' (HTTP 409) = this attempt does not own the row any more; nothing was written. */
 export async function saveCandidateAnalysis(
   candidateId: string,
   analysisResult: Record<string, unknown>,

@@ -111,8 +111,40 @@ async function main() {
       `unconfirmed=${unconfirmed.result}/${unconfirmed.reason} claimed=${won}`);
   }
 
-  // 4. Expired ownership while the old worker still runs: A and B save concurrently;
-  //    exactly one result lands, the other is superseded; replays are idempotent.
+  // 4. Strict fence. A claims, lease expires, B claims; A (still running) saves
+  //    concurrently ×10 while B analyzes → all rejected, row untouched. B saves;
+  //    A retries ×10 → still rejected; B replays ×10 in parallel → no extra write.
+  {
+    const u = await newRecruiter();
+    const c = await newCandidate(u);
+    await claim(u.client, c);
+    const a = (await row(c)).analysis_attempt_id as string;
+    await backdate(c, 11);
+    const bClaim = await claim(u.client, c);
+    const b = (await row(c)).analysis_attempt_id as string;
+    const before = await row(c);
+    const aWhileB = await Promise.all(Array.from({ length: 10 }, () => save(u.id, c, a, 40)));
+    const mid = await row(c);
+    check('stale A saves while B analyzing are rejected, row unchanged',
+      bClaim.result === 'claimed' && aWhileB.every((o) => o.result === 'not_owner')
+        && JSON.stringify(mid) === JSON.stringify(before) && mid.analysis_attempt_id === b,
+      `results=${[...new Set(aWhileB.map((o) => o.result))].join(',')} unchanged=${JSON.stringify(mid) === JSON.stringify(before)}`);
+
+    const bSave = await save(u.id, c, b, 90);
+    const aAfter = await Promise.all(Array.from({ length: 10 }, () => save(u.id, c, a, 40)));
+    const done = await row(c);
+    const replays = await Promise.all(Array.from({ length: 10 }, () => save(u.id, c, b, 11)));
+    const after = await row(c);
+    const { data: k } = await svc.from('recruitment_campaigns').select('analyzed_count').eq('id', done.campaign_id as string).single();
+    check('B saves; A retries after B done stay rejected',
+      bSave.result === 'saved' && aAfter.every((o) => o.result === 'superseded') && done.match_score === 90 && done.analysis_attempt_id === b,
+      `B=${bSave.result} A=${[...new Set(aAfter.map((o) => o.result))].join(',')} score=${done.match_score}`);
+    check('same-attempt replay ×10 accepted without duplicate writes',
+      replays.every((o) => o.result === 'saved' && o.replay === true) && JSON.stringify(after) === JSON.stringify(done) && (k as Row).analyzed_count === 1,
+      `replays=${replays.filter((o) => o.replay === true).length}/10 unchanged=${JSON.stringify(after) === JSON.stringify(done)} analyzed_count=${(k as Row).analyzed_count}`);
+  }
+
+  // 4b. Race: owner B's save vs 10 concurrent stale-A saves → only B can land.
   {
     const u = await newRecruiter();
     const c = await newCandidate(u);
@@ -121,14 +153,26 @@ async function main() {
     await backdate(c, 11);
     await claim(u.client, c);
     const b = (await row(c)).analysis_attempt_id as string;
-    const out = await Promise.all([save(u.id, c, a, 40), save(u.id, c, b, 90), save(u.id, c, a, 40), save(u.id, c, b, 90)]);
+    const out = await Promise.all([...Array.from({ length: 10 }, () => save(u.id, c, a, 40)), save(u.id, c, b, 90)]);
     const r = await row(c);
-    const winner = r.analysis_attempt_id;
-    const supersededOk = out.every((o, i) => (o.result === 'saved') === ([a, b, a, b][i] === winner));
-    check('concurrent saves A (stale) vs B (owner)', r.status === 'done' && supersededOk && r.match_score === (winner === a ? 40 : 90),
-      `winner=${winner === a ? 'A' : 'B'} results=${out.map((o) => o.result).join(',')}`);
-    const { data: k } = await svc.from('recruitment_campaigns').select('analyzed_count').eq('id', r.campaign_id as string).single();
-    check('no double count after concurrent saves', (k as Row).analyzed_count === 1, `analyzed_count=${(k as Row).analyzed_count}`);
+    check('concurrent stale vs owner saves: only owner lands',
+      out.slice(0, 10).every((o) => o.result !== 'saved') && out[10].result === 'saved' && r.match_score === 90 && r.analysis_attempt_id === b,
+      `stale=${[...new Set(out.slice(0, 10).map((o) => o.result))].join(',')} owner=${out[10].result}`);
+  }
+
+  // 4c. Wrong user and unclaimed attempt are rejected without writes.
+  {
+    const owner = await newRecruiter();
+    const other = await newRecruiter();
+    const c = await newCandidate(owner);
+    const { error: wrongUser } = await svc.rpc('save_candidate_analysis_attempt', {
+      p_user_id: other.id, p_candidate_id: c, p_attempt_id: randomUUID(), p_analysis_result: {}, p_match_score: 1,
+    });
+    const unclaimed = await save(owner.id, c, randomUUID(), 1);
+    const r = await row(c);
+    check('wrong user / unclaimed attempt rejected',
+      wrongUser?.code === '42501' && unclaimed.result === 'not_owner' && r.status === 'pending' && r.analysis_result === null,
+      `wrongUser=${wrongUser?.code} unclaimed=${unclaimed.result}`);
   }
 
   // 5. Claim storm never touches quota.
@@ -176,6 +220,22 @@ async function main() {
     });
     const r = await row(c);
     check('legacy app path unchanged', !w.error && !error && r.status === 'done' && r.match_score === 55, `write=${w.error?.message ?? 'ok'} save=${error?.message ?? 'ok'}`);
+  }
+
+  // 8b. Pre-M2-D3 client through the NEW API (NULL attempt): allowed on a row no
+  //     claim ever owned, rejected on a claimed row.
+  {
+    const u = await newRecruiter();
+    const c1 = await newCandidate(u);
+    const c2 = await newCandidate(u);
+    await u.client.from('candidate_cvs').update({ status: 'analyzing' }).eq('id', c1);
+    await claim(u.client, c2);
+    const legacy = async (id: string) => (await svc.rpc('save_candidate_analysis_attempt', {
+      p_user_id: u.id, p_candidate_id: id, p_attempt_id: null, p_analysis_result: { matchScore: 50 }, p_match_score: 50,
+    })).data as Row;
+    const l1 = await legacy(c1); const l2 = await legacy(c2);
+    check('legacy NULL-attempt save fenced', l1.result === 'saved' && l2.result === 'not_owner' && (await row(c2)).status === 'analyzing',
+      `unclaimed-row=${l1.result} claimed-row=${l2.result}`);
   }
 
   const failed = results.filter((r) => !r.ok).length;

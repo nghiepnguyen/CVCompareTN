@@ -283,8 +283,9 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             );
             unsavedAnalysesRef.current.delete(candidate.id);
             if (saved === 'superseded') {
-              // Another attempt already saved a result: keep it, show it.
-              console.warn(`Analysis for candidate ${candidate.id} superseded by a newer saved result`);
+              // Another attempt owns the row or already saved it: never
+              // overwrite; drop this result and show the row as it is.
+              console.warn(`Analysis for candidate ${candidate.id} rejected: attempt no longer owns the row`);
               reloadAfterRun = true;
               return;
             }

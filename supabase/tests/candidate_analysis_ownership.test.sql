@@ -43,6 +43,7 @@ DECLARE
  usage_before int; ledger_before int;
  cand uuid[] := ARRAY[]::uuid[];
  i int;
+ ts timestamptz;
 BEGIN
  INSERT INTO auth.users(id) VALUES (u), (other);
  INSERT INTO public.profiles(id,email,plan,role,has_permission) VALUES
@@ -133,24 +134,38 @@ BEGIN
  ASSERT public.claim_candidate_analysis(cand[11], gen_random_uuid(), true)->>'result' = 'not_found', '9 foreign';
  PERFORM pg_temp.as_user(u);
 
- -- 10. Fenced save. Old attempt A saves while newer B owns an unsaved row → kept (paid result).
+ -- 10. Strict fenced save. A claims, lease expires, B claims; A must never write.
  a1 := gen_random_uuid(); a2 := gen_random_uuid();
  PERFORM public.claim_candidate_analysis(cand[12], a1, false);
  UPDATE public.candidate_cvs SET analysis_started_at = now()-interval '11 minutes' WHERE id=cand[12];
- PERFORM public.claim_candidate_analysis(cand[12], a2, false);   -- B takes over (A never reserved)
+ ASSERT public.claim_candidate_analysis(cand[12], a2, false)->>'result' = 'claimed', '10 B claims';
  r := public.save_candidate_analysis_attempt(u, cand[12], a1, '{"matchScore":40}', 40);
- ASSERT r->>'result' = 'saved', '10 A saves over unsaved B: '||r;
- -- B finishing later must not overwrite A's saved result.
+ ASSERT r->>'result' = 'not_owner', '10 A rejected while B analyzing: '||r;
+ ASSERT (SELECT status='analyzing' AND analysis_attempt_id=a2 AND analysis_result IS NULL AND match_score IS NULL AND analyzed_at IS NULL
+           FROM public.candidate_cvs WHERE id=cand[12]), '10 row unchanged by A';
  r := public.save_candidate_analysis_attempt(u, cand[12], a2, '{"matchScore":90}', 90);
- ASSERT r->>'result' = 'superseded', '10 B superseded: '||r;
- ASSERT (SELECT match_score = 40 AND status='done' AND analysis_attempt_id=a1 FROM public.candidate_cvs WHERE id=cand[12]), '10 result kept';
- -- Same attempt replayed (lost save confirmation) → idempotent, counters unchanged.
+ ASSERT r->>'result' = 'saved' AND NOT (r->>'replay')::boolean, '10 B saves: '||r;
  r := public.save_candidate_analysis_attempt(u, cand[12], a1, '{"matchScore":40}', 40);
+ ASSERT r->>'result' = 'superseded', '10 A retry after B done: '||r;
+ SELECT analyzed_at INTO ts FROM public.candidate_cvs WHERE id=cand[12];
+ -- Same attempt replayed (lost save confirmation) → accepted, no write.
+ r := public.save_candidate_analysis_attempt(u, cand[12], a2, '{"matchScore":11}', 11);
  ASSERT r->>'result' = 'saved' AND (r->>'replay')::boolean, '10 replay: '||r;
+ ASSERT (SELECT match_score = 90 AND analysis_attempt_id = a2 AND analyzed_at = ts FROM public.candidate_cvs WHERE id=cand[12]), '10 replay wrote';
  ASSERT (SELECT analyzed_count FROM public.recruitment_campaigns WHERE id=k) = 2, '10 counters (cand10 manual done + cand12)';
- -- Ownership enforced on the fenced save.
+ -- Wrong user → 42501, nothing written.
  BEGIN PERFORM public.save_candidate_analysis_attempt(other, cand[1], a2, '{}', 1); ASSERT false, 'foreign save';
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ -- Unclaimed attempt on a pending row; NULL (legacy) on pending; any save on a released (error) row.
+ ASSERT public.save_candidate_analysis_attempt(u, cand[11], gen_random_uuid(), '{}', 1)->>'result' = 'not_owner', '10 unclaimed attempt';
+ ASSERT public.save_candidate_analysis_attempt(u, cand[11], NULL, '{}', 1)->>'result' = 'not_owner', '10 legacy on pending';
+ ASSERT (SELECT status='pending' AND analysis_result IS NULL FROM public.candidate_cvs WHERE id=cand[11]), '10 pending untouched';
+ a1 := (SELECT analysis_attempt_id FROM public.candidate_cvs WHERE id=cand[9]);   -- claimed in case 8
+ UPDATE public.candidate_cvs SET status='error' WHERE id=cand[9];
+ ASSERT public.save_candidate_analysis_attempt(u, cand[9], a1, '{}', 1)->>'result' = 'not_owner', '10 released row';
+ -- Legacy client (NULL attempt) on a row no claim ever owned → allowed; on a claimed row → rejected.
+ ASSERT public.save_candidate_analysis_attempt(u, cand[8], NULL, '{"matchScore":55}', 55)->>'result' = 'saved', '10 legacy null-attempt row';
+ ASSERT public.save_candidate_analysis_attempt(u, cand[7], NULL, '{}', 1)->>'result' = 'not_owner', '10 legacy on claimed row';
 
  -- 11. Fenced release: a stale worker cannot flip another attempt's row.
  UPDATE public.candidate_cvs SET status='error', error_message='late'

@@ -94,7 +94,7 @@ The only differences are row counts, which are data, not schema.
 - **The 11 `done` rows are unaffected.** Claim returns `done` for them, and the fenced save never overwrites a `done` row under another attempt.
 - **Residual risks unchanged:**
   - §7.1: a confirmed re-analysis is charged. This is D1, approved.
-  - §7.2: a same-tab unsaved result racing a confirmed re-run.
+  - §7.2: a same-tab unsaved result is rejected once another attempt claims the row (strict fence).
   - §7.3: a request still in transit after the client errored.
   - §7.5: mixed app versions during rollout.
   - §7.8: unbounded waits.
@@ -111,3 +111,7 @@ The only differences are row counts, which are data, not schema.
   4. wait 15 minutes;
   5. merge;
   6. smoke test.
+
+## Addendum: strict fenced save fix (after the blocking review)
+
+The migration changed after this preflight. Only the body of `save_candidate_analysis_attempt` changed (strict attempt ownership); the new sha256 is `45aa51618439a10da83e44cce281ece0d3e5cc42eaf36e0e521c1dd1f54f160b`. No new objects, names, columns or dependencies were added, so every preflight check above still applies. The production schema was not queried again.
