@@ -3,6 +3,7 @@ import type {
   CandidateCV,
   CampaignStatus,
   HrStatus,
+  NeedsConfirmReason,
 } from '../../services/recruiterService';
 
 export type {
@@ -11,6 +12,13 @@ export type {
   CampaignStatus,
   HrStatus,
 };
+
+/** A candidate whose earlier attempt may have been charged (M2-D3). */
+export interface ChargeConfirmItem {
+  id: string;
+  name: string;
+  reason: NeedsConfirmReason;
+}
 
 export interface RecruiterContextValue {
   campaigns: RecruitmentCampaign[];
@@ -31,7 +39,8 @@ export interface RecruiterContextValue {
   deleteCampaign: (campaignId: string) => Promise<void>;
 
   uploadCandidateCVs: (campaignId: string, files: File[]) => Promise<void>;
-  analyzeCampaign: (campaignId: string) => Promise<void>;
+  /** Resolves with the candidates that need an explicit, chargeable re-run. */
+  analyzeCampaign: (campaignId: string, confirmChargeIds?: string[]) => Promise<ChargeConfirmItem[]>;
   updateHrStatus: (candidateId: string, status: HrStatus, note?: string) => Promise<void>;
   deleteCandidateCV: (candidateId: string, filePath: string) => Promise<void>;
   exportToExcel: (campaignId: string) => void;

@@ -36,6 +36,8 @@ export interface CandidateCV {
   hrStatus: HrStatus;
   hrNote: string | null;
   analyzedAt: string | null;
+  /** M2-D3: server time the current/last attempt claimed the row. */
+  analysisStartedAt: string | null;
   createdAt: string;
 }
 
@@ -73,6 +75,7 @@ function mapCandidateRow(row: Record<string, unknown>): CandidateCV {
     hrStatus: (row.hr_status as HrStatus) ?? 'new',
     hrNote: (row.hr_note as string) ?? null,
     analyzedAt: (row.analyzed_at as string) ?? null,
+    analysisStartedAt: (row.analysis_started_at as string) ?? null,
     createdAt: row.created_at as string,
   };
 }
@@ -210,24 +213,60 @@ export async function createCandidate(params: {
   return mapCandidateRow(data);
 }
 
-export async function updateCandidateStatus(
-  candidateId: string,
-  status: CandidateStatus,
-  errorMessage?: string | null
-): Promise<void> {
-  // M2-D2 F2: the error goes to error_message (never parsed_text); any other
-  // status clears a stale error.
-  const update: Record<string, unknown> = {
-    status,
-    error_message: status === 'error' ? (errorMessage ?? null) : null,
-  };
+// M2-D3: ownership of one analysis attempt. attemptId is also the
+// /api/analyze idempotency key, so the DB can tell from the quota ledger
+// whether a stale attempt reached Gemini or was charged.
+export type ClaimResult =
+  | { result: 'claimed'; startedAt: string; recovered: NeedsConfirmReason | null }
+  | { result: 'active'; startedAt: string | null }
+  | { result: 'needs_confirm'; reason: NeedsConfirmReason }
+  | { result: 'done' }
+  | { result: 'not_found' };
+export type NeedsConfirmReason = 'paid_result_lost' | 'outcome_unknown';
 
-  const { error } = await supabase
+export async function claimCandidateAnalysis(
+  candidateId: string,
+  attemptId: string,
+  confirmCharge = false,
+): Promise<ClaimResult> {
+  const { data, error } = await supabase.rpc('claim_candidate_analysis', {
+    p_candidate_id: candidateId,
+    p_attempt_id: attemptId,
+    p_confirm_charge: confirmCharge,
+  });
+  if (error) throw error;
+  const d = (data ?? {}) as { result?: string; started_at?: string | null; reason?: NeedsConfirmReason; recovered?: NeedsConfirmReason | null };
+  switch (d.result) {
+    case 'claimed': return { result: 'claimed', startedAt: d.started_at ?? new Date().toISOString(), recovered: d.recovered ?? null };
+    case 'active': return { result: 'active', startedAt: d.started_at ?? null };
+    case 'needs_confirm': return { result: 'needs_confirm', reason: d.reason ?? 'outcome_unknown' };
+    case 'done': return { result: 'done' };
+    case 'not_found': return { result: 'not_found' };
+    default: throw new Error(`Unexpected claim result: ${String(d.result)}`);
+  }
+}
+
+/**
+ * Marks this attempt failed. Fenced: a no-op unless the row is still
+ * 'analyzing' under this attempt, so a stale worker cannot flip another
+ * tab's claim or saved result. The error goes to error_message, never
+ * parsed_text (M2-D2 F2). Returns whether the row was released.
+ */
+export async function releaseCandidateAnalysis(
+  candidateId: string,
+  attemptId: string,
+  errorMessage: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
     .from('candidate_cvs')
-    .update(update)
-    .eq('id', candidateId);
+    .update({ status: 'error', error_message: errorMessage })
+    .eq('id', candidateId)
+    .eq('analysis_attempt_id', attemptId)
+    .eq('status', 'analyzing')
+    .select('id');
 
   if (error) throw error;
+  return (data ?? []).length > 0;
 }
 
 export async function updateCandidateHrStatus(
@@ -245,12 +284,13 @@ export async function updateCandidateHrStatus(
   if (error) throw error;
 }
 
+/** 'superseded' (HTTP 409) = this attempt does not own the row any more; nothing was written. */
 export async function saveCandidateAnalysis(
   candidateId: string,
   analysisResult: Record<string, unknown>,
   matchScore: number,
-  status: 'done' | 'error' = 'done'
-): Promise<void> {
+  attemptId: string,
+): Promise<'saved' | 'superseded'> {
   // This must be called from the backend with service_role. On the frontend,
   // we call a server API endpoint that proxies the RPC.
   const response = await fetch('/api/recruiter/save-analysis', {
@@ -263,14 +303,16 @@ export async function saveCandidateAnalysis(
       candidateId,
       analysisResult,
       matchScore,
-      status,
+      attemptId,
     }),
   });
 
+  if (response.status === 409) return 'superseded';
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new Error(body?.error ?? 'Không lưu được kết quả phân tích');
   }
+  return 'saved';
 }
 
 export async function deleteCandidate(candidateId: string): Promise<void> {

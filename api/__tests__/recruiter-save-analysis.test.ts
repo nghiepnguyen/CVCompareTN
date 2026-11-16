@@ -27,12 +27,12 @@ const req = {
   body: { candidateId: 'c1', analysisResult: { a: 1 }, matchScore: 70, status: 'done' },
 } as unknown as VercelRequest;
 
-function run(rpcResult: unknown) {
+function run(rpcResult: unknown, body: Record<string, unknown> = req.body) {
   const rpc = vi.fn().mockResolvedValue(rpcResult);
   mockGetAdmin.mockReturnValue({ rpc } as never);
   const json = vi.fn();
   const status = vi.fn(() => ({ json }));
-  return handler(req, { status, setHeader: vi.fn(), end: vi.fn() } as unknown as VercelResponse).then(() => ({ rpc, status, json }));
+  return handler({ ...req, body } as unknown as VercelRequest, { status, setHeader: vi.fn(), end: vi.fn() } as unknown as VercelResponse).then(() => ({ rpc, status, json }));
 }
 
 describe('POST /api/recruiter/save-analysis', () => {
@@ -50,9 +50,9 @@ describe('POST /api/recruiter/save-analysis', () => {
   });
 
   it('passes the caller id to the RPC', async () => {
-    const { rpc, status } = await run({ error: null });
+    const { rpc, status } = await run({ data: { result: 'saved' }, error: null });
     expect(rpc).toHaveBeenCalledWith(
-      'save_candidate_analysis',
+      'save_candidate_analysis_attempt',
       expect.objectContaining({ p_user_id: 'u1', p_candidate_id: 'c1' }),
     );
     expect(status).toHaveBeenCalledWith(200);
@@ -74,5 +74,44 @@ describe('POST /api/recruiter/save-analysis', () => {
     const { status, json } = await run({ error: { code: 'XX', message: 'secret' } });
     expect(status).toHaveBeenCalledWith(500);
     expect(json.mock.calls[0][0]).not.toHaveProperty('detail');
+  });
+
+  describe('M2-D3 fenced save (attemptId)', () => {
+    const attemptId = '0b7f2f5e-5a3c-4c1e-9a77-2d1f4e6b8c90';
+    const body = { candidateId: 'c1', analysisResult: { a: 1 }, matchScore: 70, attemptId };
+
+    it('uses save_candidate_analysis_attempt with the verified user id', async () => {
+      const { rpc, status } = await run({ data: { result: 'saved', replay: false }, error: null }, body);
+      expect(rpc).toHaveBeenCalledWith('save_candidate_analysis_attempt', {
+        p_user_id: 'u1', p_candidate_id: 'c1', p_attempt_id: attemptId, p_analysis_result: { a: 1 }, p_match_score: 70,
+      });
+      expect(status).toHaveBeenCalledWith(200);
+    });
+
+    it.each(['superseded', 'not_owner'])('maps %s to 409 with that code (nothing written)', async (result) => {
+      const { status, json } = await run({ data: { result }, error: null }, body);
+      expect(status).toHaveBeenCalledWith(409);
+      expect(json.mock.calls[0][0]).toMatchObject({ code: result });
+    });
+
+    it('rejects a malformed attemptId before any RPC', async () => {
+      const { rpc, status } = await run({ error: null }, { ...body, attemptId: 'nope' });
+      expect(status).toHaveBeenCalledWith(400);
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it('fences pre-M2-D3 clients (no attemptId) as attempt NULL; never calls the unfenced 5-arg RPC', async () => {
+      const { rpc, status } = await run({ data: { result: 'saved' }, error: null });
+      expect(rpc).toHaveBeenCalledTimes(1);
+      expect(rpc.mock.calls[0][0]).toBe('save_candidate_analysis_attempt');
+      expect(rpc.mock.calls[0][1]).toMatchObject({ p_attempt_id: null });
+      expect(status).toHaveBeenCalledWith(200);
+    });
+
+    it('refuses legacy error saves', async () => {
+      const { rpc, status } = await run({ error: null }, { candidateId: 'c1', analysisResult: { error: 'x' }, matchScore: 0, status: 'error' });
+      expect(status).toHaveBeenCalledWith(400);
+      expect(rpc).not.toHaveBeenCalled();
+    });
   });
 });

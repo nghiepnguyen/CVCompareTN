@@ -345,6 +345,34 @@ export const recruiter = {
     vi: "Không cập nhật được trạng thái ứng viên nên chưa phân tích (không tốn lượt). Vui lòng thử lại.",
     en: "Could not update the candidate status, so it was not analyzed (no credit used). Please try again.",
   },
+  recruiterLeaseExpired: {
+    vi: "Phiên phân tích đã quá hạn trước khi gửi đi nên chưa phân tích (không tốn lượt). Vui lòng thử lại.",
+    en: "The analysis session expired before it was sent, so nothing was analyzed (no credit used). Please try again.",
+  },
+  recruiterRecoveryPaidLost: {
+    vi: "Lần phân tích trước đã hoàn tất (có thể đã tính lượt) nhưng kết quả bị mất trước khi lưu. Chỉ phân tích lại khi bạn xác nhận.",
+    en: "The previous analysis finished (and may have been charged), but its result was lost before saving. It is re-analyzed only if you confirm.",
+  },
+  recruiterRecoveryUnknown: {
+    vi: "Không xác định được lần phân tích trước có bị tính lượt hay không. Chỉ phân tích lại khi bạn xác nhận.",
+    en: "We cannot tell whether the previous analysis was charged. It is re-analyzed only if you confirm.",
+  },
+  recruiterChargeConfirmTitle: {
+    vi: "Phân tích lại ứng viên?",
+    en: "Re-analyze candidates?",
+  },
+  recruiterChargeConfirmBody: {
+    vi: "{count} ứng viên có lần phân tích trước có thể đã bị tính lượt nhưng không có kết quả: {names}. Phân tích lại sẽ dùng thêm {count} lượt phân tích của tháng này nếu thành công.",
+    en: "{count} candidate(s) had an earlier analysis that may already have been charged but left no result: {names}. Re-analyzing uses {count} more monthly analysis credit(s) if it succeeds.",
+  },
+  recruiterChargeConfirmAction: {
+    vi: "Phân tích lại (tốn lượt)",
+    en: "Re-analyze (uses credits)",
+  },
+  recruiterChargeConfirmCancel: {
+    vi: "Để sau",
+    en: "Not now",
+  },
   panelAnalysisError: {
     vi: "Lỗi phân tích",
     en: "Analysis error",

@@ -9,7 +9,8 @@ const mocks = vi.hoisted(() => ({
   analyzeCV: vi.fn(),
   checkAnalyticsQuota: vi.fn(),
   getCampaignCandidates: vi.fn(),
-  updateCandidateStatus: vi.fn(),
+  claimCandidateAnalysis: vi.fn(),
+  releaseCandidateAnalysis: vi.fn(),
   saveCandidateAnalysis: vi.fn(),
   getCandidateFileUrl: vi.fn(),
 }));
@@ -29,7 +30,7 @@ vi.mock('../../services/recruiterService', () => ({
   getUserCampaigns: async () => [],
   getCampaignCandidates: mocks.getCampaignCandidates,
   createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), deleteCampaign: vi.fn(), createCandidate: vi.fn(),
-  uploadCandidateFile: vi.fn(), updateCandidateStatus: mocks.updateCandidateStatus, updateCandidateHrStatus: vi.fn(),
+  uploadCandidateFile: vi.fn(), claimCandidateAnalysis: mocks.claimCandidateAnalysis, releaseCandidateAnalysis: mocks.releaseCandidateAnalysis, updateCandidateHrStatus: vi.fn(),
   saveCandidateAnalysis: mocks.saveCandidateAnalysis, deleteCandidate: vi.fn(),
   getCandidateFileUrl: mocks.getCandidateFileUrl,
 }));
@@ -48,7 +49,7 @@ import { RecruiterProvider, useRecruiter } from '../../context/recruiter/Recruit
 const cand = (id: string, status = 'pending') => ({
   id, campaignId: 'k1', candidateName: id, fileName: `${id}.txt`, filePath: 'p', fileSize: 2,
   parsedText: null, analysisResult: null, matchScore: null, status, errorMessage: null,
-  hrStatus: 'new', hrNote: null, analyzedAt: null, createdAt: '',
+  hrStatus: 'new', hrNote: null, analyzedAt: null, analysisStartedAt: null as string | null, createdAt: '',
 });
 
 async function mount(list: unknown[]) {
@@ -80,8 +81,9 @@ beforeEach(() => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(new Blob(['cv']), { status: 200 }));
   vi.spyOn(console, 'error').mockImplementation(() => {});
   mocks.checkAnalyticsQuota.mockResolvedValue({ allowed: true });
-  mocks.updateCandidateStatus.mockResolvedValue(undefined);
-  mocks.saveCandidateAnalysis.mockResolvedValue(undefined);
+  mocks.claimCandidateAnalysis.mockImplementation(async () => ({ result: 'claimed', startedAt: new Date().toISOString(), recovered: null }));
+  mocks.releaseCandidateAnalysis.mockResolvedValue(true);
+  mocks.saveCandidateAnalysis.mockResolvedValue('saved');
   mocks.getCandidateFileUrl.mockResolvedValue('blob:cv');
   mocks.analyzeCV.mockResolvedValue({ matchScore: 70 });
 });
@@ -89,15 +91,16 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('M2-D2 F1: a save failure never re-runs a paid analysis', () => {
   it('a transient save failure is retried in the same run: analyze ×1, save ×2, done', async () => {
-    mocks.saveCandidateAnalysis.mockRejectedValueOnce(new Error('network')).mockResolvedValue(undefined);
+    mocks.saveCandidateAnalysis.mockRejectedValueOnce(new Error('network')).mockResolvedValue('saved');
     const result = await mount([cand('c1')]);
     await run(result);
     expect(mocks.analyzeCV).toHaveBeenCalledTimes(1);
     expect(mocks.saveCandidateAnalysis).toHaveBeenCalledTimes(2);
     expect(result.current.candidates[0].status).toBe('done');
-    // Never written to 'error' in the DB, never into parsed_text.
-    expect(mocks.updateCandidateStatus).toHaveBeenCalledTimes(1);
-    expect(mocks.updateCandidateStatus).toHaveBeenCalledWith('c1', 'analyzing', undefined);
+    // Claimed once, never released to 'error' in the DB, never into parsed_text.
+    expect(mocks.claimCandidateAnalysis).toHaveBeenCalledTimes(1);
+    expect(mocks.claimCandidateAnalysis).toHaveBeenCalledWith('c1', expect.any(String), false);
+    expect(mocks.releaseCandidateAnalysis).not.toHaveBeenCalled();
   });
 
   it('a persistent save failure keeps the result; the next run saves it with ZERO Gemini calls and no quota check', async () => {
@@ -107,16 +110,21 @@ describe('M2-D2 F1: a save failure never re-runs a paid analysis', () => {
     expect(mocks.analyzeCV).toHaveBeenCalledTimes(1);
     expect(mocks.saveCandidateAnalysis).toHaveBeenCalledTimes(3);
     expect(result.current.candidates[0]).toMatchObject({ status: 'error', errorMessage: 'SAVE_FAILED' });
-    // DB status is left 'analyzing' (not 'error'), so a reload cannot re-analyze it.
-    expect(mocks.updateCandidateStatus.mock.calls.map((c) => c[1])).toEqual(['analyzing']);
+    // DB status is left 'analyzing' (not 'error'): after a reload the claim RPC
+    // reports it as paid_result_lost instead of silently re-analyzing.
+    expect(mocks.releaseCandidateAnalysis).not.toHaveBeenCalled();
+    const attemptId = mocks.claimCandidateAnalysis.mock.calls[0][1];
+    expect(mocks.analyzeCV.mock.calls[0][10]).toBe(attemptId);
 
-    mocks.saveCandidateAnalysis.mockReset().mockResolvedValue(undefined);
+    mocks.saveCandidateAnalysis.mockReset().mockResolvedValue('saved');
     mocks.checkAnalyticsQuota.mockClear();
     await run(result);
     expect(mocks.analyzeCV).toHaveBeenCalledTimes(1);
     expect(mocks.checkAnalyticsQuota).not.toHaveBeenCalled();
+    expect(mocks.claimCandidateAnalysis).toHaveBeenCalledTimes(1); // save-only: no new claim
     expect(mocks.saveCandidateAnalysis).toHaveBeenCalledTimes(1);
     expect(mocks.saveCandidateAnalysis.mock.calls[0][2]).toBe(70);
+    expect(mocks.saveCandidateAnalysis.mock.calls[0][3]).toBe(attemptId); // same attempt fences the save
     expect(result.current.candidates[0]).toMatchObject({ status: 'done', errorMessage: null, matchScore: 70 });
   });
 
@@ -127,7 +135,7 @@ describe('M2-D2 F1: a save failure never re-runs a paid analysis', () => {
     mocks.getCampaignCandidates.mockResolvedValue([cand('c1', 'analyzing')]);
     await act(async () => { await result.current.loadCandidates('k1'); });
     expect(result.current.candidates[0]).toMatchObject({ status: 'error', errorMessage: 'SAVE_FAILED' });
-    mocks.saveCandidateAnalysis.mockReset().mockResolvedValue(undefined);
+    mocks.saveCandidateAnalysis.mockReset().mockResolvedValue('saved');
     await run(result);
     expect(mocks.analyzeCV).toHaveBeenCalledTimes(1);
     expect(result.current.candidates[0].status).toBe('done');
@@ -137,7 +145,7 @@ describe('M2-D2 F1: a save failure never re-runs a paid analysis', () => {
     mocks.saveCandidateAnalysis.mockRejectedValue(new Error('down'));
     const result = await mount([cand('c1')]);
     await run(result);
-    mocks.saveCandidateAnalysis.mockReset().mockResolvedValue(undefined);
+    mocks.saveCandidateAnalysis.mockReset().mockResolvedValue('saved');
     mocks.getCampaignCandidates.mockResolvedValue([cand('c1', 'analyzing'), cand('c2')]);
     await act(async () => { await result.current.loadCandidates('k1'); });
     mocks.checkAnalyticsQuota.mockClear();
@@ -151,8 +159,8 @@ describe('M2-D2 F1: a save failure never re-runs a paid analysis', () => {
     mocks.saveCandidateAnalysis.mockRejectedValue(new Error('down'));
     const result = await mount([cand('c1')]);
     await run(result);
-    mocks.saveCandidateAnalysis.mockReset().mockResolvedValue(undefined);
-    let a!: Promise<void>, b!: Promise<void>;
+    mocks.saveCandidateAnalysis.mockReset().mockResolvedValue('saved');
+    let a!: Promise<unknown>, b!: Promise<unknown>;
     act(() => { a = result.current.analyzeCampaign('k1'); b = result.current.analyzeCampaign('k1'); });
     await act(async () => { await a; await b; }); // no save failure here: no backoff timers
     expect(mocks.saveCandidateAnalysis).toHaveBeenCalledTimes(1);
@@ -163,7 +171,7 @@ describe('M2-D2 F1: a save failure never re-runs a paid analysis', () => {
 describe('M2-D2 F2: error isolation', () => {
   it('a failing error-status write does not end the batch; every candidate is attempted', async () => {
     mocks.analyzeCV.mockRejectedValue(new Error('boom'));
-    mocks.updateCandidateStatus.mockImplementation(async (_id: string, s: string) => { if (s === 'error') throw new Error('network'); });
+    mocks.releaseCandidateAnalysis.mockRejectedValue(new Error('network'));
     const result = await mount([cand('c1'), cand('c2'), cand('c3')]);
     await run(result);
     expect(mocks.analyzeCV).toHaveBeenCalledTimes(3);
@@ -171,10 +179,13 @@ describe('M2-D2 F2: error isolation', () => {
     expect(result.current.isAnalyzing).toBe(false);
   });
 
-  it('a failing analyzing-status write skips that candidate (no Gemini call, no charge); others continue', async () => {
+  it('a failing claim skips that candidate (no Gemini call, no charge); others continue', async () => {
     // Analyzing it anyway could leave a paid, unsaved result on a row still
     // 'pending' in the DB, which a reload would re-analyze and charge again.
-    mocks.updateCandidateStatus.mockImplementation(async (id: string) => { if (id === 'c1') throw new Error('network'); });
+    mocks.claimCandidateAnalysis.mockImplementation(async (id: string) => {
+      if (id === 'c1') throw new Error('network');
+      return { result: 'claimed', startedAt: new Date().toISOString(), recovered: null };
+    });
     const result = await mount([cand('c1'), cand('c2')]);
     await run(result);
     expect(mocks.analyzeCV).toHaveBeenCalledTimes(1);
@@ -187,8 +198,9 @@ describe('M2-D2 F2: error isolation', () => {
     mocks.analyzeCV.mockRejectedValueOnce(new Error('boom')).mockResolvedValue({ matchScore: 60 });
     const result = await mount([cand('c1'), cand('c2')]);
     await run(result);
-    const errorCall = mocks.updateCandidateStatus.mock.calls.find((c) => c[1] === 'error');
+    const errorCall = mocks.releaseCandidateAnalysis.mock.calls[0];
     expect(errorCall?.[0]).toBe('c1');
+    expect(errorCall?.[1]).toBe(mocks.claimCandidateAnalysis.mock.calls[0][1]); // fenced by its own attempt
     expect(typeof errorCall?.[2]).toBe('string');
     expect(result.current.candidates.map((c) => c.status)).toEqual(['error', 'done']);
   });
@@ -201,9 +213,10 @@ describe('M2-D2 F2: error isolation', () => {
     expect(result.current.candidates.map((c) => c.status)).toEqual(['error', 'done']);
   });
 
-  it('stale analyzing rows are NOT auto-recovered (deferred to M2-D3)', async () => {
-    const result = await mount([cand('c1', 'analyzing')]);
+  it('fresh analyzing rows (another tab, within the lease) are not claimed', async () => {
+    const result = await mount([{ ...cand('c1', 'analyzing'), analysisStartedAt: new Date().toISOString() }]);
     await run(result);
+    expect(mocks.claimCandidateAnalysis).not.toHaveBeenCalled();
     expect(mocks.analyzeCV).not.toHaveBeenCalled();
     expect(result.current.candidates[0].status).toBe('analyzing');
   });
