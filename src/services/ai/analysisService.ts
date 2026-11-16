@@ -224,7 +224,8 @@ export async function analyzeCV(
   cvPdfInlineData?: string,
   batchTotal?: number,
   cvPdfStoragePath?: string,
-  cvDataStoragePath?: string
+  cvDataStoragePath?: string,
+  idempotencyKey: string = crypto.randomUUID()
 ): Promise<AnalysisResult> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -240,7 +241,8 @@ export async function analyzeCV(
       jd, cvData, cvMimeType, cvName, language, cvPdfInlineData, batchTotal,
       cvPdfStoragePath, cvDataStoragePath,
       // M2-C2: one key per CV per run; the server meters each key once.
-      idempotencyKey: crypto.randomUUID(),
+      // The recruiter flow passes its claim attempt id (M2-D3).
+      idempotencyKey,
     }),
     // Server answers within its 65s request deadline (_server-lib/deadline.ts);
     // 75s here leaves room for the response to arrive before we give up client-side.

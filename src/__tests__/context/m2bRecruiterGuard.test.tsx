@@ -25,8 +25,9 @@ vi.mock('../../services/recruiterService', () => ({
   getUserCampaigns: async () => [],
   getCampaignCandidates: mocks.getCampaignCandidates,
   createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), deleteCampaign: vi.fn(), createCandidate: vi.fn(),
-  uploadCandidateFile: vi.fn(), updateCandidateStatus: vi.fn(async () => {}), updateCandidateHrStatus: vi.fn(),
-  saveCandidateAnalysis: vi.fn(async () => {}), deleteCandidate: vi.fn(),
+  uploadCandidateFile: vi.fn(), claimCandidateAnalysis: vi.fn(async () => ({ result: 'claimed', startedAt: new Date().toISOString(), recovered: null })),
+  releaseCandidateAnalysis: vi.fn(async () => true), updateCandidateHrStatus: vi.fn(),
+  saveCandidateAnalysis: vi.fn(async () => 'saved'), deleteCandidate: vi.fn(),
   getCandidateFileUrl: async () => 'blob:cv',
 }));
 vi.mock('../../context/UIContext', () => ({ useUI: () => ({ reportLanguage: 'en', t: { monthlyUsageLimitExceeded: 'MONTHLY' } }) }));
@@ -59,7 +60,7 @@ describe('M2-B recruiter campaign guard', () => {
     act(() => { result.current.setActiveCampaign({ id: 'k1', jdContent: 'Need SQL' } as never); });
     await waitFor(() => expect(result.current.candidates).toHaveLength(1));
 
-    let a!: Promise<void>, b!: Promise<void>;
+    let a!: Promise<unknown>, b!: Promise<unknown>;
     act(() => { a = result.current.analyzeCampaign('k1'); b = result.current.analyzeCampaign('k1'); });
     releaseQuota({ allowed: true });
     await act(async () => { await a; await b; });

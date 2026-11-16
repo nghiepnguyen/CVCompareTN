@@ -1,15 +1,9 @@
 import { checkAccountAccess } from '../../_server-lib/accountLock.js';
 import { applyCors, handlePreflight, rejectOversizedBody, BODY_LIMITS } from '../../_server-lib/http/guard.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getUserFromBearerToken, getSupabaseAdmin } from '../../_server-lib/payment/supabaseAdmin.js';
+import { getUserFromBearerToken } from '../../_server-lib/payment/supabaseAdmin.js';
+import { saveCandidateAnalysisForUser } from '../../_server-lib/recruiter/saveAnalysis.js';
 import { initSentryServer, Sentry } from '../../_server-lib/sentry.js';
-
-const saveError = (res: { status: (n: number) => { json: (b: unknown) => unknown } }, code?: string) =>
-  code === '42501'
-    ? res.status(403).json({ error: 'Forbidden' })
-    : code === 'P0002'
-      ? res.status(404).json({ error: 'Candidate not found' })
-      : res.status(500).json({ error: 'Không lưu được kết quả phân tích' });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentryServer();
@@ -37,36 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (access === 'locked') return res.status(403).json({ error: 'Account locked' });
     if (access === 'unavailable') return res.status(503).json({ error: 'Account verification unavailable' });
 
-    const body = req.body as {
-      candidateId?: string;
-      analysisResult?: Record<string, unknown>;
-      matchScore?: number;
-      status?: string;
-    } | undefined;
-
-    const candidateId = body?.candidateId;
-    const analysisResult = body?.analysisResult;
-    const matchScore = typeof body?.matchScore === 'number' ? body.matchScore : 0;
-    const status = body?.status === 'error' ? 'error' : 'done';
-
-    if (!candidateId || !analysisResult) {
-      return res.status(400).json({ error: 'Missing candidateId or analysisResult' });
-    }
-
-    const { error: rpcError } = await getSupabaseAdmin().rpc('save_candidate_analysis', {
-      p_user_id: user.id,
-      p_candidate_id: candidateId,
-      p_analysis_result: analysisResult,
-      p_match_score: matchScore,
-      p_status: status,
-    });
-
-    if (rpcError) {
-      console.error('save_candidate_analysis failed:', rpcError);
-      return saveError(res, rpcError.code);
-    }
-
-    return res.status(200).json({ success: true });
+    const result = await saveCandidateAnalysisForUser(user.id, req.body);
+    return res.status(result.status).json(result.body);
   } catch (err) {
     Sentry.captureException(err, { tags: { route: 'recruiter/save-analysis' } });
     console.error('recruiter/save-analysis error:', err);

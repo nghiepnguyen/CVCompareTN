@@ -19,7 +19,8 @@ import {
   deleteCampaign,
   createCandidate,
   uploadCandidateFile,
-  updateCandidateStatus,
+  claimCandidateAnalysis,
+  releaseCandidateAnalysis,
   updateCandidateHrStatus,
   saveCandidateAnalysis,
   deleteCandidate,
@@ -28,8 +29,10 @@ import {
   type CandidateCV,
   type CampaignStatus,
   type HrStatus,
+  type ClaimResult,
 } from '../../services/recruiterService';
-import type { RecruiterContextValue } from './types';
+import type { RecruiterContextValue, ChargeConfirmItem } from './types';
+import { isRetryableCandidate, leaseAllowsDispatch } from './analysisLease';
 import { VN_TIME_ZONE } from '../../lib/vnTime';
 import { withTimeout } from '../../lib/withTimeout';
 
@@ -39,6 +42,8 @@ const SAVE_ATTEMPTS = 3;
 const SAVE_BACKOFF_MS = [500, 1500];
 const CANDIDATE_FILE_TIMEOUT_MS = 60_000;
 const SESSION_TIMEOUT_MS = 6_000;
+
+class LeaseExpiredError extends Error {}
 
 export function RecruiterProvider({ children }: { children: React.ReactNode }) {
   const { user, effectivePlan, userProfile, refreshUserProfile } = useAuth();
@@ -66,9 +71,10 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
   }, [user?.id]);
 
   // M2-D2 F1: analyses that succeeded (quota already charged) but could not be
-  // saved. A later run saves them again without calling Gemini. Tab memory
-  // only: after a reload the DB row stays 'analyzing' until M2-D3 recovery.
-  const unsavedAnalysesRef = useRef(new Map<string, { analysis: AnalysisResult; message: string }>());
+  // saved. A later run saves them again under the same attempt, without
+  // calling Gemini. Tab memory only: after a reload the row stays 'analyzing'
+  // and, once its lease ends, the claim RPC reports it as paid_result_lost.
+  const unsavedAnalysesRef = useRef(new Map<string, { analysis: AnalysisResult; attemptId: string; message: string }>());
 
   const loadCandidates = useCallback(async (campaignId: string) => {
     setCandidatesLoading(true);
@@ -199,19 +205,21 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
   );
 
   const runCampaignAnalysis = useCallback(
-    async (campaignId: string) => {
-      if (!user?.id) return;
-      if (!activeCampaign) return;
+    async (campaignId: string, confirmChargeIds?: string[]): Promise<ChargeConfirmItem[]> => {
+      if (!user?.id) return [];
+      if (!activeCampaign) return [];
 
       const jdContent = activeCampaign.jdContent;
-      if (!jdContent.trim()) return;
+      if (!jdContent.trim()) return [];
 
-      // Get all pending candidates
-      const pendingCandidates = candidates.filter(
-        (c) => c.status === 'pending' || c.status === 'error',
-      );
+      // A confirmed re-run touches only the candidates the user confirmed.
+      const confirmSet = new Set(confirmChargeIds ?? []);
+      const now = Date.now();
+      const pendingCandidates = confirmChargeIds
+        ? candidates.filter((c) => confirmSet.has(c.id) && c.status !== 'done')
+        : candidates.filter((c) => isRetryableCandidate(c, now));
 
-      if (pendingCandidates.length === 0) return;
+      if (pendingCandidates.length === 0) return [];
       // Save-only retries cost no analysis and are not quota-checked.
       const analysisCount = pendingCandidates.filter((c) => !unsavedAnalysesRef.current.has(c.id)).length;
 
@@ -251,28 +259,35 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
       const setLocal = (id: string, patch: Partial<CandidateCV>) =>
         setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
 
-      // A failed status write must not end the batch (M2-D2 F2).
-      const writeStatus = async (id: string, status: 'analyzing' | 'error', errorMessage?: string) => {
+      // Fenced release; a failed write must not end the batch (M2-D2 F2).
+      const release = async (id: string, attemptId: string, errorMessage: string) => {
         try {
-          await updateCandidateStatus(id, status, errorMessage);
-          return true;
+          await releaseCandidateAnalysis(id, attemptId, errorMessage);
         } catch (err) {
-          console.error(`Status update (${status}) failed for candidate ${id}:`, err);
-          return false;
+          console.error(`Releasing analysis attempt failed for candidate ${id}:`, err);
         }
       };
 
+      const needsConfirmation: ChargeConfirmItem[] = [];
+      let reloadAfterRun = false;
+
       // Bounded save retry. Never re-analyzes: the analysis is already paid for.
-      const persist = async (candidate: CandidateCV, analysis: AnalysisResult) => {
+      const persist = async (candidate: CandidateCV, analysis: AnalysisResult, attemptId: string) => {
         for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
           try {
-            await saveCandidateAnalysis(
+            const saved = await saveCandidateAnalysis(
               candidate.id,
               analysis as unknown as Record<string, unknown>,
               analysis.matchScore,
-              'done',
+              attemptId,
             );
             unsavedAnalysesRef.current.delete(candidate.id);
+            if (saved === 'superseded') {
+              // Another attempt already saved a result: keep it, show it.
+              console.warn(`Analysis for candidate ${candidate.id} superseded by a newer saved result`);
+              reloadAfterRun = true;
+              return;
+            }
             trackEvent('recruiter_analysis_done', {
               candidate_id: candidate.id,
               match_score: analysis.matchScore,
@@ -293,7 +308,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
         }
         // Keep the result for a save-only retry. The DB row is left as is
         // (not 'error'), so a reload never re-analyzes a paid result.
-        unsavedAnalysesRef.current.set(candidate.id, { analysis, message: t.recruiterSaveFailed });
+        unsavedAnalysesRef.current.set(candidate.id, { analysis, attemptId, message: t.recruiterSaveFailed });
         setLocal(candidate.id, { status: 'error', errorMessage: t.recruiterSaveFailed });
       };
 
@@ -306,18 +321,46 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
           const unsaved = unsavedAnalysesRef.current.get(candidate.id);
           if (unsaved) {
             setLocal(candidate.id, { status: 'analyzing' });
-            await persist(candidate, unsaved.analysis);
+            await persist(candidate, unsaved.analysis, unsaved.attemptId);
             continue;
           }
 
-          // Mark as analyzing. If even that write fails, do not analyze: the row
-          // would stay pending/error, so an unsaved paid result could be
-          // re-analyzed (charged again) after a reload.
-          if (!(await writeStatus(candidate.id, 'analyzing'))) {
+          // M2-D3: take ownership atomically. If the claim cannot be confirmed,
+          // do not analyze (M2-D2 F2): an unowned run could be charged twice.
+          const attemptId = crypto.randomUUID();
+          const claimedAt = Date.now();
+          let claim: ClaimResult;
+          try {
+            claim = await claimCandidateAnalysis(candidate.id, attemptId, confirmSet.has(candidate.id));
+          } catch (err) {
+            console.error(`Claiming candidate ${candidate.id} failed:`, err);
             setLocal(candidate.id, { status: 'error', errorMessage: t.recruiterStatusWriteFailed });
             continue;
           }
-          setLocal(candidate.id, { status: 'analyzing', errorMessage: null });
+          if (claim.result === 'needs_confirm') {
+            console.warn(`Candidate ${candidate.id} needs charge confirmation (${claim.reason})`);
+            trackEvent('recruiter_analysis_recovery', { candidate_id: candidate.id, outcome: `needs_confirm:${claim.reason}` });
+            needsConfirmation.push({ id: candidate.id, name: candidate.candidateName || candidate.fileName, reason: claim.reason });
+            setLocal(candidate.id, {
+              status: 'error',
+              errorMessage: claim.reason === 'paid_result_lost' ? t.recruiterRecoveryPaidLost : t.recruiterRecoveryUnknown,
+            });
+            continue;
+          }
+          if (claim.result === 'active') {
+            // Owned by another tab or still running on the server.
+            setLocal(candidate.id, { status: 'analyzing', errorMessage: null, analysisStartedAt: claim.startedAt });
+            continue;
+          }
+          if (claim.result !== 'claimed') {
+            reloadAfterRun = true;
+            continue;
+          }
+          if (claim.recovered) {
+            console.info(`Candidate ${candidate.id} re-analysis confirmed (${claim.recovered})`);
+            trackEvent('recruiter_analysis_recovery', { candidate_id: candidate.id, outcome: `confirmed:${claim.recovered}` });
+          }
+          setLocal(candidate.id, { status: 'analyzing', errorMessage: null, analysisStartedAt: claim.startedAt });
 
           let tempPaths: string[] = [];
           let analysis: AnalysisResult;
@@ -346,6 +389,10 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             );
             const authToken = session?.access_token;
 
+            // Slow download/processing or a resumed suspended tab: the lease
+            // may be over and another tab may own the row. Never dispatch then.
+            if (!leaseAllowsDispatch(claimedAt)) throw new LeaseExpiredError();
+
             analysis = await analyzeCV(
               jdContent,
               textData,
@@ -357,37 +404,42 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
               undefined,
               pdfStoragePath,
               dataStoragePath,
+              attemptId,
             );
           } catch (err) {
             console.error(`Analysis failed for candidate ${candidate.id}:`, err);
-            const errorMsg = err instanceof Error ? localizeAiError(err, t) : 'Unknown error';
-            await writeStatus(candidate.id, 'error', errorMsg);
+            const errorMsg = err instanceof LeaseExpiredError
+              ? t.recruiterLeaseExpired
+              : err instanceof Error ? localizeAiError(err, t) : 'Unknown error';
+            await release(candidate.id, attemptId, errorMsg);
             setLocal(candidate.id, { status: 'error', errorMessage: errorMsg });
             continue;
           } finally {
             if (tempPaths.length) void cleanupTempAnalysisFiles(tempPaths);
           }
 
-          await persist(candidate, analysis);
+          await persist(candidate, analysis, attemptId);
         }
       } finally {
         setIsAnalyzing(false);
         void refreshUserProfile();
         void loadCampaigns();
+        if (reloadAfterRun) void loadCandidates(campaignId);
       }
+      return needsConfirmation;
     },
-    [user?.id, activeCampaign, candidates, reportLanguage, t, refreshUserProfile, loadCampaigns],
+    [user?.id, activeCampaign, candidates, reportLanguage, t, refreshUserProfile, loadCampaigns, loadCandidates],
   );
 
   // Synchronous guard: `isAnalyzing` flips only after the quota check awaits,
   // so a double click used to analyze the same candidates twice (M2-A P1-2).
   const campaignRunInFlightRef = useRef(false);
   const handleAnalyzeCampaign = useCallback(
-    async (campaignId: string) => {
-      if (campaignRunInFlightRef.current) return;
+    async (campaignId: string, confirmChargeIds?: string[]) => {
+      if (campaignRunInFlightRef.current) return [];
       campaignRunInFlightRef.current = true;
       try {
-        await runCampaignAnalysis(campaignId);
+        return await runCampaignAnalysis(campaignId, confirmChargeIds);
       } finally {
         campaignRunInFlightRef.current = false;
       }

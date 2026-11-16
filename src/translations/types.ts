@@ -899,6 +899,13 @@ export interface UiLabels extends ApplicationsLabels {
   panelAnalysisError: string;
   recruiterSaveFailed: string;
   recruiterStatusWriteFailed: string;
+  recruiterLeaseExpired: string;
+  recruiterRecoveryPaidLost: string;
+  recruiterRecoveryUnknown: string;
+  recruiterChargeConfirmTitle: string;
+  recruiterChargeConfirmBody: string;
+  recruiterChargeConfirmAction: string;
+  recruiterChargeConfirmCancel: string;
   panelHrStatusLabel: string;
   panelHrNoteLabel: string;
   panelHrNotePlaceholder: string;

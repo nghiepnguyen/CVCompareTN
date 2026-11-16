@@ -1,13 +1,7 @@
 import { checkAccountAccess } from '../../_server-lib/accountLock.js';
 import { Router } from 'express';
-import { getUserFromBearerToken, getSupabaseAdmin } from '../../_server-lib/payment/supabaseAdmin';
-
-const saveError = (res: { status: (n: number) => { json: (b: unknown) => unknown } }, code?: string) =>
-  code === '42501'
-    ? res.status(403).json({ error: 'Forbidden' })
-    : code === 'P0002'
-      ? res.status(404).json({ error: 'Candidate not found' })
-      : res.status(500).json({ error: 'Không lưu được kết quả phân tích' });
+import { getUserFromBearerToken } from '../../_server-lib/payment/supabaseAdmin';
+import { saveCandidateAnalysisForUser } from '../../_server-lib/recruiter/saveAnalysis.js';
 
 const router = Router();
 
@@ -24,31 +18,8 @@ router.post('/save-analysis', async (req, res) => {
     if (access === 'locked') return res.status(403).json({ error: 'Account locked' });
     if (access === 'unavailable') return res.status(503).json({ error: 'Account verification unavailable' });
 
-    const { candidateId, analysisResult, matchScore, status } = req.body as {
-      candidateId?: string;
-      analysisResult?: Record<string, unknown>;
-      matchScore?: number;
-      status?: string;
-    };
-
-    if (!candidateId || !analysisResult) {
-      return res.status(400).json({ error: 'Missing candidateId or analysisResult' });
-    }
-
-    const { error: rpcError } = await getSupabaseAdmin().rpc('save_candidate_analysis', {
-      p_user_id: user.id,
-      p_candidate_id: candidateId,
-      p_analysis_result: analysisResult,
-      p_match_score: typeof matchScore === 'number' ? matchScore : 0,
-      p_status: status === 'error' ? 'error' : 'done',
-    });
-
-    if (rpcError) {
-      console.error('save_candidate_analysis failed:', rpcError);
-      return saveError(res, rpcError.code);
-    }
-
-    return res.status(200).json({ success: true });
+    const result = await saveCandidateAnalysisForUser(user.id, req.body);
+    return res.status(result.status).json(result.body);
   } catch (err) {
     console.error('recruiter/save-analysis error:', err);
     return res.status(500).json({ error: 'Server error' });

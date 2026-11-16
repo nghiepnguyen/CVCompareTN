@@ -20,7 +20,9 @@ import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
 import { CandidateTable } from '../recruiter/CandidateTable';
 import { CandidatePanel } from '../recruiter/CandidatePanel';
-import type { CandidateCV, HrStatus } from '../../context/recruiter';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import type { CandidateCV, ChargeConfirmItem, HrStatus } from '../../context/recruiter';
+import { isRetryableCandidate } from '../../context/recruiter/analysisLease';
 import { cn } from '../../lib/utils';
 
 interface CampaignDetailViewProps {
@@ -52,6 +54,8 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
   const [error, setError] = useState<string | null>(null);
   const [showAnalyzedOnly, setShowAnalyzedOnly] = useState(false);
   const [showInlineJd, setShowInlineJd] = useState(false);
+  // M2-D3: candidates whose earlier attempt may have been charged.
+  const [chargeConfirm, setChargeConfirm] = useState<ChargeConfirmItem[]>([]);
 
   // Find campaign from the list
   const campaign = useMemo(
@@ -101,7 +105,18 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
   const handleAnalyzeAll = async () => {
     setError(null);
     try {
-      await analyzeCampaign(campaignId);
+      setChargeConfirm(await analyzeCampaign(campaignId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.detailAnalyzeError);
+    }
+  };
+
+  const handleConfirmCharge = async () => {
+    const ids = chargeConfirm.map((c) => c.id);
+    setChargeConfirm([]);
+    setError(null);
+    try {
+      await analyzeCampaign(campaignId, ids);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.detailAnalyzeError);
     }
@@ -124,9 +139,8 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
     }
   };
 
-  const pendingCount = candidates.filter(
-    (c) => c.status === 'pending' || c.status === 'error',
-  ).length;
+  // Includes stale 'analyzing' rows (M2-D3); the claim RPC has the final say.
+  const pendingCount = candidates.filter((c) => isRetryableCandidate(c)).length;
 
   const displayedCandidates = showAnalyzedOnly
     ? candidates.filter((c) => c.status === 'done')
@@ -341,6 +355,21 @@ export function CampaignDetailView({ campaignId, onBack }: CampaignDetailViewPro
           onUpdateHrStatus={handleUpdateHrStatus}
         />
       </div>
+
+      <ConfirmDialog
+        open={chargeConfirm.length > 0}
+        title={t.recruiterChargeConfirmTitle}
+        message={formatLabel(t.recruiterChargeConfirmBody, {
+          count: String(chargeConfirm.length),
+          names: chargeConfirm.map((c) => c.name).join(', '),
+        })}
+        confirmLabel={t.recruiterChargeConfirmAction}
+        cancelLabel={t.recruiterChargeConfirmCancel}
+        danger
+        isBusy={isAnalyzing}
+        onConfirm={() => void handleConfirmCharge()}
+        onCancel={() => setChargeConfirm([])}
+      />
     </div>
   );
 }
