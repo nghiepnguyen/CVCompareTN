@@ -31,8 +31,14 @@ import {
 } from '../../services/recruiterService';
 import type { RecruiterContextValue } from './types';
 import { VN_TIME_ZONE } from '../../lib/vnTime';
+import { withTimeout } from '../../lib/withTimeout';
 
 const RecruiterContext = createContext<RecruiterContextValue | undefined>(undefined);
+
+const SAVE_ATTEMPTS = 3;
+const SAVE_BACKOFF_MS = [500, 1500];
+const CANDIDATE_FILE_TIMEOUT_MS = 60_000;
+const SESSION_TIMEOUT_MS = 6_000;
 
 export function RecruiterProvider({ children }: { children: React.ReactNode }) {
   const { user, effectivePlan, userProfile, refreshUserProfile } = useAuth();
@@ -59,11 +65,25 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id]);
 
+  // M2-D2 F1: analyses that succeeded (quota already charged) but could not be
+  // saved. A later run saves them again without calling Gemini. Tab memory
+  // only: after a reload the DB row stays 'analyzing' until M2-D3 recovery.
+  const unsavedAnalysesRef = useRef(new Map<string, { analysis: AnalysisResult; message: string }>());
+
   const loadCandidates = useCallback(async (campaignId: string) => {
     setCandidatesLoading(true);
     try {
       const data = await getCampaignCandidates(campaignId);
-      setCandidates(data);
+      // Keep unsaved results retryable across a list reload.
+      setCandidates(data.map((c) => {
+        const unsaved = unsavedAnalysesRef.current.get(c.id);
+        if (!unsaved) return c;
+        if (c.status === 'done') {
+          unsavedAnalysesRef.current.delete(c.id);
+          return c;
+        }
+        return { ...c, status: 'error' as const, errorMessage: unsaved.message };
+      }));
     } catch (err) {
       console.error('loadCandidates failed:', err);
     } finally {
@@ -192,10 +212,12 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
       );
 
       if (pendingCandidates.length === 0) return;
+      // Save-only retries cost no analysis and are not quota-checked.
+      const analysisCount = pendingCandidates.filter((c) => !unsavedAnalysesRef.current.has(c.id)).length;
 
       // Check quota
-      try {
-        const quota = await checkAnalyticsQuota(user.id, pendingCandidates.length);
+      if (analysisCount > 0) try {
+        const quota = await checkAnalyticsQuota(user.id, analysisCount);
         if (!quota.allowed) {
           const limitText =
             quota.limit != null
@@ -226,27 +248,89 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
         console.error('Quota check failed:', err);
       }
 
+      const setLocal = (id: string, patch: Partial<CandidateCV>) =>
+        setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+
+      // A failed status write must not end the batch (M2-D2 F2).
+      const writeStatus = async (id: string, status: 'analyzing' | 'error', errorMessage?: string) => {
+        try {
+          await updateCandidateStatus(id, status, errorMessage);
+          return true;
+        } catch (err) {
+          console.error(`Status update (${status}) failed for candidate ${id}:`, err);
+          return false;
+        }
+      };
+
+      // Bounded save retry. Never re-analyzes: the analysis is already paid for.
+      const persist = async (candidate: CandidateCV, analysis: AnalysisResult) => {
+        for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
+          try {
+            await saveCandidateAnalysis(
+              candidate.id,
+              analysis as unknown as Record<string, unknown>,
+              analysis.matchScore,
+              'done',
+            );
+            unsavedAnalysesRef.current.delete(candidate.id);
+            trackEvent('recruiter_analysis_done', {
+              candidate_id: candidate.id,
+              match_score: analysis.matchScore,
+            });
+            setLocal(candidate.id, {
+              status: 'done',
+              errorMessage: null,
+              matchScore: analysis.matchScore,
+              analysisResult: analysis as unknown as Record<string, unknown>,
+              analyzedAt: new Date().toISOString(),
+            });
+            return;
+          } catch (err) {
+            console.error(`Saving analysis failed for candidate ${candidate.id} (attempt ${attempt + 1}):`, err);
+            const wait = SAVE_BACKOFF_MS[attempt];
+            if (wait !== undefined) await new Promise((r) => setTimeout(r, wait));
+          }
+        }
+        // Keep the result for a save-only retry. The DB row is left as is
+        // (not 'error'), so a reload never re-analyzes a paid result.
+        unsavedAnalysesRef.current.set(candidate.id, { analysis, message: t.recruiterSaveFailed });
+        setLocal(candidate.id, { status: 'error', errorMessage: t.recruiterSaveFailed });
+      };
+
       setIsAnalyzing(true);
 
       try {
         for (let i = 0; i < pendingCandidates.length; i++) {
           const candidate = pendingCandidates[i];
 
-          // Mark as analyzing
-          await updateCandidateStatus(candidate.id, 'analyzing');
-          setCandidates((prev) =>
-            prev.map((c) =>
-              c.id === candidate.id
-                ? { ...c, status: 'analyzing' as const }
-                : c,
-            ),
-          );
+          const unsaved = unsavedAnalysesRef.current.get(candidate.id);
+          if (unsaved) {
+            setLocal(candidate.id, { status: 'analyzing' });
+            await persist(candidate, unsaved.analysis);
+            continue;
+          }
+
+          // Mark as analyzing. If even that write fails, do not analyze: the row
+          // would stay pending/error, so an unsaved paid result could be
+          // re-analyzed (charged again) after a reload.
+          if (!(await writeStatus(candidate.id, 'analyzing'))) {
+            setLocal(candidate.id, { status: 'error', errorMessage: t.recruiterStatusWriteFailed });
+            continue;
+          }
+          setLocal(candidate.id, { status: 'analyzing', errorMessage: null });
 
           let tempPaths: string[] = [];
+          let analysis: AnalysisResult;
           try {
-            const response = await fetch(await getCandidateFileUrl(candidate.filePath));
-            if (!response.ok) throw new Error('Không tải được CV ứng viên');
-            const blob = await response.blob();
+            const blob = await withTimeout(
+              (async () => {
+                const response = await fetch(await getCandidateFileUrl(candidate.filePath));
+                if (!response.ok) throw new Error('Không tải được CV ứng viên');
+                return response.blob();
+              })(),
+              CANDIDATE_FILE_TIMEOUT_MS,
+              'Candidate file download',
+            );
             const file = new File([blob], candidate.fileName, { type: blob.type });
 
             const { data: textData, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath } =
@@ -255,10 +339,14 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             tempPaths = [pdfStoragePath, dataStoragePath].filter((p): p is string => Boolean(p));
 
             // Get session token for authenticated API call
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await withTimeout(
+              supabase.auth.getSession(),
+              SESSION_TIMEOUT_MS,
+              'Session lookup',
+            );
             const authToken = session?.access_token;
 
-            const analysis = await analyzeCV(
+            analysis = await analyzeCV(
               jdContent,
               textData,
               mimeType,
@@ -270,54 +358,17 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
               pdfStoragePath,
               dataStoragePath,
             );
-            // Save result via backend API (service_role RPC)
-            await saveCandidateAnalysis(
-              candidate.id,
-              analysis as unknown as Record<string, unknown>,
-              analysis.matchScore,
-              'done',
-            );
-
-            trackEvent('recruiter_analysis_done', {
-              candidate_id: candidate.id,
-              match_score: analysis.matchScore,
-            });
-
-            // Update local state
-            setCandidates((prev) =>
-              prev.map((c) =>
-                c.id === candidate.id
-                  ? {
-                      ...c,
-                      status: 'done' as const,
-                      matchScore: analysis.matchScore,
-                      analysisResult: analysis as unknown as Record<string, unknown>,
-                      parsedText: textData,
-                      analyzedAt: new Date().toISOString(),
-                    }
-                  : c,
-              ),
-            );
           } catch (err) {
             console.error(`Analysis failed for candidate ${candidate.id}:`, err);
             const errorMsg = err instanceof Error ? localizeAiError(err, t) : 'Unknown error';
-
-            await updateCandidateStatus(candidate.id, 'error', errorMsg);
-
-            setCandidates((prev) =>
-              prev.map((c) =>
-                c.id === candidate.id
-                  ? {
-                      ...c,
-                      status: 'error' as const,
-                      errorMessage: errorMsg,
-                    }
-                  : c,
-              ),
-            );
+            await writeStatus(candidate.id, 'error', errorMsg);
+            setLocal(candidate.id, { status: 'error', errorMessage: errorMsg });
+            continue;
           } finally {
             if (tempPaths.length) void cleanupTempAnalysisFiles(tempPaths);
           }
+
+          await persist(candidate, analysis);
         }
       } finally {
         setIsAnalyzing(false);
@@ -373,6 +424,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
     async (candidateId: string, filePath: string) => {
       // Remove from database
       await deleteCandidate(candidateId);
+      unsavedAnalysesRef.current.delete(candidateId);
       // Update local state
       setCandidates((prev) => prev.filter((c) => c.id !== candidateId));
       if (selectedCandidate?.id === candidateId) {

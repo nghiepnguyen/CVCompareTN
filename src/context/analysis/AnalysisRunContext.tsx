@@ -16,6 +16,7 @@ import {
 } from '../../services/historyService';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { MAX_BATCH_BY_PLAN } from '../../lib/planLimits';
+import { MAX_CV_TEXT_CHARS, MAX_JD_CHARS } from '../../lib/inputLimits';
 import type { UserPlan } from '../../services/userService';
 import type { AnalysisRunContextType, BatchFileProgress } from './types';
 import { cleanText, processFile } from '../../hooks/useFileProcessor';
@@ -120,6 +121,24 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
   const [history, setHistory] = useState<AnalysisResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<AnalysisResult | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const resultsRef = useRef(results);
+  useEffect(() => {
+    resultsRef.current = results;
+  }, [results]);
+  const runTokenRef = useRef(0);
+  // M2-D2 F4: results whose history upsert failed (offered a save-only retry).
+  const unsavedResultIdsRef = useRef(new Set<string>());
+  // A background field (parsed CV, Full CV) can be written once its history
+  // row exists: the run's upsert succeeded, or a Retry save did since. While
+  // still unsaved, the field rides along with the next Retry save instead.
+  const rowExists = (runSaved: boolean, resultId: string) => runSaved || !unsavedResultIdsRef.current.has(resultId);
+  // M2-D2 F3: the last file run. After a partial failure, re-running with the
+  // same JD analyzes only inputs that have no result yet.
+  const lastFileRunRef = useRef<{
+    jd: string;
+    resultByInput: Map<File | StoredCVRef, AnalysisResult>;
+    hadFailures: boolean;
+  } | null>(null);
   const [fullCVGeneratingIds, setFullCVGeneratingIds] = useState<Set<string>>(new Set());
   // Results whose Full CV was withheld by the server's fidelity check (session only).
   const [fullCVFallbackIds, setFullCVFallbackIds] = useState<Set<string>>(new Set());
@@ -160,7 +179,10 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       language: 'vi' | 'en',
       authToken?: string,
       cvDataStoragePath?: string,
-      userId?: string
+      userId?: string,
+      // Persist only once the history row exists (M2-D2 F4); an UPDATE on a
+      // missing row matches nothing and fails silently.
+      historySaved: Promise<boolean> = Promise.resolve(true)
     ) => {
       setFullCVGeneratingIds((prev) => new Set([...prev, resultId]));
       try {
@@ -183,9 +205,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         setSelectedResult((prev) => (prev?.id === resultId ? { ...prev, fullRewrittenCV } : prev));
         setHistory((prev) => prev.map(patcher));
         if (userId) {
-          updateHistoryField(userId, resultId, { full_rewritten_cv: fullRewrittenCV }).catch((err) =>
-            console.error('Failed to persist fullRewrittenCV to history', err)
-          );
+          void historySaved
+            .then((saved) => (rowExists(saved, resultId) ? updateHistoryField(userId, resultId, { full_rewritten_cv: fullRewrittenCV }) : undefined))
+            .catch((err) => console.error('Failed to persist fullRewrittenCV to history', err));
         }
       } catch (err) {
         console.error('generateFullCV failed for', resultId, err);
@@ -232,6 +254,67 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     [startFakeProgress],
   );
 
+  // Puts saved results into the sidebar history, preferring the live copy
+  // (it may already carry a parsed CV or Full CV attached after the run).
+  const addSavedToHistory = (saved: AnalysisResult[]) => {
+    const ids = new Set(saved.map((r) => r.id));
+    const latest = saved.map((r) => resultsRef.current.find((x) => x.id === r.id) ?? r);
+    const historyLimit = effectivePlan === 'free' ? 50 : 500;
+    setHistory((prev) => [...latest, ...prev.filter((h) => !ids.has(h.id))].slice(0, historyLimit));
+  };
+
+  const retrySaveHistory = async () => {
+    if (!user?.id) return;
+    const pending = resultsRef.current.filter((r) => unsavedResultIdsRef.current.has(r.id));
+    if (pending.length === 0) return setError(null);
+    try {
+      // Upsert on (user_id, analysis_id): a retry after a lost response
+      // updates the same row, never a duplicate.
+      await saveToHistory(pending, effectivePlan);
+      for (const r of pending) unsavedResultIdsRef.current.delete(r.id);
+      addSavedToHistory(pending);
+      setError(null);
+    } catch (err) {
+      console.error('Retry saving analysis history failed:', err);
+      setError(runOutcomeMessage([], pending.length, false));
+    }
+  };
+
+  const runOutcomeMessage = (
+    failures: { name: string; message: string }[],
+    okCount: number,
+    saved: boolean
+  ): React.ReactNode => {
+    const vi = reportLanguage === 'vi';
+    const total = okCount + failures.length;
+    const names = failures.map((f) => f.name).join(', ');
+    const failed = failures.length === 0
+      ? ''
+      : vi
+        ? `${failures.length}/${total} CV phân tích thất bại: ${names}. `
+        : `${failures.length}/${total} CVs failed to analyze: ${names}. `;
+    const rest = saved
+      ? vi
+        ? 'Các CV còn lại đã được lưu. Bấm Phân tích để chạy lại các CV lỗi.'
+        : 'The rest were saved. Press Analyze to re-run the failed CVs.'
+      : failures.length > 0
+        ? vi
+          ? 'Các CV còn lại đã phân tích xong nhưng chưa lưu được vào lịch sử.'
+          : 'The rest were analyzed but could not be saved to history.'
+        : vi
+          ? 'Phân tích xong nhưng chưa lưu được vào lịch sử.'
+          : 'Analysis finished but could not be saved to history.';
+    if (saved) return failed + rest;
+    return (
+      <span>
+        {failed + rest}{' '}
+        <button type="button" onClick={() => void retrySaveHistory()} className="underline cursor-pointer hover:opacity-80">
+          {vi ? 'Thử lưu lại' : 'Retry save'}
+        </button>
+      </span>
+    );
+  };
+
   // Set synchronously on click: `isAnalyzing` only flips after the quota
   // check awaits, so a double click used to start two full runs (M2-A P1-2).
   const runInFlightRef = useRef(false);
@@ -250,7 +333,28 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     if (cvInputMode === 'file' && files.length === 0) return setError('Vui lòng tải lên ít nhất một CV.');
     if (cvInputMode === 'text' && !cvText.trim()) return setError('Vui lòng dán nội dung CV của bạn.');
 
-    const plannedRuns = cvInputMode === 'file' ? files.length : 1;
+    // K0: reject oversize input before any CV parse starts (server stays authoritative).
+    if (jd.trim().length > MAX_JD_CHARS) return setError(formatLabel(t.aiErrorInputTooLarge, { max: String(MAX_JD_CHARS) }));
+    if (cvInputMode === 'text' && cvText.trim().length > MAX_CV_TEXT_CHARS) {
+      return setError(formatLabel(t.aiErrorInputTooLarge, { max: String(MAX_CV_TEXT_CHARS) }));
+    }
+
+    // F3: after a partial failure with the same JD, skip inputs that already
+    // have a result (analyzed, charged and shown); run only the rest.
+    // With nothing left to retry (every input has a result), it is a new full run.
+    const lastRun = lastFileRunRef.current;
+    const keptResults = new Map<File | StoredCVRef, AnalysisResult>();
+    if (cvInputMode === 'file' && lastRun?.hadFailures && lastRun.jd === jd) {
+      for (const f of files) {
+        const r = lastRun.resultByInput.get(f);
+        if (r) keptResults.set(f, r);
+      }
+    }
+    const retryOnly = keptResults.size > 0 && keptResults.size < files.length;
+    if (!retryOnly) keptResults.clear();
+    const runFiles = retryOnly ? files.filter((f) => !keptResults.has(f)) : files;
+
+    const plannedRuns = cvInputMode === 'file' ? runFiles.length : 1;
     const planForLimits: UserPlan =
       userProfile?.role === 'admin' ? 'pro' : effectivePlan;
     const maxBatch = MAX_BATCH_BY_PLAN[planForLimits] ?? 1;
@@ -324,7 +428,12 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     setProgress(0);
     setAnalysisStatus(reportLanguage === 'vi' ? 'Đang chuẩn bị...' : 'Preparing...');
     setError(null);
-    setResults([]);
+    const runToken = ++runTokenRef.current;
+    // Retry-only keeps the earlier results on screen; a full run starts fresh.
+    if (!retryOnly) {
+      setResults([]);
+      unsavedResultIdsRef.current.clear();
+    }
     setBatchFiles([]);
 
     setProgress(10);
@@ -332,7 +441,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     trackEvent('analyze_cv', {
       input_mode: cvInputMode,
       jd_mode: 'text',
-      cv_count: cvInputMode === 'file' ? files.length : 1,
+      cv_count: cvInputMode === 'file' ? runFiles.length : 1,
     });
 
     try {
@@ -346,8 +455,9 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
 
       const failures: { name: string; message: string }[] = [];
 
+      const succeededInputs = new Map<File | StoredCVRef, AnalysisResult>();
       if (cvInputMode === 'file') {
-        const totalFiles = files.length;
+        const totalFiles = runFiles.length;
         const CONCURRENCY = 5;
         const perFileShare = 75 / totalFiles;
         const newResultsSlots: (AnalysisResult | undefined)[] = new Array(totalFiles);
@@ -359,7 +469,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             ? `Đang phân tích 0/${totalFiles} CV...`
             : `Analyzing 0/${totalFiles} CVs...`
         );
-        setBatchFiles(files.map((f) => ({ name: f.name, status: 'pending' })));
+        setBatchFiles(runFiles.map((f) => ({ name: f.name, status: 'pending' })));
         setProgress(20);
         // Creep toward the first milestone right away instead of sitting idle
         // while the first CVs are still in flight.
@@ -369,7 +479,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           while (true) {
             const i = nextIndex++;
             if (i >= totalFiles) return;
-            const fileOrRef = files[i];
+            const fileOrRef = runFiles[i];
             let succeeded = false;
             let tempPaths: string[] = [];
             let parsedJob: ParsedCVJob | undefined;
@@ -385,7 +495,11 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
               let pdfStoragePath: string | undefined;
               let dataStoragePath: string | undefined;
               if (isStoredCVRef(fileOrRef) && fileOrRef.eagerProcessing) {
-                ({ data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath } = await fileOrRef.eagerProcessing);
+                // F7: consume once. Its temp upload is deleted after this run,
+                // so a later run must process the stored CV again.
+                const eager = fileOrRef.eagerProcessing;
+                fileOrRef.eagerProcessing = undefined;
+                ({ data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath } = await eager);
               } else {
                 const file = isStoredCVRef(fileOrRef) ? await resolveToFile(fileOrRef) : fileOrRef;
                 ({ data, mimeType, pdfInlineData, pdfStoragePath, dataStoragePath } = await processFile(file, user?.id ?? ''));
@@ -412,6 +526,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
               const result: AnalysisResult = { ...analysis, userId: user?.id };
               if (parsedJob.done && parsedJob.value) result.parsedCV = parsedJob.value;
               newResultsSlots[i] = result;
+              succeededInputs.set(fileOrRef, result);
               workByResultId.set(result.id, {
                 result, parseJob: parsedJob, data, mimeType, dataStoragePath, tempPaths,
               });
@@ -464,7 +579,13 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         for (const slot of newResultsSlots) {
           if (slot) newResults.push(slot);
         }
+        lastFileRunRef.current = {
+          jd,
+          resultByInput: new Map([...keptResults, ...succeededInputs]),
+          hadFailures: failures.length > 0,
+        };
       } else {
+        lastFileRunRef.current = null;
         setAnalysisStatus(
           reportLanguage === 'vi' ? 'Đang đọc nội dung CV...' : 'Reading CV content...'
         );
@@ -519,17 +640,28 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       // Before any state update that renders these results (the ref itself
       // never triggers a render).
       for (const resultId of workByResultId.keys()) analysisJdByIdRef.current.set(resultId, jd);
-      setResults(newResults);
-      const historyLimit = effectivePlan === 'free' ? 50 : 500;
-      setHistory((prev) => [...newResults, ...prev].slice(0, historyLimit));
+      setResults(retryOnly ? [...keptResults.values(), ...newResults] : newResults);
 
-      // Start persistence before attaching background results. Parse persistence
-      // waits for this promise, so an UPDATE can never race a missing history row.
+      // Start persistence before attaching background results. Parse and Full
+      // CV persistence wait for this promise, so an UPDATE can never race a
+      // missing history row. The sidebar history shows a result only once it
+      // is saved (F4).
+      // Kept results whose save failed earlier ride along with this upsert.
+      const toPersist = [
+        ...newResults,
+        ...[...keptResults.values()].filter((r) => unsavedResultIdsRef.current.has(r.id)),
+      ];
       const historySave: Promise<boolean> = user?.id
-        ? saveToHistory(newResults, effectivePlan)
-            .then(() => true)
+        ? saveToHistory(toPersist, effectivePlan)
+            .then(() => {
+              for (const r of toPersist) unsavedResultIdsRef.current.delete(r.id);
+              addSavedToHistory(toPersist);
+              return true;
+            })
             .catch((err) => {
               console.error('Error saving analysis history:', err);
+              captureException(err, { tags: { feature: 'analyze_history_save' } });
+              for (const r of toPersist) unsavedResultIdsRef.current.add(r.id);
               return false;
             })
         : Promise.resolve(false);
@@ -543,7 +675,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           // included in that upsert; do not write it twice.
           if (!user?.id || parsedInSnapshot) return;
           void historySave
-            .then((saved) => (saved ? updateHistoryField(user.id, resultId, { parsed_cv: parsedCV }) : undefined))
+            .then((saved) => (rowExists(saved, resultId) ? updateHistoryField(user.id, resultId, { parsed_cv: parsedCV }) : undefined))
             .catch((err) => console.error('Failed to persist parsedCV to history', err));
         };
 
@@ -579,7 +711,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       for (const [resultId, work] of workByResultId) {
         const { parseJob, data, mimeType, dataStoragePath, tempPaths } = work;
         const bgWork = Promise.allSettled([
-          generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, dataStoragePath, user?.id),
+          generateFullCV(resultId, jd, data, mimeType, reportLanguage, authToken, dataStoragePath, user?.id, historySave),
           parseJob.promise,
         ]);
         if (tempPaths.length > 0) {
@@ -587,15 +719,13 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         }
       }
 
-      if (newResults.length === 1) setSelectedResult(newResults[0]);
-      if (failures.length > 0) {
-        const names = failures.map((f) => f.name).join(', ');
-        setError(
-          reportLanguage === 'vi'
-            ? `${failures.length}/${newResults.length + failures.length} CV phân tích thất bại: ${names}. Các CV còn lại đã được lưu.`
-            : `${failures.length}/${newResults.length + failures.length} CVs failed to analyze: ${names}. The rest were saved.`
-        );
-      }
+      if (newResults.length === 1 && !retryOnly) setSelectedResult(newResults[0]);
+      // Claim "saved" only once the upsert answered (F4). Not awaited: a slow
+      // upsert must not hold the run open; a newer run drops this banner.
+      void historySave.then((saved) => {
+        if (runToken !== runTokenRef.current) return;
+        if (failures.length > 0 || !saved) setError(runOutcomeMessage(failures, newResults.length, saved));
+      });
 
       creepProgress(100, 300);
     } catch (err: unknown) {

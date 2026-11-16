@@ -337,6 +337,14 @@ export const recruiter = {
     vi: "Chưa phù hợp",
     en: "Not a fit",
   },
+  recruiterSaveFailed: {
+    vi: "Đã phân tích xong nhưng chưa lưu được kết quả. Bấm Phân tích để lưu lại (không tốn thêm lượt).",
+    en: "Analysis finished but the result could not be saved. Press Analyze to save it again (no extra credit used).",
+  },
+  recruiterStatusWriteFailed: {
+    vi: "Không cập nhật được trạng thái ứng viên nên chưa phân tích (không tốn lượt). Vui lòng thử lại.",
+    en: "Could not update the candidate status, so it was not analyzed (no credit used). Please try again.",
+  },
   panelAnalysisError: {
     vi: "Lỗi phân tích",
     en: "Analysis error",

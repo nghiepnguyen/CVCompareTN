@@ -250,7 +250,10 @@ export function rawJdConcepts(jd: string, cvText: string): DeniedConcept[] {
     // words ("TIẾNG ANH" → ANH), so it needs its own benchmarked change.
     const letters = line.replace(/[^\p{L}]/gu, '');
     if (letters.length > 3 && letters === letters.toUpperCase()) continue;
-    for (const m of line.matchAll(/\p{L}+(?:-\p{L}+)+/gu)) {
+    // Start only at a word start: retrying from every letter of a long
+    // hyphen-free run backtracked quadratically (50k chars ≈ 1.3 s). Same
+    // matches — a run that fails from its start fails from any inner letter.
+    for (const m of line.matchAll(/(?<!\p{L})\p{L}+(?:-\p{L}+)+/gu)) {
       const term = m[0];
       const parts = term.toLowerCase().split('-');
       if (STYLE_HYPHENATED.has(term.toLowerCase())) continue;

@@ -897,6 +897,8 @@ export interface UiLabels extends ApplicationsLabels {
   panelVerdictConsider: string;
   panelVerdictNotFit: string;
   panelAnalysisError: string;
+  recruiterSaveFailed: string;
+  recruiterStatusWriteFailed: string;
   panelHrStatusLabel: string;
   panelHrNoteLabel: string;
   panelHrNotePlaceholder: string;

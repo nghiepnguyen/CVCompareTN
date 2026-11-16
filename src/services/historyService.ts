@@ -121,7 +121,9 @@ export async function saveToHistory(results: AnalysisResult | AnalysisResult[], 
   try {
     const { error } = await supabase
       .from('history')
-      .upsert(historyData);
+      // Conflict on the unique (user_id, analysis_id): re-saving the same
+      // analysis (retry after a lost response) updates it, never duplicates.
+      .upsert(historyData, { onConflict: 'user_id,analysis_id' });
     
     if (error) throw error;
 
