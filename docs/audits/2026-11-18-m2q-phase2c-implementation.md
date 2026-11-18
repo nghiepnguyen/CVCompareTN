@@ -107,6 +107,10 @@ HTTP answers:
 - `failed`: 503 `{code: 'quota_settlement_unavailable', retryable: true}`. Same as before.
 - `unknown`: 503 `{code: 'quota_settlement_unknown', retryable: false}`, with Sentry message `quota_commit_unknown` and log `[quota_settlement_unknown]`.
 
+**Interpretation to confirm (owner rule "never blindly repeat a billing write after an unknown outcome").** This implementation **keeps** the bounded retries after an unknown attempt. Each one is a replay of the same reservation id, which the ledger makes idempotent: it cannot charge twice (SQL 2, DB 2, mutant MF). It is also what recovers a lost response (DB 2). It is never a new key and never a new Gemini call. If the owner reads the rule as "no second call at all after an unknown attempt", the change is one line in `settle()` (stop on the first unknown). The cost is that case 2 becomes a 503 unknown that only recovers through the delayed reload.
+
+**`retryable: false` on the personal path.** The only reader of `retryable` in `src/` is `localizeAiError` (`src/services/ai/analysisService.ts:49`). It maps `quota_settlement_*` codes *before* it looks at `retryable`, so the personal UI message and flow are unchanged: no retry button or automatic retry depends on it.
+
 No release is called in either failure case. That is unchanged: TTL expiry settles the reservation under the existing policy.
 
 **Postgres after the HTTP request ends.** A client-side timeout or abort does not cancel the statement; PostgREST v14 does not cancel the backend. The statement runs until it finishes or hits the role's `statement_timeout` (8 s locally). For recruiters, a late commit now lands the result in the same transaction (proven in test 3). The browser's delayed reload at 12 s, more than 8 s, shows `done`.
@@ -260,6 +264,7 @@ Suites run: the new SQL suite, plus vitest `m2q2cAtomicSettlement.db`, `m2d3Recr
 
 ## 7. Known limitations
 
+0. **The release order is load-bearing (see §8).** If the app reaches production before the migration, PostgREST answers `PGRST202` (function not found). That is correctly classified as *unknown*. Every recruiter analysis would then pay for Gemini, return 503 `quota_settlement_unknown`, sit `analyzing` for up to 10 min, and its reservation would expire into the TTL policy: 2 forgiven per cycle, **then charged**. The same applies to a Vercel **preview** deploy, which a branch push creates automatically, if previews point at the production Supabase project.
 1. **Production timeouts are unverified.** Locally the `authenticator` statement and lock timeouts are 8 s. The 12 s delayed reload assumes the production statement timeout is ≤ about 10 s. If it is longer, the row still shows `analyzing` until the lease (10 min, bounded, existing 2A behaviour) or a manual reload. **Run `select rolname, rolconfig from pg_roles where rolname in ('authenticator','service_role')` read-only on production before release.**
 2. **Personal path.** Charged-and-lost on an unknown outcome is still possible (audit scenario P). A manual retry is a second charge. A full fix needs a personal result store, which is deferred by owner decision Q-D4. Only the error code changed.
 3. **Nothing landed or crash** (audit E/L): the reservation expires and the existing forgiveness policy applies.
@@ -272,18 +277,23 @@ Suites run: the new SQL suite, plus vitest `m2q2cAtomicSettlement.db`, `m2d3Recr
 
 ## 8. Migration-first release plan (each step needs its own owner approval)
 
-1. Review and merge. CI must pass "Database tests" and "Lint, Test & Build" (required by ruleset). Note that a merge to `main` auto-deploys the app (memory: main merge = prod deploy). So **the migration must be applied to production before the merge**, or the app path below must be the one shipped first.
-2. Read-only on production: `pg_roles` timeouts, then `supabase/tests/commit_and_save_candidate.prod_verify.sql` (**before** snapshot).
-3. Apply migration `20261118000000` to production. It is additive, and the deployed app does not call it yet.
-4. Run prod_verify again (**after**). The expected diff:
-   - `m2q2c_recorded_times` 0 → 1;
-   - `new_fn` absent → `definer=true config=search_path="" anon=false authenticated=false service_role=true`;
-   - every other row identical, `ledger_rows` excepted (live traffic).
-5. Merge the app. The Vercel prod deploy follows.
-6. Production smoke on the test account, recruiter flow, 1 real Gemini call. This needs its own approval for that paid call.
+**The migration must be live in production before any app build that calls it.** That includes a Vercel preview deploy if previews use the production Supabase project, and the `main` merge, which auto-deploys production. Failure mode if the order is reversed: §7.0.
+
+0. **Before any push of this branch:** the owner confirms which Supabase project Vercel *preview* deployments use. If it is production, do not push until step 3 is done, or push with previews disabled for the branch.
+1. Read-only on production: run `supabase/tests/commit_and_save_candidate.prod_verify.sql` (**before** snapshot). It now includes:
+   - `role_timeouts` (the §7.1 check);
+   - `owners` / `owner_can_call` (absent before).
+2. Apply migration `20261118000000` to production. It is additive, and the deployed app does not call it.
+3. Run prod_verify again (**after**). This is the **merge gate**. Expected:
+   - `m2q2c_recorded_times` = 1;
+   - `new_fn` = `… definer=true config=search_path="" anon=false authenticated=false service_role=true`;
+   - **`owner_can_call` = `true,true`**: the definer's owner can execute both building blocks. If `false`, every recruiter commit raises 42501 outside the savepoint, so do not merge;
+   - every other row identical to the before snapshot, `ledger_rows` excepted (live traffic).
+4. Push and open the PR. CI runs the required "Database tests" and "Lint, Test & Build". Review, then merge: the Vercel prod deploy follows.
+5. Production smoke on the test account, recruiter flow, 1 real Gemini call. This needs its own approval for the paid call.
    - Expect `serverSave=saved`, one ledger row `committed/charged` for the attempt, the row `done`, and no browser `save-analysis` call.
-   - The unknown path is not testable in production without fault injection. It is offline-verified only.
-7. Watch Sentry `quota_commit_unknown` / `quota_commit_failed` rates.
+   - The unknown path is offline-verified only.
+6. Watch the Sentry `quota_commit_unknown` and `quota_commit_failed` rates. A burst of `quota_commit_unknown` right after the deploy means step 3 was skipped or failed: roll the app back (§9).
 
 ## 9. Rollback strategy
 
@@ -295,7 +305,7 @@ Suites run: the new SQL suite, plus vitest `m2q2cAtomicSettlement.db`, `m2d3Recr
 
 ## 10. GO / NO-GO
 
-**GO for review (offline). NOT production-ready yet.** The design was implementable without weakening billing safety. The existing commit and fence contracts are reused unchanged inside one transaction, and every invariant in §5 holds on the local stack. 14/14 mutants were killed.
+**GO for review (offline). NOT production-ready yet.** DB test 3 (late-landing commit) now waits for the lock holder via `pg_stat_activity` instead of a fixed sleep, and was re-run 3× stable, so the required check should not flake. The design was implementable without weakening billing safety. The existing commit and fence contracts are reused unchanged inside one transaction, and every invariant in §5 holds on the local stack. 14/14 mutants were killed.
 
 Before production:
 - owner review;

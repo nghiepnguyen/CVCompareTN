@@ -163,7 +163,18 @@ describe.skipIf(!enabled)('M2-Q 2C atomic recruiter settlement, real database', 
     // server's 3 attempts (~9.6 s) all time out; two hit the 8 s statement
     // timeout and roll back, the last is still queued when the server answers.
     const holder = psql(`begin; select 1 from public.profiles where id = '${u.id}' for update; select pg_sleep(12); commit;`);
-    await new Promise((r) => setTimeout(r, 400));
+    // Open Gemini only once the holder really owns the lock (no fixed sleep: slow CI runners).
+    for (let i = 0; ; i++) {
+      const { count } = await new Promise<{ count: number }>((resolve) => {
+        const p = spawn('docker', ['exec', '-i', process.env.DB_CONTAINER!, 'psql', '-U', 'postgres', '-tAX', '-c',
+          `select count(*) from pg_stat_activity where state = 'active' and query like '%pg_sleep(12)%' and query not like '%pg_stat_activity%'`]);
+        let out = ''; p.stdout.on('data', (d) => { out += d; });
+        p.on('exit', () => resolve({ count: Number(out.trim()) || 0 }));
+      });
+      if (count > 0) break;
+      if (i > 100) throw new Error('lock holder never started');
+      await new Promise((r) => setTimeout(r, 100));
+    }
     g.open();
     const res = await pending;
     expect(res).toEqual(UNKNOWN);
