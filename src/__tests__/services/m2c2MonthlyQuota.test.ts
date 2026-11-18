@@ -172,6 +172,21 @@ describe('analyze ↔ quota reservation', () => {
     expect(db.log.at(-1)?.error_message).toBe('[quota_settlement_unavailable]');
   });
 
+  // M2-Q 1A: only an explicit 'committed' answer may release the result.
+  it.each([
+    ['not_found', { status: 'not_found' }],
+    ['still reserved', { status: 'reserved' }],
+    ['malformed (no status)', { charged: true }],
+    ['array', [{ status: 'committed' }]],
+  ])('M2-Q: commit answer %s never becomes a 200 with the result', async (_label, answer) => {
+    generateContent.mockResolvedValue(reply({ matchScore: 70 }));
+    ledger.commit_analytics_quota = () => answer;
+    const res = await handleAnalyze('Bearer x', body);
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ error: 'Quota settlement unavailable', code: 'quota_settlement_unavailable', retryable: true });
+    expect(calls('release_analytics_quota')).toHaveLength(0);
+  });
+
   it('a commit conflict (reservation already refunded) is definitive: not retried, result withheld', async () => {
     generateContent.mockResolvedValue(reply({ matchScore: 70 }));
     ledger.commit_analytics_quota = () => ({ status: 'conflict', state: 'refunded' });

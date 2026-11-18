@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "test:db:quota": "tsx scripts/db-quota-concurrency.ts && tsx scripts/db-quota-plan-concurrency.ts",
     "test:db:claim": "tsx scripts/db-candidate-claim-concurrency.ts",
+    "test:db:m2q": "tsx scripts/db-m2q-quota-safety.ts",
     "vercel-dev": "vercel dev",
     "vercel-link": "vercel link --project cvcompare"
   },
