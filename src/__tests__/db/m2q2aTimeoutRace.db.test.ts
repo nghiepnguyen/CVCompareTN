@@ -13,6 +13,10 @@ const url = process.env.SUPABASE_URL ?? '';
 const host = (() => { try { return new URL(url).hostname; } catch { return ''; } })();
 const enabled = process.env.M2Q_LOCAL_DB === '1' && ['127.0.0.1', 'localhost'].includes(host)
   && !!process.env.SUPABASE_ANON_KEY && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+// CI (scripts/ci/db-tests.sh) sets REQUIRE_DB_TESTS=1: a missing stack is a failure, not a skip.
+if (process.env.REQUIRE_DB_TESTS === '1' && !enabled) {
+  throw new Error('REQUIRE_DB_TESTS=1 but no local Supabase stack (M2Q_LOCAL_DB=1, local SUPABASE_URL, both keys)');
+}
 
 const generateContent = vi.fn();
 vi.mock('../../../_server-lib/ai/geminiClient.js', async (orig) => ({
