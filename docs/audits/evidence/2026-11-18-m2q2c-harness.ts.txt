@@ -1,0 +1,347 @@
+// M2-Q Phase 2C AUDIT HARNESS — local only, NOT committed (audit evidence for
+// docs/audits/2026-11-18-m2q-phase2c-quota-commit-recovery.md). Real
+// handleAnalyze + real quota/claim/save RPCs on a disposable local stack;
+// Gemini mocked; faults injected by wrapping the admin client's .rpc().
+//   . <scratch>/db/db.env && npx vitest run src/__tests__/db/m2q2cHarness.local.db.test.ts
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { randomUUID } from 'node:crypto';
+import { spawn, execFileSync } from 'node:child_process';
+
+const url = process.env.SUPABASE_URL ?? '';
+const host = (() => { try { return new URL(url).hostname; } catch { return ''; } })();
+const enabled = process.env.M2Q_LOCAL_DB === '1' && ['127.0.0.1', 'localhost'].includes(host);
+const DB = process.env.DB_CONTAINER ?? 'supabase_db_m2q2c';
+
+const generateContent = vi.fn();
+vi.mock('../../../_server-lib/ai/geminiClient.js', async (orig) => ({
+  ...(await orig<typeof import('../../../_server-lib/ai/geminiClient')>()),
+  getGeminiClient: () => ({ models: { generateContent } }),
+}));
+
+// ── Fault injection on the server's admin client ──────────────────────────
+type Fault = 'pass' | 'throw_before' | 'lose_response' | 'hang';
+const faults: Record<string, Fault[]> = {};
+const calls: { name: string; fault: Fault; t: number }[] = [];
+vi.mock('../../../_server-lib/payment/supabaseAdmin.js', async (orig) => {
+  const real = await orig<typeof import('../../../_server-lib/payment/supabaseAdmin')>();
+  let wrapped: SupabaseClient | null = null;
+  const getSupabaseAdmin = () => {
+    if (wrapped) return wrapped;
+    const c = real.getSupabaseAdmin();
+    wrapped = new Proxy(c, {
+      get(target, prop, recv) {
+        if (prop !== 'rpc') return Reflect.get(target, prop, recv);
+        return (name: string, args: Record<string, unknown>) => {
+          const fault = faults[name]?.shift() ?? 'pass';
+          calls.push({ name, fault, t: Date.now() });
+          const builder = target.rpc(name, args);
+          if (fault === 'pass') return builder;
+          const run = (signal?: AbortSignal) => {
+            if (fault === 'throw_before') return Promise.reject(new TypeError('fetch failed (injected: before send)'));
+            if (fault === 'hang') return new Promise(() => {}); // never answers; withTimeout fires
+            // lose_response: the RPC runs and commits in Postgres; its answer never arrives.
+            return (signal ? builder.abortSignal(signal) : builder).then(() => { throw new TypeError('fetch failed (injected: response lost)'); });
+          };
+          return { abortSignal: (s: AbortSignal) => run(s), then: (a: any, b: any) => run().then(a, b) };
+        };
+      },
+    }) as SupabaseClient;
+    return wrapped;
+  };
+  return { ...real, getSupabaseAdmin, getUserFromBearerToken: async (h: string | undefined) => {
+    if (!h?.startsWith('Bearer ')) return null;
+    const { data } = await real.getSupabaseAdmin().auth.getUser(h.slice(7));
+    return data.user ? { id: data.user.id } : null;
+  } };
+});
+
+type Row = Record<string, unknown>;
+type User = { id: string; token: string; client: SupabaseClient };
+const reply = (score: number) => ({ text: JSON.stringify({ matchScore: score }), usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } });
+const CV = 'Data analyst with SQL experience at Acme since 2020. '.repeat(3);
+const psql = (sql: string) => execFileSync('docker', ['exec', '-i', DB, 'psql', '-U', 'postgres', '-tAX', '-v', 'ON_ERROR_STOP=1', '-c', sql]).toString().trim();
+
+function gatedGemini(score = 70) {
+  let open!: () => void; let started!: () => void;
+  const gate = new Promise<void>((r) => { open = r; });
+  const inFlight = new Promise<void>((r) => { started = r; });
+  generateContent.mockReset().mockImplementation(async () => { started(); await gate; return reply(score); });
+  return { open, inFlight };
+}
+
+describe.skipIf(!enabled)('M2-Q 2C quota commit recovery reproduction', () => {
+  let svc: SupabaseClient;
+  let handleAnalyze: typeof import('../../../_server-lib/analyze/handler').handleAnalyze;
+
+  beforeAll(async () => {
+    process.env.GEMINI_API_KEY = 'test';
+    svc = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+    ({ handleAnalyze } = await import('../../../_server-lib/analyze/handler'));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+  beforeEach(() => { for (const k of Object.keys(faults)) delete faults[k]; calls.length = 0; });
+
+  async function newUser(plan: 'recruiter' | 'free' = 'recruiter', limit = 100): Promise<User> {
+    const email = `m2q2c-${randomUUID()}@example.test`; const password = randomUUID();
+    const { data, error } = await svc.auth.admin.createUser({ email, password, email_confirm: true });
+    if (error || !data.user) throw new Error(`createUser: ${error?.message}`);
+    const id = data.user.id;
+    const { data: cycle } = await svc.rpc('current_quota_cycle', { p_reset_day: 1 });
+    const { error: pErr } = await svc.from('profiles').upsert({
+      id, email, role: 'user', plan, has_permission: true, quota_reset_day: 1, usage_count: 0,
+      usage_month: cycle, monthly_analytics_limit_custom: true, monthly_analytics_limit: limit,
+    });
+    if (pErr) throw new Error(`profile: ${pErr.message}`);
+    const client = createClient(url, process.env.SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
+    const { data: s, error: sErr } = await client.auth.signInWithPassword({ email, password });
+    if (sErr || !s.session) throw new Error(`signIn: ${sErr?.message}`);
+    return { id, token: s.session.access_token, client };
+  }
+  async function newCandidate(u: User) {
+    const { data: k } = await u.client.from('recruitment_campaigns').insert({ user_id: u.id, title: 't', jd_title: 't', jd_content: 'jd' }).select('id').single();
+    const { data: c, error } = await u.client.from('candidate_cvs')
+      .insert({ campaign_id: (k as Row).id, candidate_name: 'c', file_name: 'c.txt', file_path: `${u.id}/campaigns/x/${randomUUID()}.txt`, file_size: 1 }).select('id').single();
+    if (error) throw new Error(`candidate: ${error.message}`);
+    return (c as Row).id as string;
+  }
+  const claim = async (u: User, candidate: string, attempt = randomUUID(), confirm = false) => {
+    const { data, error } = await u.client.rpc('claim_candidate_analysis', { p_candidate_id: candidate, p_attempt_id: attempt, p_confirm_charge: confirm });
+    if (error) throw new Error(`claim: ${error.message}`);
+    return { attempt, result: data as Row };
+  };
+  const row = async (id: string) => (await svc.from('candidate_cvs').select('status, analysis_attempt_id, match_score').eq('id', id).single()).data as Row;
+  const ledger = async (u: string) => ((await svc.from('analytics_quota_reservations').select('request_key, state, charged, forgiven, outcome').eq('user_id', u).order('created_at')).data ?? []) as Row[];
+  const states = async (u: string) => (await ledger(u)).map((r) => `${r.state}/${r.charged ? 'charged' : 'free'}${r.outcome ? `/${r.outcome}` : ''}`);
+  const usage = async (u: string) => ((await svc.from('profiles').select('usage_count').eq('id', u).single()).data as Row).usage_count;
+  const analyze = (u: User, body: Row) => handleAnalyze(`Bearer ${u.token}`, { jd: 'Need SQL analytics', cvData: CV, language: 'en', ...body });
+  const browserRelease = async (u: User, c: string, a: string) =>
+    ((await u.client.from('candidate_cvs').update({ status: 'error', error_message: 'x' }).eq('id', c).eq('analysis_attempt_id', a).eq('status', 'analyzing').select('id')).data ?? []).length > 0;
+  const commitCalls = () => calls.filter((c) => c.name === 'commit_analytics_quota').map((c) => c.fault);
+  const SETTLE_UNAVAILABLE = { status: 503, body: { code: 'quota_settlement_unavailable' } };
+
+  it('A: Gemini ok, commit ok, server save ok', async () => {
+    gatedGemini().open();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    expect(await analyze(u, { idempotencyKey: attempt, candidateId: c })).toMatchObject({ status: 200, body: { serverSave: 'saved' } });
+    expect(await states(u.id)).toEqual(['committed/charged']);
+    expect(await usage(u.id)).toBe(1);
+    expect(await row(c)).toMatchObject({ status: 'done', analysis_attempt_id: attempt });
+  });
+
+  it('B: commit definitively fails in Postgres (forced PG error, rolled back) on every attempt -> 503, CONFIRMED NOT COMMITTED', async () => {
+    gatedGemini().open();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    psql(`CREATE OR REPLACE FUNCTION public._m2q2c_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+            IF NEW.state = 'committed' AND NEW.user_id = '${u.id}' THEN RAISE EXCEPTION 'm2q2c injected commit failure'; END IF; RETURN NEW; END $$;
+          CREATE TRIGGER _m2q2c_fail BEFORE UPDATE ON public.analytics_quota_reservations FOR EACH ROW EXECUTE FUNCTION public._m2q2c_fail();`);
+    try {
+      expect(await analyze(u, { idempotencyKey: attempt, candidateId: c })).toMatchObject(SETTLE_UNAVAILABLE);
+    } finally { psql(`DROP TRIGGER _m2q2c_fail ON public.analytics_quota_reservations; DROP FUNCTION public._m2q2c_fail();`); }
+    // PG error is a definitive answer: settle() does not retry it (1 call).
+    console.info('B commit calls', commitCalls());
+    expect(await states(u.id)).toEqual(['reserved/free']);
+    expect(await usage(u.id)).toBe(0);
+    // Result discarded; candidate still analyzing (server never saved). Browser on 503 releases:
+    expect(await browserRelease(u, c, attempt)).toBe(true);
+    // Re-click while the reservation is live: blocked as active (up to 360 s).
+    expect((await claim(u, c)).result).toMatchObject({ result: 'active' });
+    expect(generateContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('C: commit lands, first response lost, retry replays -> 200 saved, single charge', async () => {
+    gatedGemini().open();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    faults.commit_analytics_quota = ['lose_response'];
+    expect(await analyze(u, { idempotencyKey: attempt, candidateId: c })).toMatchObject({ status: 200, body: { serverSave: 'saved' } });
+    expect(commitCalls()).toEqual(['lose_response', 'pass']);
+    expect(await states(u.id)).toEqual(['committed/charged']);
+    expect(await usage(u.id)).toBe(1);
+  });
+
+  it('C2/F: commit lands but EVERY response is lost (DB link drops after commit) -> 503, CHARGED, result discarded', async () => {
+    gatedGemini().open();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    faults.commit_analytics_quota = ['lose_response', 'throw_before', 'throw_before'];
+    expect(await analyze(u, { idempotencyKey: attempt, candidateId: c })).toMatchObject(SETTLE_UNAVAILABLE);
+    expect(await states(u.id)).toEqual(['committed/charged']);
+    expect(await usage(u.id)).toBe(1);
+    expect((await row(c)).status).toBe('analyzing'); // never saved
+    await browserRelease(u, c, attempt); // browser on 503 (AiRequestError)
+    expect((await claim(u, c)).result).toMatchObject({ result: 'needs_confirm', reason: 'paid_result_lost' });
+    // Owner confirms: second Gemini call, second charge for the same candidate.
+    const again = await claim(u, c, randomUUID(), true);
+    expect(again.result).toMatchObject({ result: 'claimed', recovered: 'paid_result_lost' });
+    expect(await analyze(u, { idempotencyKey: again.attempt, candidateId: c })).toMatchObject({ status: 200 });
+    expect(await usage(u.id)).toBe(2);
+    expect(generateContent).toHaveBeenCalledTimes(2);
+  });
+
+  it('F2: commit ok, DB drops before the fenced save -> 200 serverSave=failed, browser fallback save under same attempt', async () => {
+    gatedGemini().open();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    faults.save_candidate_analysis_attempt = ['throw_before'];
+    const res = await analyze(u, { idempotencyKey: attempt, candidateId: c });
+    expect(res).toMatchObject({ status: 200, body: { serverSave: 'failed', matchScore: 70 } });
+    expect(await states(u.id)).toEqual(['committed/charged']);
+    // Browser's fallback (same RPC the /api/recruiter/save-analysis route calls).
+    const { data } = await svc.rpc('save_candidate_analysis_attempt', { p_user_id: u.id, p_candidate_id: c, p_attempt_id: attempt, p_analysis_result: res.body, p_match_score: 70 });
+    expect(data).toMatchObject({ result: 'saved' });
+  });
+
+  it('E: DB unreachable before commit (every attempt fails before sending) -> 503, CONFIRMED NOT COMMITTED (no request reached PG)', async () => {
+    gatedGemini().open();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    faults.commit_analytics_quota = ['throw_before', 'throw_before', 'throw_before'];
+    const t0 = Date.now();
+    expect(await analyze(u, { idempotencyKey: attempt, candidateId: c })).toMatchObject(SETTLE_UNAVAILABLE);
+    expect(commitCalls()).toEqual(['throw_before', 'throw_before', 'throw_before']);
+    expect(Date.now() - t0).toBeLessThan(5_000);
+    expect(await states(u.id)).toEqual(['reserved/free']);
+    // L-style aftermath: TTL expiry settles it as uncertain (1st/2nd per cycle forgiven).
+    psql(`update public.analytics_quota_reservations set expires_at = now() - interval '1 second' where user_id = '${u.id}'`);
+    const { data: r2 } = await svc.rpc('reserve_analytics_quota', { p_user_id: u.id, p_request_key: randomUUID() });
+    expect((r2 as Row).status).toBe('reserved');
+    expect((await states(u.id))[0]).toBe('uncertain/free/ttl_expired:forgiven');
+  });
+
+  it('D: commit blocked on the profile lock past the client RPC timeout -> 503, then the abandoned commit LANDS (charged, result discarded)', async () => {
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    const g2 = gatedGemini();
+    const pending = analyze(u, { idempotencyKey: attempt, candidateId: c });
+    await g2.inFlight; // reserved; Gemini running
+    // Another session holds the user's profile row (same lock every quota RPC takes first) for 12 s: attempts 1-2 hit the 8 s lock_timeout (rolled back), attempt 3 is still queued when the client gives up.
+    const holder = spawn('docker', ['exec', '-i', DB, 'psql', '-U', 'postgres', '-X', '-c',
+      `begin; select 1 from public.profiles where id = '${u.id}' for update; select pg_sleep(12); commit;`]);
+    await new Promise((r) => setTimeout(r, 400));
+    const t0 = Date.now();
+    g2.open();
+    const res = await pending;
+    const elapsed = Date.now() - t0;
+    expect(res).toMatchObject(SETTLE_UNAVAILABLE);
+    // While blocked, a service_role read sees only the pre-commit snapshot:
+    const during = await states(u.id);
+    await new Promise((r) => holder.on('exit', r));
+    await new Promise((r) => setTimeout(r, 1500));
+    const after = await states(u.id);
+    console.info('D elapsed', elapsed, 'commit calls', commitCalls(), 'during', during, 'after', after);
+    expect(during).toEqual(['reserved/free']);
+    // Abandoned (client-aborted) commit transactions still run when the lock frees.
+    expect(after).toEqual(['committed/charged']);
+    expect(await usage(u.id)).toBe(1); // idempotent: N queued commits, one charge
+    expect((await row(c)).status).toBe('analyzing');
+  }, 30_000);
+
+  it('G: two requests with the same idempotency key -> second is 409 duplicate, one Gemini call, one charge', async () => {
+    const g = gatedGemini();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    const first = analyze(u, { idempotencyKey: attempt, candidateId: c });
+    await g.inFlight;
+    expect(await analyze(u, { idempotencyKey: attempt, candidateId: c })).toMatchObject({ status: 409, body: { code: 'duplicate_request', state: 'reserved' } });
+    g.open();
+    expect(await first).toMatchObject({ status: 200 });
+    // Replaying the key after settlement: ownership gate refuses first (row done), before the ledger.
+    expect(await analyze(u, { idempotencyKey: attempt, candidateId: c })).toMatchObject({ status: 409, body: { code: 'not_owner' } });
+    // Personal-style replay (no candidate) of a committed key: 409 duplicate state=committed — the result is NOT returned.
+    expect(await analyze(u, { idempotencyKey: attempt })).toMatchObject({ status: 409, body: { code: 'duplicate_request', state: 'committed' } });
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(await usage(u.id)).toBe(1);
+  });
+
+  it('H: two tabs claim the same candidate concurrently -> exactly one claimed', async () => {
+    const u = await newUser(); const c = await newCandidate(u);
+    const [a, b] = await Promise.all([claim(u, c), claim(u, c)]);
+    expect([a.result.result, b.result.result].sort()).toEqual(['active', 'claimed']);
+  });
+
+  it('I: ownership changes after Gemini (row re-claimed) -> commit charges, fenced save not_owner, result lost', async () => {
+    const g = gatedGemini();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    const pending = analyze(u, { idempotencyKey: attempt, candidateId: c });
+    await g.inFlight;
+    const other = randomUUID();
+    psql(`update public.candidate_cvs set analysis_attempt_id = '${other}' where id = '${c}'`); // forced: no product path does this within 65 s
+    g.open();
+    expect(await pending).toMatchObject({ status: 200, body: { serverSave: 'not_owner' } });
+    expect(await states(u.id)).toEqual(['committed/charged']);
+    expect((await row(c)).analysis_attempt_id).toBe(other); // newer attempt untouched
+  });
+
+  it('J: lease expired (forced) before recovery, reservation still live -> claim stays active (ledger wins)', async () => {
+    const g = gatedGemini();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    const pending = analyze(u, { idempotencyKey: attempt, candidateId: c });
+    await g.inFlight;
+    psql(`update public.candidate_cvs set analysis_started_at = now() - interval '20 minutes' where id = '${c}'`);
+    expect((await claim(u, c)).result).toMatchObject({ result: 'active' });
+    g.open();
+    expect(await pending).toMatchObject({ status: 200, body: { serverSave: 'saved' } });
+  });
+
+  it('K: reservation TTL expires while Gemini runs (forced) and another request sweeps it -> uncertain; late commit still charges once', async () => {
+    const g = gatedGemini();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    const pending = analyze(u, { idempotencyKey: attempt, candidateId: c });
+    await g.inFlight;
+    psql(`update public.analytics_quota_reservations set expires_at = now() - interval '1 second' where user_id = '${u.id}'`);
+    await svc.rpc('reserve_analytics_quota', { p_user_id: u.id, p_request_key: randomUUID() }); // sweep
+    expect((await states(u.id))[0]).toBe('uncertain/free/ttl_expired:forgiven');
+    g.open();
+    expect(await pending).toMatchObject({ status: 200, body: { serverSave: 'saved' } });
+    expect((await states(u.id))[0]).toBe('committed/charged/late_commit');
+    expect(await usage(u.id)).toBe(1);
+  });
+
+  it('K2: forgiveness exhausted -> expiry charges; late commit does not charge twice', async () => {
+    const g = gatedGemini();
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    for (let i = 0; i < 2; i++) {
+      await svc.rpc('reserve_analytics_quota', { p_user_id: u.id, p_request_key: randomUUID() });
+      psql(`update public.analytics_quota_reservations set expires_at = now() - interval '1 second' where user_id = '${u.id}' and state = 'reserved'`);
+    }
+    const pending = analyze(u, { idempotencyKey: attempt, candidateId: c });
+    await g.inFlight;
+    psql(`update public.analytics_quota_reservations set expires_at = now() - interval '1 second' where user_id = '${u.id}' and request_key = '${attempt}'`);
+    await svc.rpc('reserve_analytics_quota', { p_user_id: u.id, p_request_key: randomUUID() });
+    g.open();
+    expect(await pending).toMatchObject({ status: 200 });
+    const mine = (await ledger(u.id)).find((r) => r.request_key === attempt)!;
+    expect(mine).toMatchObject({ state: 'committed', charged: true, outcome: 'late_commit:already_charged' });
+    expect(await usage(u.id)).toBe(1);
+  });
+
+  it('L: process dies after Gemini, before settlement -> reserved until TTL; claim active, then outcome_unknown; expiry forgives/charges', async () => {
+    const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+    // Everything up to and including Gemini happened; no commit/release call ever made.
+    await svc.rpc('reserve_analytics_quota', { p_user_id: u.id, p_request_key: attempt, p_ttl_seconds: 360 });
+    expect((await claim(u, c)).result).toMatchObject({ result: 'active' });
+    psql(`update public.candidate_cvs set analysis_started_at = now() - interval '20 minutes' where id = '${c}';
+          update public.analytics_quota_reservations set expires_at = now() - interval '1 second' where user_id = '${u.id}'`);
+    expect((await claim(u, c)).result).toMatchObject({ result: 'needs_confirm', reason: 'outcome_unknown' });
+  });
+
+  it('P: personal path, commit unknown -> 503; manual retry = new key, second Gemini call, second charge (no warning)', async () => {
+    gatedGemini().open();
+    const u = await newUser('free', 5);
+    faults.commit_analytics_quota = ['lose_response', 'throw_before', 'throw_before'];
+    expect(await analyze(u, { idempotencyKey: randomUUID() })).toMatchObject(SETTLE_UNAVAILABLE);
+    expect(await analyze(u, { idempotencyKey: randomUUID() })).toMatchObject({ status: 200 });
+    expect(await usage(u.id)).toBe(2);
+    expect(generateContent).toHaveBeenCalledTimes(2);
+  });
+
+  it('BUDGET: commit attempts that fit after Gemini consumes the AI deadline (each attempt hangs to the 3 s RPC timeout)', async () => {
+    // Gemini returns just before the AI deadline (TOTAL 65 s - POST_RESERVE 6 s). Simulated with fake budget: hang every commit.
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date'] });
+    try {
+      generateContent.mockReset().mockImplementation(async () => { vi.setSystemTime(Date.now() + 58_500); return reply(70); });
+      const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
+      faults.commit_analytics_quota = ['hang', 'hang', 'hang'];
+      expect(await analyze(u, { idempotencyKey: attempt, candidateId: c })).toMatchObject(SETTLE_UNAVAILABLE);
+      const cc = calls.filter((x) => x.name === 'commit_analytics_quota');
+      console.info('BUDGET commit attempts at ms', cc.map((x) => x.t - cc[0].t), 'final remaining-ish');
+      expect(cc.length).toBeLessThanOrEqual(3);
+    } finally { vi.useRealTimers(); }
+  }, 30_000);
+});
