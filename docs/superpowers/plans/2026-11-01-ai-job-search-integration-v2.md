@@ -1,7 +1,7 @@
 # Kế hoạch tích hợp ý tưởng từ ai-job-search vào cvFit
 
 -   Ngày lập ban đầu: 24/10/2026.
--   Cập nhật: 16/11/2026.
+-   Cập nhật: 18/11/2026 (M2-Q audit).
 -   Trạng thái: P0, P1A, P1B (+ P1B.1), P1C, P2A DEPLOYED / PRODUCTION
     VERIFIED; P2B DEPLOYED / PRODUCTION VERIFIED (PR #70, `fa1a45f`); P2C DEPLOYED / PRODUCTION VERIFIED WITH KNOWN DEBT (PR #73, `15d90c1`).
     - Cập nhật 15/11/2026:
@@ -641,7 +641,7 @@ dụng vì chưa có hồ sơ nào được gửi.
 
 ## M2 --- Analyze Stabilization (độ tin cậy)
 
-**Trạng thái (16/11/2026): M2-A, M2-B, M2-C2 RELEASED.** Ngoài phạm vi: prompt, model, canonical scoring, probability, ngưỡng.
+**Trạng thái (18/11/2026): M2-A, M2-B, M2-C2, M2-D2, M2-D3 RELEASED; M2-Q audit/thiết kế xong, owner đã quyết Q-D1..Q-D4 (18/11).** Ngoài phạm vi: prompt, model, canonical scoring, probability, ngưỡng.
 
 | Stage | Nội dung | Trạng thái |
 |---|---|---|
@@ -649,10 +649,14 @@ dụng vì chưa có hồ sơ nào được gửi.
 | M2-B | Guard double-submit, giới hạn Full CV 5 song song, slot giờ nguyên tử fail-closed, 413 JD/CV, Gemini 429/5xx → 503, lỗi client có kiểu + dịch | DEPLOYED / SMOKE PASS WITH KNOWN DEBT — PR #79 `375b13e` |
 | M2-C1 | Thiết kế quota tháng reserve/commit/release (owner chọn Option B; D1 = miễn 2 uncertain/chu kỳ, D2 = idempotency key UUID → 409, D3 = fail-closed) | Xong. `docs/audits/2026-11-15-m2c1-monthly-quota-integrity-design.md` (+ amendments) |
 | M2-C2 | Ledger `analytics_quota_reservations` + RPC service_role, handler + client | Migration áp production 16/11; app DEPLOYED / SMOKE PASS — PR #80 `f1ced35`. Preflight: `docs/audits/2026-11-16-m2c2a-migration-preflight.md` |
+| M2-D2 | Recruiter save-only retry, history trung thực, retry chỉ phần lỗi | RELEASED 16/11 — PR #82 `e05622a`. `docs/audits/2026-11-16-m2d2-reliability-retry-ux.md` |
+| M2-D3 | Ownership ứng viên (claim + lease 600 s + fenced save), `analysis_attempt_id` = idempotency key của ledger | RELEASED 16/11 — migration `20261117000000` + PR #83 `095b993`, smoke PASS WITH KNOWN DEBT. `docs/audits/2026-11-16-m2d3-stale-analysis-recovery.md` |
+| M2-Q (đề xuất) | Audit ledger + thiết kế Q-1 retention/cleanup + phương án khôi phục kết quả mất | AUDIT XONG 18/11 (chỉ thiết kế). `docs/audits/2026-11-18-m2q-quota-ledger-reliability-audit.md`. Owner duyệt 18/11: Q-D1 GIỮ VĨNH VIỄN (không xoá ledger); Q-D2 KHÔNG sweep toàn cục; Q-D3 KHÔNG purge dòng `reserved` hết hạn lâu; Q-D4 HOÃN kho kết quả server cho luồng cá nhân (chờ review privacy). Xem lại retention khi ledger > 100 MB hoặc đạt 20% dung lượng DB thực tế, tuỳ cái nào đến trước. Tiếp theo: Q-1a (test hồi quy + CI, PR riêng), Q-L1 (fenced save phía server cho recruiter) |
 
 **Nợ còn mở (sau M2-C2):**
 - Pre-check client (`check_analytics_quota`) chưa tính reservation đang chạy → batch có thể qua pre-check rồi nhận 429 từ server.
-- Ledger chưa có job dọn dữ liệu cũ (retention).
+- Ledger chưa có job dọn dữ liệu cũ (retention). M2-Q (18/11): chưa cần purge (~350 B/dòng); bất biến bắt buộc — không xoá dòng có `request_key` = `analysis_attempt_id` của ứng viên chưa `done`; owner chọn giữ vĩnh viễn (Q-D1), không sweep (Q-D2/Q-D3).
+- Luồng cá nhân không gửi idempotency key: commit thành công nhưng mất kết quả → bị trừ lượt, retry trừ tiếp (M2-Q P1-2).
 - Release `pre_gemini` thất bại → hết TTL thành `uncertain` (tốn lượt miễn hoặc bị trừ).
 - Commit thành công nhưng mất phản hồi → user bị trừ lượt mà không nhận kết quả.
 - Test DB (SQL + concurrency, `npm run test:db:quota`) chưa chạy trong CI.
