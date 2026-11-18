@@ -45,7 +45,7 @@ export function localizeAiError(err: unknown, t: AiErrorStrings): string {
     case 409: return t.aiErrorDuplicateRequest;
     case 429: return typeof err.body.limit === 'number' ? t.monthlyUsageLimitExceeded : t.aiErrorRateLimited;
     case 503:
-      if (err.body.code === 'quota_unavailable' || err.body.code === 'quota_settlement_unavailable') return t.aiErrorQuotaUnavailable;
+      if (err.body.code === 'quota_unavailable' || err.body.code === 'quota_settlement_unavailable' || err.body.code === 'quota_settlement_unknown') return t.aiErrorQuotaUnavailable;
       return err.retryable ? t.aiErrorBusy : err.message;
     case 504: return t.aiErrorTimeout;
     default: return err.message;

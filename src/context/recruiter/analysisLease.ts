@@ -21,3 +21,8 @@ export function isRetryableCandidate(c: CandidateCV, now = Date.now()): boolean 
 export function leaseAllowsDispatch(claimedAtMs: number, now = Date.now()): boolean {
   return now - claimedAtMs < ANALYSIS_LEASE_MS - DISPATCH_MARGIN_MS;
 }
+
+// M2-Q 2C: after quota_settlement_unknown, how long to wait before re-reading
+// the candidate. Above the database statement timeout (8 s on the local stack),
+// so a commit still running in Postgres has landed or rolled back by then.
+export const LATE_SETTLEMENT_RELOAD_MS = 12_000;

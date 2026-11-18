@@ -54,7 +54,6 @@ vi.mock('../../../_server-lib/payment/supabaseAdmin.js', () => ({
 vi.mock('../../../_server-lib/storage/tempFile.js', () => ({ resolveStorageRef: vi.fn() }));
 
 import { handleAnalyze } from '../../../_server-lib/analyze/handler';
-import { saveCandidateResult } from '../../../_server-lib/recruiter/serverSave';
 
 const reply = (body: unknown) => ({ text: JSON.stringify(body), usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } });
 const CV = 'Data analyst with SQL experience at Acme since 2020. '.repeat(3);
@@ -73,6 +72,7 @@ beforeEach(() => {
     commit_analytics_quota: ok({ status: 'committed', charged: true }),
     release_analytics_quota: ok({ status: 'refunded' }),
     save_candidate_analysis_attempt: ok({ result: 'saved', replay: false }),
+    commit_analytics_quota_and_save_candidate: ok({ status: 'committed', charged: true, replay: false, save: 'saved', save_replay: false }),
   };
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -88,6 +88,8 @@ describe('personal analysis is unchanged', () => {
     expect(res.body.matchScore).toBe(70);
     expect(events).not.toContain('gate');
     expect(calls('save_candidate_analysis_attempt')).toHaveLength(0);
+    expect(calls('commit_analytics_quota_and_save_candidate')).toHaveLength(0);
+    expect(calls('commit_analytics_quota')).toHaveLength(1);
   });
 });
 
@@ -130,49 +132,89 @@ describe('ownership gate (before quota)', () => {
     });
 });
 
-describe('save after settlement', () => {
-  it('saves after the commit, fenced by the request key, and reports serverSave', async () => {
+describe('atomic commit + save (M2-Q 2C)', () => {
+  const ATOMIC = 'commit_analytics_quota_and_save_candidate';
+  const pgError = (code: string, message = 'x') => () => ({ data: null, error: { message, code } });
+
+  it('commits and saves in ONE call, fenced by the request key, and reports serverSave', async () => {
     const res = await handleAnalyze('Bearer x', recruiter);
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ matchScore: 70, serverSave: 'saved' });
-    expect(events.indexOf('commit_analytics_quota')).toBeLessThan(events.indexOf('save_candidate_analysis_attempt'));
-    const [save] = calls('save_candidate_analysis_attempt');
-    expect(save.args).toMatchObject({ p_user_id: USER_ID, p_candidate_id: CANDIDATE, p_attempt_id: KEY, p_match_score: 70 });
-    expect(save.args.p_analysis_result).not.toHaveProperty('serverSave');
+    const [atomic] = calls(ATOMIC);
+    expect(atomic.args).toMatchObject({
+      p_user_id: USER_ID, p_reservation_id: 'res-1', p_candidate_id: CANDIDATE, p_attempt_id: KEY, p_match_score: 70,
+    });
+    expect(atomic.args.p_analysis_result).not.toHaveProperty('serverSave');
+    // Never the two-transaction path for a recruiter request.
+    expect(calls('commit_analytics_quota')).toHaveLength(0);
+    expect(calls('save_candidate_analysis_attempt')).toHaveLength(0);
     expect(calls('release_analytics_quota')).toHaveLength(0);
   });
 
-  it('commit failure: today\'s 503 body, no save, no result', async () => {
-    rpcReply.commit_analytics_quota = () => ({ data: null, error: { message: 'db down' } });
-    const res = await handleAnalyze('Bearer x', recruiter);
-    expect(res.body).toEqual({ error: 'Quota settlement unavailable', code: 'quota_settlement_unavailable', retryable: true });
-    expect(calls('save_candidate_analysis_attempt')).toHaveLength(0);
-  });
-
-  it('Gemini failure: no save', async () => {
-    generateContent.mockRejectedValue(new Error('boom'));
-    expect((await handleAnalyze('Bearer x', recruiter)).status).not.toBe(200);
-    expect(calls('save_candidate_analysis_attempt')).toHaveLength(0);
+  it('decimal score is passed through unrounded (the RPC rounds for the integer column)', async () => {
+    generateContent.mockResolvedValue(reply({ matchScore: 72.5 }));
+    expect((await handleAnalyze('Bearer x', recruiter)).body).toMatchObject({ matchScore: 72.5, serverSave: 'saved' });
+    expect(calls(ATOMIC)[0].args.p_match_score).toBe(72.5);
   });
 
   it.each([
-    ['superseded', ok({ result: 'superseded' }), 'superseded'],
-    ['not_owner', ok({ result: 'not_owner' }), 'not_owner'],
-    ['RPC error', () => ({ data: null, error: { message: 'invalid_match_score' } }), 'failed'],
-    ['RPC throws', () => new Error('socket hang up'), 'failed'],
-    ['unknown answer', ok({ result: 'weird' }), 'failed'],
-  ])('save %s → 200 with the result and serverSave=%s; quota untouched', async (_l, answer, expected) => {
-    rpcReply.save_candidate_analysis_attempt = answer;
+    ['throws (transport)', () => new Error('socket hang up')],
+    ['error without SQLSTATE (gateway / fetch)', () => ({ data: null, error: { message: 'Bad Gateway' } })],
+    ['PostgREST code (no SQLSTATE)', pgError('PGRST003')],
+    ['connection-class SQLSTATE', pgError('08006')],
+    ['unreadable reply', () => ({ data: [{ status: 'committed' }], error: null })],
+  ])('settlement %s → 503 quota_settlement_unknown, no result, no release', async (_l, answer) => {
+    rpcReply[ATOMIC] = answer;
     const res = await handleAnalyze('Bearer x', recruiter);
-    expect(res).toMatchObject({ status: 200, body: { matchScore: 70, serverSave: expected } });
+    expect(res).toEqual({ status: 503, body: { error: 'Quota settlement outcome unknown', code: 'quota_settlement_unknown', retryable: false } });
+    expect(calls(ATOMIC)).toHaveLength(3); // idempotent replays of the same reservation, never a new key
     expect(calls('release_analytics_quota')).toHaveLength(0);
-    expect(calls('commit_analytics_quota')).toHaveLength(1);
   });
 
-  it('skips the save when too little request budget is left', async () => {
-    const deadline = { remainingMs: () => 600, signal: () => new AbortController().signal } as never;
-    expect(await saveCandidateResult(USER_ID, CANDIDATE, KEY, { matchScore: 1 }, deadline)).toBe('failed');
-    expect(calls('save_candidate_analysis_attempt')).toHaveLength(0);
+  it('a SQLSTATE on every attempt (rolled back) → 503 quota_settlement_unavailable (confirmed failed)', async () => {
+    rpcReply[ATOMIC] = pgError('P0001', 'boom');
+    expect((await handleAnalyze('Bearer x', recruiter)).body).toEqual({ error: 'Quota settlement unavailable', code: 'quota_settlement_unavailable', retryable: true });
+  });
+
+  it('one unknown attempt makes the whole outcome unknown even if later attempts roll back', async () => {
+    let n = 0;
+    rpcReply[ATOMIC] = () => (n++ === 0 ? new Error('timeout') : { data: null, error: { message: 'x', code: '55P03' } });
+    expect((await handleAnalyze('Bearer x', recruiter)).body).toMatchObject({ code: 'quota_settlement_unknown' });
+  });
+
+  it('a lost first response is recovered by the replay → 200', async () => {
+    let n = 0;
+    rpcReply[ATOMIC] = () => (n++ === 0 ? new Error('fetch failed') : { data: { status: 'committed', charged: true, replay: true, save: 'saved', save_replay: true }, error: null });
+    expect(await handleAnalyze('Bearer x', recruiter)).toMatchObject({ status: 200, body: { serverSave: 'saved' } });
+  });
+
+  it.each([
+    ['not_found', { status: 'not_found', save: 'skipped' }],
+    ['conflict', { status: 'conflict', state: 'refunded', save: 'skipped' }],
+  ])('commit status %s is definitive: one call, 503 unavailable', async (_l, answer) => {
+    rpcReply[ATOMIC] = ok(answer);
+    expect((await handleAnalyze('Bearer x', recruiter)).body).toMatchObject({ code: 'quota_settlement_unavailable' });
+    expect(calls(ATOMIC)).toHaveLength(1);
+  });
+
+  it('Gemini failure: no settlement call', async () => {
+    generateContent.mockRejectedValue(new Error('boom'));
+    expect((await handleAnalyze('Bearer x', recruiter)).status).not.toBe(200);
+    expect(calls(ATOMIC)).toHaveLength(0);
+  });
+
+  it.each([
+    ['superseded', 'superseded'],
+    ['not_owner', 'not_owner'],
+    ['failed', 'failed'],
+    ['weird', 'failed'],
+    [undefined, 'failed'],
+  ])('committed with save=%s → 200 with the result and serverSave=%s; no release', async (save, expected) => {
+    rpcReply[ATOMIC] = ok({ status: 'committed', charged: true, save });
+    const res = await handleAnalyze('Bearer x', recruiter);
+    expect(res).toMatchObject({ status: 200, body: { matchScore: 70, serverSave: expected } });
+    expect(calls(ATOMIC)).toHaveLength(1);
+    expect(calls('release_analytics_quota')).toHaveLength(0);
   });
 });
 

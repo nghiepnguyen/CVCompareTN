@@ -32,7 +32,7 @@ import {
   type ClaimResult,
 } from '../../services/recruiterService';
 import type { RecruiterContextValue, ChargeConfirmItem } from './types';
-import { isRetryableCandidate, leaseAllowsDispatch } from './analysisLease';
+import { isRetryableCandidate, LATE_SETTLEMENT_RELOAD_MS, leaseAllowsDispatch } from './analysisLease';
 import { VN_TIME_ZONE } from '../../lib/vnTime';
 import { withTimeout } from '../../lib/withTimeout';
 
@@ -51,6 +51,9 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
 
   const [campaigns, setCampaigns] = useState<RecruitmentCampaign[]>([]);
   const [activeCampaign, setActiveCampaign] = useState<RecruitmentCampaign | null>(null);
+  // Read by delayed reloads, so they never replace another campaign's list.
+  const activeCampaignIdRef = useRef<string | null>(null);
+  useEffect(() => { activeCampaignIdRef.current = activeCampaign?.id ?? null; }, [activeCampaign]);
   const [candidates, setCandidates] = useState<CandidateCV[]>([]);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateCV | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -274,6 +277,9 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
 
       const needsConfirmation: ChargeConfirmItem[] = [];
       let reloadAfterRun = false;
+      // M2-Q 2C: a commit with an unknown outcome can still land (and save) for
+      // up to the database statement timeout after the 503; reload once more then.
+      let lateSettlementReload = false;
 
       const markSaved = (candidate: CandidateCV, analysis: AnalysisResult) => {
         unsavedAnalysesRef.current.delete(candidate.id);
@@ -427,8 +433,14 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             // releasing now would make its fenced save 'not_owner' and lose a paid
             // result. Keep the row 'analyzing'; the lease and the claim's ledger
             // check recover it if nothing was saved.
-            if (dispatched && !(err instanceof AiRequestError)) {
+            // M2-Q 2C: same for quota_settlement_unknown — the commit (and its
+            // atomic result save) may still land in Postgres after this answer.
+            // No release, no automatic retry; the reload shows 'done' if it
+            // landed, otherwise the lease + claim ledger check recover it.
+            const settlementUnknown = err instanceof AiRequestError && err.body.code === 'quota_settlement_unknown';
+            if (dispatched && (settlementUnknown || !(err instanceof AiRequestError))) {
               reloadAfterRun = true;
+              if (settlementUnknown) lateSettlementReload = true;
               setLocal(candidate.id, { status: 'analyzing', errorMessage: null });
               continue;
             }
@@ -453,6 +465,9 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
         void refreshUserProfile();
         void loadCampaigns();
         if (reloadAfterRun) void loadCandidates(campaignId);
+        if (lateSettlementReload) {
+          setTimeout(() => { if (activeCampaignIdRef.current === campaignId) void loadCandidates(campaignId); }, LATE_SETTLEMENT_RELOAD_MS);
+        }
       }
       return needsConfirmation;
     },

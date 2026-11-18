@@ -107,7 +107,7 @@ vitest_db() {
     const r = require(process.argv[1]);
     const skipped = r.numPendingTests + r.numTodoTests;
     console.log(`vitest db: passed=${r.numPassedTests} failed=${r.numFailedTests} skipped=${skipped}`);
-    process.exit(r.success && skipped === 0 && r.numPassedTests >= 16 ? 0 : 1);
+    process.exit(r.success && skipped === 0 && r.numPassedTests >= 29 ? 0 : 1);
   ' "$WORK/vitest-db.json"
 }
 run "vitest:src/__tests__/db" vitest_db

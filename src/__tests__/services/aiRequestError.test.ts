@@ -59,6 +59,7 @@ describe('localizeAiError', () => {
     expect(localizeAiError(e(409, { code: 'duplicate_request' }), T)).toBe('DUP');
     expect(localizeAiError(e(503, { code: 'quota_unavailable', retryable: true }), T)).toBe('QUOTA_UNAVAILABLE');
     expect(localizeAiError(e(503, { code: 'quota_settlement_unavailable', retryable: true }), T)).toBe('QUOTA_UNAVAILABLE');
+    expect(localizeAiError(e(503, { code: 'quota_settlement_unknown', retryable: false }), T)).toBe('QUOTA_UNAVAILABLE');
   });
   it('keeps the server message for other statuses and plain errors', () => {
     expect(localizeAiError(e(500), T)).toBe('server text');

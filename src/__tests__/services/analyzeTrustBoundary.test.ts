@@ -16,7 +16,7 @@ const generateContent = vi.fn();
 vi.mock('../../../_server-lib/quota/monthlyQuota.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../_server-lib/quota/monthlyQuota.js')>()),
   reserveMonthlyQuota: async () => ({ status: 'reserved', reservationId: 'res-1' }),
-  commitMonthlyQuota: async () => true,
+  commitMonthlyQuota: async () => 'committed',
   releaseMonthlyQuota: async () => true,
 }));
 vi.mock('../../../_server-lib/rateLimit.js', async (importOriginal) => ({

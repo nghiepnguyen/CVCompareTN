@@ -10,13 +10,14 @@ import { resolveStorageRef } from '../storage/tempFile.js';
 import { stripInvisibleControls } from '../untrustedText.js';
 import { reserveAiCall } from '../rateLimit.js';
 import {
+  commitAndSaveCandidate,
   commitMonthlyQuota,
   isValidIdempotencyKey,
   releaseMonthlyQuota,
   reserveMonthlyQuota,
   type ReleaseOutcome,
 } from '../quota/monthlyQuota.js';
-import { checkCandidateAttempt, saveCandidateResult } from '../recruiter/serverSave.js';
+import { checkCandidateAttempt } from '../recruiter/serverSave.js';
 import { checkInputSize } from '../inputLimits.js';
 import {
   aiFailureResponse,
@@ -255,21 +256,26 @@ export async function handleAnalyze(
     );
 
     // Amendment A4: a result is only delivered once its charge is recorded.
-    // Unsettled after bounded retries → withheld; the reservation expires and
-    // is settled as uncertain (first 2 per cycle forgiven).
-    if (!(await commitMonthlyQuota(userId, reservationId, deadline))) {
-      Sentry.captureMessage('quota_commit_failed', { level: 'error', tags: { route: 'analyze' } });
-      await logAnalysisAttempt(userId, 'error', 'analyze', '[quota_settlement_unavailable]', usage, undefined, deadline);
-      return {
-        status: 503,
-        body: { error: 'Quota settlement unavailable', code: 'quota_settlement_unavailable', retryable: true },
-      };
+    // M2-Q 2C: recruiter results are committed and saved (fenced by attempt) in
+    // ONE transaction, so a commit that lands after this request gives up
+    // (Postgres keeps running it) lands the result on the candidate row too.
+    // Not confirmed → withheld; an unsettled reservation expires and is
+    // settled as uncertain (first 2 per cycle forgiven) — policy unchanged.
+    const settlement = candidateId
+      ? await commitAndSaveCandidate(userId, reservationId, candidateId, requestKey, result as unknown as Record<string, unknown>, deadline)
+      : { outcome: await commitMonthlyQuota(userId, reservationId, deadline), save: undefined };
+    if (settlement.outcome !== 'committed') {
+      const unknown = settlement.outcome === 'unknown';
+      Sentry.captureMessage(unknown ? 'quota_commit_unknown' : 'quota_commit_failed', { level: 'error', tags: { route: 'analyze' } });
+      await logAnalysisAttempt(userId, 'error', 'analyze', unknown ? '[quota_settlement_unknown]' : '[quota_settlement_unavailable]', usage, undefined, deadline);
+      return unknown
+        // The charge (and, for recruiters, the saved result) may still land: the
+        // browser must not release the candidate or retry with a new key.
+        ? { status: 503, body: { error: 'Quota settlement outcome unknown', code: 'quota_settlement_unknown', retryable: false } }
+        : { status: 503, body: { error: 'Quota settlement unavailable', code: 'quota_settlement_unavailable', retryable: true } };
     }
-    // M2-Q 1B: settled, so the result may now be stored (fenced by attempt).
-    // Never throws; on 'failed' the browser saves under the same attempt id.
-    const serverSave = candidateId
-      ? await saveCandidateResult(userId, candidateId, requestKey, result as unknown as Record<string, unknown>, deadline)
-      : undefined;
+    // Never 'failed' silently: on 'failed' the browser saves under the same attempt id.
+    const serverSave = settlement.save;
     await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics, requirementVerification: verificationMetrics }, deadline);
 
     return {
