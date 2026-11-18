@@ -641,7 +641,7 @@ dụng vì chưa có hồ sơ nào được gửi.
 
 ## M2 --- Analyze Stabilization (độ tin cậy)
 
-**Trạng thái (18/11/2026): M2-A, M2-B, M2-C2, M2-D2, M2-D3 RELEASED; M2-Q audit/thiết kế xong, chờ quyết định owner.** Ngoài phạm vi: prompt, model, canonical scoring, probability, ngưỡng.
+**Trạng thái (18/11/2026): M2-A, M2-B, M2-C2, M2-D2, M2-D3 RELEASED; M2-Q audit/thiết kế xong, owner đã quyết Q-D1..Q-D4 (18/11).** Ngoài phạm vi: prompt, model, canonical scoring, probability, ngưỡng.
 
 | Stage | Nội dung | Trạng thái |
 |---|---|---|
@@ -651,11 +651,11 @@ dụng vì chưa có hồ sơ nào được gửi.
 | M2-C2 | Ledger `analytics_quota_reservations` + RPC service_role, handler + client | Migration áp production 16/11; app DEPLOYED / SMOKE PASS — PR #80 `f1ced35`. Preflight: `docs/audits/2026-11-16-m2c2a-migration-preflight.md` |
 | M2-D2 | Recruiter save-only retry, history trung thực, retry chỉ phần lỗi | RELEASED 16/11 — PR #82 `e05622a`. `docs/audits/2026-11-16-m2d2-reliability-retry-ux.md` |
 | M2-D3 | Ownership ứng viên (claim + lease 600 s + fenced save), `analysis_attempt_id` = idempotency key của ledger | RELEASED 16/11 — migration `20261117000000` + PR #83 `095b993`, smoke PASS WITH KNOWN DEBT. `docs/audits/2026-11-16-m2d3-stale-analysis-recovery.md` |
-| M2-Q (đề xuất) | Audit ledger + thiết kế Q-1 retention/cleanup + phương án khôi phục kết quả mất | AUDIT XONG 18/11 (chỉ thiết kế). `docs/audits/2026-11-18-m2q-quota-ledger-reliability-audit.md`. GO: Q-1a (test + CI, không migration), Q-L1 (fenced save phía server cho recruiter). NO-GO: xoá ledger trước khi owner chọn retention (Q-D1); sweep toàn cục (Q-D2); kho kết quả server (Q-L2, cần Q-D4 + review privacy) |
+| M2-Q (đề xuất) | Audit ledger + thiết kế Q-1 retention/cleanup + phương án khôi phục kết quả mất | AUDIT XONG 18/11 (chỉ thiết kế). `docs/audits/2026-11-18-m2q-quota-ledger-reliability-audit.md`. Owner duyệt 18/11: Q-D1 GIỮ VĨNH VIỄN (không xoá ledger); Q-D2 KHÔNG sweep toàn cục; Q-D3 KHÔNG purge dòng `reserved` hết hạn lâu; Q-D4 HOÃN kho kết quả server cho luồng cá nhân (chờ review privacy). Xem lại retention khi ledger > 100 MB hoặc đạt 20% dung lượng DB thực tế, tuỳ cái nào đến trước. Tiếp theo: Q-1a (test hồi quy + CI, PR riêng), Q-L1 (fenced save phía server cho recruiter) |
 
 **Nợ còn mở (sau M2-C2):**
 - Pre-check client (`check_analytics_quota`) chưa tính reservation đang chạy → batch có thể qua pre-check rồi nhận 429 từ server.
-- Ledger chưa có job dọn dữ liệu cũ (retention). M2-Q (18/11): chưa cần purge (~350 B/dòng); bất biến bắt buộc — không xoá dòng có `request_key` = `analysis_attempt_id` của ứng viên chưa `done`; chờ owner quyết Q-D1..Q-D4.
+- Ledger chưa có job dọn dữ liệu cũ (retention). M2-Q (18/11): chưa cần purge (~350 B/dòng); bất biến bắt buộc — không xoá dòng có `request_key` = `analysis_attempt_id` của ứng viên chưa `done`; owner chọn giữ vĩnh viễn (Q-D1), không sweep (Q-D2/Q-D3).
 - Luồng cá nhân không gửi idempotency key: commit thành công nhưng mất kết quả → bị trừ lượt, retry trừ tiếp (M2-Q P1-2).
 - Release `pre_gemini` thất bại → hết TTL thành `uncertain` (tốn lượt miễn hoặc bị trừ).
 - Commit thành công nhưng mất phản hồi → user bị trừ lượt mà không nhận kết quả.

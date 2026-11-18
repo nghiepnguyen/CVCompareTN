@@ -2,6 +2,7 @@
 
 - Date: 2026-11-18
 - Baseline: `origin/main` `e545711` (M2-D3 released, production smoke PASS WITH KNOWN DEBT)
+- Status: owner decisions Q-D1 to Q-D4 approved 2026-11-18 (§13): keep the ledger forever, no sweep, no purge, personal result store deferred.
 - Mode: **audit and design only**. No production reads or writes, no migration, no Gemini call, no deploy, no merge, no change to quota limits or pricing.
 - Sources read:
   - `supabase/migrations/20261116000000_analytics_quota_reservations.sql` (M2-C2 ledger)
@@ -312,7 +313,21 @@ Q-L1 (vitest, mocked Supabase):
 
 Other M2-Q backlog items (Q-2 reserved in pre-check, Q-3 settlement policy, Q-5 fallback drift, Q-6 grants, Q-7 hourly window) are unchanged and not covered by this audit.
 
-## 13. Owner decisions requested (implementation stops here)
+## 13. Owner decisions
+
+**Approved by the owner on 2026-11-18:**
+
+| Decision | Outcome |
+|---|---|
+| Q-D1 retention | **KEEP FOREVER.** No ledger deletion. Phase Q-1b (purge migration and cron) is cancelled. |
+| Q-D2 global sweep | **NO** global sweep of expired reservations. Expiry stays lazy and per user. |
+| Q-D3 R-b | **NO** purge of long-expired `reserved` rows. |
+| Q-D4 personal lost results | **DEFERRED** pending a privacy review. Q-L2 is not started. P1-2 stays known debt. |
+| Retention review trigger | Review retention when the ledger exceeds **100 MB**, or reaches **20 % of the actual database storage capacity**, whichever comes first. Measure with `ledger_total_bytes` and `database_bytes` from the retention preflight. |
+
+§8 therefore stays a reference design only. If the trigger fires, a new design and approval are needed.
+
+The options as originally presented:
 
 - **Q-D1 — Retention window for settled ledger rows:** keep forever (recommended now) / 13 months / 90 days.
 - **Q-D2 — Global sweep of expired reservations:** recommended **no**. It changes when users are charged or forgiven.
@@ -321,11 +336,12 @@ Other M2-Q backlog items (Q-2 reserved in pre-check, Q-3 settlement policy, Q-5 
 
 ## 14. GO / NO-GO
 
-- **GO:** this design; Q-1a (test and CI work, no migration); Q-L1 design and implementation as a separate PR.
-- **NO-GO:**
-  - any ledger deletion before Q-D1;
-  - any sweep before Q-D2;
-  - Q-L2 before Q-D4 and a privacy review.
+- **GO:** this design; Q-1a (regression tests and CI work, no migration), in a separate branch and PR; Q-L1 design and implementation as its own PR later.
+- **NO-GO (approved decisions, 2026-11-18):**
+  - any ledger deletion (Q-D1 keep forever), until the review trigger fires and a new design is approved;
+  - any global expiry sweep (Q-D2);
+  - any purge of long-expired `reserved` rows (Q-D3);
+  - Q-L2 until the privacy review (Q-D4).
 - **Not verified here:**
   - production volume and state counts: the preflight has not been run;
   - Sentry `quota_commit_failed` frequency;
