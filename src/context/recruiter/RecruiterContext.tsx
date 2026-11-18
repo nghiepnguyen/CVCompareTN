@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
-import { analyzeCV, deriveRequirementInsights, displayProbability, localizeAiError, type AnalysisResult } from '../../services/ai';
+import { analyzeCV, deriveRequirementInsights, displayProbability, localizeAiError, type AnalysisResult, type ServerSave } from '../../services/ai';
 import type { DetailedComparison } from '../../services/ai/types';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { processFile as processFileUtil } from '../../hooks/useFileProcessor';
@@ -260,16 +260,42 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
         setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
 
       // Fenced release; a failed write must not end the batch (M2-D2 F2).
-      const release = async (id: string, attemptId: string, errorMessage: string) => {
+      // false = the row was not released: it may already hold this attempt's
+      // result (server-side save, lost response), so reload it. undefined =
+      // the write itself failed; keep the local error state.
+      const release = async (id: string, attemptId: string, errorMessage: string): Promise<boolean | undefined> => {
         try {
-          await releaseCandidateAnalysis(id, attemptId, errorMessage);
+          return await releaseCandidateAnalysis(id, attemptId, errorMessage);
         } catch (err) {
           console.error(`Releasing analysis attempt failed for candidate ${id}:`, err);
+          return undefined;
         }
       };
 
       const needsConfirmation: ChargeConfirmItem[] = [];
       let reloadAfterRun = false;
+
+      const markSaved = (candidate: CandidateCV, analysis: AnalysisResult) => {
+        unsavedAnalysesRef.current.delete(candidate.id);
+        trackEvent('recruiter_analysis_done', {
+          candidate_id: candidate.id,
+          match_score: analysis.matchScore,
+        });
+        setLocal(candidate.id, {
+          status: 'done',
+          errorMessage: null,
+          matchScore: analysis.matchScore,
+          analysisResult: analysis as unknown as Record<string, unknown>,
+          analyzedAt: new Date().toISOString(),
+        });
+      };
+      // Another attempt owns the row or already saved it: never overwrite;
+      // drop this result and show the row as it is.
+      const markSuperseded = (candidate: CandidateCV) => {
+        unsavedAnalysesRef.current.delete(candidate.id);
+        console.warn(`Analysis for candidate ${candidate.id} rejected: attempt no longer owns the row`);
+        reloadAfterRun = true;
+      };
 
       // Bounded save retry. Never re-analyzes: the analysis is already paid for.
       const persist = async (candidate: CandidateCV, analysis: AnalysisResult, attemptId: string) => {
@@ -281,25 +307,8 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
               analysis.matchScore,
               attemptId,
             );
-            unsavedAnalysesRef.current.delete(candidate.id);
-            if (saved === 'superseded') {
-              // Another attempt owns the row or already saved it: never
-              // overwrite; drop this result and show the row as it is.
-              console.warn(`Analysis for candidate ${candidate.id} rejected: attempt no longer owns the row`);
-              reloadAfterRun = true;
-              return;
-            }
-            trackEvent('recruiter_analysis_done', {
-              candidate_id: candidate.id,
-              match_score: analysis.matchScore,
-            });
-            setLocal(candidate.id, {
-              status: 'done',
-              errorMessage: null,
-              matchScore: analysis.matchScore,
-              analysisResult: analysis as unknown as Record<string, unknown>,
-              analyzedAt: new Date().toISOString(),
-            });
+            if (saved === 'superseded') markSuperseded(candidate);
+            else markSaved(candidate, analysis);
             return;
           } catch (err) {
             console.error(`Saving analysis failed for candidate ${candidate.id} (attempt ${attempt + 1}):`, err);
@@ -365,6 +374,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
 
           let tempPaths: string[] = [];
           let analysis: AnalysisResult;
+          let serverSave: ServerSave | undefined;
           try {
             const blob = await withTimeout(
               (async () => {
@@ -394,7 +404,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             // may be over and another tab may own the row. Never dispatch then.
             if (!leaseAllowsDispatch(claimedAt)) throw new LeaseExpiredError();
 
-            analysis = await analyzeCV(
+            ({ serverSave, ...analysis } = await analyzeCV(
               jdContent,
               textData,
               mimeType,
@@ -406,20 +416,25 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
               pdfStoragePath,
               dataStoragePath,
               attemptId,
-            );
+              candidate.id,
+            ));
           } catch (err) {
             console.error(`Analysis failed for candidate ${candidate.id}:`, err);
             const errorMsg = err instanceof LeaseExpiredError
               ? t.recruiterLeaseExpired
               : err instanceof Error ? localizeAiError(err, t) : 'Unknown error';
-            await release(candidate.id, attemptId, errorMsg);
+            if ((await release(candidate.id, attemptId, errorMsg)) === false) reloadAfterRun = true;
             setLocal(candidate.id, { status: 'error', errorMessage: errorMsg });
             continue;
           } finally {
             if (tempPaths.length) void cleanupTempAnalysisFiles(tempPaths);
           }
 
-          await persist(candidate, analysis, attemptId);
+          // M2-Q 1B: the server already stored it; anything else (including an
+          // old server that sends no serverSave) falls back to the browser save.
+          if (serverSave === 'saved') markSaved(candidate, analysis);
+          else if (serverSave === 'superseded' || serverSave === 'not_owner') markSuperseded(candidate);
+          else await persist(candidate, analysis, attemptId);
         }
       } finally {
         setIsAnalyzing(false);

@@ -16,6 +16,7 @@ import {
   reserveMonthlyQuota,
   type ReleaseOutcome,
 } from '../quota/monthlyQuota.js';
+import { checkCandidateAttempt, saveCandidateResult } from '../recruiter/serverSave.js';
 import { checkInputSize } from '../inputLimits.js';
 import {
   aiFailureResponse,
@@ -62,6 +63,7 @@ export async function handleAnalyze(
     cvDataStoragePath?: string;
     batchTotal?: number;
     idempotencyKey?: unknown;
+    candidateId?: unknown;
   };
 
   // Before the empty check so guards, jdTitle and logs all see the same JD.
@@ -89,6 +91,12 @@ export async function handleAnalyze(
     return { status: 400, body: { error: 'Invalid idempotency key' } };
   }
   const requestKey = isValidIdempotencyKey(b.idempotencyKey) ? b.idempotencyKey : crypto.randomUUID();
+  // M2-Q 1B: a recruiter request names its candidate; the claim attempt id is
+  // its idempotency key, so a candidate without a client key cannot be fenced.
+  if (b.candidateId !== undefined && (!isValidIdempotencyKey(b.candidateId) || !isValidIdempotencyKey(b.idempotencyKey))) {
+    return { status: 400, body: { error: 'Invalid candidate request' } };
+  }
+  const candidateId = b.candidateId as string | undefined;
   const tooLargeInline = checkInputSize({ jd, cvData, cvMimeType });
   if (tooLargeInline) {
     await logAnalysisAttempt(null, 'error', 'analyze', `[input_too_large:${tooLargeInline.body.field}]`, undefined, undefined, deadline);
@@ -137,6 +145,19 @@ export async function handleAnalyze(
     }
   } catch {
     return { status: 503, body: { error: 'Account verification unavailable' } };
+  }
+
+  // M2-Q 1B ownership gate, before any quota or slot is taken: only the
+  // attempt that currently owns the candidate may run (fails closed).
+  if (candidateId) {
+    const gate = await checkCandidateAttempt(userId, candidateId, requestKey, deadline);
+    if (gate === 'unavailable') {
+      return { status: 503, body: { error: 'Candidate verification unavailable', retryable: true } };
+    }
+    if (gate === 'not_owner') {
+      await logAnalysisAttempt(userId, 'error', 'analyze', '[candidate_not_owner]', undefined, undefined, deadline);
+      return { status: 409, body: { error: 'Analysis attempt does not own this candidate', code: 'not_owner' } };
+    }
   }
 
   // Count actual analyze calls in the last hour, so understating batchTotal
@@ -244,9 +265,17 @@ export async function handleAnalyze(
         body: { error: 'Quota settlement unavailable', code: 'quota_settlement_unavailable', retryable: true },
       };
     }
+    // M2-Q 1B: settled, so the result may now be stored (fenced by attempt).
+    // Never throws; on 'failed' the browser saves under the same attempt id.
+    const serverSave = candidateId
+      ? await saveCandidateResult(userId, candidateId, requestKey, result as unknown as Record<string, unknown>, deadline)
+      : undefined;
     await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics, requirementVerification: verificationMetrics }, deadline);
 
-    return { status: 200, body: result as unknown as Record<string, unknown> };
+    return {
+      status: 200,
+      body: serverSave ? { ...(result as unknown as Record<string, unknown>), serverSave } : (result as unknown as Record<string, unknown>),
+    };
   } catch (analysisError) {
     console.error('Analysis failed:', analysisError);
     const category = classifyAiFailure(analysisError);

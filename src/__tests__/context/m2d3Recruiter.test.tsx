@@ -199,3 +199,57 @@ describe('M2-D3 recovery flow', () => {
     expect(mocks.checkAnalyticsQuota).toHaveBeenCalledWith('u1', 2);
   });
 });
+
+describe('M2-Q 1B server-side save', () => {
+  it('sends the candidate id with the attempt key, and skips the browser save when the server saved', async () => {
+    mocks.analyzeCV.mockResolvedValue({ matchScore: 70, serverSave: 'saved' });
+    const result = await mount([cand('c1')]);
+    await run(result);
+    const args = mocks.analyzeCV.mock.calls[0];
+    expect(args[10]).toBe(mocks.claimCandidateAnalysis.mock.calls[0][1]); // key = claim attempt
+    expect(args[11]).toBe('c1');
+    expect(mocks.saveCandidateAnalysis).not.toHaveBeenCalled();
+    expect(result.current.candidates[0]).toMatchObject({ status: 'done', matchScore: 70 });
+    expect(result.current.candidates[0].analysisResult).toEqual({ matchScore: 70 }); // serverSave stripped
+  });
+
+  it.each([['failed'], [undefined]])('serverSave %s (or an old server) falls back to the browser save under the same attempt', async (serverSave) => {
+    mocks.analyzeCV.mockResolvedValue(serverSave ? { matchScore: 70, serverSave } : { matchScore: 70 });
+    const result = await mount([cand('c1')]);
+    await run(result);
+    const [id, saved, score, attemptId] = mocks.saveCandidateAnalysis.mock.calls[0];
+    expect([id, score, attemptId]).toEqual(['c1', 70, mocks.claimCandidateAnalysis.mock.calls[0][1]]);
+    expect(saved).toEqual({ matchScore: 70 }); // serverSave never persisted
+    expect(result.current.candidates[0].status).toBe('done');
+  });
+
+  it.each([['superseded'], ['not_owner']])('serverSave %s drops the result and reloads, no browser save', async (serverSave) => {
+    mocks.analyzeCV.mockResolvedValue({ matchScore: 70, serverSave });
+    const result = await mount([cand('c1')]);
+    const loadsBefore = mocks.getCampaignCandidates.mock.calls.length;
+    await run(result);
+    expect(mocks.saveCandidateAnalysis).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocks.getCampaignCandidates.mock.calls.length).toBeGreaterThan(loadsBefore));
+  });
+
+  it('a lost response whose row was not released (already saved by the server) reloads the row', async () => {
+    mocks.analyzeCV.mockRejectedValue(new Error('network'));
+    mocks.releaseCandidateAnalysis.mockResolvedValue(false);
+    const result = await mount([cand('c1')]);
+    const loadsBefore = mocks.getCampaignCandidates.mock.calls.length;
+    mocks.getCampaignCandidates.mockResolvedValue([{ ...cand('c1', 'done'), matchScore: 70 }]);
+    await run(result);
+    await waitFor(() => expect(result.current.candidates[0]).toMatchObject({ status: 'done', matchScore: 70 }));
+    expect(mocks.getCampaignCandidates.mock.calls.length).toBeGreaterThan(loadsBefore);
+    expect(mocks.saveCandidateAnalysis).not.toHaveBeenCalled();
+  });
+
+  it('a released row (failure before any result) keeps the local error and does not reload', async () => {
+    mocks.analyzeCV.mockRejectedValue(new Error('boom'));
+    const result = await mount([cand('c1')]);
+    const loadsBefore = mocks.getCampaignCandidates.mock.calls.length;
+    await run(result);
+    expect(result.current.candidates[0].status).toBe('error');
+    expect(mocks.getCampaignCandidates.mock.calls.length).toBe(loadsBefore);
+  });
+});
