@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../AuthContext';
 import { useUI } from '../UIContext';
-import { analyzeCV, deriveRequirementInsights, displayProbability, localizeAiError, type AnalysisResult, type ServerSave } from '../../services/ai';
+import { AiRequestError, analyzeCV, deriveRequirementInsights, displayProbability, localizeAiError, type AnalysisResult, type ServerSave } from '../../services/ai';
 import type { DetailedComparison } from '../../services/ai/types';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { processFile as processFileUtil } from '../../hooks/useFileProcessor';
@@ -375,6 +375,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
           let tempPaths: string[] = [];
           let analysis: AnalysisResult;
           let serverSave: ServerSave | undefined;
+          let dispatched = false;
           try {
             const blob = await withTimeout(
               (async () => {
@@ -404,6 +405,7 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             // may be over and another tab may own the row. Never dispatch then.
             if (!leaseAllowsDispatch(claimedAt)) throw new LeaseExpiredError();
 
+            dispatched = true;
             ({ serverSave, ...analysis } = await analyzeCV(
               jdContent,
               textData,
@@ -420,6 +422,16 @@ export function RecruiterProvider({ children }: { children: React.ReactNode }) {
             ));
           } catch (err) {
             console.error(`Analysis failed for candidate ${candidate.id}:`, err);
+            // M2-Q 2A: sent but no server answer (timeout, network drop, unreadable
+            // body): the server may still commit and save under this attempt, so
+            // releasing now would make its fenced save 'not_owner' and lose a paid
+            // result. Keep the row 'analyzing'; the lease and the claim's ledger
+            // check recover it if nothing was saved.
+            if (dispatched && !(err instanceof AiRequestError)) {
+              reloadAfterRun = true;
+              setLocal(candidate.id, { status: 'analyzing', errorMessage: null });
+              continue;
+            }
             const errorMsg = err instanceof LeaseExpiredError
               ? t.recruiterLeaseExpired
               : err instanceof Error ? localizeAiError(err, t) : 'Unknown error';

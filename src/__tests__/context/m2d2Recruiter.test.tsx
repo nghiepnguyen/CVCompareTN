@@ -45,6 +45,9 @@ vi.mock('../../lib/supabase', () => ({
 }));
 
 import { RecruiterProvider, useRecruiter } from '../../context/recruiter/RecruiterContext';
+import { AiRequestError } from '../../services/ai';
+// The server answered with an error, so no save can follow (M2-Q 2A releases only then).
+const serverError = (msg: string) => new AiRequestError(msg, 500, false, {});
 
 const cand = (id: string, status = 'pending') => ({
   id, campaignId: 'k1', candidateName: id, fileName: `${id}.txt`, filePath: 'p', fileSize: 2,
@@ -170,7 +173,7 @@ describe('M2-D2 F1: a save failure never re-runs a paid analysis', () => {
 
 describe('M2-D2 F2: error isolation', () => {
   it('a failing error-status write does not end the batch; every candidate is attempted', async () => {
-    mocks.analyzeCV.mockRejectedValue(new Error('boom'));
+    mocks.analyzeCV.mockRejectedValue(serverError('boom'));
     mocks.releaseCandidateAnalysis.mockRejectedValue(new Error('network'));
     const result = await mount([cand('c1'), cand('c2'), cand('c3')]);
     await run(result);
@@ -195,7 +198,7 @@ describe('M2-D2 F2: error isolation', () => {
   });
 
   it('the analyze error goes to error_message (3rd arg), never parsed_text; later candidates continue', async () => {
-    mocks.analyzeCV.mockRejectedValueOnce(new Error('boom')).mockResolvedValue({ matchScore: 60 });
+    mocks.analyzeCV.mockRejectedValueOnce(serverError('boom')).mockResolvedValue({ matchScore: 60 });
     const result = await mount([cand('c1'), cand('c2')]);
     await run(result);
     const errorCall = mocks.releaseCandidateAnalysis.mock.calls[0];

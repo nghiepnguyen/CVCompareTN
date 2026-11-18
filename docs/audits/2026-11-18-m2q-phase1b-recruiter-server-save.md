@@ -118,7 +118,7 @@ The first C2 mutant was a syntax error and was redone as a valid one; only the v
 
 ## 7. Remaining debt
 
-- **Client timeout race (unchanged).** If the browser gives up (75 s) and releases the row while the server is still saving, the fence rejects the late save (`not_owner`). The result is paid and lost (`paid_result_lost` → confirmation dialog). The server deadline is 65 s, so this is rare. Fixing it would change M2-D3 release semantics and need a migration.
+- **Client timeout race (unchanged).** If the browser gives up (75 s) and releases the row while the server is still saving, the fence rejects the late save (`not_owner`). The result is paid and lost (`paid_result_lost` → confirmation dialog). The server deadline is 65 s, so this is rare. Fixing it would change M2-D3 release semantics and need a migration. **Corrected by Phase 2A** (`2026-11-18-m2q-phase2a-timeout-ownership-race.md`): a browser-only fix with no migration closes it.
 - **Commit failure (P1-4) and S6** (all three commit responses lost) still withhold a paid result, with no save, as approved (A4) and required by invariant 5.
 - **Gate does not check the lease** (optional hardening). A client that skips its own pre-dispatch lease check could have its lease expire between the gate and the reserve (≈ hourly check + reserve, a few seconds). Another tab could then claim the row before a ledger row exists. That is self-harm only, and was already possible before 1B (no gate at all). Requiring about 60 s of lease left in the gate would close it. Not implemented.
 - **Personal flow (P1-2)** is unchanged by design (Q-D4 deferred).
