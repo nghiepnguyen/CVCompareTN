@@ -3,6 +3,8 @@ BEGIN;
 DO $$
 DECLARE owner_id uuid:=gen_random_uuid(); other_id uuid:=gen_random_uuid(); upload_id uuid:=gen_random_uuid(); token uuid:=gen_random_uuid(); stale uuid:=gen_random_uuid(); r public.storage_uploads; n integer;
 BEGIN
+ -- The storage RPCs are granted to service_role only; act as that caller (as _server-lib/storage does).
+ PERFORM set_config('request.jwt.claim.role','service_role',true);
  INSERT INTO auth.users(id) VALUES(owner_id),(other_id);
  INSERT INTO public.profiles(id,plan) VALUES(owner_id,'pro'),(other_id,'free') ON CONFLICT(id) DO UPDATE SET plan=EXCLUDED.plan;
  SELECT * INTO r FROM public.storage_reserve_upload(owner_id,upload_id,'saved',null,'CV.pdf','application/pdf',100);
