@@ -51,6 +51,8 @@ vi.mock('../../lib/supabase', () => ({
 }));
 
 import { RecruiterProvider, useRecruiter } from '../../context/recruiter/RecruiterContext';
+import { AiRequestError } from '../../services/ai';
+const serverError = (msg: string) => new AiRequestError(msg, 500, false, {});
 
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 const cand = (id: string, status = 'pending', analysisStartedAt: string | null = null) => ({
@@ -140,7 +142,7 @@ describe('M2-D3 recovery flow', () => {
     mocks.claimCandidateAnalysis.mockImplementation(async (id: string, _a: string, confirm: boolean) =>
       id === 'c1' && !confirm ? { result: 'needs_confirm', reason: 'paid_result_lost' } : claimed());
     const result = await mount([cand('c1', 'error'), cand('c2', 'error')]);
-    mocks.analyzeCV.mockRejectedValueOnce(new Error('boom')); // c2 fails in the first run
+    mocks.analyzeCV.mockRejectedValueOnce(serverError('boom')); // c2 fails in the first run
     await run(result);
     mocks.claimCandidateAnalysis.mockClear();
     mocks.analyzeCV.mockClear();
@@ -232,8 +234,8 @@ describe('M2-Q 1B server-side save', () => {
     await waitFor(() => expect(mocks.getCampaignCandidates.mock.calls.length).toBeGreaterThan(loadsBefore));
   });
 
-  it('a lost response whose row was not released (already saved by the server) reloads the row', async () => {
-    mocks.analyzeCV.mockRejectedValue(new Error('network'));
+  it('a server error whose row was not released (already settled) reloads the row', async () => {
+    mocks.analyzeCV.mockRejectedValue(serverError('busy'));
     mocks.releaseCandidateAnalysis.mockResolvedValue(false);
     const result = await mount([cand('c1')]);
     const loadsBefore = mocks.getCampaignCandidates.mock.calls.length;
@@ -244,12 +246,58 @@ describe('M2-Q 1B server-side save', () => {
     expect(mocks.saveCandidateAnalysis).not.toHaveBeenCalled();
   });
 
-  it('a released row (failure before any result) keeps the local error and does not reload', async () => {
-    mocks.analyzeCV.mockRejectedValue(new Error('boom'));
+  it('a released row (server answered with a failure) keeps the local error and does not reload', async () => {
+    mocks.analyzeCV.mockRejectedValue(serverError('boom'));
     const result = await mount([cand('c1')]);
     const loadsBefore = mocks.getCampaignCandidates.mock.calls.length;
     await run(result);
     expect(result.current.candidates[0].status).toBe('error');
     expect(mocks.getCampaignCandidates.mock.calls.length).toBe(loadsBefore);
+  });
+});
+
+describe('M2-Q 2A: no release while the server may still save', () => {
+  const timeout = () => new DOMException('signal timed out', 'TimeoutError');
+  it.each([
+    ['client timeout (75 s)', timeout],
+    ['network drop', () => new TypeError('Failed to fetch')],
+    ['unreadable 200 body', () => new SyntaxError('Unexpected end of JSON input')],
+  ])('%s after dispatch: row not released, kept analyzing, reloaded; no browser save, no second Gemini call', async (_l, err) => {
+    mocks.analyzeCV.mockRejectedValue(err());
+    const result = await mount([cand('c1'), cand('c2')]);
+    const loadsBefore = mocks.getCampaignCandidates.mock.calls.length;
+    mocks.getCampaignCandidates.mockResolvedValue([{ ...cand('c1', 'done'), matchScore: 70 }, { ...cand('c2', 'done'), matchScore: 60 }]);
+    await run(result);
+    expect(mocks.releaseCandidateAnalysis).not.toHaveBeenCalled();
+    expect(mocks.saveCandidateAnalysis).not.toHaveBeenCalled();
+    expect(mocks.analyzeCV).toHaveBeenCalledTimes(2); // one per candidate, the batch continues
+    expect(mocks.getCampaignCandidates.mock.calls.length).toBeGreaterThan(loadsBefore);
+    await waitFor(() => expect(result.current.candidates.map((c) => c.status)).toEqual(['done', 'done']));
+  });
+
+  it('kept analyzing locally (not error) until the reload, so no retry button re-dispatches it', async () => {
+    mocks.analyzeCV.mockRejectedValue(timeout());
+    const result = await mount([cand('c1')]);
+    mocks.getCampaignCandidates.mockImplementation(() => new Promise(() => {})); // reload still pending
+    await run(result);
+    expect(result.current.candidates[0]).toMatchObject({ status: 'analyzing', errorMessage: null });
+    expect(result.current.candidates[0].analysisStartedAt).toBeTruthy(); // lease clock kept
+  });
+
+  it('failures before dispatch still release (nothing can be saved for them)', async () => {
+    mocks.processFile.mockRejectedValue(new TypeError('Failed to fetch'));
+    const result = await mount([cand('c1')]);
+    await run(result);
+    expect(mocks.analyzeCV).not.toHaveBeenCalled();
+    expect(mocks.releaseCandidateAnalysis).toHaveBeenCalledTimes(1);
+    expect(result.current.candidates[0].status).toBe('error');
+  });
+
+  it('a server answer (AiRequestError) still releases with the localized message', async () => {
+    mocks.analyzeCV.mockRejectedValue(new AiRequestError('x', 504, true, {}));
+    const result = await mount([cand('c1')]);
+    await run(result);
+    expect(mocks.releaseCandidateAnalysis).toHaveBeenCalledTimes(1);
+    expect(result.current.candidates[0].status).toBe('error');
   });
 });
