@@ -88,6 +88,14 @@ describe('POST /api/recruiter/save-analysis', () => {
       expect(status).toHaveBeenCalledWith(200);
     });
 
+    it('M2-Q 2C: a decimal score (72.5) is rounded for the integer column; the result JSON keeps it', async () => {
+      const { rpc } = await run({ data: { result: 'saved', replay: false }, error: null },
+        { ...body, analysisResult: { matchScore: 72.5 }, matchScore: 72.5 });
+      expect(rpc).toHaveBeenCalledWith('save_candidate_analysis_attempt', expect.objectContaining({
+        p_analysis_result: { matchScore: 72.5 }, p_match_score: 73,
+      }));
+    });
+
     it.each(['superseded', 'not_owner'])('maps %s to 409 with that code (nothing written)', async (result) => {
       const { status, json } = await run({ data: { result }, error: null }, body);
       expect(status).toHaveBeenCalledWith(409);

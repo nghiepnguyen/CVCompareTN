@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
-import { ANALYSIS_LEASE_MS, isRetryableCandidate, leaseAllowsDispatch } from '../../context/recruiter/analysisLease';
+import { ANALYSIS_LEASE_MS, isRetryableCandidate, LATE_SETTLEMENT_RELOAD_MS, leaseAllowsDispatch } from '../../context/recruiter/analysisLease';
 
 const mocks = vi.hoisted(() => ({
   analyzeCV: vi.fn(),
@@ -299,5 +299,58 @@ describe('M2-Q 2A: no release while the server may still save', () => {
     await run(result);
     expect(mocks.releaseCandidateAnalysis).toHaveBeenCalledTimes(1);
     expect(result.current.candidates[0].status).toBe('error');
+  });
+  it('confirmed settlement failure (quota_settlement_unavailable) still releases', async () => {
+    mocks.analyzeCV.mockRejectedValue(new AiRequestError('x', 503, true, { code: 'quota_settlement_unavailable' }));
+    const result = await mount([cand('c1')]);
+    await run(result);
+    expect(mocks.releaseCandidateAnalysis).toHaveBeenCalledTimes(1);
+    expect(result.current.candidates[0].status).toBe('error');
+  });
+});
+
+describe('M2-Q 2C: quota_settlement_unknown keeps the row (commit + save may still land)', () => {
+  const unknown = () => new AiRequestError('Quota settlement outcome unknown', 503, false, { code: 'quota_settlement_unknown' });
+
+  it('no release, no browser save, no retry with a new key; kept analyzing with its lease clock', async () => {
+    mocks.analyzeCV.mockRejectedValue(unknown());
+    const result = await mount([cand('c1')]);
+    mocks.getCampaignCandidates.mockImplementation(() => new Promise(() => {})); // reload still pending
+    await run(result);
+    expect(mocks.releaseCandidateAnalysis).not.toHaveBeenCalled();
+    expect(mocks.saveCandidateAnalysis).not.toHaveBeenCalled();
+    expect(mocks.analyzeCV).toHaveBeenCalledTimes(1);
+    expect(mocks.claimCandidateAnalysis).toHaveBeenCalledTimes(1);
+    expect(result.current.candidates[0]).toMatchObject({ status: 'analyzing', errorMessage: null });
+    expect(result.current.candidates[0].analysisStartedAt).toBeTruthy();
+  });
+
+  it('reloads now and once more after the late-settlement window, showing the landed result', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.analyzeCV.mockRejectedValue(unknown());
+      const result = await mount([cand('c1')]);
+      const loadsBefore = mocks.getCampaignCandidates.mock.calls.length;
+      mocks.getCampaignCandidates.mockResolvedValue([cand('c1', 'analyzing', new Date().toISOString())]);
+      await run(result);
+      expect(mocks.getCampaignCandidates.mock.calls.length).toBe(loadsBefore + 1);
+      mocks.getCampaignCandidates.mockResolvedValue([{ ...cand('c1', 'done'), matchScore: 70 }]);
+      await act(async () => { await vi.advanceTimersByTimeAsync(LATE_SETTLEMENT_RELOAD_MS); });
+      expect(mocks.getCampaignCandidates.mock.calls.length).toBe(loadsBefore + 2);
+      await waitFor(() => expect(result.current.candidates[0].status).toBe('done'));
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('the delayed reload never replaces another campaign\'s list', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.analyzeCV.mockRejectedValue(unknown());
+      const result = await mount([cand('c1')]);
+      await run(result);
+      act(() => { result.current.setActiveCampaign({ id: 'k2', jdContent: 'x' } as never); });
+      const loads = mocks.getCampaignCandidates.mock.calls.filter((c) => c[0] === 'k1').length;
+      await act(async () => { await vi.advanceTimersByTimeAsync(LATE_SETTLEMENT_RELOAD_MS); });
+      expect(mocks.getCampaignCandidates.mock.calls.filter((c) => c[0] === 'k1').length).toBe(loads);
+    } finally { vi.useRealTimers(); }
   });
 });

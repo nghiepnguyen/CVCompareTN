@@ -317,7 +317,8 @@ describe('/api/analyze deadline', () => {
     db.insert = hang;
     const { res, elapsed } = await run(() => analyze());
     expect(res.status).toBe(503);
-    expect(res.body).toMatchObject({ code: 'quota_settlement_unavailable', retryable: true });
+    // A hung (timed-out) commit may still land in Postgres: unknown, not failed (M2-Q 2C).
+    expect(res.body).toMatchObject({ code: 'quota_settlement_unknown', retryable: false });
     expect(res.body.matchScore).toBeUndefined();
     expect(elapsed).toBeLessThanOrEqual(TOTAL_BUDGET_MS);
     expect(signals.every((s) => s.aborted)).toBe(true);

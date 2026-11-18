@@ -49,7 +49,7 @@ const resolveStorageRef = vi.fn();
 vi.mock('../../../_server-lib/storage/tempFile.js', () => ({ resolveStorageRef: (...a: unknown[]) => resolveStorageRef(...a) }));
 
 import { handleAnalyze } from '../../../_server-lib/analyze/handler';
-import { commitMonthlyQuota, releaseMonthlyQuota, reserveMonthlyQuota } from '../../../_server-lib/quota/monthlyQuota';
+import { commitMonthlyQuota, isDefinitiveSqlState, releaseMonthlyQuota, reserveMonthlyQuota } from '../../../_server-lib/quota/monthlyQuota';
 import { createDeadline } from '../../../_server-lib/deadline';
 
 const reply = (body: unknown) => ({ text: JSON.stringify(body), usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } });
@@ -76,7 +76,7 @@ beforeEach(() => {
     const handler = ledger[name];
     if (!handler) return { data: null, error: null };
     const out = handler(args);
-    return out instanceof Error ? { data: null, error: { message: out.message } } : { data: out, error: null };
+    return out instanceof Error ? { data: null, error: { message: out.message, code: (out as { code?: string }).code } } : { data: out, error: null };
   };
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -161,9 +161,9 @@ describe('analyze ↔ quota reservation', () => {
     expect(calls('release_analytics_quota').map((c) => c.args.p_outcome)).toEqual(['uncertain']);
   });
 
-  it('A4: commit that cannot be recorded withholds the result (bounded retries)', async () => {
+  it('A4: commit rolled back on every attempt (SQLSTATE) withholds the result: confirmed failed', async () => {
     generateContent.mockResolvedValue(reply({ matchScore: 70 }));
-    ledger.commit_analytics_quota = () => new Error('db down');
+    ledger.commit_analytics_quota = () => Object.assign(new Error('db error'), { code: 'P0001' });
     const res = await handleAnalyze('Bearer x', body);
     expect(res).toMatchObject({ status: 503, body: { code: 'quota_settlement_unavailable', retryable: true } });
     expect(res.body.matchScore).toBeUndefined();
@@ -172,12 +172,22 @@ describe('analyze ↔ quota reservation', () => {
     expect(db.log.at(-1)?.error_message).toBe('[quota_settlement_unavailable]');
   });
 
+  it('M2-Q 2C: commit error without a SQLSTATE is an UNKNOWN outcome, never success (personal path)', async () => {
+    generateContent.mockResolvedValue(reply({ matchScore: 70 }));
+    ledger.commit_analytics_quota = () => new Error('db down');
+    const res = await handleAnalyze('Bearer x', body);
+    expect(res).toEqual({ status: 503, body: { error: 'Quota settlement outcome unknown', code: 'quota_settlement_unknown', retryable: false } });
+    expect(calls('commit_analytics_quota')).toHaveLength(3);
+    expect(calls('release_analytics_quota')).toHaveLength(0);
+    expect(calls('commit_analytics_quota_and_save_candidate')).toHaveLength(0); // personal never uses the recruiter RPC
+    expect(db.log.at(-1)?.error_message).toBe('[quota_settlement_unknown]');
+  });
+
   // M2-Q 1A: only an explicit 'committed' answer may release the result.
   it.each([
     ['not_found', { status: 'not_found' }],
     ['still reserved', { status: 'reserved' }],
     ['malformed (no status)', { charged: true }],
-    ['array', [{ status: 'committed' }]],
   ])('M2-Q: commit answer %s never becomes a 200 with the result', async (_label, answer) => {
     generateContent.mockResolvedValue(reply({ matchScore: 70 }));
     ledger.commit_analytics_quota = () => answer;
@@ -185,6 +195,14 @@ describe('analyze ↔ quota reservation', () => {
     expect(res.status).toBe(503);
     expect(res.body).toEqual({ error: 'Quota settlement unavailable', code: 'quota_settlement_unavailable', retryable: true });
     expect(calls('release_analytics_quota')).toHaveLength(0);
+  });
+
+  it('M2-Q 2C: an unreadable commit answer (array) is unknown, never a 200', async () => {
+    generateContent.mockResolvedValue(reply({ matchScore: 70 }));
+    ledger.commit_analytics_quota = () => [{ status: 'committed' }];
+    const res = await handleAnalyze('Bearer x', body);
+    expect(res).toMatchObject({ status: 503, body: { code: 'quota_settlement_unknown' } });
+    expect(res.body.matchScore).toBeUndefined();
   });
 
   it('a commit conflict (reservation already refunded) is definitive: not retried, result withheld', async () => {
@@ -211,7 +229,12 @@ describe('server quota module', () => {
 
   it('commit/release retry at most 3 times, and stop at the request deadline', async () => {
     ledger.commit_analytics_quota = () => new Error('flaky');
-    expect(await commitMonthlyQuota(USER_ID, 'r', createDeadline(10_000))).toBe(false);
+    expect(await commitMonthlyQuota(USER_ID, 'r', createDeadline(10_000))).toBe('unknown');
+    expect(calls('commit_analytics_quota')).toHaveLength(3);
+
+    db.rpcCalls = [];
+    ledger.commit_analytics_quota = () => Object.assign(new Error('raise'), { code: '22023' });
+    expect(await commitMonthlyQuota(USER_ID, 'r', createDeadline(10_000))).toBe('failed');
     expect(calls('commit_analytics_quota')).toHaveLength(3);
 
     db.rpcCalls = [];
@@ -221,7 +244,17 @@ describe('server quota module', () => {
     expect(calls('release_analytics_quota')).toHaveLength(2);
 
     db.rpcCalls = [];
-    expect(await commitMonthlyQuota(USER_ID, 'r', createDeadline(100))).toBe(false);
+    ledger.commit_analytics_quota = () => new Error('flaky');
+    expect(await commitMonthlyQuota(USER_ID, 'r', createDeadline(100))).toBe('unknown');
     expect(calls('commit_analytics_quota').length).toBeLessThanOrEqual(1);
+
+    db.rpcCalls = [];
+    expect(await commitMonthlyQuota(USER_ID, 'r', createDeadline(0))).toBe('failed'); // nothing was sent
+    expect(calls('commit_analytics_quota')).toHaveLength(0);
+  });
+
+  it('M2-Q 2C: only a real Postgres SQLSTATE is definitive', () => {
+    for (const c of ['P0001', '22023', '42501', '57014', '55P03', '40001', 'XX000']) expect(isDefinitiveSqlState(c)).toBe(true);
+    for (const c of [undefined, '', 'PGRST003', 'PGRST116', '08006', '08003', '57P01', '502', 'p0001', 'P00011']) expect(isDefinitiveSqlState(c)).toBe(false);
   });
 });

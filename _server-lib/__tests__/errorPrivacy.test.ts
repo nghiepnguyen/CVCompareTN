@@ -8,7 +8,7 @@ const fail = vi.hoisted(() => vi.fn());
 vi.mock('../quota/monthlyQuota.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../quota/monthlyQuota.js')>()),
   reserveMonthlyQuota: async () => ({ status: 'reserved', reservationId: 'res-1' }),
-  commitMonthlyQuota: async () => true,
+  commitMonthlyQuota: async () => 'committed',
   releaseMonthlyQuota: async () => true,
 }));
 vi.mock('../rateLimit.js', async (importOriginal) => ({

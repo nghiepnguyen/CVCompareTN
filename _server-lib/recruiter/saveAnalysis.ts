@@ -27,7 +27,9 @@ export async function saveCandidateAnalysisForUser(userId: string, rawBody: unkn
 
   const candidateId = body?.candidateId;
   const analysisResult = body?.analysisResult;
-  const matchScore = typeof body?.matchScore === 'number' ? body.matchScore : 0;
+  // match_score is an integer column (the result JSON keeps the exact value);
+  // the model may return a decimal such as 72.5 (M2-Q 2C).
+  const matchScore = typeof body?.matchScore === 'number' ? Math.round(body.matchScore) : 0;
 
   if (!candidateId || !analysisResult) {
     return { status: 400, body: { error: 'Missing candidateId or analysisResult' } };
