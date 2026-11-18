@@ -214,6 +214,9 @@ export async function parseCV(
   return data.parsedCV;
 }
 
+/** Outcome of the server-side recruiter save (M2-Q 1B); absent for personal requests and old servers. */
+export type ServerSave = 'saved' | 'superseded' | 'not_owner' | 'failed';
+
 export async function analyzeCV(
   jd: string,
   cvData: string,
@@ -225,8 +228,11 @@ export async function analyzeCV(
   batchTotal?: number,
   cvPdfStoragePath?: string,
   cvDataStoragePath?: string,
-  idempotencyKey: string = crypto.randomUUID()
-): Promise<AnalysisResult> {
+  idempotencyKey: string = crypto.randomUUID(),
+  // M2-Q 1B, recruiter only: the server saves the result to this candidate
+  // under the claim attempt (= idempotencyKey) and reports it in serverSave.
+  candidateId?: string
+): Promise<AnalysisResult & { serverSave?: ServerSave }> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -243,6 +249,7 @@ export async function analyzeCV(
       // M2-C2: one key per CV per run; the server meters each key once.
       // The recruiter flow passes its claim attempt id (M2-D3).
       idempotencyKey,
+      candidateId,
     }),
     // Server answers within its 65s request deadline (_server-lib/deadline.ts);
     // 75s here leaves room for the response to arrive before we give up client-side.
@@ -251,5 +258,5 @@ export async function analyzeCV(
 
   if (!res.ok) throw await aiRequestError(res, `Phân tích thất bại (HTTP ${res.status})`);
 
-  return res.json() as Promise<AnalysisResult>;
+  return res.json() as Promise<AnalysisResult & { serverSave?: ServerSave }>;
 }
