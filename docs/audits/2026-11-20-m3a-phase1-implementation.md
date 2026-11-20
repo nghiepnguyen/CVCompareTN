@@ -1,7 +1,8 @@
 # M3-A Phase 1 — Personal result recovery: implementation report
 
 - Date: 2026-11-20
-- Branch: `fix/m3a-personal-result-recovery` (local only, **uncommitted**), worktree `../cv-compare-tn-m3a`, base `origin/main` @ `4aa4301`
+- **Status (post-release, 2026-11-20):** RELEASED as `67867d3` (PR #94), production `dpl_HP6WMBQNZ8Mo2XSYBgVbQgAQ5SNQ`, smoke PASS WITH KNOWN DEBT. R3 (prod grant check) was closed: PASS. See `2026-11-20-m3a-phase1-release-readiness.md` and `2026-11-20-m3a-phase1-production-release.md`. The rest of this report is the pre-release record.
+- Branch: `fix/m3a-personal-result-recovery` (local only, **uncommitted** at the time of writing), worktree `../cv-compare-tn-m3a`, base `origin/main` @ `4aa4301`
 - Design: `docs/audits/2026-11-20-m3a-personal-result-recovery-audit.md`
 - Mode: offline. No production access, no migration, no Gemini call, no push, PR, Preview or deploy. Every DB test ran on a disposable local Supabase stack with its own demo keys (`127.0.0.1:54321`). The shell had no `SUPABASE*` variables, and the worktree has no `.env`.
 
