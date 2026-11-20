@@ -81,10 +81,11 @@ beforeEach(() => {
 });
 
 describe('personal analysis is unchanged', () => {
-  it('no candidateId: no ownership query, no save RPC, body is exactly the result', async () => {
+  // M3-A: personal results now get a history save (m3aPersonalHistorySave.test.ts);
+  // this mock has no history table, so that save reports 'failed'.
+  it('no candidateId: no ownership query, no candidate save RPC', async () => {
     const res = await handleAnalyze('Bearer x', personal);
     expect(res.status).toBe(200);
-    expect(res.body).not.toHaveProperty('serverSave');
     expect(res.body.matchScore).toBe(70);
     expect(events).not.toContain('gate');
     expect(calls('save_candidate_analysis_attempt')).toHaveLength(0);

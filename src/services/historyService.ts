@@ -2,6 +2,7 @@ import { supabase, withAuthRetry } from "../lib/supabase";
 import { AnalysisResult, normalizeAnalysisPayload, normalizeParsedCV } from "./ai";
 import type { UserPlan } from "./userService";
 import { HISTORY_DAYS_BY_PLAN } from "../lib/planLimits";
+import { toHistoryRow } from "../lib/historyRow";
 
 export type { SavedJD } from "./jdService";
 
@@ -89,34 +90,7 @@ export async function saveToHistory(results: AnalysisResult | AnalysisResult[], 
   const userId = resultsArray[0].userId;
   const maxItems = plan === 'free' ? 50 : 500;
   
-  const historyData = resultsArray.map(h => ({
-    user_id: userId,
-    analysis_id: h.id,
-    timestamp: new Date(h.timestamp).toISOString(),
-    jd_title: h.jdTitle,
-    job_title: h.jobTitle,
-    cv_name: h.cvName,
-    match_score: h.matchScore,
-    category_scores: h.categoryScores,
-    matching_points: h.matchingPoints,
-    missing_gaps: h.missingGaps,
-    success_probability: h.successProbability,
-    pass_probability: h.passProbability,
-    pass_explanation: h.passExplanation,
-    main_factor: h.mainFactor,
-    ...(h.probabilityVersion ? { probability_version: h.probabilityVersion } : {}),
-    ats_keywords: h.atsKeywords,
-    rewrite_suggestions: h.rewriteSuggestions,
-    full_rewritten_cv: h.fullRewrittenCV,
-    cv_url: h.cvUrl,
-    detailed_comparison: h.detailedComparison,
-    rating: h.rating,
-    feedback: h.feedback,
-    // Canonical analyses store the language the prose was delivered in.
-    language: h.presentationLanguage || h.language || 'vi',
-    parsed_cv: h.parsedCV,
-    ...(h.scoreVersion ? { score_version: h.scoreVersion } : {}),
-  }));
+  const historyData = resultsArray.map((h) => toHistoryRow(userId, h));
 
   try {
     const { error } = await supabase
@@ -159,6 +133,44 @@ export async function updateHistoryField(
     .eq('analysis_id', resultId);
 
   if (error) throw error;
+}
+
+/** One own history row by analysis_id (RLS-scoped), or undefined. */
+export async function findHistoryByAnalysisId(userId: string, analysisId: string): Promise<AnalysisResult | undefined> {
+  const { data, error } = await supabase
+    .from('history')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('analysis_id', analysisId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapHistory(data) : undefined;
+}
+
+// M3-A: the server answers within its 65 s request deadline; +10 s margin for
+// the history upsert that follows the commit. Poll every 10 s inside that window.
+export const RECOVERY_WINDOW_MS = 75_000;
+export const RECOVERY_POLL_MS = 10_000;
+
+/**
+ * After an analyze request got no HTTP answer, wait for the row the server
+ * saves under analysis_id = request key. At least one lookup; stops at the
+ * first hit or when the window since dispatch closes. Never re-sends analyze.
+ */
+export async function waitForSavedAnalysis(
+  userId: string,
+  analysisId: string,
+  dispatchedAt: number,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))
+): Promise<AnalysisResult | undefined> {
+  const until = dispatchedAt + RECOVERY_WINDOW_MS;
+  for (;;) {
+    const found = await findHistoryByAnalysisId(userId, analysisId).catch(() => undefined);
+    if (found) return found;
+    const wait = Math.min(RECOVERY_POLL_MS, until - Date.now());
+    if (wait <= 0) return undefined;
+    await sleep(wait);
+  }
 }
 
 export async function getUserHistory(uid: string, plan: UserPlan = 'free'): Promise<AnalysisResult[]> {

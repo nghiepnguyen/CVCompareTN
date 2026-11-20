@@ -6,13 +6,14 @@ import { useUI } from '../UIContext';
 import { formatLabel } from '../../translations';
 import { trackEvent } from '../../lib/ga4';
 import { supabase } from '../../lib/supabase';
-import { AnalysisResult, type ParsedCV, analyzeCV, rewriteFullCV, parseCV, localizeAiError } from '../../services/ai';
+import { AiRequestError, AnalysisResult, type ParsedCV, analyzeCV, rewriteFullCV, parseCV, localizeAiError } from '../../services/ai';
 import {
   saveToHistory,
   deleteFromHistory,
   clearUserHistory,
   getUserHistory,
   updateHistoryField,
+  waitForSavedAnalysis,
 } from '../../services/historyService';
 import { checkAnalyticsQuota } from '../../services/analyticsQuotaService';
 import { MAX_BATCH_BY_PLAN } from '../../lib/planLimits';
@@ -315,6 +316,29 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
     );
   };
 
+  // M3-A: one request key per CV per run. A request that got no HTTP answer
+  // (timeout, network drop, unreadable body) may still have been committed and
+  // saved by the server under that key: wait for that row instead of failing,
+  // and never re-send. An HTTP answer (incl. quota_settlement_unknown) is final.
+  const analyzeOrRecover = async (dispatch: (key: string) => ReturnType<typeof analyzeCV>) => {
+    const key = crypto.randomUUID();
+    const dispatchedAt = Date.now();
+    try {
+      return await dispatch(key);
+    } catch (err) {
+      if (err instanceof AiRequestError || !user?.id) throw err;
+      const saved = await waitForSavedAnalysis(user.id, key, dispatchedAt);
+      if (saved) return { ...saved, serverSave: 'saved' as const };
+      throw new Error(t.analysisResultMaybeSaving);
+    }
+  };
+  // Personal only: no result row exists after an unknown settlement (the
+  // server saves only after a confirmed commit), so say so truthfully.
+  const personalAiError = (err: unknown) =>
+    err instanceof AiRequestError && err.body.code === 'quota_settlement_unknown'
+      ? t.analysisSettlementUnknownPersonal
+      : localizeAiError(err, t);
+
   // Set synchronously on click: `isAnalyzing` only flips after the quota
   // check awaits, so a double click used to start two full runs (M2-A P1-2).
   const runInFlightRef = useRef(false);
@@ -456,6 +480,8 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
       const failures: { name: string; message: string }[] = [];
 
       const succeededInputs = new Map<File | StoredCVRef, AnalysisResult>();
+      // Results /api/analyze already wrote to history (M3-A).
+      const serverSavedIds = new Set<string>();
       if (cvInputMode === 'file') {
         const totalFiles = runFiles.length;
         const CONCURRENCY = 5;
@@ -511,7 +537,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
               parsedJob = startParsedCVJob(
                 data, mimeType, reportLanguage, authToken, pdfInlineData, pdfStoragePath, dataStoragePath
               );
-              const analysis = await analyzeCV(
+              const { serverSave, ...analysis } = await analyzeOrRecover((key) => analyzeCV(
                 jd,
                 data,
                 mimeType,
@@ -521,8 +547,10 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
                 pdfInlineData,
                 totalFiles,
                 pdfStoragePath,
-                dataStoragePath
-              );
+                dataStoragePath,
+                key
+              ));
+              if (serverSave === 'saved') serverSavedIds.add(analysis.id);
               const result: AnalysisResult = { ...analysis, userId: user?.id };
               if (parsedJob.done && parsedJob.value) result.parsedCV = parsedJob.value;
               newResultsSlots[i] = result;
@@ -548,7 +576,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
               captureException(fileErr, { tags: { feature: 'analyze_cv_batch_item' } });
               failures.push({
                 name: fileOrRef.name,
-                message: localizeAiError(fileErr, t),
+                message: personalAiError(fileErr),
               });
             } finally {
               completedCount++;
@@ -599,14 +627,20 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
         const parsedJob = startParsedCVJob(
           cvText, 'text/plain', reportLanguage, authToken, undefined, undefined, undefined
         );
-        const analysis = await analyzeCV(
+        const { serverSave, ...analysis } = await analyzeOrRecover((key) => analyzeCV(
           jd,
           cvText,
           'text/plain',
           'CV_Pasted.txt',
           reportLanguage,
-          authToken
-        );
+          authToken,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          key
+        ));
+        if (serverSave === 'saved') serverSavedIds.add(analysis.id);
         stopFake();
         setProgress(75);
         const result: AnalysisResult = { ...analysis, userId: user?.id };
@@ -661,8 +695,11 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
             .catch((err) => {
               console.error('Error saving analysis history:', err);
               captureException(err, { tags: { feature: 'analyze_history_save' } });
-              for (const r of toPersist) unsavedResultIdsRef.current.add(r.id);
-              return false;
+              // M3-A: rows the server already saved exist regardless.
+              const unsaved = toPersist.filter((r) => !serverSavedIds.has(r.id));
+              for (const r of unsaved) unsavedResultIdsRef.current.add(r.id);
+              addSavedToHistory(toPersist.filter((r) => serverSavedIds.has(r.id)));
+              return unsaved.length === 0;
             })
         : Promise.resolve(false);
 
@@ -740,7 +777,7 @@ export function AnalysisRunProvider({ children }: { children: React.ReactNode })
           },
         },
       });
-      const message = localizeAiError(err, t);
+      const message = personalAiError(err);
       setError(message || 'Đã xảy ra lỗi trong quá trình phân tích.');
     } finally {
       progressStopRef.current?.();
