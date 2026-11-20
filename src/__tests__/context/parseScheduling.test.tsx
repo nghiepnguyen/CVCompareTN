@@ -29,6 +29,8 @@ vi.mock('../../services/ai', async (importOriginal) => {
 });
 
 vi.mock('../../services/historyService', () => ({
+  // M3-A: a plain Error means "no HTTP answer"; nothing was saved under the key.
+  waitForSavedAnalysis: vi.fn(async () => undefined),
   saveToHistory: mocks.saveToHistory,
   updateHistoryField: mocks.updateHistoryField,
   getUserHistory: mocks.getUserHistory,

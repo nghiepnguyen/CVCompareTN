@@ -205,7 +205,10 @@ describe.skipIf(!enabled)('M2-Q 1B server-side save on a real database', () => {
     const a = await claim(u, c.id);
     const res = await analyze(u, { idempotencyKey: a.attempt });
     expect(res.status).toBe(200);
-    expect(res.body).not.toHaveProperty('serverSave');
+    // M3-A: models a stale recruiter tab (pre-#88 bundle, no candidateId): the
+    // server treats it as personal and saves to the user's history, never the
+    // candidate row. Known debt R11 (M3-A phase 1 report).
+    expect(res.body).toMatchObject({ serverSave: 'saved', id: a.attempt });
     expect(await row(c.id)).toMatchObject({ status: 'analyzing', analysis_result: null });
   });
 });

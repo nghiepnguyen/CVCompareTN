@@ -18,6 +18,7 @@ import {
   type ReleaseOutcome,
 } from '../quota/monthlyQuota.js';
 import { checkCandidateAttempt } from '../recruiter/serverSave.js';
+import { saveHistoryRow } from './historySave.js';
 import { checkInputSize } from '../inputLimits.js';
 import {
   aiFailureResponse,
@@ -275,7 +276,14 @@ export async function handleAnalyze(
         : { status: 503, body: { error: 'Quota settlement unavailable', code: 'quota_settlement_unavailable', retryable: true } };
     }
     // Never 'failed' silently: on 'failed' the browser saves under the same attempt id.
-    const serverSave = settlement.save;
+    let serverSave = settlement.save;
+    if (!candidateId) {
+      // M3-A: personal results are saved only now, after the confirmed commit,
+      // under analysis_id = request key so the browser can find it after a lost
+      // response. On 'failed' the browser upsert stays the fallback.
+      result.id = requestKey;
+      serverSave = await saveHistoryRow(userId, result, deadline);
+    }
     await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics, requirementVerification: verificationMetrics }, deadline);
 
     return {

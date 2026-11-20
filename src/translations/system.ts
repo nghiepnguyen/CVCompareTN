@@ -112,6 +112,14 @@ export const system = {
     vi: "Không thể xác minh lượt phân tích lúc này. Vui lòng thử lại sau ít phút.",
     en: "Your analysis quota can't be verified right now. Please try again in a few minutes.",
   },
+  analysisResultMaybeSaving: {
+    vi: "Mất kết nối trước khi nhận kết quả. Kết quả có thể vẫn đang được lưu — vui lòng kiểm tra Lịch sử trước khi phân tích lại.",
+    en: "The connection dropped before the result arrived. It may still be saving — please check History before analyzing again.",
+  },
+  analysisSettlementUnknownPersonal: {
+    vi: "Lượt phân tích có thể đã được tính nhưng không gửi được kết quả, và kết quả sẽ không có trong Lịch sử. Vui lòng kiểm tra số lượt đã dùng trước khi phân tích lại.",
+    en: "This analysis may have been counted, but the result could not be delivered and will not appear in History. Please check your usage before analyzing again.",
+  },
   monthlyUsageLimitExceeded: {
     vi: "Bạn đã vượt quá số lượng sử dụng của tháng này.",
     en: "You have exceeded your usage limit for this month.",
