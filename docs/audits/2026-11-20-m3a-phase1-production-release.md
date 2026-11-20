@@ -33,7 +33,7 @@ No migration, no database change and no environment change were made.
 |---|---|---|---|---|
 | 8a | `/api/analyze` HTTP | — | **200** | PASS |
 | 8b | `serverSave` | — | **`saved`** | PASS |
-| 8c | Response `id` | — | `02035bce-c380-4ecb-be76-fffd420f1874` (= request key) | — |
+| 8c | Response `id` | — | `02035bce…` (= request key) | — |
 | 8d | Quota `usage_count` | 5 | **6** (+1) | PASS |
 | 8e | Ledger rows for the key | — | **1**, `committed`, `charged=true`; ledger total 11 → 12 | PASS |
 | 8f | History rows with `analysis_id` = key | — | **1** (the browser upsert replayed onto the same row); history total 8 → 9 | PASS |
