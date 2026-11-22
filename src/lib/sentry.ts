@@ -1,7 +1,7 @@
 import type * as SentryTypes from '@sentry/react';
 import type * as SentrySdk from './sentrySdk';
 
-import { scrubTelemetry } from './scrubTelemetry';
+import { scrubBreadcrumb, scrubEvent, scrubTelemetry, SENTRY_DATA_COLLECTION } from './scrubTelemetry';
 
 let sdk: Promise<typeof SentrySdk | null> | undefined;
 let currentUserId: string | null = null;
@@ -48,14 +48,16 @@ async function loadSentry(): Promise<typeof SentrySdk | null> {
   const Sentry = await import('./sentrySdk');
   Sentry.init({
     dsn,
-    environment: import.meta.env.MODE,
-    release: import.meta.env.VITE_APP_VERSION as string | undefined,
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
-    ],
-    enableLogs: true,
-    beforeSendLog: scrubTelemetry,
+    // VITE_VERCEL_* are injected at build time by vite.config.ts; local dev falls back to the Vite mode.
+    environment: (import.meta.env.VITE_VERCEL_ENV as string | undefined) || import.meta.env.MODE,
+    release: (import.meta.env.VITE_APP_VERSION as string | undefined) || (import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA as string | undefined) || undefined,
+    // Release Health sessions dropped (SEC-2): not needed, and they carry the user id per page view.
+    integrations: (defaults) => [...defaults.filter((i) => i.name !== 'BrowserSession'), Sentry.browserTracingIntegration()],
+    // No console-to-Logs forwarding (SEC-2): console text carries user data.
+    dataCollection: SENTRY_DATA_COLLECTION,
+    beforeBreadcrumb: scrubBreadcrumb,
+    beforeSendTransaction: (event) => scrubEvent(event),
+    beforeSendSpan: (span) => scrubTelemetry(span),
     tracesSampleRate: 0.1,
     tracePropagationTargets: ['localhost', /^https:\/\/cvfit\.pro\/api/],
     denyUrls: [/extensions\//i, /^chrome:\/\//i, /beacon\.min\.js/i],
@@ -106,7 +108,7 @@ async function loadSentry(): Promise<typeof SentrySdk | null> {
         return null;
       }
 
-      return scrubTelemetry(event);
+      return scrubEvent(event);
     },
   });
   if (currentUserId) Sentry.setUser({ id: currentUserId });

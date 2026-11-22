@@ -44,6 +44,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss(), googleTagHtmlPlugin(gaMeasurementId)],
+    // Sentry environment/release for the browser. Only these two non-secret Vercel system values are exposed.
+    define: {
+      'import.meta.env.VITE_VERCEL_ENV': JSON.stringify(env.VERCEL_ENV ?? ''),
+      'import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA': JSON.stringify(env.VERCEL_GIT_COMMIT_SHA ?? ''),
+    },
     optimizeDeps: {
       esbuildOptions: {
         define: {},
