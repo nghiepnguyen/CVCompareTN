@@ -64,6 +64,8 @@ const rewrite = (cvData: string, cvMimeType = 'text/plain') =>
   handleRewriteCv('Bearer t', { jd: JD, cvData, cvMimeType, language: 'en' });
 
 beforeEach(() => {
+  // Vitest 4: vi.spyOn on an existing spy returns it with old calls, so restore for a fresh spy per test.
+  vi.restoreAllMocks();
   generateContent.mockReset();
   insert.mockReset().mockResolvedValue({ error: null });
   vi.spyOn(console, 'info').mockImplementation(() => {});
