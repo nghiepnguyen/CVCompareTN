@@ -21,7 +21,7 @@ e PASS  sql:admin_update_user PASS  sql:admin_update_user_idempotency PASS  sql:
 _analysis_ownership PASS  sql:commit_and_save_candidate PASS  sql:ledger_grants PASS  sql:m2q_quota_safety PASS  sql:plan_caps PASS  sql:profiles_authority PASS  sql:public_plan_limits PASS  sql:purge
 _free_history PASS  sql:r2_storage PASS  sql:save_candidate_analysis_ownership PASS  sql:storage_buckets_private PASS  sql:storage_upload_quota PASS  stub:suites PASS  stub:applications_backfill PASS 
  script:test:db:quota PASS  script:test:db:claim PASS  script:test:db:m2q PASS  vitest:src/__tests__/db PASS  vitest:src/__tests__/schemaDrift 
-32 suites, 0 failed. Logs: /private/tmp/claude-501/-Users-nghiepnguyen-My-Files-cv-compare-tn/7e4111eb-10e9-4748-8f89-a4938fe2ddfa/scratchpad/m3bdb/logs
+32 suites, 0 failed. Logs: <local scratch dir>/m3bdb/logs
 deadlocks=0
 vitest db: passed=66 failed=0 skipped=0
 vitest schemaDrift: passed=4 failed=0 skipped=0
