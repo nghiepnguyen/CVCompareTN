@@ -16,6 +16,8 @@ export default defineConfig({
       "**/cypress/**",
       "**/.{idea,git,cache,output,temp}/**",
       "**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*",
+      // Nested agent worktrees are other branches' checkouts, not this tree's tests.
+      "**/.claude/**",
     ],
     // Keep the local .env DSN out of tests; Sentry tests stub their own.
     env: { VITE_SENTRY_DSN: "" },
