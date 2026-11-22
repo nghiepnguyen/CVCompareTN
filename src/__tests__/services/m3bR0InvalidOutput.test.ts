@@ -61,6 +61,7 @@ vi.mock('../../../_server-lib/storage/tempFile.js', () => ({ resolveStorageRef: 
 
 import { handleAnalyze, INVALID_AI_OUTPUT_MESSAGES } from '../../../_server-lib/analyze/handler';
 import { SCORE_VERSION } from '../../../_server-lib/ai/localizeAnalysis';
+import { GenerateContentResponse, type BlockedReason, type FinishReason } from '@google/genai';
 
 const USAGE = { promptTokenCount: 3829, candidatesTokenCount: 1500, thoughtsTokenCount: 275 };
 const rawReply = (matchScoreJson: string) => ({
@@ -212,5 +213,131 @@ describe('valid scores: one integer everywhere (canonical-en-v2)', () => {
     const a = calls('commit_analytics_quota_and_save_candidate')[0].args;
     expect(a.p_match_score).toBe(60);
     expect(a.p_analysis_result).toMatchObject({ matchScore: 60, passProbability: 'Medium', scoreVersion: 'canonical-en-v2' });
+  });
+});
+
+// M3-B R0.3-A: provider completion states, built as real SDK response objects
+// (the `text` getter is the SDK's own). Only a completed STOP candidate may
+// become a charged result; everything else completed is invalid AI output;
+// unknown transport outcomes keep the M2-Q uncertain contract.
+describe('provider completion states (real GenerateContentResponse)', () => {
+  const VALID_JSON = rawReply('72').text;
+  const sdk = (o: { text?: string; finishReason?: string; candidates?: false; blockReason?: string; usage?: false }) => {
+    const r = new GenerateContentResponse();
+    if (o.candidates !== false) {
+      r.candidates = [{ content: { role: 'model', parts: o.text === undefined ? [] : [{ text: o.text }] }, ...(o.finishReason ? { finishReason: o.finishReason as FinishReason } : {}) }];
+    }
+    if (o.blockReason) r.promptFeedback = { blockReason: o.blockReason as BlockedReason };
+    if (o.usage !== false) r.usageMetadata = USAGE;
+    return r;
+  };
+  const expectInvalid = async (res: Awaited<ReturnType<typeof handleAnalyze>>, reason: string) => {
+    expect(res).toEqual({ status: 502, body: { error: INVALID_AI_OUTPUT_MESSAGES.released.en, code: 'invalid_ai_output', quotaReleased: true, retryable: false } });
+    expect(calls('commit_analytics_quota')).toHaveLength(0);
+    expect(calls('commit_analytics_quota_and_save_candidate')).toHaveLength(0);
+    expect(calls('release_analytics_quota').map((c) => c.args.p_outcome)).toEqual(['provider_error']);
+    expect(historyUpserts).toHaveLength(0);
+    expect(calls('consume_api_rate_limit')).toHaveLength(1);
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(logRows.at(-1)).toMatchObject({ status: 'error', input_tokens: 3829, output_tokens: 1775 });
+    expect(String(logRows.at(-1)!.error_message)).toBe(`[invalid_ai_output:${reason}:release_refunded]`);
+  };
+
+  it('STOP with valid output → 200, committed, saved (control)', async () => {
+    generateContent.mockResolvedValue(sdk({ text: VALID_JSON, finishReason: 'STOP' }));
+    const res = await handleAnalyze('Bearer x', personal);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ matchScore: 72, scoreVersion: 'canonical-en-v2' });
+    expect(calls('commit_analytics_quota')).toHaveLength(1);
+    expect(historyUpserts).toHaveLength(1);
+  });
+
+  it('MAX_TOKENS with syntactically valid JSON and a valid score is NOT accepted', async () => {
+    generateContent.mockResolvedValue(sdk({ text: VALID_JSON, finishReason: 'MAX_TOKENS' }));
+    await expectInvalid(await handleAnalyze('Bearer x', personal), 'incomplete_response');
+  });
+
+  it('MAX_TOKENS with truncated JSON', async () => {
+    generateContent.mockResolvedValue(sdk({ text: VALID_JSON.slice(0, 60), finishReason: 'MAX_TOKENS' }));
+    await expectInvalid(await handleAnalyze('Bearer x', personal), 'incomplete_response');
+  });
+
+  it.each(['SAFETY', 'RECITATION', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'LANGUAGE', 'OTHER', 'FINISH_REASON_UNSPECIFIED'])(
+    'candidate finishReason %s (even with parseable JSON) → invalid', async (fr) => {
+      generateContent.mockResolvedValue(sdk({ text: VALID_JSON, finishReason: fr }));
+      await expectInvalid(await handleAnalyze('Bearer x', personal), 'incomplete_response');
+    });
+
+  it('candidate blocked by safety with no content parts', async () => {
+    generateContent.mockResolvedValue(sdk({ finishReason: 'SAFETY' }));
+    await expectInvalid(await handleAnalyze('Bearer x', personal), 'incomplete_response');
+  });
+
+  it('candidate without a finishReason is not a completed answer', async () => {
+    generateContent.mockResolvedValue(sdk({ text: VALID_JSON }));
+    await expectInvalid(await handleAnalyze('Bearer x', personal), 'incomplete_response');
+  });
+
+  it('prompt blocked by safety policy (no candidates, promptFeedback.blockReason)', async () => {
+    generateContent.mockResolvedValue(sdk({ candidates: false, blockReason: 'SAFETY' }));
+    await expectInvalid(await handleAnalyze('Bearer x', personal), 'blocked');
+  });
+
+  it('missing candidates → empty text → malformed_json', async () => {
+    generateContent.mockResolvedValue(sdk({ candidates: false }));
+    await expectInvalid(await handleAnalyze('Bearer x', personal), 'malformed_json');
+  });
+
+  it('STOP with empty text → malformed_json', async () => {
+    generateContent.mockResolvedValue(sdk({ text: '', finishReason: 'STOP' }));
+    await expectInvalid(await handleAnalyze('Bearer x', personal), 'malformed_json');
+  });
+
+  it('missing usage metadata: still invalid, tokens logged as 0', async () => {
+    generateContent.mockResolvedValue(sdk({ text: VALID_JSON, finishReason: 'MAX_TOKENS', usage: false }));
+    const res = await handleAnalyze('Bearer x', personal);
+    expect(res.status).toBe(502);
+    expect(logRows.at(-1)).toMatchObject({ status: 'error', input_tokens: 0, output_tokens: 0, model: 'gemini-3-flash-preview' });
+  });
+
+  it('recruiter MAX_TOKENS → fenced failure transition, no candidate save', async () => {
+    generateContent.mockResolvedValue(sdk({ text: VALID_JSON, finishReason: 'MAX_TOKENS' }));
+    await expectInvalid(await handleAnalyze('Bearer x', recruiter), 'incomplete_response');
+    expect(candidateUpdates).toHaveLength(1);
+    expect(candidateUpdates[0].payload).toMatchObject({ status: 'error' });
+    expect(candidateUpdates[0].filters).toEqual([['id', CANDIDATE], ['analysis_attempt_id', KEY], ['status', 'analyzing']]);
+  });
+
+  it('release unconfirmed → no refund claim', async () => {
+    rpcReply.release_analytics_quota = ok({ status: 'uncertain', replay: true });
+    generateContent.mockResolvedValue(sdk({ text: VALID_JSON, finishReason: 'MAX_TOKENS' }));
+    const res = await handleAnalyze('Bearer x', personal);
+    expect(res.body).toMatchObject({ code: 'invalid_ai_output', quotaReleased: false, error: INVALID_AI_OUTPUT_MESSAGES.unconfirmed.en });
+  });
+
+  it('localization reply truncated or blocked keeps the safe EN fallback; canonical score untouched', async () => {
+    // A canonical result with localizable prose, so the second call really happens.
+    const withProse = VALID_JSON.replace('"matchScore":72,', '"matchScore":72,"matchingPoints":[{"content":"Strong SQL analytics at Acme"}],');
+    generateContent
+      .mockResolvedValueOnce(sdk({ text: withProse, finishReason: 'STOP' }))
+      .mockResolvedValueOnce(sdk({ text: '{"items":[', finishReason: 'MAX_TOKENS' }));
+    const res = await handleAnalyze('Bearer x', { ...personal, language: 'vi' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ matchScore: 72, passProbability: 'Medium', scoreVersion: 'canonical-en-v2', presentationLanguage: 'en' });
+    expect(calls('commit_analytics_quota')).toHaveLength(1);
+    expect(generateContent).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['connection loss', new TypeError('fetch failed')],
+    ['aborted request', Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })],
+    ['provider timeout', new Error('DEADLINE_EXCEEDED')],
+  ])('%s keeps the uncertain contract (not invalid_ai_output)', async (_l, err) => {
+    generateContent.mockRejectedValue(err);
+    const res = await handleAnalyze('Bearer x', personal);
+    expect(res.body.code).not.toBe('invalid_ai_output');
+    expect(calls('release_analytics_quota').map((c) => c.args.p_outcome)).toEqual(['uncertain']);
+    expect(calls('commit_analytics_quota')).toHaveLength(0);
+    expect(historyUpserts).toHaveLength(0);
   });
 });

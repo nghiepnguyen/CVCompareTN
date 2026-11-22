@@ -1,4 +1,5 @@
 import { extractText } from 'unpdf';
+import { FinishReason } from '@google/genai';
 import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS, providerFailureCategory } from '../deadline.js';
 import { getGeminiClient, GEMINI_ANALYZE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 import { ANALYSIS_RESPONSE_SCHEMA } from './responseSchema.js';
@@ -33,7 +34,7 @@ import { normalizeMatchScore, type InvalidScoreReason } from '../../src/services
  * the real token usage. Carries no model text.
  */
 export class InvalidAiOutputError extends Error {
-  constructor(readonly reason: InvalidScoreReason | 'malformed_json', readonly usage: AiCallUsage) {
+  constructor(readonly reason: InvalidScoreReason | 'malformed_json' | 'blocked' | 'incomplete_response', readonly usage: AiCallUsage) {
     super(`[invalid_ai_output:${reason}]`);
     this.name = 'InvalidAiOutputError';
   }
@@ -198,6 +199,14 @@ export async function analyzeCV(
       model: GEMINI_ANALYZE_MODEL,
       latencyMs: Date.now() - geminiStart,
     };
+
+    // M3-B R0.3-A: only a candidate that finished with STOP is a complete
+    // answer. A blocked prompt, or a candidate cut off (MAX_TOKENS) or stopped
+    // for any other reason — even when its JSON still parses — is completed but
+    // unusable output. No candidate at all falls through to malformed_json.
+    if (response.promptFeedback?.blockReason) throw new InvalidAiOutputError('blocked', usage);
+    const candidate = response.candidates?.[0];
+    if (candidate && candidate.finishReason !== FinishReason.STOP) throw new InvalidAiOutputError('incomplete_response', usage);
 
     const resultText = response.text || '';
     // Same shape the parser always returned (model JSON); fields are normalized below.
