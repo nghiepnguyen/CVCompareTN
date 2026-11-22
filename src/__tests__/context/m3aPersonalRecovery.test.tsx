@@ -9,7 +9,7 @@ import type { AnalysisResult, ParsedCV } from '../../services/ai';
 
 const T = vi.hoisted(() => ({
   aiErrorAuthRequired: 'AUTH', aiErrorAccountLocked: 'LOCKED', aiErrorInputTooLarge: 'TOO_LARGE {max}',
-  aiErrorRateLimited: 'RATE', aiErrorBusy: 'BUSY', aiErrorTimeout: 'TIMEOUT', aiErrorDuplicateRequest: 'DUP', aiErrorQuotaUnavailable: 'QUOTA_UNAVAILABLE', monthlyUsageLimitExceeded: 'MONTHLY',
+  aiErrorRateLimited: 'RATE', aiErrorBusy: 'BUSY', aiErrorTimeout: 'TIMEOUT', aiErrorDuplicateRequest: 'DUP', aiErrorQuotaUnavailable: 'QUOTA_UNAVAILABLE', aiErrorInvalidOutput: 'INVALID_RELEASED', aiErrorInvalidOutputUnconfirmed: 'INVALID_UNCONFIRMED', monthlyUsageLimitExceeded: 'MONTHLY',
   analysisResultMaybeSaving: 'MAYBE_SAVING', analysisSettlementUnknownPersonal: 'SETTLEMENT_UNKNOWN',
 }));
 const mocks = vi.hoisted(() => ({
@@ -307,5 +307,42 @@ describe('M3-A HTTP answers are final (no lookup)', () => {
     await analyzeOnce(result);
     expect(mocks.waitForSavedAnalysis).not.toHaveBeenCalled();
     expect(mocks.setError).toHaveBeenLastCalledWith(copy);
+  });
+});
+
+describe('M3-B R0: 502 invalid_ai_output (personal)', () => {
+  const invalid = (quotaReleased: boolean) =>
+    new AiRequestError('server copy', 502, false, { code: 'invalid_ai_output', quotaReleased, retryable: false });
+
+  it.each([[true, 'INVALID_RELEASED'], [false, 'INVALID_UNCONFIRMED']])(
+    'quotaReleased=%s: final HTTP answer — no history save, no recovery lookup, copy %s', async (released, copy) => {
+      mocks.analyzeCV.mockRejectedValueOnce(invalid(released));
+      const result = setup();
+      await analyzeOnce(result);
+      expect(mocks.saveToHistory).not.toHaveBeenCalled();
+      expect(mocks.waitForSavedAnalysis).not.toHaveBeenCalled();
+      expect(mocks.analyzeCV).toHaveBeenCalledTimes(1); // no automatic retry
+      expect(lastBanner()).toContain(copy);
+    });
+
+  it('mixed batch: only the valid result is saved; the invalid one cannot be restored by a fallback save', async () => {
+    mocks.analyzeCV
+      .mockImplementationOnce(async (...a: unknown[]) => makeResult(keyOf(a)))
+      .mockRejectedValueOnce(invalid(true));
+    const result = setup([file('a.txt'), file('b.txt')]);
+    await analyzeOnce(result);
+    const ids = savedIds().flat();
+    expect(ids).toEqual([keys()[0]]);
+    expect(ids).not.toContain(keys()[1]);
+  });
+
+  it('KNOWN DEBT: a lost 502 (no HTTP answer reaches the browser) looks like any lost response — "may still be saving"', async () => {
+    mocks.analyzeCV.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    mocks.waitForSavedAnalysis.mockResolvedValueOnce(null);
+    const result = setup();
+    await analyzeOnce(result);
+    expect(mocks.waitForSavedAnalysis).toHaveBeenCalledTimes(1);
+    expect(mocks.saveToHistory).not.toHaveBeenCalled();
+    expect(lastBanner()).toContain('MAYBE_SAVING');
   });
 });

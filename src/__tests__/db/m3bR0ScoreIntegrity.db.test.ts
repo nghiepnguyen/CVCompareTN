@@ -194,6 +194,22 @@ describe.skipIf(!enabled)('M3-B R0 score integrity on a real database (committed
     expect(await candidate(c)).toMatchObject({ status: 'done', match_score: 77 });
   });
 
+  it('M2-D3 stale recovery still works if the failure fence never ran (browser gone, DB write lost)', async () => {
+    generateContent.mockReset().mockResolvedValue(reply('null'));
+    const u = await newUser('recruiter');
+    const c = await newCandidate(u);
+    const attempt = await claim(u, c);
+    await analyze(u, { idempotencyKey: attempt, candidateId: c });
+    // Simulate a lost failure transition: row back to analyzing, lease long expired.
+    await svc.from('candidate_cvs').update({ status: 'analyzing', analysis_started_at: new Date(Date.now() - 3_600_000).toISOString() }).eq('id', c);
+    const next = randomUUID();
+    const { data, error } = await u.client.rpc('claim_candidate_analysis', { p_candidate_id: c, p_attempt_id: next, p_confirm_charge: false });
+    expect(error).toBeNull();
+    // The prior attempt's reservation is refunded: reclaim without a charge confirmation.
+    expect((data as Row).result).toBe('claimed');
+    expect(await candidate(c)).toMatchObject({ status: 'analyzing', analysis_attempt_id: next });
+  });
+
   it('recruiter duplicate request after a failed attempt: 409, no Gemini call, row stays error', async () => {
     generateContent.mockReset().mockResolvedValue(reply('null'));
     const u = await newUser('recruiter');

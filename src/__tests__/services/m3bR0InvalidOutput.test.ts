@@ -124,6 +124,9 @@ describe('invalid matchScore → 502 invalid_ai_output, no commit, no save', () 
     generateContent.mockResolvedValue(rawReply('null'));
     const res = await handleAnalyze('Bearer x', { ...personal, language: 'vi' });
     expect(res.body.error).toBe(INVALID_AI_OUTPUT_MESSAGES.released.vi);
+    // Localization never runs for an invalid result: exactly one (scoring) Gemini call, so logged tokens are complete.
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(logRows.at(-1)).toMatchObject({ input_tokens: 3829, output_tokens: 1775 });
   });
 
   it('no automatic retry: exactly one Gemini call', async () => {

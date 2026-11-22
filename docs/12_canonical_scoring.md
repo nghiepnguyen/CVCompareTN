@@ -14,7 +14,8 @@ CV + JD
 → scoring pass: production EN prompt + "Job Description (JD):" header + EN prose
    (identical request for UI en and vi)
 → suggestion guard (dropUnsupportedSuggestions, unchanged; guard_metrics unchanged)
-→ canonical AnalysisResult (scoreVersion = canonical-en-v1)
+→ matchScore validation + one rounding (M3-B R0; invalid → 502 invalid_ai_output, refunded)
+→ canonical AnalysisResult (scoreVersion = canonical-en-v2)
 → UI en: done (1 Gemini call)
 → UI vi: localizeAnalysis — 0 or 1 extra call, presentation strings only
 → validated merge by id
@@ -58,7 +59,7 @@ that string stays English.
 
 ## Metadata
 
-- `scoreVersion`: `canonical-en-v1` for new analyses. Absent / `NULL` =
+- `scoreVersion`: `canonical-en-v2` for new analyses (since M3-B R0; `canonical-en-v1` = same judge, raw model number). Absent / `NULL` =
   **legacy** analysis scored with the UI-language prompt. Legacy scores are
   never rescored and are not 1:1 comparable with canonical ones.
 - `presentationLanguage`: language the prose was actually delivered in. A VI
@@ -310,5 +311,33 @@ and visible instruction-like text are not filtered.
   other thresholds stay `unknown` until a same-metric parser is added. Some real
   shortfalls phrased loosely by the model ("CV states 8 years of experience"
   vs a domain-specific requirement) also stay `unknown` by design.
-- `matchScore` is not clamped to 0–100 server-side (probability derivation
-  clamps); unchanged by P0.
+- `matchScore` (v1 and legacy rows only) is the raw model number, possibly
+  fractional or outside 0–100. **Resolved for `canonical-en-v2`** (M3-B R0, below).
+- `categoryScores` and `formatAssessment.overallAtsParseabilityScore` are still
+  model numbers coerced to 0 when malformed and not range-checked (display only).
+
+## Score validation and normalization (M3-B R0, canonical-en-v2)
+
+`normalizeMatchScore()` (`src/services/ai/scoreNormalization.ts`) is the one
+boundary, called once in `analyzeCV` before the probability band and before any
+quota commit or save:
+
+- valid: a JSON **number**, finite, within [0, 100] **before rounding**;
+- rounding: half-up, once (`Math.floor(x + 0.5)`): 59.5 → 60, 79.5 → 80;
+- `passProbability` derives from that integer (thresholds 60/80 unchanged);
+  body, history column, candidate column and result JSON carry the same integer;
+- invalid (missing, null, any string incl. numeric strings, NaN, ±Infinity,
+  < 0, > 100) and unparseable replies are **invalid AI output**: never 0, never
+  clamped.
+
+Invalid AI output → HTTP 502 `{ code: invalid_ai_output, quotaReleased, retryable: false }`.
+Nothing is committed or saved; the reservation is released as `provider_error`
+(ledger `refunded`); the hourly AI slot stays consumed; `analysis_log` gets an
+error row with the real token usage (`[invalid_ai_output:<reason>:release_<outcome>]`);
+a recruiter candidate leaves `analyzing` through the attempt fence
+(`failCandidateAttempt`). The copy says the allowance was not used only when the
+release was confirmed (`quotaReleased: true`). The recruiter fallback save
+(`/api/recruiter/save-analysis`) uses the same validator (400 `invalid_match_score`).
+
+`probabilityVersion` stays `canonical-score-v1` (same mapping). v1, legacy and
+NULL rows are never rewritten or rescored. Report: `docs/audits/2026-11-22-m3b-r0.1-implementation.md`.
