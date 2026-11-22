@@ -1,0 +1,34 @@
+M3-B R0.1 safety and regression evidence (generated 2026-11-22T01:23:35Z at HEAD 06a375e; branch fix/m3b-r0-score-integrity; base origin/main b1397b6)
+
+== Shell env scan (names only)
+(none)
+
+== .env files
+.env.example
+
+== Migrations changed vs origin/main
+(none)
+
+== Unit + context suite (npm test equivalent) -> exit 0
+ Test Files  113 passed | 7 skipped (120)
+      Tests  1648 passed | 70 skipped (1718)
+
+== npm run lint -> 0 ; npm run lint:api -> 0 ; npm run build -> 0
+
+== scripts/ci/db-tests.sh on a fresh disposable local stack (http://127.0.0.1:55321, CLI demo keys) at 06a375e
+PASS  sql:account_lock PASS  sql:admin_audit_log PASS  sql:admin_list_profiles PASS  sql:admin_only_unlimited_limit PASS  sql:admin_phase2 PASS  sql:admin_report_stats PASS  sql:admin_rpcs_service_rol
+e PASS  sql:admin_update_user PASS  sql:admin_update_user_idempotency PASS  sql:analytics_quota_reservations PASS  sql:api_rate_limit PASS  sql:applications PASS  sql:campaign_caps PASS  sql:candidate
+_analysis_ownership PASS  sql:commit_and_save_candidate PASS  sql:ledger_grants PASS  sql:m2q_quota_safety PASS  sql:plan_caps PASS  sql:profiles_authority PASS  sql:public_plan_limits PASS  sql:purge
+_free_history PASS  sql:r2_storage PASS  sql:save_candidate_analysis_ownership PASS  sql:storage_buckets_private PASS  sql:storage_upload_quota PASS  stub:suites PASS  stub:applications_backfill PASS 
+ script:test:db:quota PASS  script:test:db:claim PASS  script:test:db:m2q PASS  vitest:src/__tests__/db PASS  vitest:src/__tests__/schemaDrift 
+32 suites, 0 failed. Logs: /private/tmp/claude-501/-Users-nghiepnguyen-My-Files-cv-compare-tn/7e4111eb-10e9-4748-8f89-a4938fe2ddfa/scratchpad/m3bdb/logs
+deadlocks=0
+vitest db: passed=66 failed=0 skipped=0
+vitest schemaDrift: passed=4 failed=0 skipped=0
+  committed schema: src/__tests__/db (incl. m3bR0ScoreIntegrity, 28 cases); simulated integer drift: src/__tests__/schemaDrift (4 cases), run last
+
+== Owner read-only SQL (implementation report §8): syntax-checked on the LOCAL test stack only (test data, not production): exit 0
+
+== Local stack stopped: containers left = 0
+
+== Live Gemini calls: 0. External AI spend: $0. Production/Preview access: 0. Cloud resources: 0. Push/merge/deploy: none.
