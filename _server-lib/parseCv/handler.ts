@@ -117,8 +117,9 @@ export async function handleParseCv(
     await logAnalysisAttempt(user.id, 'success', 'parse_cv', undefined, usage, undefined, deadline);
     return { status: 200, body: { parsedCV } };
   } catch (err) {
-    console.error('CV parsing failed:', err);
     const category = classifyAiFailure(err);
+    // Category and error name only, never the error object (provider text can echo the CV/JD).
+    console.error(`CV parsing failed: [${category}]`, err instanceof Error ? err.name : typeof err);
     const failure = aiFailureResponse(category);
     await logFailure(category, category !== 'request_budget_exhausted'); // model only if Gemini ran
     const message =

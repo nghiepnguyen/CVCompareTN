@@ -160,8 +160,9 @@ async function handleFullRewrite(
     // a retry message instead of a CV.
     return { status: 200, body: fidelityFallback ? { fullRewrittenCV: '', fidelityFallback } : { fullRewrittenCV } };
   } catch (err) {
-    console.error('CV rewrite failed:', err);
     const category = classifyAiFailure(err);
+    // Category and error name only, never the error object (provider text can echo the CV/JD).
+    console.error(`CV rewrite failed: [${category}]`, err instanceof Error ? err.name : typeof err);
     const failure = aiFailureResponse(category);
     await logFailure(category, category !== 'request_budget_exhausted'); // model only if Gemini ran
     const message =

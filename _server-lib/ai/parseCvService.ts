@@ -1,5 +1,5 @@
 import { extractText } from 'unpdf';
-import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS } from '../deadline.js';
+import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS, providerFailureCategory } from '../deadline.js';
 import { getGeminiClient, GEMINI_PARSE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 import { normalizeParsedCV } from '../../src/services/ai/parsedCvNormalize.js';
 import { buildParseCvPrompt } from '../../src/services/ai/prompts.js';
@@ -226,7 +226,11 @@ export async function generateParsedCV(
     if (error instanceof Error && error.message.includes('DEADLINE_EXCEEDED')) {
       throw new Error('CV parsing is taking too long. Please try again. (Timeout)');
     }
-    throw error;
+    // Provider text can echo the prompt (CV/JD): keep only the status-derived category or a fixed message.
+    const provider = providerFailureCategory(error);
+    if (provider) throw new ControlledError(provider);
+    if (error instanceof SyntaxError) throw new SyntaxError('Malformed JSON in Gemini response');
+    throw new Error('CV parsing failed. Please try again.');
   } finally {
     clearTimeout(timer);
   }

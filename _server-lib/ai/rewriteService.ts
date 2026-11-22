@@ -1,5 +1,5 @@
 import { extractText } from 'unpdf';
-import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS } from '../deadline.js';
+import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS, providerFailureCategory } from '../deadline.js';
 import { normalizeTextualMonthYear } from '../../src/lib/cvDates.js';
 import {
   countViolations,
@@ -298,7 +298,7 @@ export async function generateFullRewrite(
     try {
       retry = await callRewrite(buildPrompt(retryJdSection(language)));
     } catch (err) {
-      console.warn('[fullRewriteGuard] retry failed:', err instanceof Error ? err.message : err);
+      console.warn('[fullRewriteGuard] retry failed:', err instanceof Error ? err.name : 'error');
       return fallback(first.usage, { retryOutcome: 'error', geminiCalls: 2 });
     }
     const usage = addUsage(first.usage, retry.usage);
@@ -320,7 +320,11 @@ export async function generateFullRewrite(
     if (error instanceof Error && error.message.includes('DEADLINE_EXCEEDED')) {
       throw new Error('CV rewrite is taking too long. Please try again. (Timeout)');
     }
-    throw error;
+    // Provider text can echo the prompt (CV/JD): keep only the status-derived category or a fixed message.
+    const provider = providerFailureCategory(error);
+    if (provider) throw new ControlledError(provider);
+    if (error instanceof SyntaxError) throw new SyntaxError('Malformed JSON in Gemini response');
+    throw new Error('CV rewrite failed. Please try again.');
   } finally {
     clearTimeout(timer);
   }
