@@ -32,6 +32,8 @@ type AiErrorStrings = {
   aiErrorTimeout: string;
   aiErrorDuplicateRequest: string;
   aiErrorQuotaUnavailable: string;
+  aiErrorInvalidOutput: string;
+  aiErrorInvalidOutputUnconfirmed: string;
   monthlyUsageLimitExceeded: string;
 };
 
@@ -48,6 +50,10 @@ export function localizeAiError(err: unknown, t: AiErrorStrings): string {
       if (err.body.code === 'quota_unavailable' || err.body.code === 'quota_settlement_unavailable' || err.body.code === 'quota_settlement_unknown') return t.aiErrorQuotaUnavailable;
       return err.retryable ? t.aiErrorBusy : err.message;
     case 504: return t.aiErrorTimeout;
+    // M3-B R0: "not counted" only when the server confirmed the quota release.
+    case 502:
+      if (err.body.code === 'invalid_ai_output') return err.body.quotaReleased === true ? t.aiErrorInvalidOutput : t.aiErrorInvalidOutputUnconfirmed;
+      return err.message;
     default: return err.message;
   }
 }

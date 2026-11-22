@@ -15,7 +15,7 @@ vi.mock('../rateLimit.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../rateLimit.js')>()),
   reserveAiCall: async () => 'ok',
 }));
-vi.mock('../ai/analysisService.js', () => ({ analyzeCV: fail }));
+vi.mock('../ai/analysisService.js', async (importOriginal) => ({ ...(await importOriginal<typeof import('../ai/analysisService.js')>()), analyzeCV: fail }));
 vi.mock('../ai/parseCvService.js', () => ({ generateParsedCV: fail }));
 vi.mock('../ai/rewriteService.js', () => ({ generateFullRewrite: fail }));
 vi.mock('../storage/tempFile.js', () => ({ resolveStorageRef: fail }));
@@ -52,6 +52,15 @@ describe('AI error response privacy', () => {
       expect(result.body.retryable).toBe(false);
       expect(JSON.stringify(result.body)).not.toContain(PRIVATE_ERROR);
     });
+    if (kind === 'analyze') {
+      it('analyze: invalid AI output returns 502 invalid_ai_output with no model text or provider detail', async () => {
+        const { InvalidAiOutputError } = await import('../ai/analysisService.js');
+        fail.mockRejectedValue(new InvalidAiOutputError('out_of_range', { inputTokens: 1, outputTokens: 1, model: 'gemini-3-flash-preview', latencyMs: 1 }));
+        const result = await handler('Bearer fixture', body);
+        expect(result).toMatchObject({ status: 502, body: { code: 'invalid_ai_output', retryable: false } });
+        expect(JSON.stringify(result.body)).not.toMatch(/out_of_range|gemini|tokens|CV fixture|JD fixture/);
+      });
+    }
     it(`${kind}: hides storage errors`, async () => {
       const result = await handler('Bearer fixture', { ...body, cvData: undefined, cvDataStoragePath: 'u1/fixture.pdf' });
       expect(result.status).toBe(400);

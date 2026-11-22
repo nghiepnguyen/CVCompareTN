@@ -152,10 +152,11 @@ describe('atomic commit + save (M2-Q 2C)', () => {
     expect(calls('release_analytics_quota')).toHaveLength(0);
   });
 
-  it('decimal score is passed through unrounded (the RPC rounds for the integer column)', async () => {
+  it('decimal score is rounded once on the server (M3-B R0): body, JSON result and column get the same integer', async () => {
     generateContent.mockResolvedValue(reply({ matchScore: 72.5 }));
-    expect((await handleAnalyze('Bearer x', recruiter)).body).toMatchObject({ matchScore: 72.5, serverSave: 'saved' });
-    expect(calls(ATOMIC)[0].args.p_match_score).toBe(72.5);
+    expect((await handleAnalyze('Bearer x', recruiter)).body).toMatchObject({ matchScore: 73, serverSave: 'saved' });
+    expect(calls(ATOMIC)[0].args.p_match_score).toBe(73);
+    expect((calls(ATOMIC)[0].args.p_analysis_result as { matchScore: number }).matchScore).toBe(73);
   });
 
   it.each([

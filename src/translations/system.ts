@@ -112,6 +112,14 @@ export const system = {
     vi: "Không thể xác minh lượt phân tích lúc này. Vui lòng thử lại sau ít phút.",
     en: "Your analysis quota can't be verified right now. Please try again in a few minutes.",
   },
+  aiErrorInvalidOutput: {
+    vi: "Kết quả phân tích chưa hợp lệ. Bạn chưa bị trừ lượt phân tích. Vui lòng thử lại.",
+    en: "The analysis returned an invalid result. Your analysis allowance has not been used. Please try again.",
+  },
+  aiErrorInvalidOutputUnconfirmed: {
+    vi: "Kết quả phân tích chưa hợp lệ. Chưa xác nhận được việc hoàn lượt phân tích. Vui lòng kiểm tra số lượt đã dùng trước khi thử lại.",
+    en: "The analysis returned an invalid result. We could not confirm whether your analysis allowance was used. Please check your usage before trying again.",
+  },
   analysisResultMaybeSaving: {
     vi: "Mất kết nối trước khi nhận kết quả. Kết quả có thể vẫn đang được lưu — vui lòng kiểm tra Lịch sử trước khi phân tích lại.",
     en: "The connection dropped before the result arrived. It may still be saving — please check History before analyzing again.",

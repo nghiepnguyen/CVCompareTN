@@ -176,3 +176,22 @@ export async function releaseMonthlyQuota(userId: string, reservationId: string,
     deadline
   )).outcome === 'committed';
 }
+
+export type CheckedRelease = 'refunded' | 'not_refunded' | 'unknown';
+
+/**
+ * M3-B R0: release whose result the caller reports to the user. 'refunded'
+ * only when the ledger row is refunded (this call or an earlier replay);
+ * 'not_refunded' when the RPC answered with another state (e.g. the row already
+ * expired to 'uncertain'); 'unknown' when no definitive answer arrived — the
+ * reservation then follows the existing TTL → uncertain contract.
+ */
+export async function releaseMonthlyQuotaChecked(userId: string, reservationId: string, outcome: ReleaseOutcome, deadline: Deadline): Promise<CheckedRelease> {
+  const { outcome: settled } = await settle(
+    'release_analytics_quota',
+    { p_user_id: userId, p_reservation_id: reservationId, p_outcome: outcome },
+    (row) => row.status === 'refunded',
+    deadline
+  );
+  return settled === 'committed' ? 'refunded' : settled === 'failed' ? 'not_refunded' : 'unknown';
+}

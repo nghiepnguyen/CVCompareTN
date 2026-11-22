@@ -1,4 +1,5 @@
 import { extractText } from 'unpdf';
+import { FinishReason } from '@google/genai';
 import { assertBudget, ControlledError, createDeadline, MIN_GEMINI_BUDGET_MS, providerFailureCategory } from '../deadline.js';
 import { getGeminiClient, GEMINI_ANALYZE_MODEL, thinkingConfigFor, extractTokenUsage, type AiCallUsage } from './geminiClient.js';
 import { ANALYSIS_RESPONSE_SCHEMA } from './responseSchema.js';
@@ -24,6 +25,20 @@ import {
 } from './suggestionGuard.js';
 import { localizeAnalysis, SCORE_VERSION } from './localizeAnalysis.js';
 import { stripInvisibleControls } from '../untrustedText.js';
+import { normalizeMatchScore, type InvalidScoreReason } from '../../src/services/ai/scoreNormalization.js';
+
+/**
+ * M3-B R0: the model answered but its result is unusable (unparseable JSON or
+ * an invalid matchScore). Definitive — Gemini ran and returned — so the caller
+ * releases the quota reservation instead of committing it (OD-14) and logs
+ * the real token usage. Carries no model text.
+ */
+export class InvalidAiOutputError extends Error {
+  constructor(readonly reason: InvalidScoreReason | 'malformed_json' | 'blocked' | 'incomplete_response', readonly usage: AiCallUsage) {
+    super(`[invalid_ai_output:${reason}]`);
+    this.name = 'InvalidAiOutputError';
+  }
+}
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -185,16 +200,31 @@ export async function analyzeCV(
       latencyMs: Date.now() - geminiStart,
     };
 
-    const resultText = response.text || '';
-    const parsedResult = parseGeminiJson(resultText);
+    // M3-B R0.3-A: only a candidate that finished with STOP is a complete
+    // answer. A blocked prompt, or a candidate cut off (MAX_TOKENS) or stopped
+    // for any other reason — even when its JSON still parses — is completed but
+    // unusable output. No candidate at all falls through to malformed_json.
+    if (response.promptFeedback?.blockReason) throw new InvalidAiOutputError('blocked', usage);
+    const candidate = response.candidates?.[0];
+    if (candidate && candidate.finishReason !== FinishReason.STOP) throw new InvalidAiOutputError('incomplete_response', usage);
 
-    const matchScoreRaw = parsedResult.matchScore;
-    const matchScore =
-      typeof matchScoreRaw === 'number' && Number.isFinite(matchScoreRaw)
-        ? matchScoreRaw
-        : typeof matchScoreRaw === 'string'
-          ? parseFloat(matchScoreRaw) || 0
-          : Number(matchScoreRaw) || 0;
+    const resultText = response.text || '';
+    // Same shape the parser always returned (model JSON); fields are normalized below.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let parsedResult: Record<string, any>;
+    try {
+      const parsed = parseGeminiJson(resultText);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new SyntaxError('not a JSON object');
+      parsedResult = parsed as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch {
+      throw new InvalidAiOutputError('malformed_json', usage);
+    }
+
+    // M3-B R0 (canonical-en-v2): validate the ORIGINAL value, then round once.
+    // Every surface below (band, history, candidate row, API body) uses this integer.
+    const validated = normalizeMatchScore(parsedResult.matchScore);
+    if ('reason' in validated) throw new InvalidAiOutputError(validated.reason, usage);
+    const matchScore = validated.score;
 
     const missingGaps = normalizeMissingGaps(parsedResult.missingGaps);
     // P0: verification is derived from the finished canonical table, never
@@ -287,7 +317,7 @@ export async function analyzeCV(
       verificationMetrics,
     };
   } catch (error: unknown) {
-    if (error instanceof ControlledError) throw error;
+    if (error instanceof ControlledError || error instanceof InvalidAiOutputError) throw error;
     console.error('Gemini Analysis Error:', error);
 
     // Our Promise.race timeout, the deadline abort and SDK DEADLINE_EXCEEDED are all timeouts

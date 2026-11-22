@@ -35,7 +35,7 @@ vi.mock('../../services/recruiterService', () => ({
   getCandidateFileUrl: mocks.getCandidateFileUrl,
 }));
 vi.mock('../../context/UIContext', () => ({
-  useUI: () => ({ reportLanguage: 'en', t: { monthlyUsageLimitExceeded: 'MONTHLY', recruiterSaveFailed: 'SAVE_FAILED', recruiterStatusWriteFailed: 'STATUS_WRITE_FAILED' } }),
+  useUI: () => ({ reportLanguage: 'en', t: { monthlyUsageLimitExceeded: 'MONTHLY', recruiterSaveFailed: 'SAVE_FAILED', recruiterStatusWriteFailed: 'STATUS_WRITE_FAILED', aiErrorInvalidOutput: 'INVALID_RELEASED', aiErrorInvalidOutputUnconfirmed: 'INVALID_UNCONFIRMED' } }),
 }));
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1' }, effectivePlan: 'recruiter', userProfile: { role: 'user' }, refreshUserProfile: vi.fn() }),
@@ -222,5 +222,31 @@ describe('M2-D2 F2: error isolation', () => {
     expect(mocks.claimCandidateAnalysis).not.toHaveBeenCalled();
     expect(mocks.analyzeCV).not.toHaveBeenCalled();
     expect(result.current.candidates[0].status).toBe('analyzing');
+  });
+});
+
+describe('M3-B R0: 502 invalid_ai_output (recruiter)', () => {
+  const invalid = (quotaReleased: boolean) => new AiRequestError('x', 502, false, { code: 'invalid_ai_output', quotaReleased });
+
+  it('HTTP answer → fenced browser release with localized copy; batch continues; no save, no retry', async () => {
+    mocks.analyzeCV.mockRejectedValueOnce(invalid(true)).mockResolvedValue({ matchScore: 64 });
+    const result = await mount([cand('c1'), cand('c2')]);
+    await run(result);
+    const call = mocks.releaseCandidateAnalysis.mock.calls[0];
+    expect(call).toEqual(['c1', mocks.claimCandidateAnalysis.mock.calls[0][1], 'INVALID_RELEASED']);
+    expect(mocks.saveCandidateAnalysis.mock.calls.map((c) => c[0])).not.toContain('c1');
+    expect(mocks.analyzeCV).toHaveBeenCalledTimes(2);
+    expect(result.current.candidates.map((c) => [c.status, c.errorMessage])).toEqual([['error', 'INVALID_RELEASED'], ['done', null]]);
+  });
+
+  it('server already set error (fence no-op → release false): row still ends error, no loop', async () => {
+    mocks.analyzeCV.mockRejectedValueOnce(invalid(false));
+    mocks.releaseCandidateAnalysis.mockResolvedValueOnce(false);
+    const result = await mount([cand('c1')]);
+    // The reload reads the row the server-side fence already moved to error.
+    mocks.getCampaignCandidates.mockResolvedValue([{ ...cand('c1', 'error'), errorMessage: 'server copy' }]);
+    await run(result);
+    expect(mocks.analyzeCV).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(result.current.candidates[0].status).toBe('error'));
   });
 });

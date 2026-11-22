@@ -150,15 +150,16 @@ describe('analyze ↔ quota reservation', () => {
     }
   });
 
-  it('outcome unknown after the request started (timeout, unparseable reply) releases as uncertain', async () => {
+  it('outcome unknown after the request started (timeout) releases as uncertain; an unparseable reply is invalid AI output (M3-B R0: refunded)', async () => {
     generateContent.mockRejectedValueOnce(new Error('socket hang up DEADLINE_EXCEEDED'));
     expect((await handleAnalyze('Bearer x', body)).status).toBe(504);
     expect(calls('release_analytics_quota').map((c) => c.args.p_outcome)).toEqual(['uncertain']);
 
     db.rpcCalls = [];
     generateContent.mockResolvedValueOnce({ text: 'not json at all', usageMetadata: {} });
-    expect((await handleAnalyze('Bearer x', body)).status).toBe(500);
-    expect(calls('release_analytics_quota').map((c) => c.args.p_outcome)).toEqual(['uncertain']);
+    expect((await handleAnalyze('Bearer x', body)).status).toBe(502);
+    expect(calls('release_analytics_quota').map((c) => c.args.p_outcome)).toEqual(['provider_error']);
+    expect(calls('commit_analytics_quota')).toHaveLength(0);
   });
 
   it('A4: commit rolled back on every attempt (SQLSTATE) withholds the result: confirmed failed', async () => {

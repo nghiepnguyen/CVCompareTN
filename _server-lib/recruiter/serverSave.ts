@@ -54,3 +54,42 @@ export async function checkCandidateAttempt(
     return 'unavailable';
   }
 }
+
+/**
+ * M3-B R0: the candidate leaves 'analyzing' when its attempt produced no valid
+ * result. Same fence as the browser's releaseCandidateAnalysis (id + attempt +
+ * 'analyzing'), so it never touches a newer attempt or a saved result, and a
+ * second release (browser or replay) is a no-op. The ownership gate already
+ * bound this attempt to this user before Gemini ran. Never throws.
+ */
+export async function failCandidateAttempt(
+  candidateId: string,
+  attemptId: string,
+  errorMessage: string,
+  deadline: Deadline
+): Promise<'released' | 'not_owner' | 'failed'> {
+  const timeoutMs = Math.min(DB_TIMEOUT_MS, deadline.remainingMs());
+  if (timeoutMs <= 0) return 'failed';
+  try {
+    const { data, error } = await withTimeout(
+      getSupabaseAdmin()
+        .from('candidate_cvs')
+        .update({ status: 'error', error_message: errorMessage })
+        .eq('id', candidateId)
+        .eq('analysis_attempt_id', attemptId)
+        .eq('status', 'analyzing')
+        .select('id')
+        .abortSignal(deadline.signal(DB_TIMEOUT_MS)) as unknown as Promise<{ data: unknown[] | null; error: { message?: string } | null }>,
+      timeoutMs,
+      'candidate failure transition'
+    );
+    if (error) {
+      console.warn('Candidate failure transition failed:', error.message);
+      return 'failed';
+    }
+    return (data ?? []).length > 0 ? 'released' : 'not_owner';
+  } catch (err) {
+    console.warn('Candidate failure transition unavailable:', err instanceof Error ? err.message : err);
+    return 'failed';
+  }
+}
