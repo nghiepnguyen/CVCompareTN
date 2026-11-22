@@ -6,6 +6,7 @@ import { leaksIn, MARK, startCollector } from './sentryCollector';
 type Collector = Awaited<ReturnType<typeof startCollector>>;
 let collector: Collector;
 let options: Record<string, unknown>;
+let browserSession: unknown;
 
 beforeAll(async () => {
   collector = await startCollector();
@@ -22,6 +23,7 @@ beforeAll(async () => {
   expect(sdk).not.toBeNull();
   const Sentry = await import('@sentry/react');
   options = Sentry.getClient()!.getOptions() as unknown as Record<string, unknown>;
+  browserSession = Sentry.getClient()!.getIntegrationByName('BrowserSession');
 
   console.log(`user signed in ${MARK.email}`);
   console.warn('profile loaded', { email: MARK.email, phone: MARK.phone });
@@ -57,6 +59,14 @@ describe('browser Sentry envelopes (Preview)', () => {
   it('contains none of the sensitive markers anywhere in the raw envelopes', () => {
     expect(leaksIn(collector.raw())).toEqual([]);
     expect(collector.raw()).not.toContain('rt-sec2-private');
+  });
+
+  it('does not install the BrowserSession integration', () => {
+    expect(browserSession).toBeUndefined();
+  });
+
+  it('sends no Release Health session envelopes', () => {
+    expect([...collector.items('session'), ...collector.items('sessions')]).toEqual([]);
   });
 
   it('forwards no console output as Sentry Logs', () => {

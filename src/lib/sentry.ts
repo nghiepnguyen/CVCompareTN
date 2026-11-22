@@ -51,7 +51,8 @@ async function loadSentry(): Promise<typeof SentrySdk | null> {
     // VITE_VERCEL_* are injected at build time by vite.config.ts; local dev falls back to the Vite mode.
     environment: (import.meta.env.VITE_VERCEL_ENV as string | undefined) || import.meta.env.MODE,
     release: (import.meta.env.VITE_APP_VERSION as string | undefined) || (import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA as string | undefined) || undefined,
-    integrations: [Sentry.browserTracingIntegration()],
+    // Release Health sessions dropped (SEC-2): not needed, and they carry the user id per page view.
+    integrations: (defaults) => [...defaults.filter((i) => i.name !== 'BrowserSession'), Sentry.browserTracingIntegration()],
     // No console-to-Logs forwarding (SEC-2): console text carries user data.
     dataCollection: SENTRY_DATA_COLLECTION,
     beforeBreadcrumb: scrubBreadcrumb,

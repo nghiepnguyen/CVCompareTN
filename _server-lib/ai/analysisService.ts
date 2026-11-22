@@ -318,7 +318,8 @@ export async function analyzeCV(
     };
   } catch (error: unknown) {
     if (error instanceof ControlledError || error instanceof InvalidAiOutputError) throw error;
-    console.error('Gemini Analysis Error:', error);
+    // Name and status only: provider text can echo the prompt (CV/JD).
+    console.error('Gemini Analysis Error:', error instanceof Error ? error.name : typeof error, (error as { status?: unknown } | null)?.status ?? '');
 
     // Our Promise.race timeout, the deadline abort and SDK DEADLINE_EXCEEDED are all timeouts
     if (error instanceof Error) {
@@ -340,8 +341,7 @@ export async function analyzeCV(
     if (error instanceof SyntaxError) {
       throw new Error('Invalid AI data (JSON Error). Please try again.'); // the SyntaxError message can quote model output
     }
-    const message = error instanceof Error ? error.message : undefined;
-    throw new Error(message || 'Could not perform analysis with Gemini. Please try again later.');
+    throw new Error('Could not perform analysis with Gemini. Please try again later.'); // provider text can echo the prompt
   } finally {
     clearTimeout(analyzeTimer);
   }

@@ -78,6 +78,13 @@ describe('server Sentry envelopes (Preview)', () => {
     expect(collector.items('log')).toEqual([]);
   });
 
+  it('server session aggregates carry only counts, release and environment', () => {
+    for (const s of collector.items('sessions')) {
+      expect(Object.keys(s).sort()).toEqual(['aggregates', 'attrs']);
+      expect(s.attrs).toEqual({ release: MARK.sha, environment: 'preview' });
+    }
+  });
+
   it('keeps redacted diagnostics in exception values', () => {
     const values = collector.items('event').flatMap((e) => e.exception?.values?.map((v: { value: string }) => v.value) ?? []);
     expect(values).toContain('User [email] not found (phone [phone])');
