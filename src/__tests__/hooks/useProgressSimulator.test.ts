@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { createProgressSimulator } from "../../hooks/useProgressSimulator";
 
 describe("useProgressSimulator — createProgressSimulator", () => {
-  let onProgress: ReturnType<typeof vi.fn>;
+  let onProgress: Mock<(value: number) => void>;
 
   beforeEach(() => {
     vi.useFakeTimers();
