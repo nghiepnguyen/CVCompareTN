@@ -20,7 +20,7 @@ export default defineConfig({
       "**/.claude/**",
     ],
     // Keep the local .env DSN out of tests; Sentry tests stub their own.
-    env: { VITE_SENTRY_DSN: "" },
+    env: { VITE_SENTRY_DSN: "", SENTRY_DSN: "" },
   },
   resolve: {
     alias: [{ find: "@", replacement: path.resolve(__dirname, ".") }],

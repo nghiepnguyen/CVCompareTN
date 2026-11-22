@@ -338,7 +338,7 @@ export async function analyzeCV(
     if (provider) throw new ControlledError(provider);
 
     if (error instanceof SyntaxError) {
-      throw new Error(`Invalid AI data (JSON Error). Please try again. Detail: ${error.message}`);
+      throw new Error('Invalid AI data (JSON Error). Please try again.'); // the SyntaxError message can quote model output
     }
     const message = error instanceof Error ? error.message : undefined;
     throw new Error(message || 'Could not perform analysis with Gemini. Please try again later.');

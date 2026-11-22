@@ -207,7 +207,15 @@ export async function generateParsedCV(
       return { parsedCV: normalizeParsedCV(JSON.parse(resultText), { sourceText }), usage };
     } catch {
       const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) return { parsedCV: normalizeParsedCV(JSON.parse(jsonMatch[0]), { sourceText }), usage };
+      if (jsonMatch) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+        } catch {
+          throw new SyntaxError('Malformed JSON in Gemini response'); // V8's message quotes the CV text
+        }
+        return { parsedCV: normalizeParsedCV(parsed, { sourceText }), usage };
+      }
       throw new SyntaxError('No JSON object found in Gemini response');
     }
   } catch (error: unknown) {

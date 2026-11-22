@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/node';
 
-import { scrubTelemetry } from '../src/lib/scrubTelemetry.js';
+import { scrubBreadcrumb, scrubEvent, scrubTelemetry, SENTRY_DATA_COLLECTION } from '../src/lib/scrubTelemetry.js';
 
 export function initSentryServer() {
   if (Sentry.getClient()) return;
@@ -9,14 +9,16 @@ export function initSentryServer() {
 
   Sentry.init({
     dsn,
-    environment: process.env.NODE_ENV ?? 'development',
-    integrations: [Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] })],
-    enableLogs: true,
-    beforeSendLog: scrubTelemetry,
+    // Vercel sets NODE_ENV=production in Preview too; VERCEL_ENV tells them apart.
+    environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'development',
+    release: process.env.VERCEL_GIT_COMMIT_SHA || undefined,
+    // No console-to-Logs forwarding (SEC-2): console text carries user data.
+    dataCollection: SENTRY_DATA_COLLECTION,
+    beforeBreadcrumb: scrubBreadcrumb,
+    beforeSend: (event) => scrubEvent(event),
+    beforeSendTransaction: (event) => scrubEvent(event),
+    beforeSendSpan: (span) => scrubTelemetry(span),
     tracesSampleRate: 0.05,
-    beforeSend(event) {
-      return scrubTelemetry(event);
-    },
   });
 
 }

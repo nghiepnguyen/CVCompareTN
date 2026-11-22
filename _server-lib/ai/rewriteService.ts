@@ -134,7 +134,12 @@ export function parseRewriteText(resultText: string): string {
   } catch {
     const jsonMatch = resultText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]) as { fullRewrittenCV?: string };
+      let parsed: { fullRewrittenCV?: string };
+      try {
+        parsed = JSON.parse(jsonMatch[0]) as { fullRewrittenCV?: string };
+      } catch {
+        throw new SyntaxError('Malformed JSON in Gemini response'); // V8's message quotes the CV text
+      }
       return normalizeHeadingDates(repairEscapedNewlines(parsed.fullRewrittenCV || ''));
     }
     return normalizeHeadingDates(repairEscapedNewlines(resultText));
