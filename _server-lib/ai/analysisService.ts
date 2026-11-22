@@ -24,6 +24,20 @@ import {
 } from './suggestionGuard.js';
 import { localizeAnalysis, SCORE_VERSION } from './localizeAnalysis.js';
 import { stripInvisibleControls } from '../untrustedText.js';
+import { normalizeMatchScore, type InvalidScoreReason } from '../../src/services/ai/scoreNormalization.js';
+
+/**
+ * M3-B R0: the model answered but its result is unusable (unparseable JSON or
+ * an invalid matchScore). Definitive — Gemini ran and returned — so the caller
+ * releases the quota reservation instead of committing it (OD-14) and logs
+ * the real token usage. Carries no model text.
+ */
+export class InvalidAiOutputError extends Error {
+  constructor(readonly reason: InvalidScoreReason | 'malformed_json', readonly usage: AiCallUsage) {
+    super(`[invalid_ai_output:${reason}]`);
+    this.name = 'InvalidAiOutputError';
+  }
+}
 
 const parseGeminiJson = (text: string) => {
   try {
@@ -186,15 +200,22 @@ export async function analyzeCV(
     };
 
     const resultText = response.text || '';
-    const parsedResult = parseGeminiJson(resultText);
+    // Same shape the parser always returned (model JSON); fields are normalized below.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let parsedResult: Record<string, any>;
+    try {
+      const parsed = parseGeminiJson(resultText);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new SyntaxError('not a JSON object');
+      parsedResult = parsed as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch {
+      throw new InvalidAiOutputError('malformed_json', usage);
+    }
 
-    const matchScoreRaw = parsedResult.matchScore;
-    const matchScore =
-      typeof matchScoreRaw === 'number' && Number.isFinite(matchScoreRaw)
-        ? matchScoreRaw
-        : typeof matchScoreRaw === 'string'
-          ? parseFloat(matchScoreRaw) || 0
-          : Number(matchScoreRaw) || 0;
+    // M3-B R0 (canonical-en-v2): validate the ORIGINAL value, then round once.
+    // Every surface below (band, history, candidate row, API body) uses this integer.
+    const validated = normalizeMatchScore(parsedResult.matchScore);
+    if ('reason' in validated) throw new InvalidAiOutputError(validated.reason, usage);
+    const matchScore = validated.score;
 
     const missingGaps = normalizeMissingGaps(parsedResult.missingGaps);
     // P0: verification is derived from the finished canonical table, never
@@ -287,7 +308,7 @@ export async function analyzeCV(
       verificationMetrics,
     };
   } catch (error: unknown) {
-    if (error instanceof ControlledError) throw error;
+    if (error instanceof ControlledError || error instanceof InvalidAiOutputError) throw error;
     console.error('Gemini Analysis Error:', error);
 
     // Our Promise.race timeout, the deadline abort and SDK DEADLINE_EXCEEDED are all timeouts

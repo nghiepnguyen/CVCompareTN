@@ -1,7 +1,7 @@
 import { getUserFromBearerToken } from '../payment/supabaseAdmin.js';
 import { Sentry } from '../sentry.js';
 import { getAccountProfile, getEffectivePlan, isLockedProfile, checkHourlyAiLimit } from '../accountLock.js';
-import { analyzeCV } from '../ai/analysisService.js';
+import { analyzeCV, InvalidAiOutputError } from '../ai/analysisService.js';
 import { GEMINI_ANALYZE_MODEL } from '../ai/geminiClient.js';
 import { withTimeout } from '../withTimeout.js';
 import { logAnalysisAttempt } from '../analysisLog.js';
@@ -14,10 +14,11 @@ import {
   commitMonthlyQuota,
   isValidIdempotencyKey,
   releaseMonthlyQuota,
+  releaseMonthlyQuotaChecked,
   reserveMonthlyQuota,
   type ReleaseOutcome,
 } from '../quota/monthlyQuota.js';
-import { checkCandidateAttempt } from '../recruiter/serverSave.js';
+import { checkCandidateAttempt, failCandidateAttempt } from '../recruiter/serverSave.js';
 import { saveHistoryRow } from './historySave.js';
 import { checkInputSize } from '../inputLimits.js';
 import {
@@ -28,6 +29,7 @@ import {
   MIN_GEMINI_BUDGET_MS,
   POST_RESERVE_MS,
   TOTAL_BUDGET_MS,
+  type Deadline,
 } from '../deadline.js';
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
@@ -291,6 +293,9 @@ export async function handleAnalyze(
       body: serverSave ? { ...(result as unknown as Record<string, unknown>), serverSave } : (result as unknown as Record<string, unknown>),
     };
   } catch (analysisError) {
+    if (analysisError instanceof InvalidAiOutputError) {
+      return invalidAiOutput(analysisError, { userId, reservationId, candidateId, requestKey, language, deadline });
+    }
     console.error('Analysis failed:', analysisError);
     const category = classifyAiFailure(analysisError);
     const failure = aiFailureResponse(category);
@@ -318,4 +323,42 @@ export async function handleAnalyze(
       },
     };
   }
+}
+
+/**
+ * Invalid AI output copy. "Not counted" is claimed only after the ledger
+ * confirmed the refund; otherwise the user is told it could not be confirmed.
+ */
+export const INVALID_AI_OUTPUT_MESSAGES = {
+  released: {
+    en: 'The analysis returned an invalid result. Your analysis allowance has not been used. Please try again.',
+    vi: 'Kết quả phân tích chưa hợp lệ. Bạn chưa bị trừ lượt phân tích. Vui lòng thử lại.',
+  },
+  unconfirmed: {
+    en: 'The analysis returned an invalid result. We could not confirm whether your analysis allowance was used. Please check your usage before trying again.',
+    vi: 'Kết quả phân tích chưa hợp lệ. Chưa xác nhận được việc hoàn lượt phân tích. Vui lòng kiểm tra số lượt đã dùng trước khi thử lại.',
+  },
+} as const;
+
+/**
+ * M3-B R0 / OD-14: Gemini answered, but the result is unusable. Nothing is
+ * committed or saved. The quota reservation is released as 'provider_error'
+ * (refunded, same path as a provider failure); the hourly AI slot stays
+ * consumed (abuse control) and the real token usage is logged (provider
+ * spend). A recruiter candidate leaves 'analyzing' through the attempt fence.
+ * No automatic retry. No model text in the response or logs.
+ */
+async function invalidAiOutput(
+  err: InvalidAiOutputError,
+  ctx: { userId: string; reservationId: string; candidateId?: string; requestKey: string; language: 'vi' | 'en'; deadline: Deadline }
+): Promise<HandlerResult> {
+  const released = await releaseMonthlyQuotaChecked(ctx.userId, ctx.reservationId, 'provider_error', ctx.deadline);
+  const copy = released === 'refunded' ? INVALID_AI_OUTPUT_MESSAGES.released : INVALID_AI_OUTPUT_MESSAGES.unconfirmed;
+  if (ctx.candidateId) await failCandidateAttempt(ctx.candidateId, ctx.requestKey, copy[ctx.language], ctx.deadline);
+  Sentry.captureMessage('analyze_invalid_ai_output', { level: 'warning', tags: { route: 'analyze', reason: err.reason, release: released } });
+  await logAnalysisAttempt(ctx.userId, 'error', 'analyze', `[invalid_ai_output:${err.reason}:release_${released}]`, err.usage, undefined, ctx.deadline);
+  return {
+    status: 502,
+    body: { error: copy[ctx.language], code: 'invalid_ai_output', quotaReleased: released === 'refunded', retryable: false },
+  };
 }

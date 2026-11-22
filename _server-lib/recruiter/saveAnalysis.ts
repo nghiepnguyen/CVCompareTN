@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '../payment/supabaseAdmin.js';
 import { isValidIdempotencyKey } from '../quota/monthlyQuota.js';
+import { normalizeMatchScore } from '../../src/services/ai/scoreNormalization.js';
 
 export type SaveAnalysisResult = { status: number; body: Record<string, unknown> };
 
@@ -27,9 +28,10 @@ export async function saveCandidateAnalysisForUser(userId: string, rawBody: unkn
 
   const candidateId = body?.candidateId;
   const analysisResult = body?.analysisResult;
-  // match_score is an integer column (the result JSON keeps the exact value);
-  // the model may return a decimal such as 72.5 (M2-Q 2C).
-  const matchScore = typeof body?.matchScore === 'number' ? Math.round(body.matchScore) : 0;
+  // M3-B R0: the same validation boundary as /api/analyze. Results from a
+  // canonical-en-v2 server already carry this integer; an invalid value is
+  // refused instead of being stored as 0 (or rounded differently).
+  const validated = normalizeMatchScore(body?.matchScore);
 
   if (!candidateId || !analysisResult) {
     return { status: 400, body: { error: 'Missing candidateId or analysisResult' } };
@@ -44,6 +46,10 @@ export async function saveCandidateAnalysisForUser(userId: string, rawBody: unkn
   if (body?.attemptId === undefined && body?.status === 'error') {
     return { status: 400, body: { error: 'Unsupported legacy error save' } };
   }
+  if ('reason' in validated) {
+    return { status: 400, body: { error: 'Invalid matchScore', code: 'invalid_match_score' } };
+  }
+  const matchScore = validated.score;
 
   const { data, error } = await getSupabaseAdmin().rpc('save_candidate_analysis_attempt', {
     p_user_id: userId,

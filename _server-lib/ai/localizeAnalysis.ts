@@ -7,7 +7,9 @@ import { sameNumericFacts } from './suggestionGuard.js';
 // UI language; Vietnamese prose is a separate presentation step that can only
 // replace the strings listed in presentationItems(). NULL/absent scoreVersion
 // on a stored analysis = legacy UI-language-coupled scoring.
-export const SCORE_VERSION = 'canonical-en-v1';
+// canonical-en-v2 (M3-B R0): same canonical judge and prompt as v1; matchScore
+// is validated (invalid → no result) and rounded half-up once to an integer.
+export const SCORE_VERSION = 'canonical-en-v2';
 
 // Provisional (Stage 3.7): localization runs only with this much AI budget left
 // and never longer than the cap; both share the analyze AI deadline.

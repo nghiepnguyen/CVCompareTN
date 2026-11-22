@@ -237,14 +237,14 @@ describe.skipIf(!enabled)('M2-Q 2C atomic recruiter settlement, real database', 
     expect(await usage(u.id)).toBe(1);
   });
 
-  it('7. decimal score 72.5: saved (integer column 73), exact value in the result', async () => {
+  it('7. decimal score 72.5: rounded once on the server (M3-B R0) — body, column and result all 73', async () => {
     openGemini(72.5);
     const u = await newUser(); const c = await newCandidate(u); const { attempt } = await claim(u, c);
     const res = await analyze(u, { idempotencyKey: attempt, candidateId: c });
-    expect(res).toMatchObject({ status: 200, body: { serverSave: 'saved', matchScore: 72.5 } });
+    expect(res).toMatchObject({ status: 200, body: { serverSave: 'saved', matchScore: 73 } });
     const r = await row(c);
     expect(r).toMatchObject({ status: 'done', match_score: 73 });
-    expect((r.analysis_result as Row).matchScore).toBe(72.5);
+    expect((r.analysis_result as Row).matchScore).toBe(73);
   });
 
   it('8. same key: concurrent duplicate 409, replay after settle 409, one Gemini call, one charge, one save', async () => {

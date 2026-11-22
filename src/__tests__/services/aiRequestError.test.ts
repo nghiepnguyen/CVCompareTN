@@ -7,7 +7,7 @@ import { processFile } from '../../hooks/useFileProcessor';
 
 const T = {
   aiErrorAuthRequired: 'AUTH', aiErrorAccountLocked: 'LOCKED', aiErrorInputTooLarge: 'TOO_LARGE {max}',
-  aiErrorRateLimited: 'RATE', aiErrorBusy: 'BUSY', aiErrorTimeout: 'TIMEOUT', aiErrorDuplicateRequest: 'DUP', aiErrorQuotaUnavailable: 'QUOTA_UNAVAILABLE', monthlyUsageLimitExceeded: 'MONTHLY',
+  aiErrorRateLimited: 'RATE', aiErrorBusy: 'BUSY', aiErrorTimeout: 'TIMEOUT', aiErrorDuplicateRequest: 'DUP', aiErrorQuotaUnavailable: 'QUOTA_UNAVAILABLE', aiErrorInvalidOutput: 'INVALID_RELEASED', aiErrorInvalidOutputUnconfirmed: 'INVALID_UNCONFIRMED', monthlyUsageLimitExceeded: 'MONTHLY',
 };
 
 const respond = (status: number, body: unknown) =>
@@ -60,6 +60,14 @@ describe('localizeAiError', () => {
     expect(localizeAiError(e(503, { code: 'quota_unavailable', retryable: true }), T)).toBe('QUOTA_UNAVAILABLE');
     expect(localizeAiError(e(503, { code: 'quota_settlement_unavailable', retryable: true }), T)).toBe('QUOTA_UNAVAILABLE');
     expect(localizeAiError(e(503, { code: 'quota_settlement_unknown', retryable: false }), T)).toBe('QUOTA_UNAVAILABLE');
+  });
+  it('M3-B R0: 502 invalid_ai_output claims "not counted" only after a confirmed release', () => {
+    expect(localizeAiError(e(502, { code: 'invalid_ai_output', quotaReleased: true }), T)).toBe('INVALID_RELEASED');
+    expect(localizeAiError(e(502, { code: 'invalid_ai_output', quotaReleased: false }), T)).toBe('INVALID_UNCONFIRMED');
+    expect(localizeAiError(e(502, { code: 'invalid_ai_output' }), T)).toBe('INVALID_UNCONFIRMED');
+    // Other 502s (gateway HTML, unrelated codes) keep the server/HTTP message.
+    expect(localizeAiError(e(502), T)).toBe('server text');
+    expect(localizeAiError(e(502, { code: 'other' }), T)).toBe('server text');
   });
   it('keeps the server message for other statuses and plain errors', () => {
     expect(localizeAiError(e(500), T)).toBe('server text');

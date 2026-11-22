@@ -112,6 +112,22 @@ vitest_db() {
 }
 run "vitest:src/__tests__/db" vitest_db
 
+# 5. M3-B R0: simulated production drift (history.match_score INTEGER; the
+#    production type is unverified). Runs LAST because it alters this
+#    disposable stack's schema. Any skipped test fails the step.
+vitest_drift() {
+  docker exec "$DB_CONTAINER" psql -U postgres -X -q -v ON_ERROR_STOP=1 \
+    -c 'ALTER TABLE public.history ALTER COLUMN match_score TYPE integer USING round(match_score)::integer' || return 1
+  M3B_R0_DRIFT=1 npx vitest run src/__tests__/schemaDrift --reporter=default --reporter=json --outputFile="$WORK/vitest-drift.json" || return 1
+  node -e '
+    const r = require(process.argv[1]);
+    const skipped = r.numPendingTests + r.numTodoTests;
+    console.log(`vitest schemaDrift: passed=${r.numPassedTests} failed=${r.numFailedTests} skipped=${skipped}`);
+    process.exit(r.success && skipped === 0 && r.numPassedTests >= 4 ? 0 : 1);
+  ' "$WORK/vitest-drift.json"
+}
+run "vitest:src/__tests__/schemaDrift" vitest_drift
+
 echo
 echo "$ran suites, ${#failed[@]} failed. Logs: $LOGS"
 echo "deadlocks=$(docker exec "$DB_CONTAINER" psql -U postgres -tAc 'select coalesce(sum(deadlocks),0) from pg_stat_database')"
