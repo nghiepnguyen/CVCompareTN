@@ -68,10 +68,10 @@ This is the prototype `scoringRubric.ts:50-55, 234-273`, exercised by 58 tests (
 | # | Question | Recommended policy | Alternative | Example (synthetic, §6) | Accuracy risk | Stability impact | Owner approval |
 |---|---|---|---|---|---|---|---|
 | 1 | Required/preferred weights | **3:1** | 2:1 (or 1:1) | 3 req matched + 1 req missing + 2 pref matched + 1 req unknown: 3:1 → 65; 2:1 → 67; 1:1 → 71 | Uncalibrated; under 3:1 one missing required row dominates small JDs (1 of 4 missing → 75) | Neutral: any fixed weight is stable | **Required** before shadow v1 is frozen; re-tune only via a new version |
-| 2 | Unknown rows | **0 credit, kept in the denominator**, counted separately | Exclude from the denominator | 2 matched + 2 unknown (all required): **50** vs 100 if excluded; mix in #1: 65 vs 79 | Conservative: can under-score when the model fails to evaluate | Stable; the model cannot raise a score by declaring rows unknown | Required |
+| 2 | Unknown rows | **0 credit, kept in the denominator**, counted separately | Exclude from the denominator | 2 matched + 2 unknown (all required): **50** vs 100 if excluded; mix in #1: 65 vs 79 | Conservative. **Close to a no-op in v1:** the response schema constrains `status` to `matched`/`partial`/`missing` and makes it required (`responseSchema.ts:10,15`), so `unknown` arises only from a schema violation | Stable; the model cannot raise a score by declaring rows unknown | Required (low stakes in v1; matters if a later schema adds `unknown`) |
 | 3 | Keywords in the overall score | **Excluded** (ATS-literal advisory signal only) | Include with lower-credit-wins | Figma matched in tools + "Figma" missing as an ATS literal → **100** excluded (would drop under inclusion) | A JD whose only requirements are literal keywords scores `null` | Removes the largest conflict channel | Already accepted (OD-10); takes effect only at the A3.4 flip |
 | 4 | Experience / seniority | **No numeric penalty formula.** A years requirement is a normal row; its status comes from the model, and the P0 same-metric shortfall downgrades a "matched" to partial | Port the prompt's −10–15 / −25–35 / cap-40 rule as a row multiplier or cap | 5+ years required, CV 3 years, model "partial" → **88 High**; model "matched" but evidence says 3 years → downgraded → **83 High**. The prompt rule would push the Experience category to ≤ 40–60 | **May over-score under-experienced candidates** vs today's model behaviour. The biggest known accuracy risk; measure in shadow on experience rows | Stable (no extra judgement) | **Required** (alters scores at the flip) |
-| 5 | Evidence required for matched | **Yes**: full credit only when P0 verification is `met`; otherwise partial | Trust the model's `matched` | Kubernetes "matched" with empty evidence → partial → 75 instead of 100 | May under-score genuine matches the model described loosely | Small improvement (resists unsupported matches) | Required |
+| 5 | Evidence required for matched | **Yes**: full credit only when P0 verification is `met`; otherwise partial | Trust the model's `matched` | Kubernetes "matched" with empty evidence → partial → 75 instead of 100 | May under-score genuine matches the model described loosely. **VI/EN parity checked (synthetic):** years shortfall ("3 năm" vs "5+ years" / "Tối thiểu 5 năm"), IELTS shortfall and the "ngụ ý" inference marker are caught identically in VI and EN. Hedges such as "có thể" / "may have" are caught in **neither** language, so the gap is language-neutral | Small improvement (resists unsupported matches) | Required |
 | 6 | Category scores | **Shadow: AI category scores stay as they are** (untouched, still shown). At the flip: derive the 4 scored buckets from rows with the same formula; retire the 4 keys that have no source rows (`softSkills`, `hardSkills`, `technicalSkills`, `languageSkills`) | Keep AI category scores after the flip | — | Derived buckets lose model nuance; keeping AI numbers next to a rubric total gives a contradictory chart (`categoryChartData.ts:21-36`) | Derived = stable | Required before the flip, not before shadow |
 | 7 | List-only / incomplete data | **v1: list-only evidence gets full credit**, counted (`listOnlyDowngraded` measured as a zero-cost ablation in shadow). Incomplete rows follow §2.2 (reject / default + count). Never a fallback score | List-only = partial | "Skills: Python, SQL" as the only evidence for two required rows → 100 (full) vs 50 (partial) | Full credit is open to keyword stuffing; partial penalizes concise CVs | Neutral | Required (OD-12) |
 | 8 | Duplicate inflation | **Merge by normalized key + alias table; lower status wins; required wins** | Keep duplicates (count twice) | React ×3 (+ "react.") + SQL missing → **50**, not 75; React.js + React → merged | Near-synonyms outside the alias table still count twice (e.g. "React framework") | Strongly positive (row splitting across buckets no longer moves the score) | Required (the alias table is versioned; each addition = new version) |
@@ -80,7 +80,7 @@ Additional contract decisions:
 
 | # | Question | Recommendation | Owner approval |
 |---|---|---|---|
-| 9 | Shadow input: raw model rows or normalized rows? | **Raw** `parsedResult.detailedComparison` (already in memory in `analyzeCV`). Production normalization turns an invalid status into `missing` (`resultPayloadNormalize.ts:88`), which would hide `unknown` from the shadow. The shadow never writes back | Required |
+| 9 | Shadow input: raw model rows or normalized rows? | **Normalized rows**: the same `detailedComparison` users see (`analysisService.ts:232-234`), so the shadow scores exactly the displayed table. Plus one counter `schemaViolations`: raw rows whose `status` is outside the schema enum. Production maps those to `missing` (`resultPayloadNormalize.ts:82-88`), and the schema constrains the enum (`responseSchema.ts:10,13,15`), so they occur only on a schema violation. `priority` is optional in the schema, so `priorityDefaulted` is reachable normally. The shadow never writes back | Required |
 | 10 | Row cap | 100 rows → ineligible | Required |
 | 11 | Hard / eligibility requirements | Not in v1 (the schema has no `hard` field); report-only later | Informational |
 
@@ -90,7 +90,8 @@ Additional contract decisions:
 
 | Field | Source (existing, no schema change) | Notes |
 |---|---|---|
-| `rows` | raw `parsedResult.detailedComparison` buckets, flattened with their bucket as `category` | read-only; buckets skills / experience / tools / education / keywords |
+| `rows` | the normalized `detailedComparison` (`analysisService.ts:232-234`), flattened with the bucket as `category` | read-only; buckets skills / experience / tools / education / keywords; the same rows the user sees |
+| `schemaViolations` | count of raw `parsedResult.detailedComparison` rows whose `status` is outside the enum | integer only |
 | `canonicalScore` | the validated integer from `normalizeMatchScore` (`analysisService.ts:225-227`) | for comparison only |
 | `inputMode` | `text` / `pdf_text` / `inline_pdf` / `image`, derived from the existing branch in `analysisService.ts:130-177` | enum only |
 
@@ -110,7 +111,7 @@ type FitShadow = {
   required: number; preferred: number;
   diag: { rowsIn: number; rowsRejected: number; keywordsExcluded: number; duplicatesMerged: number;
           conflictingDuplicates: number; aliasMerged: number; unverifiedMatchDowngraded: number;
-          listOnlyEvidence: number; statusDefaulted: number; priorityDefaulted: number; categoryDefaulted: number };
+          listOnlyEvidence: number; statusDefaulted: number; priorityDefaulted: number; categoryDefaulted: number; schemaViolations: number };
   inputMode: 'text' | 'pdf_text' | 'inline_pdf' | 'image';
 };
 ```
@@ -163,15 +164,15 @@ Conclusion: existing storage can support the metrics safely **if** the owner acc
 
 **All rows below are synthetic.** They were computed offline with the prototype `scripts/m3b-a1/scoringRubric.ts` (`rubric-proto-v1-candidate`, = §2) through a scratch script. **No saved production or Gemini responses exist** (A1 search: none), so **no row shows an observed production outcome.** The "today" column describes the prompt's rules, not measured model output.
 
-| Case | fit-score | Band | m/p/x/u | Diagnostics | Today (prompt rule; not measured) |
+| Case | fit-score | Band | m/p/x/u | Diagnostics | Prompt guidance (per-category band; **not** the overall score, which has no formula; not measured) |
 |---|---|---|---|---|---|
 | All matched (4 req + 2 pref) | 100 | High | 6/0/0/0 | — | band 90–100 |
 | All missing | 0 | Low | 0/0/5/0 | — | 0–19 |
 | All partial | **50** | **Low** | 0/5/0/0 | — | likely 40–74 per category bands → possible band shift |
 | Required missing (2), preferred matched (2) | 25 | Low | 2/0/2/0 | — | 40–59 ("missing critical required") |
 | 1 of 4 required missing, rest matched | 75 | Medium | 3/0/1/0 | — | 60–74 |
-| 2 of 4 required unknown | 50 | Low | 2/0/0/2 | — | no rule (unknown is not a model state) |
-| Invalid status "unsure" in raw rows | 75 | Medium | 3/0/0/1 | statusDefaulted 1 | production maps it to `missing` |
+| 2 of 4 required unknown *(reachable only on schema violation)* | 50 | Low | 2/0/0/2 | — | no rule (unknown is not a model state) |
+| Invalid status "unsure" *(schema violation only; with normalized input it arrives as `missing` → 50)* | 75 | Medium | 3/0/0/1 | statusDefaulted 1 | production maps it to `missing` |
 | Duplicate ×3 ("React", tools "React", "react.") + SQL missing | **50** | Low | 1/0/1/0 | duplicatesMerged 2 | duplicates could count 3× in a naive sum (75) |
 | Conflicting duplicate (React matched + missing) | 50 | Low | 1/0/1/0 | conflicting 1 | undefined |
 | Alias "React.js" + "React" | 50 | Low | 1/0/1/0 | aliasMerged 1 | — |
@@ -183,9 +184,23 @@ Conclusion: existing storage can support the metrics safely **if** the owner acc
 | Empty table | **null** | null | — | reason no_scorable_rows | the model still writes a number |
 | Malformed table | **null** | null | — | reason malformed_rows | — |
 | Matched with empty evidence | 75 | Medium | 1/1/0/0 | unverifiedMatchDowngraded 1 | the model may count it as matched |
-| Missing priority | 25 | Low | 1/0/1/0 | priorityDefaulted 1 | — |
+| Missing priority *(reachable: `priority` is optional in the schema)* | 25 | Low | 1/0/1/0 | priorityDefaulted 1 | — |
 
 **Semantic sensitivity (synthetic reconstruction of the P2A.2 pattern):** base rows → 90; one required row flipped matched→partial → 83; merged "React and TypeScript" row → 89. The observed model scores for that real fixture were 75–88 (doc 16, N=20, **observed**), but the rows here are a reconstruction, not captured output. So this is not evidence of a live stability gain.
+
+**VI/EN evidence-downgrade parity (synthetic, P0 functions on this branch):**
+
+| Case | `compareMetric` | Verification | fit-score (this row + 1 other matched) |
+|---|---|---|---|
+| EN req "5+ years …" / EN evidence "3 years …" | shortfall | unknown → partial | 75 |
+| EN req / VI evidence "3 năm kinh nghiệm backend" | shortfall | unknown → partial | 75 |
+| VI req "Tối thiểu 5 năm …" / VI evidence | shortfall | unknown → partial | 75 |
+| VI req / EN evidence | shortfall | unknown → partial | 75 |
+| IELTS 6.5 vs 6.0 (EN and VI wording) | shortfall | unknown → partial | 75 |
+| Inference "implies" (EN) / "ngụ ý" (VI) | — | unknown → partial | 75 |
+| Hedge "Có thể đã dùng …" (VI; EN "may have" is equally uncaught) | — | met | 100 |
+
+No language asymmetry was found in the tested shortfall and inference rules. Hedged evidence is a language-neutral gap (debt, §8 of A3.1 style risks; candidate for a later `fit-score-v2` marker list).
 
 **Expected direction of change at a flip (hypotheses for shadow to test):**
 - Partial-heavy CVs drop (½ credit is stricter than the 60–74 band).
@@ -224,8 +239,8 @@ None touches production files, so merge conflicts with main are limited to futur
 
 1. **PR-1, docs only.** The A2.1, A3.1 and A3.2 reports cherry-picked onto a fresh branch from main. Zero CI risk.
 2. **PR-2, benchmark harness, test-only.** `scripts/m3b-a1/**`, protocol v3 and the A2.2 report, plus CI decoupling:
-   - `vitest.config.ts`: add `scripts/m3b-a1/**` to `exclude`, so normal `npm test` (CI job "Lint, Test & Build") never runs freeze tests;
-   - `package.json`: `test:benchmark` = `vitest run --config scripts/m3b-a1/vitest.offline.config.ts scripts/m3b-a1`;
+   - `vitest.config.ts`: exclude **only the two freeze tests** (`scripts/m3b-a1/__tests__/a2Manifest.test.ts`, `scripts/m3b-a1/__tests__/rubricFreeze.test.ts`) from normal `npm test`. Keep `isolation.test.ts`, the request/response parity tests and the characterization tests in the required "Lint, Test & Build" job: they are production safety checks, and they *should* run on every `analysisService.ts` edit;
+   - `package.json`: `test:benchmark` = `vitest run --config scripts/m3b-a1/vitest.offline.config.ts scripts/m3b-a1` (a separate config that includes the freeze tests);
    - a new workflow `benchmark-freeze.yml`: runs `npm run test:benchmark`, **path-filtered** to the frozen scoring files (`src/services/ai/prompts.ts`, `_server-lib/ai/responseSchema.ts`, `_server-lib/ai/geminiClient.ts`, `_server-lib/ai/analysisService.ts`, `src/services/ai/scoreNormalization.ts`, `src/services/ai/requirementVerification.ts`, later `src/services/ai/fitScore.ts`, `scripts/m3b-a1/**`). **Not a required check**, so unrelated development is never blocked. A red run on a scoring PR means "re-freeze needed", enforced by a PR-template checkbox and review.
    - The offline guard still blocks the SEC-2 loopback tests, which is harmless because the benchmark job runs only `scripts/m3b-a1`.
 3. **A3.3 branch** from main after PR-2 (so `fitScore.ts` can join the freeze manifest in the same change). If the owner declines PR-2, cut A3.3 from main without the harness, and drop the freeze step from A3.3.
@@ -255,7 +270,7 @@ The A3.4 shadow deploy, observation and flip remain separate owner approvals (A3
 | OD-E1 | Evidence required for full credit | yes (P0 `met`) | A3.3 |
 | OD-12 | List-only evidence | full credit in v1, measured | A3.3 |
 | OD-D1 | Duplicate merge + versioned alias table (incl. a VI list later) | approve | A3.3 |
-| OD-I1 | Shadow reads raw model rows | approve | A3.3 |
+| OD-I1 | Shadow reads the normalized (displayed) rows + a `schemaViolations` counter | approve | A3.3 |
 | OD-I2 | Row cap 100 → ineligible | approve | A3.3 |
 | OD-M1 | `fitShadow` telemetry shape (§4.2, §5.2) | approve | A3.3 |
 | OD-M2 | Retention window for shadow data + privacy-policy check | e.g. 90 days after the window | A3.4 shadow deploy |
