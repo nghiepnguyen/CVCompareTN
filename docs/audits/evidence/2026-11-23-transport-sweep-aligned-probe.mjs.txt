@@ -1,0 +1,23 @@
+// Deterministic reproduction of the Kong↔PostgREST keep-alive race.
+// 1) A sentinel idle connection (resty inside the Kong container) reveals the
+//    wall-clock time of one PostgREST (warp) idle sweep; sweeps repeat every 30 s.
+// 2) Each round: burst N parallel POSTs through Kong 31 s before a sweep (fills
+//    the upstream pool), then burst again at sweep + offset, reusing connections
+//    idle ≥ 30 s exactly when warp closes them.
+import { execFileSync } from 'node:child_process';
+const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY, kong = process.env.KONG;
+const n = 60, offsets = (process.env.OFFSETS ?? '-150,-75,-25,0,25,75,150,300').split(',').map(Number);
+const call = () => fetch(`${url}/rest/v1/rpc/current_quota_cycle`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: '{"p_reset_day":1}' })
+  .then(async (r) => { await r.text(); return r.status; }).catch((e) => e.cause?.code ?? e.name);
+const burst = async () => (await Promise.all(Array.from({ length: n }, call))).filter((s) => s !== 200);
+const at = (t) => new Promise((r) => setTimeout(r, Math.max(0, t - Date.now())));
+execFileSync('docker', ['exec', kong, 'resty', '/tmp/idle.lua']);
+let sweep = Date.now(); // ≈ one sweep (exec return latency is a few ms)
+const rounds = [];
+for (const off of offsets) {
+  sweep += 60_000;                 // skip one sweep so the burst-1 connections are ≥ 30 s old at the next
+  await at(sweep - 31_000); await burst();
+  await at(sweep + off); const bad = await burst();
+  rounds.push({ off, bad: bad.length, statuses: [...new Set(bad)] });
+}
+console.log(JSON.stringify({ n, rounds, totalBad: rounds.reduce((s, r) => s + r.bad, 0) }));

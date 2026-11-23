@@ -66,7 +66,7 @@ jobs:
             docker logs --tail 2000 "supabase_${c}_cvfit_ci" > "$RUNNER_TEMP/db/logs/container_${c}.log" 2>&1 || true
           done
           echo "postgres backend crashes: $(grep -c 'terminated by signal' "$RUNNER_TEMP/db/logs/container_db.log" || true)"
-          echo "kong upstream drops: $(grep -c 'upstream prematurely closed' "$RUNNER_TEMP/db/logs/container_kong.log" || true)"
+          echo "kong upstream drops: $(grep -cE 'upstream prematurely closed|Connection reset by peer' "$RUNNER_TEMP/db/logs/container_kong.log" || true)"
 
       - name: Upload suite logs
         if: failure()

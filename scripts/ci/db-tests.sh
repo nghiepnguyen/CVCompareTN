@@ -20,6 +20,11 @@ export REQUIRE_DB_TESTS=1
 # empty tables: always start from a freshly migrated stack.
 used=$(docker exec "$DB_CONTAINER" psql -U postgres -tAc "select (select count(*) from auth.users) + (select count(*) from public.analysis_log)")
 [ "$used" = "0" ] || { echo "Stack is not fresh ($used rows). Reset it: (cd \"$WORK\" && supabase db reset)" >&2; exit 1; }
+# The Kong keep-alive fix from db-stack.sh must still be in place (a Kong
+# restart, e.g. after some CLI commands, would silently bring the race back).
+KONG="${DB_CONTAINER/supabase_db_/supabase_kong_}"
+docker exec "$KONG" grep -qx 'upstream_keepalive_idle_timeout = 10' /usr/local/kong/.kong_env \
+  || { echo "Kong upstream keep-alive fix missing on $KONG; rerun scripts/ci/db-stack.sh" >&2; exit 1; }
 LOGS="$WORK/logs"
 mkdir -p "$LOGS"
 cd "$REPO"
