@@ -200,7 +200,7 @@ Conclusion: existing storage can support the metrics safely **if** the owner acc
 | Inference "implies" (EN) / "ngụ ý" (VI) | — | unknown → partial | 75 |
 | Hedge "Có thể đã dùng …" (VI; EN "may have" is equally uncaught) | — | met | 100 |
 
-No language asymmetry was found in the tested shortfall and inference rules. Hedged evidence is a language-neutral gap (debt, §8 of A3.1 style risks; candidate for a later `fit-score-v2` marker list).
+No language asymmetry was found in the tested shortfall and inference rules. Hedged evidence is a language-neutral gap (known debt; candidate for a later `fit-score-v2` marker list).
 
 **Expected direction of change at a flip (hypotheses for shadow to test):**
 - Partial-heavy CVs drop (½ credit is stricter than the 60–74 band).
