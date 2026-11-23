@@ -1,119 +1,201 @@
-# M3-B A3.3 — fit-score-v1 offline shadow implementation: status report
+# M3-B A3.3 — fit-score-v1 offline shadow implementation
 
 - **Date:** 2026-11-23
-- **Result: NO-GO — blocked on a prerequisite, not on a defect.** Phase 0 is complete. Phases 1–5 (production code) were **not started**, as the brief requires: "If PR-1 or PR-2 is not merged, stop before production-code implementation and report the dependency." Neither PR exists on GitHub; `origin/main` is still `5776735` (fetched 2026-11-23).
-- **Mode:** offline. **0 Gemini calls.** No production file changed, no push, no PR opened, no merge, no deployment, no migration, no flag set.
+- **Branch:** `feat/m3b-a33-fit-score-shadow` (worktree `../cv-compare-tn-m3b-a33`), cut from `origin/main` `554a873`. Local commit only: nothing was pushed, no PR was opened, nothing was merged.
+- **Mode:** offline. **0 live Gemini calls** (every test mocks `generateContent`). No deployment, no migration, no prompt or schema change, no flag set in any environment.
+- **Supersedes** the earlier NO-GO status report that had this file name. That report was blocked only because PR-1 and PR-2 had not been merged. Both are merged now (§1).
+- **Contract:** `docs/audits/2026-11-23-m3b-a32-scoring-contract.md` (A3.2). The brief approves the shadow-v1 policy values.
+- **Verdict: PASS WITH KNOWN DEBT** (§7, §8).
 
-## 1. Implementation summary
+## 1. Baseline verification
 
-| Phase | Status |
+| Check | Evidence |
 |---|---|
-| 0 — branch and CI preparation | **Done locally.** PR-1 and PR-2 branches are prepared and verified; neither is pushed (owner action) |
-| 1 — `fit-score-v1` module | Not started (needs PR-1 + PR-2 merged, then A3.3 cut from the new main) |
-| 2 — shadow integration and flags | Not started |
-| 3 — `fitShadow` metrics | Not started |
-| 4 — offline tests | Not started (the plan is unchanged: A3.2 §9) |
-| 5 — verification | Done for PR-2 only (§4) |
+| Latest main | `git fetch` → `origin/main` = `554a873` (PR #101) on top of `fa5a4b9` (PR #100) |
+| PR #100 merged | `gh pr view 100` → MERGED, `fa5a4b9fded5…` |
+| PR #101 merged | `gh pr view 101` → MERGED, `554a873d3db8…` |
+| Main CI | `554a873`: CI success, DB tests success, Benchmark freeze success. `fa5a4b9`: CI success |
+| Production deployment | GitHub deployment `Production` for `554a873` → state `success` |
+| Production scoring unchanged | PR #100 is docs-only and PR #101 is test/CI-only (0 production lines, as the PR-2 report shows). The production score path is therefore still R0 `canonical-en-v2`. No live call was made to re-check it |
+| Isolated branch | new worktree from `origin/main`, so the dirty main checkout (`feat/p3a-interview-prep`) is untouched |
 
-## 2. Files changed (prepared branches, local only)
-
-### PR-1 — `docs/m3b-a2-a3-reports` (worktree `../cv-compare-tn-pr1-docs`, from `origin/main` `5776735`)
-
-Docs only (0 non-doc files). Cherry-picked from the audit branches:
-
-- `docs/audits/2026-11-22-m3b-a21-benchmark-readiness.md` (A2.1-R)
-- `docs/audits/2026-11-23-m3b-a31-deterministic-scoring-audit.md` (A3.1)
-- `docs/audits/2026-11-23-m3b-a32-scoring-contract.md` (A3.2)
-- this report
-
-Housekeeping fix: the last A3.2 commit (`e78ffe6`) had accidentally included the auto-generated `graphify-out/GRAPH_REPORT.md` (a `commit -a`). It was amended out on both the PR-1 branch and the A3.2 audit branch (now `f54ea02`). None of these was ever pushed.
-
-### PR-2 — `test/m3b-benchmark-harness` (worktree `../cv-compare-tn-pr2-harness`, from `origin/main` `5776735`)
-
-Commits `fb4becc`, `08e61c3` (the A2.2 harness, cherry-picked from `3b47f37`, `f6450df`) and `93f6f3c` (CI split):
+## 2. Files changed
 
 | File | Change |
 |---|---|
-| `scripts/m3b-a1/**` | benchmark harness (runner, transport, fixtures, rubric prototype, parity/isolation/characterization tests, freeze manifests) — as A2.2 |
-| `docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md`, `…-a22-runner-alignment.md` | protocol v3 and the A2.2 report |
-| `vitest.config.ts` | `BASE_EXCLUDE` and `BENCHMARK_FREEZE_TESTS` exported. The normal suite excludes **only** `a2Manifest.test.ts`, `rubricFreeze.test.ts` and `freezeCheck.test.ts` |
-| `scripts/m3b-a1/vitest.offline.config.ts` | restores the freeze tests and adds the offline guard |
-| `package.json` | `test:benchmark` script (one line) |
-| `.github/workflows/benchmark-freeze.yml` | new workflow: `npm run test:benchmark`, path-filtered to the frozen scoring files, `workflow_dispatch`, `contents: read`. **Not a required check** (a new workflow is not required unless the owner adds it to the ruleset) |
-| `scripts/m3b-a1/freezeCheck.ts` (new) | `staleFreeze()`: recomputes the manifest and every frozen hash and the config hash. It returns a reason (never file contents) on drift and fails closed if a file is unreadable |
-| `scripts/m3b-a1/a2Runner.ts` | the live path calls `staleFreeze()` after `checkLiveAuthorization` and refuses with `config_mismatch: freeze stale: …`. **A stale freeze on main can never authorize a live run** |
-| `scripts/m3b-a1/A2_FROZEN.json` | re-frozen: runner `0bdf13ac…fba67`, `freezeCheck.ts` `fd80e416…635d` added. Manifest, prompt, schema and config hash (`0892cba0…5a45`) unchanged |
+| `src/services/ai/fitScore.ts` (new) | Pure `fit-score-v1` module: `scoreFitV1`, `buildFitShadow`, `inspectRawTable`, the versioned alias table, and the two flag readers |
+| `_server-lib/ai/analysisService.ts` | `inputMode` set in the existing branches. Shadow computed behind the flag after `matchScore` and `detailedComparison` exist, before localization, inside `try/catch`. Optional `fitShadow` in the return value, never inside `result` |
+| `_server-lib/analyze/handler.ts` | `fitShadow` (when present) spread into the existing single `guard_metrics` insert |
+| `_server-lib/ai/suggestionGuard.ts` | `GuardMetrics` analyze variant gains optional `fitShadow` (type only) |
+| `src/__tests__/services/fitScore.test.ts` (new) | 37 unit tests: the contract table and the rules |
+| `src/__tests__/services/fitShadowAnalyze.test.ts` (new) | 10 integration tests on the real handler with Gemini and Supabase mocked: flags, isolation, privacy |
+| `scripts/m3b-a1/__tests__/fitScoreParity.test.ts` (new) | Parity with the frozen prototype: every fixture plus 2,000 random tables |
+| `scripts/m3b-a1/a2Manifest.ts` | `src/services/ai/fitScore.ts` added to the frozen file list |
+| `scripts/m3b-a1/A2_FIXTURES_MANIFEST.json` | Re-frozen (§6.2) |
+| `.github/workflows/benchmark-freeze.yml` | `fitScore.ts` added to both path filters |
+| `docs/11_guard_metrics.md` | `fitShadow` shape, reasons, privacy and retention note |
+| `.env.example` | `FIT_SCORE_SHADOW=false`, `FIT_SCORE_AUTHORITY=false` (server-only) |
 
-Production diff of PR-2 vs `origin/main`: **0 lines** under `src/`, `_server-lib/`, `api/`, `server/`, `server.ts`, `supabase/`, `vercel.json`.
+**Not changed:**
+- `prompts.ts`, `responseSchema.ts`, `geminiClient.ts`, `scoreNormalization.ts`, `requirementVerification.ts`, `canonicalProbability.ts`;
+- the quota and payment code;
+- the recruiter service and UI sort code;
+- `supabase/`, `api/`, `vercel.json`;
+- the prototype `scoringRubric.ts`. `RUBRIC_FROZEN.json` and `A2_FROZEN.json` are unchanged.
 
-## 3. Policy compliance (Phase 0 requirements)
+## 3. Scoring implementation (`fit-score-v1`)
 
-| Requirement | Evidence |
+This is a port of the frozen prototype, restricted to what the A3.2 contract defines. It drops `jdText` grounding, `hard`, `findingsHash` and the per-category breakdown. It has no `node:crypto` and no I/O.
+
+| Rule | Implementation |
 |---|---|
-| PR-1 docs only | `git diff --name-only origin/main` → 4 files, all under `docs/` |
-| PR-2 harness + CI separation | §2 |
-| Parity and isolation stay in required CI | `npx vitest list` (normal config) lists `isolation.test`, `a2RequestParity`, `responseParity`, `responseParitySdk` and `currentPipelineCharacterization` (81 entries); it lists **0** freeze tests |
-| Only freeze checks move to the dedicated non-required job | `npx vitest list --config scripts/m3b-a1/vitest.offline.config.ts scripts/m3b-a1` lists the freeze tests (13 entries) |
-| Stale freeze cannot authorize live execution | runner live-path guard + `freezeCheck.test.ts` (stale manifest / stale hash / wrong config hash / unreadable → refusal; source check that the guard sits on the live path after authorization). `LIVE_ENABLED` is still `false` |
-| No automatic merge | nothing pushed or opened |
+| Weights / credit | required ×3, preferred ×1. Credit in halves: matched 2, partial 1, missing 0, unknown 0. Integer sums |
+| Rounding | one half-up: `floor((200·num + den) / (2·den))`. Tested: 59.5→60, 79.5→80, ⅓→33, ⅔→67 |
+| Range / bands | integer in [0,100]; bands from `derivePassProbability` (production 80/60 thresholds, reused rather than copied) |
+| Validation order | shape → row validation → category/keywords → status → evidence → priority → key/alias → merge → arithmetic |
+| Row cap | more than 100 input rows → `null`, `too_many_rows`. Never truncated; keyword rows count toward the cap |
+| Empty / malformed | `no_scorable_rows` when the denominator is 0 (this includes keyword-only tables); `malformed_rows` for non-array input |
+| Keywords | excluded from the score, counted in `keywordsExcluded`. An unknown category defaults to keywords |
+| Status | anything outside the four statuses becomes `unknown` (`statusDefaulted`) |
+| Evidence | `matched` gets full credit only when P0 `deriveItemVerification` returns `met`. Otherwise it becomes partial (`unverifiedMatchDowngraded`) |
+| Skills-list-only evidence | full credit in v1, counted in `listOnlyEvidence` (OD-12) |
+| Priority | `required` → required; `preferred` / `nice-to-have` → preferred; missing or invalid → required (`priorityDefaulted`) |
+| Duplicates / aliases | NFC, lower-case, whitespace and punctuation key, then the versioned alias table; OR groups become an order-free set. Same key → one requirement: lower status wins, required wins. Counters: `duplicatesMerged`, `conflictingDuplicates`, `aliasMerged` |
+| Experience | **no numeric penalty.** A years row is an ordinary row. The P0 same-metric shortfall (EN and VI) downgrades a false "matched" |
+| Model numbers | `matchScore`, `categoryScores` and extra numbers on rows are ignored (tested) |
+| Version | `FIT_SCORE_VERSION = 'fit-score-v1'`. The header says any rule change means `fit-score-v2`, and the file hash is now in the benchmark freeze |
 
-**Tripwire probe** (done, then reverted): appending a comment to `_server-lib/ai/analysisService.ts`:
-- normal `vitest run scripts/m3b-a1` → **all pass** (10 files, 245 tests), so unrelated CI is not blocked;
-- `npm run test:benchmark` → **fails** (`a2Manifest`, `freezeCheck`), meaning a re-freeze is needed.
+**Malformed tables at the call site:** production normalization turns a broken model table into empty buckets. A normalized-only input would therefore always report `no_scorable_rows`. `inspectRawTable` checks the raw `parsedResult.detailedComparison` instead. It parses a JSON string the way the normalizer does. A missing table, a non-object, an array, or a bucket that is not an array all give `malformed_rows`. The same pass counts `schemaViolations`: raw statuses outside the schema enum, which production displays as `missing`.
 
-The probe edit was reverted (`git diff --quiet -- _server-lib` clean).
+## 4. Shadow integration
 
-## 4. Test results (PR-2 branch, exact commands)
+| Requirement | How it is met | Test |
+|---|---|---|
+| Two server flags, default off | `FIT_SCORE_SHADOW` is read at call time and is on only for `true` / `on`. Neither flag is a `VITE_*` variable | `flags` unit tests; integration tests "flags OFF" |
+| Flag off = path not executed | the builder spy is never called; the `guard_metrics` keys are exactly `v`, `suggestionGuard`, `requirementVerification` | `fitShadowAnalyze` |
+| Gemini score unchanged | the response is `toEqual` between on and off. `matchScore` stays 72, `scoreVersion` stays `canonical-en-v2`, `passProbability` is unchanged | `fitShadowAnalyze` |
+| Stored results unchanged | the `analyzeCV().result` value (what `saveHistoryRow` and recruiter `commitAndSaveCandidate` persist) is identical on and off | `fitShadowAnalyze` |
+| Recruiter sorting unchanged | no recruiter or sort file changed (`git diff --stat`). The candidate row receives the identical result | diff and the test above |
+| No extra Gemini call | `generateContent` gets one call with identical arguments on and off (`abortSignal` excluded) | `fitShadowAnalyze` |
+| Billing / quota unchanged | the same commit calls on and off. No quota or payment file changed | `fitShadowAnalyze` and the diff |
+| Shadow failure isolated | a thrown builder still gives 200 and the same body, and the log gets `{v, eligible:false, reason:'error'}` with no message | `fitShadowAnalyze` |
+| Authority non-operational | `fitScoreAuthorityEnabled()` returns `false` whatever the environment says. With both flags `true` the response equals the off response | unit test and `fitShadowAnalyze` |
+| Canonical rows, before localization | computed before the `language === 'en'` return and before `localizeAnalysis` | `vi` test: `fitShadow` equals the `en` run, the body is equal on and off, Gemini gets 2 calls (analyze + localize) both times. Removing the `vi`-path spread fails it (mutation check) |
+
+## 5. Metrics and privacy verification
+
+- **Placement:** the `fitShadow` key goes inside the existing `guard_metrics` v1 object, in the same single `analysis_log` insert. This needs no extra write and no migration, because the column is already `jsonb`. The shape is exactly A3.2 §4.2.
+- **Content:** a recursive check allows only numbers, booleans, `null`, and the enum strings for `v`, `reason`, `bandCanonical`, `bandShadow` and `inputMode`. The serialized object contains none of these synthetic values:
+  - requirement names (SQL, Python, Tableau);
+  - employers (Acme, Globex);
+  - an email address, a phone number or a name;
+  - the job title, the user id or the request key;
+  - the thrown error's message.
+- **Public API:** the response body has no `fitShadow` key and no `fit-score` string, whether the flag is on or off.
+- **Other readers of `analysis_log`:**
+  - **App code never selects `guard_metrics`.** `_server-lib/accountLock.ts:81-86` selects only `id` (a head count), and its document-cap filter reads only the `coverLetter`, `applicationReview` and `followUp` keys, so analyze rows are not affected.
+  - **The admin report RPC** (`20261101170000_admin_report_stats.sql`) returns aggregates only.
+  - **Direct row reads** go through RLS `is_admin()` (`20260703030000_admin_analysis_log.sql`). Admins can read `guard_metrics`, `fitShadow` included; no one else can.
+- **Production logging is not enabled:** the flag defaults to off and is not set in any environment. **Retention and the privacy review stay open (OD-M2).** `analysis_log` has no retention job, and `fitShadow` would be a new kind of user-linked evaluation number in that table.
+
+## 6. Tests and results
+
+### 6.1 Commands (worktree, final tree)
 
 | Command | Result |
 |---|---|
-| `env -u GEMINI_API_KEY npm test` | 129 files passed, 8 skipped; **2005 passed**, 76 skipped; exit 0 |
-| `npm run test:benchmark` | **14 files, 270 passed**, 1 skipped (by design) |
+| `npx vitest run src/__tests__/services/fitScore.test.ts` | 37 passed |
+| `npx vitest run src/__tests__/services/fitShadowAnalyze.test.ts` | 10 passed |
+| `npx vitest run scripts/m3b-a1/__tests__/fitScoreParity.test.ts scripts/m3b-a1/__tests__/isolation.test.ts` | 3 passed |
+| `npm test` | 132 files passed, 8 skipped; **2054 passed**, 76 skipped |
+| `npm run test:benchmark` (before the re-freeze) | **4 failed** (`a2Manifest`, 3 × `freezeCheck`): the tripwire fired as designed |
+| `npm run test:benchmark` (after the re-freeze) | **15 files, 272 passed**, 1 skipped (by design) |
 | `npm run lint` | exit 0 |
 | `npm run lint:api` | exit 0 |
 | `npm run build` | exit 0 |
 
-The worktree has no `.env`, and `node_modules` is a symlink to an install with an identical lockfile (`../cv-compare-tn-sec2-fix`).
+**Mutation check:** temporarily setting the required weight to 2 made 6 tests fail (parity and the contract table). The change was reverted, and the file hash equals the frozen one.
 
-## 5. Shadow metrics verification
+**Coverage against the brief:**
+- matched, partial and missing rows; unknown rows and malformed rows or tables;
+- duplicates, conflicting duplicates, aliases and OR groups;
+- ATS keyword exclusion; evidence downgrade; skills-list-only evidence;
+- Vietnamese and English rows, plus VI shortfall and inference markers;
+- experience shortfalls; empty, keyword-only and oversized tables (100 vs 101 rows);
+- rounding boundaries and the range property (300 random tables); order independence;
+- shadow failure isolation; flags off by default and the authority flag;
+- no extra Gemini call; canonical score, result and history/candidate payload unchanged; privacy.
 
-Not applicable yet: no shadow code exists. The contract to verify in Phases 3–4 is A3.2 §4.2/§5.2. Its required tests are listed in A3.2 §9, including a privacy test asserting that `guard_metrics.fitShadow` contains no string outside the enums, and that the API response body is byte-identical with the shadow on and off.
+### 6.2 Benchmark freeze (re-frozen after review)
 
-## 6. Privacy findings
+The only reviewed change to frozen inputs is `analysisService.ts`. `fitScore.ts` is new. The regenerated manifest (`computeManifest()` written verbatim, not hand-edited) differs from `554a873` in exactly two lines:
 
-No new data is collected by anything in PR-1 or PR-2. The A3.2 open point stands: `analysis_log` has **no retention job**, and `fitShadow` would add a user-linked evaluation number. That needs OD-M2 before any shadow deploy (not before A3.3 offline).
+```
+-    "_server-lib/ai/analysisService.ts": "bc9cb96d02c0…7f699",
++    "_server-lib/ai/analysisService.ts": "d48bfd18d753…44221",
++    "src/services/ai/fitScore.ts": "c6e2eade3e9c…542ae",
+```
 
-## 7. Known risks
+The following are **byte-identical**:
+- `requestConfigHash` (`0892cba0…5a45`);
+- `promptTemplateSha256`;
+- `rubricVersion`;
+- every `renderedRequestSha256` / `requestBytes` / `labelRubric` for all A2.0 and A2.1 fixtures;
+- `A2_FROZEN.json` and `RUBRIC_FROZEN.json`.
 
-- **Branch drift.** The A2.2 report inside PR-2 states the older runner hash (`8728ecc…`) and lists the CI-coupling choice as pending. Both are superseded by `93f6f3c` and this report, which is the authoritative status.
-- **Tamper tests depend on the tree.** `freezeCheck.test.ts`'s tamper tests assume the rest of the tree is fresh. On a stale tree they report the manifest drift first. This is acceptable because the file runs only in the freeze job.
-- **No gate on merging a stale freeze.** The freeze job is non-required, so a scoring PR can merge with a red freeze run. The live-run guard makes that safe for spend, but the harness would then need a re-freeze before its next use. Recommendation: a PR-template checkbox ("benchmark freeze green or re-frozen").
-- **Ordering.** A3.3 must start from main **after** PR-2 merges, because adding `fitScore.ts` and the shadow call to `analysisService.ts` must be re-frozen in the same change.
+The frozen Gemini request contract is therefore preserved: no prompt, schema, model or generation-config change.
+
+## 7. Remaining risks
+
+- **Real-world impact unknown.** All evidence is synthetic, and no saved production responses exist. A3.2 §6 expects:
+  - all-partial CVs to score 50 (Low);
+  - **under-experienced candidates to possibly score higher than today** (no numeric experience penalty; this is the largest accuracy risk);
+  - inference-based matches to drop;
+  - keyword-heavy JDs to rise.
+- **Hedged evidence** ("may have", "có thể") is not caught in either language, so it still gets full matched credit. The same applies to list-only evidence, which keeps full credit by design (OD-12).
+- **Alias coverage:** the table is EN tech names only, with no VI synonyms. Near-synonyms outside it ("React framework") still count twice.
+- **`unknown` is almost unreachable:** normalized rows only carry matched, partial or missing. `schemaViolations` measures the raw cases instead.
+- **No link from `analysis_log` to the result**, so disagreements can be inspected only on the owner's own test analyses (A3.2 §7).
+- **The freeze job is non-required**, so a scoring PR could still merge with a red freeze. The live-run guard (`staleFreeze`) keeps that safe for spend.
+- **Flag parsing:** only `true` and `on` enable the shadow. `1` / `TRUE` stay off (fail-safe, but worth knowing when setting the variable in Vercel).
 
 ## 8. Production readiness
 
-No production change exists. PR-1 and PR-2 are safe to review: docs and test/CI-only, 0 production lines. Pushing a branch triggers a Vercel Preview build (an existing repo behaviour). Preview carries no traffic and sends no Gemini calls, but it is still an outward action for the owner to take.
+The code is safe to merge with both flags off: the shadow path is not executed and `guard_metrics` keeps its pre-A3.3 shape. It is **not ready for a production shadow deploy** until:
+- OD-M2 (retention window plus a privacy-policy check) is decided;
+- the A3.4 shadow-deploy approval is given.
 
-## 9. Owner approvals required
+A Vercel env change needs a redeploy. The authority switch is not implemented: it needs A3.4 work and owner approval, including version-aware recruiter sorting before any flip (A3.2 §7).
 
-1. **Push and open PR-1** (`docs/m3b-a2-a3-reports`), review, merge.
-2. **Push and open PR-2** (`test/m3b-benchmark-harness`), review, merge. Optionally add a PR-template checkbox for scoring PRs.
-3. Confirm that `benchmark-freeze` stays **non-required** in the branch ruleset.
-4. After both merges: authorize starting **A3.3 Phases 1–5** from the new main. The plan is unchanged: A3.2 §9, approved shadow-only policy values, both flags default off.
-5. Before any later shadow deploy (A3.4): OD-M2 retention/privacy.
+## 9. Owner approvals needed
 
-**Verdict: NO-GO (dependency).** Re-run A3.3 once PR-1 and PR-2 are merged. Phase 0 needs no rework.
+1. **Review this branch, then push it and open a PR** (owner action). Pushing creates a Vercel Preview build; the flags are off there too.
+2. **Accept the re-freeze:** the `analysisService.ts` hash plus the new `fitScore.ts` entry (§6.2).
+3. **OD-M2:** set the `fitShadow` retention window and check the privacy policy. Required before setting `FIT_SCORE_SHADOW=true` anywhere real.
+4. **A3.4 shadow deploy:** a separate approval. It covers which environment, how long, and the OD-O1 minimum evidence.
+5. **Authority flip** (later): OD-3 category scores, OD-17 fixture labels, OD-6 band wording, version-aware recruiter sort, and `scoreVersion` `fit-v1`.
+
+**Verdict: PASS WITH KNOWN DEBT.** The implementation, isolation, privacy and freeze checks all pass offline. The debt is the open retention and privacy decision and the unmeasured real-world impact (§7). A3.4 was not started.
 
 ---
 
 ## Tóm tắt (tiếng Việt)
 
-- Đã chuẩn bị xong hai nhánh nhưng **chưa đẩy lên GitHub**:
-  - **PR-1:** chỉ gồm tài liệu A2.1, A3.1, A3.2 và báo cáo này.
-  - **PR-2:** bộ benchmark, tách 3 bài kiểm tra "đóng băng" sang một job CI riêng, không bắt buộc. Các bài kiểm tra parity và isolation vẫn nằm trong CI bắt buộc. Runner tự kiểm tra lại trạng thái đóng băng trước mọi lần chạy thật, nên dữ liệu đóng băng đã cũ không thể cho phép gọi Gemini.
-- Kết quả kiểm tra: tất cả test, lint và build đều đạt. Không thay đổi dòng mã production nào.
-- Theo yêu cầu, **chưa viết mã chấm điểm** vì PR-1 và PR-2 chưa được merge. Kết luận: **NO-GO do phụ thuộc**, không phải do lỗi.
+- **Đã làm:**
+  - Thêm module `fit-score-v1` (`src/services/ai/fitScore.ts`). Module tính điểm 0–100 từ chính các dòng yêu cầu Gemini đã trả về: bắt buộc ×3, ưu tiên ×1; đạt 1, một phần ½, thiếu hoặc không rõ 0; làm tròn một lần.
+  - Có gộp yêu cầu trùng và bảng đồng nghĩa, loại từ khoá ATS, và chỉ cho "đạt" trọn điểm khi CV có bằng chứng. Không trừ điểm kinh nghiệm theo công thức.
+  - Bảng rỗng, bảng lỗi hoặc quá 100 dòng thì **không có điểm** và ghi rõ lý do.
+- **Chạy ngầm sau cờ `FIT_SCORE_SHADOW`** (mặc định tắt):
+  - Điểm Gemini, kết quả lưu, sắp xếp ứng viên, lượt dùng và thanh toán đều không đổi.
+  - Không thêm lần gọi Gemini. Nếu phần tính ngầm bị lỗi thì phân tích vẫn thành công.
+  - Cờ `FIT_SCORE_AUTHORITY` chưa có tác dụng.
+- **Số liệu ghi ngầm** (`guard_metrics.fitShadow`) chỉ gồm số và giá trị enum: không có nội dung CV hay JD, tên yêu cầu, bằng chứng hay thông tin cá nhân. API công khai không trả về trường này.
+- **Kiểm tra:**
+  - Toàn bộ test (2054), benchmark (272), lint, lint:api và build đều đạt.
+  - Đã đóng băng lại: chỉ đổi hash của `analysisService.ts` và thêm `fitScore.ts`. Hash request gửi Gemini giữ nguyên.
 - **Việc cần anh/chị làm:**
-  - đẩy và mở PR-1, PR-2, rồi duyệt và merge;
-  - giữ job benchmark-freeze ở chế độ không bắt buộc;
-  - sau đó cho phép bắt đầu A3.3 (giai đoạn 1–5) từ main mới.
+  - duyệt rồi đẩy nhánh và mở PR;
+  - chấp nhận lần đóng băng lại;
+  - quyết định thời gian lưu dữ liệu ngầm (OD-M2) trước khi bật cờ ở môi trường thật;
+  - duyệt riêng A3.4.
+- **Kết luận: PASS WITH KNOWN DEBT.**

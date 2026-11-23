@@ -46,6 +46,8 @@ export function computeManifest() {
       '_server-lib/ai/responseSchema.ts', '_server-lib/ai/geminiClient.ts', 'scripts/m3b-a1/a2Fixtures.ts', 'scripts/m3b-a1/a21Fixtures.ts',
       // A2.2: production response handling the runner's classifyResponse mirrors.
       '_server-lib/ai/analysisService.ts', 'src/services/ai/scoreNormalization.ts',
+      // A3.3: the fit-score-v1 shadow module (contract frozen; changes need a new version).
+      'src/services/ai/fitScore.ts',
       'docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md',
     ].map((p) => [p, file(p)])),
     a20: A2_FIXTURES.map(entry),

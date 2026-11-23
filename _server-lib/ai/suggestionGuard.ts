@@ -1,4 +1,5 @@
 import type { RewriteSuggestion } from '../../src/services/ai/types.js';
+import type { FitShadow } from '../../src/services/ai/fitScore.js';
 
 // Numbers as a CV would state them ("7", "1,2", "35%"), separators dropped so
 // "1,2 triệu" and "1.2M" compare equal. MM/YYYY dates and bare years are
@@ -591,7 +592,7 @@ export type ApplicationReviewGuardMetrics = {
 export type FollowUpGuardMetrics = CoverLetterGuardMetrics;
 
 export type GuardMetrics =
-  | { v: 1; suggestionGuard: SuggestionGuardMetrics; requirementVerification?: RequirementVerificationMetrics }
+  | { v: 1; suggestionGuard: SuggestionGuardMetrics; requirementVerification?: RequirementVerificationMetrics; fitShadow?: FitShadow }
   | { v: 1; fullCv: FullCvGuardMetrics }
   | { v: 1; coverLetter: CoverLetterGuardMetrics }
   | { v: 1; applicationReview: ApplicationReviewGuardMetrics }

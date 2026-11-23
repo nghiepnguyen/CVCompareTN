@@ -11,8 +11,9 @@
     "_server-lib/ai/geminiClient.ts": "0c268a42d51efa475a64d63433890540e3b2da15787c6600c5f89d88d103663c",
     "scripts/m3b-a1/a2Fixtures.ts": "9a93315597f609cfe6b25c3b8afc1e52982ef0508a4131532fd3b3025c833264",
     "scripts/m3b-a1/a21Fixtures.ts": "a2cc0e34ef138d369be3d9e707a12ed393e0617cd90b0340139b641d5954c522",
-    "_server-lib/ai/analysisService.ts": "bc9cb96d02c09730ea6f97eb8c977fcc5fd7ef6d3af7f1b92f6ba1336467f699",
+    "_server-lib/ai/analysisService.ts": "d48bfd18d753336bcb098242cca78919772ea36fdbaa15147d6ac4deb5f44221",
     "src/services/ai/scoreNormalization.ts": "4d5367c64a0797c2bd5d1d081061a0300989479b2b409ab19a80c696998bb9aa",
+    "src/services/ai/fitScore.ts": "c6e2eade3e9c61b39eec69fa4113250a0fc9babeadb8025aaa2011f1993542ae",
     "docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md": "031a79f823a7c14924e665dbd7c44cd74b76713502b94aaa811bbf146247750f"
   },
   "a20": [
