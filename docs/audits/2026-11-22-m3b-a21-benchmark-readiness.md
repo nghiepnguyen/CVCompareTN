@@ -101,7 +101,7 @@ The `_server-lib/inputLimits.ts:7-8` claim that benchmark JDs "top out under 1k 
 ### 2.4 Does thinking compete with the output limit? What happens when budgets run out?
 
 - **If** thoughts count against `maxOutputTokens` (UNKNOWN), then at `thinkingBudget: 1024` the JSON keeps ≥ 15,360 tokens, about 8.5× the observed total output. If `thinkingBudget` is *not* honoured on Gemini 3 (UNKNOWN), long reasoning could exhaust 16,384 tokens.
-- **Exhaustion behaviour is safe since R0.3-A:** any candidate with `finishReason !== STOP` → `InvalidAiOutputError('incomplete_response')` (`analysisService.ts:208-209`); a blocked prompt → `'blocked'` (`:207`); unparseable output → `'malformed_json'` (`:215-221`); an invalid score → its own reason (`:225-226`). The handler releases the quota as `provider_error`, logs the real usage, and returns 502 `invalid_ai_output` with no automatic retry (`handler.ts:351-363`). This is covered by the 23 R0.3-A tests (`_server-lib/__tests__/` and `src/__tests__/` at `bc77dab`, squashed into `5610d74`). No new fixture is needed for this path.
+- **Exhaustion behaviour is safe since R0.3-A:** any candidate with `finishReason !== STOP` → `InvalidAiOutputError('incomplete_response')` (`analysisService.ts:208-209`); a blocked prompt → `'blocked'` (`:207`); unparseable output → `'malformed_json'` (`:215-221`); an invalid score → its own reason (`:225-226`). The handler releases the quota as `provider_error`, logs the real usage, and returns 502 `invalid_ai_output` with no automatic retry (`handler.ts:351-363`). This is covered by handler-level tests in `src/__tests__/services/m3bR0InvalidOutput.test.ts:255-273`: MAX_TOKENS with valid JSON, MAX_TOKENS with truncated JSON, and `it.each` over SAFETY, RECITATION, PROHIBITED_CONTENT, BLOCKLIST, SPII, LANGUAGE, OTHER and FINISH_REASON_UNSPECIFIED (grep for `incomplete_response|MAX_TOKENS` in `*.test.ts` finds only this file). No new fixture is needed for this path.
 - **Gaps outside scoring (known debt, not blocking):** localization, parse_cv and rewrite do not check `finishReason` (`localizeAnalysis.ts:143-146`; grep shows `finishReason` only in `analysisService.ts`). Localization falls back to English on a parse failure, so a truncated translation degrades presentation but never the score.
 
 ### 2.5 Proposed safe limits (proposal only, no production change)
@@ -173,11 +173,11 @@ Observed production usage is evidence, not a bound. This audit does **not** deri
 
 | Dimension | `SAMPLES` | A2.0 + A2.1 |
 |---|---|---|
-| EN JD / EN CV | 13 | 7 |
+| EN JD / EN CV | 14 (12 text + 2 PDF, below) | 7 |
 | VI JD / VI CV | 3 (`vi-short`, `vi-long`, `vi-no-contact`) | 1 (`a21-vi-vi`) |
 | EN JD / VI CV | 0 | 2 (`a2-boundary-60`, `a21-career-transition`) |
 | **VI JD / EN CV** | 0 | **0 — gap** |
-| PDF text / inline scan | 2 (files gitignored under `.r2-migration/`, present only in the owner checkout — **not reproducible from the repo**) | 0 |
+| of which PDF text / inline scan | 2 (files gitignored under `.r2-migration/`, present only in the owner checkout — **not reproducible from the repo**) | 0 |
 | Seniority | n/a | junior (b60), mid, senior-mismatch (`a21-seniority-mismatch`), career-transition |
 | Score range | n/a | label scores 0 / 62 / 63 / 65 / 73 / 75 / 78 / 83 / 95 / 100 (both bands' boundaries covered) |
 | Missing skills / OR groups / aliases / list-only evidence | P0 set (experience met/unmet, IELTS absent/6.0, duration conflict) | b60 (OR + years shortfall), semantic-stress (OR, K8s alias, list-only), keyword-stuffed |
@@ -252,7 +252,7 @@ Every request is the raw canonical request (equivalent to `language: 'en'`): no 
 
 ### 6.2 Order and checkpoints
 
-1. **CP0 canary** (request 1, a2-strong #1). Verify: HTTP 200, `finishReason STOP`, usage present and consistent, `modelVersion` recorded, output ≤ 17,408, actual ≤ $0.02, valid canonical-en-v2 score. **Stop for owner review** before continuing. This limits the UNKNOWN-bound exposure to one call before any evidence exists.
+1. **CP0 canary** (request 1, a2-strong #1). Verify: HTTP 200, `finishReason STOP`, usage present and consistent, `modelVersion` recorded, output ≤ 17,408, actual ≤ $0.02, valid canonical-en-v2 score. **Stop for owner review** before continuing. The canary gives the first evidence early, but it is **not** what limits exposure. The limit comes from the durable stop on output > 17,408 tokens combined with concurrency 1. That stop fires only *after* the offending call has completed and been billed. It prevents the next call; it does not cap the current one. So at most **one** call, at any position in the run, can exceed the H1b envelope, and that call's cost is UNKNOWN (§3.2 tier W).
 2. **CP1** after one run of each fixture (requests 2–4). Same checks, plus inspection of the score sanity per fixture.
 3. **CP2** after 12 primary runs: interim range/band flips; stop-loss check.
 4. **CP3** after 20 primary runs (+ retries): final.
@@ -316,6 +316,7 @@ The hard $5.00 / 24-request caps hold. Soft stops (durable, owner resume require
 | ID | Decision | Options | Recommendation |
 |---|---|---|---|
 | **OD-A** (replaces rejected OD-16) | Cost-bound strategy for the UNKNOWN per-call worst case | (i) obtain written provider confirmation of what bounds thinking+output for `generateContent`; (ii) **accept a staged risk**: canary CP0 + output > 17,408 stop + provider request quota + $1.00 soft stop, explicitly accepting that one call has an undocumented bound; (iii) stay blocked | (i) if obtainable within days; otherwise (ii), in writing |
+| | *What (ii) accepts, exactly:* realized spend ≤ (n − 1) × $0.0635 + **one call of UNKNOWN cost**, at any position (n = requests sent, ≤ 24). For the full plan that is ≤ 23 × $0.0635 ≈ **$1.46 + UNKNOWN**. The stop is post-hoc: it cannot cap the call that trips it. The $5.00 hard cap is reservation-based and cannot bound that call either. | | |
 | **OD-B** | Authorize porting the harness to a new branch from main (offline work, no live call) with the §5.2 parity and §5.3 new stops, then re-freeze | approve / defer | approve |
 | **OD-C** | Run read-only token-distribution SQL on production `analysis_log` (owner runs it; evidence, not a bound) | approve / skip | approve — query below |
 | OD-17 | Sign the A2.0 labels and intervals (§6.1) | approve / amend | review; amend only before any run |
