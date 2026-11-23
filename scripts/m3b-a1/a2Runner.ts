@@ -378,6 +378,9 @@ export async function runBenchmark(cfg: RunConfig): Promise<RunReport> {
   if (cfg.mode === 'live') {
     const refused = checkLiveAuthorization(cfg, env);
     if (refused) return report(refused.stop, refused.detail);
+    // A stale freeze can never authorize a live run (freeze CI is non-required).
+    const stale = (await import('./freezeCheck')).staleFreeze();
+    if (stale) return report('config_mismatch', `freeze stale: ${stale}`);
   }
   if (configHash(cfg.currentMonth) !== cfg.expectedConfigHash) return report('config_mismatch');
   if (cfg.budgetUsd > APPROVED_CAPS.cumulativeBudgetUsd || cfg.maxAttempts > APPROVED_CAPS.cumulativeAttempts

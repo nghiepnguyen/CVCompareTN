@@ -1,0 +1,58 @@
+name: Benchmark freeze
+
+# M3-B: verifies the frozen benchmark inputs (prompt, schema, model config,
+# response handling, runner, fixtures, protocol) against their committed
+# hashes. Deliberately NOT a required check: a red run on a scoring PR means
+# "re-freeze needed" (owner-approved), not "unrelated work is blocked". The
+# live runner re-checks the freeze itself before any live call.
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "src/services/ai/prompts.ts"
+      - "src/services/ai/scoreNormalization.ts"
+      - "src/services/ai/requirementVerification.ts"
+      - "_server-lib/ai/responseSchema.ts"
+      - "_server-lib/ai/geminiClient.ts"
+      - "_server-lib/ai/analysisService.ts"
+      - "scripts/m3b-a1/**"
+      - "docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md"
+      - "vitest.config.ts"
+      - ".github/workflows/benchmark-freeze.yml"
+  push:
+    branches: [main, master]
+    paths:
+      - "src/services/ai/prompts.ts"
+      - "src/services/ai/scoreNormalization.ts"
+      - "src/services/ai/requirementVerification.ts"
+      - "_server-lib/ai/responseSchema.ts"
+      - "_server-lib/ai/geminiClient.ts"
+      - "_server-lib/ai/analysisService.ts"
+      - "scripts/m3b-a1/**"
+      - "docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  freeze:
+    name: Benchmark freeze (non-required)
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Benchmark freeze + offline harness tests
+        run: npm run test:benchmark

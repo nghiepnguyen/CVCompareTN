@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:benchmark": "vitest run --config scripts/m3b-a1/vitest.offline.config.ts scripts/m3b-a1",
     "test:db:quota": "tsx scripts/db-quota-concurrency.ts && tsx scripts/db-quota-plan-concurrency.ts",
     "test:db:claim": "tsx scripts/db-candidate-claim-concurrency.ts",
     "test:db:m2q": "tsx scripts/db-m2q-quota-safety.ts",
