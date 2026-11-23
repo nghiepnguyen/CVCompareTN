@@ -200,3 +200,10 @@ Known debt:
 6. Whether to add the §5 proposed fixtures (each needs labels + a re-freeze).
 7. **OD-F**: keep the month pin `11/2026`.
 8. **OD-H**: SHA-locked A2.0 execution authorization, only after G1–G7. It must name the execution commit SHA, the caps ($5.00 reservation ceiling, 24 calls), the soft stops and the checkpoints.
+
+## Addendum (2026-11-23, PR-2 commit `93f6f3c`)
+
+This addendum supersedes the runner hash in §6 and the pending CI-coupling item in §7/§9:
+- CI split done: only `a2Manifest.test.ts`, `rubricFreeze.test.ts` and `freezeCheck.test.ts` are excluded from `npm test`. They run in `npm run test:benchmark` and in the non-required `.github/workflows/benchmark-freeze.yml`. Parity, isolation and characterization tests stay in the required CI job.
+- The live path re-verifies the freeze (`scripts/m3b-a1/freezeCheck.ts`, `staleFreeze()`) and refuses on drift.
+- Re-frozen `A2_FROZEN.json`: `a2Runner.ts` `0bdf13acf1fde83cb37036563685d3a093f29861e2b3ab6ce96d4fcb3c9fba67`; `freezeCheck.ts` `fd80e416a68a199dc5aada39a939064b50b04af3a408e16c5413dc403329635d` (added). Config hash, manifest, prompt and schema hashes are unchanged.
