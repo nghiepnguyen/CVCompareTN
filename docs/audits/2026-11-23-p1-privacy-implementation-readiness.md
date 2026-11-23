@@ -127,7 +127,7 @@ Downloading the official DOCX needs your OK, because it is a file download. Coun
 
 - **Benefit:**
   - brings practice in line with the policy **already live**, which says technical logs are kept "at most 90 days" (`privacyS8Item4`). Today that is false: rows date back to 2026-07-02;
-  - removes the only remaining per-user record of request timing older than 90 days;
+  - removes the per-request technical trail (kind, tokens, latency, outcome) older than 90 days. It is **not** the only per-user timestamped record: `analytics_quota_reservations` keeps one row per analysis (`user_id`, time, state) indefinitely for usage accounting, and `history` and `admin_audit_log` carry timestamps too. These are out of P1 scope but must be disclosed (§6);
   - deletion beats unlinking, because unlinked rows can be re-linked through `history` timestamps and the quota ledger.
 - **Cost:**
   - loses per-request forensics older than 90 days;
@@ -223,8 +223,9 @@ The baseline passes again after every restore.
 - VI: "Nhật ký kỹ thuật của mỗi yêu cầu AI (thời điểm, loại yêu cầu, kết quả hoặc mã lỗi, số token đã xử lý, thời gian xử lý), gắn với tài khoản của bạn. Nhật ký không chứa nội dung CV hay JD của bạn."
 
 **New `privacyS1Item7`: error reports**
-- EN: "Error reports sent to Sentry when something fails (error type, technical context and the page or function involved), with personal details such as email addresses and phone numbers removed before sending."
-- VI: "Báo cáo lỗi gửi tới Sentry khi có sự cố (loại lỗi, ngữ cảnh kỹ thuật, trang hoặc chức năng liên quan); các thông tin cá nhân như email và số điện thoại được loại bỏ trước khi gửi."
+- EN: "Error reports sent to Sentry when something fails (error type, technical context and the page or function involved). Before sending, we remove personal details we can detect, such as email addresses and phone numbers."
+- VI: "Báo cáo lỗi gửi tới Sentry khi có sự cố (loại lỗi, ngữ cảnh kỹ thuật, trang hoặc chức năng liên quan). Trước khi gửi, chúng tôi loại bỏ các thông tin cá nhân phát hiện được, như email và số điện thoại."
+- This scrubbing is best-effort, by regex, since SEC-2 (#99, 2026-11-22). Events from **before** SEC-2 may still contain personal data; the owner action "purge stored PII" is still open (gate G7).
 
 **New `privacyS2Item5`: purpose**
 - EN: "Operating the service: enforcing usage limits, preventing abuse, and diagnosing errors."
@@ -246,6 +247,11 @@ The baseline passes again after every restore.
 **`privacyS8Item4` (replace): retention, scoped to what we control**
 - EN: "Technical logs in our database: deleted after [N]. Scoring diagnostics: deleted after 30 days. Error reports and hosting logs kept by our providers (Sentry, Vercel, Supabase): deleted under each provider's retention period, at most {verify}. Backups that may contain these data: kept for at most 30 days."
 - VI: "Nhật ký kỹ thuật trong cơ sở dữ liệu của chúng tôi: xóa sau [N]. Số liệu chẩn đoán chấm điểm: xóa sau 30 ngày. Báo cáo lỗi và nhật ký máy chủ do nhà cung cấp lưu (Sentry, Vercel, Supabase): xóa theo thời hạn lưu của từng nhà cung cấp, tối đa {verify}. Bản sao lưu có thể chứa các dữ liệu này: lưu tối đa 30 ngày."
+
+**New `privacyS8Item5`: usage records (disclosure of what exists today; no change proposed)**
+- EN: "Usage records (one entry per analysis: your account, time and status), used to count your monthly limit: kept while your account is active. Short-lived abuse-prevention counters (your account, or a one-way hash of your IP address; never the raw IP): deleted after 2 days."
+- VI: "Bản ghi sử dụng (mỗi lần phân tích một dòng: tài khoản, thời điểm, trạng thái), dùng để tính hạn mức hằng tháng: lưu trong thời gian tài khoản còn hoạt động. Bộ đếm chống lạm dụng ngắn hạn (tài khoản, hoặc mã băm một chiều của địa chỉ IP; không bao giờ lưu IP gốc): xóa sau 2 ngày."
+- Sources: `analytics_quota_reservations` (no purge); `api_rate_limits` (subject `u:<uuid>` or `ip:<hmac>`, purge-api-rate-limits after 2 days, migration `20261101100000`).
 
 **`privacyS10Body` (replace the provider list; counsel may add transfer-mechanism wording under §2.3 Q2)**
 - EN: "Your data may be processed on servers outside Vietnam (Supabase, Vercel, Google Cloud, Sentry, Resend, Cloudflare). We only work with providers that apply internationally recognised data-protection safeguards."
@@ -315,7 +321,7 @@ The baseline passes again after every restore.
 1. **Adopt the migration in a PR.**
    - Copy `01` and `02` (plus `03` if chosen) into `supabase/migrations/` with fresh timestamps.
    - Move the test to `supabase/tests/purge_expired_analysis_log.test.sql`.
-   - If counsel sets *N* ≠ 90 days, change only the seeded value in `01` (≥ 90).
+   - If counsel sets *N* ≠ 90 days, change the seeded value in `01` (≥ 90) **and** the test: block 1's `setting not seeded to 90` assertion and boundary rows (89/90/91 days → *N*−1/*N*/*N*+1), and block 2's 365/150 expectations.
    - Open the PR. **CI, lint:api, test and DB tests must be green.** A push creates a Vercel preview on the production DB; the app code is unchanged, so this is harmless.
 2. **Merge.** That deploys production, but the app is unchanged.
 3. **Take the pre-apply logical backup** to `~/cvfit-backups/<date>-p1-pre-apply/` (0700, SHA256SUMS). Record its delete-by date (+30 days).
@@ -330,7 +336,18 @@ The baseline passes again after every restore.
    - every `*_ok` true;
    - `retention_days` = *N*;
    - ledger, history, payment, audit and usage values equal the preflight values (± legitimate new activity).
-8. **First purge.** Wait for the 20:30 UTC cron, or have the owner run `SELECT public.purge_expired_analysis_log();` once. **The returned count must equal `rows_to_delete_first_run`.** If it differs, stop and investigate before the next run, using the pause in §8.
+8. **First purge: owner-run, before the first cron run (20:30 UTC), in one transaction.** Inside one transaction `now()` is fixed, so the count and the deletion use the same cutoff:
+   ```sql
+   BEGIN;
+   SELECT count(*) AS expected FROM public.analysis_log WHERE created_at < public.analysis_log_retention_cutoff();
+   SELECT md5(string_agg(id::text, ',' ORDER BY id)) AS fingerprint FROM public.analysis_log WHERE created_at < public.analysis_log_retention_cutoff();
+   SELECT public.purge_expired_analysis_log() AS deleted;
+   -- COMMIT only if deleted = expected, and fingerprint = the preflight one (or the difference is explained by rows aged in since).
+   -- Otherwise ROLLBACK.
+   COMMIT;
+   ```
+   - The preflight values (step 4) are the plan-time record. Days may pass between steps 4 and 8, and after about 2026-12-01 new rows age in daily, so a larger count is not by itself a failure. A count that is not explained by rows aged in **is** one.
+   - If the apply happens after 20:30 UTC on the same day, pause the job first (`cron.alter_job`, §8), do this step, then re-enable it.
 9. **Next morning:**
    - rerun `verify.prod.sql`: `expired_rows_remaining = 0` and `last_cron_run` starts with `succeeded`;
    - spot-check the admin Report 30d preset: its numbers match pre-apply (± new activity).
@@ -339,7 +356,7 @@ The baseline passes again after every restore.
 **Stop conditions:**
 - any `*_ok` false;
 - the dry run lists anything else;
-- the first purge count differs from the preflight;
+- in step 8, `deleted` ≠ `expected`, or a fingerprint difference that rows aged in cannot explain (ROLLBACK);
 - the cron run is `failed`. That means the setting is invalid; it fails closed, so fix the setting and do not bypass it.
 
 ---
@@ -354,8 +371,8 @@ The baseline passes again after every restore.
 | G4 | Migration PR green (CI, DB tests incl. the moved test) and merged | the apply | not started |
 | G5 | P1 pre-apply dump taken, and the 30-day dump-deletion rule adopted (§8) | the apply | OPEN |
 | G6 | Supabase backup/PITR status re-verified in the dashboard | policy text | OPEN |
-| G7 | Sentry, Vercel and Supabase log retention verified (`{verify}` in §6) | **policy publish** | OPEN |
-| G8 | Counsel answers Q5 (notice) and the policy text is approved; the email recipient list and text approved separately | policy publish | OPEN |
+| G7 | Sentry, Vercel and Supabase log retention verified (`{verify}` in §6). Pre-SEC-2 Sentry events that hold PII purged, or confirmed aged out | **policy publish** | OPEN |
+| G8 | Counsel answers Q5 (notice), and the policy text is approved, including the usage-record and rate-limit lines (§6 `privacyS8Item5`). The email recipient list and text are approved separately | policy publish | OPEN |
 | G9 | Localization / cross-border transfer (Q2) assessed: transfer dossier and recipient agreements | **not** the purge; tracked as the larger exposure | OPEN |
 | G10 | A3.4: the §6 diagnostics text published (or explicitly waived) plus its own approval | A3.4 only | OPEN; flags stay off |
 
