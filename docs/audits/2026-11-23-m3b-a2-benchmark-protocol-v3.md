@@ -43,7 +43,7 @@ Each is evaluated after a call has settled. It prevents the next call; it never 
 
 | Soft stop | Threshold |
 |---|---|
-| Stage actual spend | > $1.00 |
+| Stage actual spend, usage-reported (from `usageMetadata`; reservation-charged retryable-HTTP / unknown outcomes are excluded — they are bounded by the hard reservation ceiling) | > $1.00 |
 | Single call actual cost | > $0.10 |
 | Output tokens (candidates + thoughts) in one call | > 17,408 (16,384 + 1,024: falsifies the H1 cost model) |
 | Invalid outputs in the stage | ≥ 2 |
@@ -112,7 +112,7 @@ Rubric medians vs the owner-approved **acceptable intervals** (readiness doc §6
 
 Before sending: live disabled; live authorization missing or not SHA-locked to the running code (`checkLiveAuthorization`); forbidden credential env present; soft stops or checkpoints overridden in live mode; config hash mismatch; caps above `APPROVED_CAPS`; ledger lock held; ledger corrupt/torn/out-of-sequence; open reservation; durable stop without resume; remaining plan worst case above the cumulative budget; plan above the cumulative attempt ceiling.
 
-During: next reservation exceeds the budget; unknown outcome (timeout, abort, network) — charged at full reservation; HTTP 4xx other than 429; retries exhausted; usage metadata missing; usage inconsistent (`totalTokenCount`), above the model limit or input bound, or with an unexpected billable dimension; `modelVersion` missing, not the analyze model, or different from the pinned version; ledger or artifact write failure; any §2.1 checkpoint; any §2.2 soft stop. Every stop after a send is durable and needs an operator resume record with an owner approval reference. **No automatic budget, ceiling or stage expansion.**
+During: next reservation exceeds the budget; unknown outcome (timeout, abort, network) — charged at full reservation; HTTP 4xx other than 429; retries exhausted; usage metadata missing; usage inconsistent (`totalTokenCount`), above the model limit or input bound, or with an unexpected billable dimension; `modelVersion` missing, not the analyze model, or different from the pinned version (an owner `expectedModelVersion` is matched exactly; otherwise the first accepted response pins it); ledger or artifact write failure; any §2.1 checkpoint; any §2.2 soft stop. Every stop after a send is durable and needs an operator resume record with an owner approval reference. **No automatic budget, ceiling or stage expansion.**
 
 ## 7. Artifacts and privacy
 

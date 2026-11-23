@@ -28,7 +28,9 @@ All files live under `scripts/m3b-a1/` (the original prototype path, kept so the
 | `__tests__/a2LiveTransport.test.ts` | ported + changed | live refusal test uses the new authorization shape |
 | `__tests__/a2Fixtures.test.ts`, `a2Manifest.test.ts`, `isolation.test.ts`, `offlineGuard.test.ts`, `rubricFreeze.test.ts`, `scoringRubric.test.ts` | ported unchanged | — |
 | `__tests__/r3r4Scores.db.test.ts` | **not ported** | observed pre-R0 R3/R4 behaviour on a local DB. Superseded by R0's own tests on main (`src/__tests__/services/m3bR0InvalidOutput.test.ts`) |
-| `__tests__/responseParity.test.ts` | **new** | §2 |
+| `__tests__/responseParity.test.ts` | **new** | §2 (SDK object level) |
+| `__tests__/responseParitySdk.test.ts` | **new** | §2 (real SDK REST conversion, fetch level) |
+| `__tests__/parityCases.ts` | **new** | the 29 shared synthetic raw responses |
 | `__tests__/a2RunnerA22.test.ts` | **new** | §3–4 |
 | `docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md` | **new** | protocol v3 (round-robin, checkpoints, soft stops, authorization). §4–5 criteria copied unchanged from v2 |
 | this report | new | — |
@@ -45,7 +47,7 @@ The re-frozen `A2_FIXTURES_MANIFEST.json` is identical to the `3fd9b74` freeze i
 
 ### 2.2 Response side (B3 resolved)
 
-`classifyResponse` (`a2Runner.ts:104`) applies the production rules from `_server-lib/ai/analysisService.ts:207-227`:
+`classifyResponse` (`a2Runner.ts:105`) applies the production rules from `_server-lib/ai/analysisService.ts:207-227`:
 
 1. `promptFeedback.blockReason` → `blocked`
 2. first candidate with `finishReason ≠ STOP` → `incomplete_response`
@@ -63,7 +65,7 @@ It reuses the production `GenerateContentResponse` class (so `.text` behaves the
 - **Malformed payloads with STOP:** truncated JSON; empty text; no parts; no candidates (HTTP 200 with an empty payload); JSON array; JSON scalar.
 - **Fallback parser:** fenced JSON; trailing comma; text around the JSON.
 
-All 29 match. Every production invalid reason that a JSON wire response can carry is covered. `non_finite` cannot arise from JSON, because the JSON wire format cannot carry Infinity.
+All 29 match. **Fetch-level variant (`responseParitySdk.test.ts`):** the live runner receives raw REST JSON from plain `fetch`, while production receives the object the SDK builds from that JSON. So the same 29 raw bodies are also served through a locally stubbed `fetch` to production `analyzeCV` running the **real `@google/genai` 1.48.0 SDK** (fake key, no network). All 29 match `classifyResponse` on the raw body. No divergence and no SDK throw were observed. Every production invalid reason that a JSON wire response can carry is covered. `non_finite` cannot arise from JSON, because the JSON wire format cannot carry Infinity.
 
 **In the runner:** an HTTP 200 is settled `ok` **only** when the response classifies as valid (and the model check passes). Otherwise it is `invalid_output`: charged, the run counts as completed, it is never re-sent, its score is not recorded, and it is excluded from score statistics. The ledger stores `matchScore` (an integer) or `invalidReason`.
 
@@ -72,17 +74,17 @@ All 29 match. Every production invalid reason that a JSON wire response can carr
 | Guard | Implementation | Test evidence |
 |---|---|---|
 | Live disabled by default | `LIVE_ENABLED = false as const` (`a2Runner.ts:24`) | `a2Runner.test.ts` "live execution is hard-disabled"; `a2RunnerA22` "regardless of authorization"; transport test with a real-looking transport → `live_disabled`, 0 fetches |
-| Explicit, SHA-locked authorization | `checkLiveAuthorization` (`:351`): needs `executionSha` = running `codeSha` (40-hex) and non-empty refs for OD-H, OD-A, OD-17 and OD-D. Live must use the exact soft stops and checkpoints | 6 refusal cases + valid → `null` |
-| No production credentials | `FORBIDDEN_LIVE_ENV` (`:304`) refused in live; key only from a 0400 file; transport never reads `process.env` | env refusal tests; key-file tests; scan of every `scripts/m3b-a1` file for key/JWT/private-key shapes; mock ledger contains no response text and no key |
+| Explicit, SHA-locked authorization | `checkLiveAuthorization` (`:352`): needs `executionSha` = running `codeSha` (40-hex) and non-empty refs for OD-H, OD-A, OD-17 and OD-D. Live must use the exact soft stops and checkpoints | 6 refusal cases + valid → `null` |
+| No production credentials | `FORBIDDEN_LIVE_ENV` (`:305`) refused in live; key only from a 0400 file; transport never reads `process.env` | env refusal tests; key-file tests; scan of every `scripts/m3b-a1` file for key/JWT/private-key shapes; mock ledger contains no response text and no key |
 | Strict call-count limit | `APPROVED_CAPS` 24 (A2.0) / 88 cumulative, preflight + per-attempt check | `maxAttempts 23` → `attempts_exhausted`; 25 → `config_mismatch` |
-| Retries count as calls | every re-send uses the retry allowance and a reserved attempt (`:411`) | 4 × 429/500/503 + 20 = exactly 24; 5th failure → `retries_exhausted` after 5 calls |
+| Retries count as calls | every re-send uses the retry allowance and a reserved attempt (`:412`) | 4 × 429/500/503 + 20 = exactly 24; 5th failure → `retries_exhausted` after 5 calls |
 | No automatic retry outside the runner | transport does one `fetch` per `send`; no SDK; production SDK retries are off (A2.1-R §1.4) | transport tests (5xx passed through untouched) |
 | Durable ledger, crash recovery | append + fsync + short-write check, lock, torn-tail repair, open attempt = full reservation (unchanged from A2-P) | legacy suite: 3 crash points, torn tail, ENOSPC on reservation and on settlement, duplicate/out-of-order/double-settle, artifact failure, resume |
-| No silent continuation after unknown outcome | timeout/abort/network → `unknown` at full reservation + durable stop (`:486`) | restart → `stopped_requires_resume`, 0 calls |
-| Model/version mismatch stops | `modelVersion` must be present, start with `gemini-3-flash-preview`, and equal the owner pin or the first recorded version (`:516`) | different model, missing version, mid-run change, owner pin → `model_mismatch`, run not counted done |
-| Missing usage → fail closed | `accounting_uncertain`, charged at reservation (`:531`), even when the payload is valid | test |
-| Checkpoints | durable `checkpoint` stop after call 1, the first round, call 12, call 20 (`:431`) | sequence 1 → 4 → 12 → completed at 20; no advance without a resume; empty `approvalRef` refused; call 20 stops when retries left the plan unfinished |
-| OD-G soft stops | stage actual > $1.00, call > $0.10, output > 17,408, invalid ≥ 2, consecutive non-ok ≥ 2 (`:56`), all post-settlement | one test per stop; resume does not reset the condition |
+| No silent continuation after unknown outcome | timeout/abort/network → `unknown` at full reservation + durable stop (`:489`) | restart → `stopped_requires_resume`, 0 calls |
+| Model/version mismatch stops | `modelVersion` must be present. With an owner `expectedModelVersion` it must equal the pin exactly. Otherwise it must start with `gemini-3-flash-preview` and equal the first **accepted** (`ok`/`invalid_output`) version, so a rejected response never becomes the pin (`a2Runner.ts:471-473`, `:520-523`) | different model, missing version, mid-run change, owner pin enforced from call 1, owner pin without the prefix accepted, rejected first response not pinned |
+| Missing usage → fail closed | `accounting_uncertain`, charged at reservation (`:537`), even when the payload is valid | test |
+| Checkpoints | durable `checkpoint` stop after call 1, the first round, call 12, call 20 (`:432`) | sequence 1 → 4 → 12 → completed at 20; no advance without a resume; empty `approvalRef` refused; call 20 stops when retries left the plan unfinished |
+| OD-G soft stops | stage **usage-reported** spend > $1.00 (reservation-charged retryable/unknown outcomes excluded; they are bounded by the hard reservation ceiling), call > $0.10, output > 17,408, invalid ≥ 2, consecutive non-ok ≥ 2 (`:56`), all post-settlement | one test per stop; 4 reservation-charged retries (> $0.83 charged) do not trip the spend stop; resume does not reset the condition |
 
 **The ceilings are not billing caps.** `APPROVED_CAPS` and `SOFT_STOPS` are documented in code (`a2Runner.ts:43-64`) and in protocol v3 §2 as *authorization* ceilings and *post-settlement* stops. While OD-A is unresolved:
 
@@ -96,9 +98,9 @@ All runs are in `../cv-compare-tn-m3b-a22` with `node_modules` symlinked to the 
 
 | Command | Result |
 |---|---|
-| `npx vitest run --config scripts/m3b-a1/vitest.offline.config.ts scripts/m3b-a1` | **12 files passed; 232 passed, 1 skipped** (`rubricFreeze` RUBRIC_FROZEN has no config hash by design). New: `responseParity` 31, `a2RunnerA22` 43 |
-| `env -u GEMINI_API_KEY npm test` (full repo) | **130 files passed, 8 skipped; 1986 passed, 77 skipped; exit 0** |
-| `env -u GEMINI_API_KEY -u SUPABASE_SERVICE_ROLE_KEY npx vitest run --config scripts/m3b-a1/vitest.offline.config.ts` (full repo under the fail-closed guard) | 128 passed, 3 failed, 7 skipped files; 1970 passed, 1 failed. All 3 failing files are SEC-2 Sentry envelope tests (`_server-lib/__tests__/sentryEnvelope.preview.test.ts`, `src/lib/__tests__/sentryEnvelope.browser.preview.test.ts`, `…browser.production.test.ts`). They post to their own **loopback** capture server, which the guard blocks by design. The guard log shows exactly 2 blocked fetches, both to `http://127.0.0.1`, and **no non-loopback network attempt**. The same files pass in `npm test`. The guard was not weakened |
+| `npx vitest run --config scripts/m3b-a1/vitest.offline.config.ts scripts/m3b-a1` | **13 files passed; 264 passed, 1 skipped** (`rubricFreeze` RUBRIC_FROZEN has no config hash by design). New: `responseParity` 31, `responseParitySdk` 29, `a2RunnerA22` 46 |
+| `env -u GEMINI_API_KEY npm test` (full repo) | **2018 passed, 77 skipped; exit 0** (all files passed; 8 skipped files are DB/optional suites) |
+| `env -u GEMINI_API_KEY -u SUPABASE_SERVICE_ROLE_KEY npx vitest run --config scripts/m3b-a1/vitest.offline.config.ts` (full repo under the fail-closed guard) | 128 passed, 3 failed, 7 skipped files; 1970 passed, 1 failed (run before the second alignment commit; the harness subset was re-run afterwards). All 3 failing files are SEC-2 Sentry envelope tests (`_server-lib/__tests__/sentryEnvelope.preview.test.ts`, `src/lib/__tests__/sentryEnvelope.browser.preview.test.ts`, `…browser.production.test.ts`). They post to their own **loopback** capture server, which the guard blocks by design. The guard log shows exactly 2 blocked fetches, both to `http://127.0.0.1`, and **no non-loopback network attempt**. The same files pass in `npm test`. The guard was not weakened |
 | `npm run lint` (`tsc --noEmit`, includes `scripts/`) | exit 0 |
 | `npm run lint:api` | exit 0 |
 | `npm run build` | exit 0 (static pages generated) |
@@ -135,11 +137,11 @@ The near-limit fixture changes the reservation (`bytes + 1,024` ≈ 161k tokens 
 
 | File | SHA-256 |
 |---|---|
-| `scripts/m3b-a1/a2Runner.ts` | `91758912895dd218fb2baf13af7cf3ad6f07b14a3125ccc2893e903c9ebbf9a8` |
+| `scripts/m3b-a1/a2Runner.ts` | `8728eccda75f86d8bf50b4e16cef92bae405366b95443d6df25bcc72cbcee0ce` |
 | `scripts/m3b-a1/a2LiveTransport.ts` | `ffd406d4c528cf452b1deeaae3eb9d4c040b0185d9a5d54b96f7dceefc081fd6` |
 | `scripts/m3b-a1/a2Fixtures.ts` | `9a93315597f609cfe6b25c3b8afc1e52982ef0508a4131532fd3b3025c833264` |
 | `scripts/m3b-a1/scoringRubric.ts` | `92c0326f7402b2b4c173d97cc06f23934d19f9c6ea963bc2f5ad1e519a1dc96b` |
-| `docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md` | `ffbe6cb46a28d9c1875cffdacfd215877369af39ed4b7652d5801119603960aa` |
+| `docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md` | `031a79f823a7c14924e665dbd7c44cd74b76713502b94aaa811bbf146247750f` |
 
 `A2_FIXTURES_MANIFEST.json` `files` (in addition to the above):
 
@@ -168,7 +170,8 @@ Rendered-request prefixes (unchanged from `3fd9b74`): strong `3509e8525d97`, b80
 
 Known debt:
 - `parseGeminiJson` is a copy (drift is guarded by the hash freeze and the parity test).
-- The provider's actual `modelVersion` string is **UNKNOWN**. If it does not start with `gemini-3-flash-preview`, CP0 stops with `model_mismatch`, which fails closed; the owner then sets `expectedModelVersion` deliberately.
+- The provider's actual `modelVersion` string is **UNKNOWN**. If it does not start with `gemini-3-flash-preview`, CP0 stops with `model_mismatch` (fail closed). The owner can then set `expectedModelVersion` to the exact observed string, which is matched exactly with no prefix rule. That is a run-config value, not a code change or re-freeze, and it is part of the OD-H authorization.
+- **CI coupling (owner decision):** `npm test` runs all 13 harness files. If this branch is merged, `a2Manifest.test.ts` and `rubricFreeze.test.ts` turn main CI **red** on any edit to `analysisService.ts`, `prompts.ts`, `responseSchema.ts`, `geminiClient.ts`, `scoreNormalization.ts` or `requirementVerification.ts` until the harness is re-frozen. Options: (a) keep it as an intentional tripwire, or (b) gate the freeze tests behind the offline config or an env flag before any PR.
 - The month pin is `11/2026` (OD-F pending).
 - The offline guard blocks the SEC-2 loopback tests (environmental, not a defect).
 - The 5 proposed fixtures are not created.
@@ -193,7 +196,7 @@ Known debt:
 2. **OD-17**: sign or amend the A2.0 labels and intervals (§5). Amending requires a re-freeze.
 3. **OD-D**: execution host option (A2-P §4.1).
 4. **OD-C** (optional evidence): read-only `analysis_log` token SQL (A2.1-R §8).
-5. **Review of this branch** (`audit/m3b-a22-runner-alignment`), and whether to open a PR for it.
+5. **Review of this branch** (`audit/m3b-a22-runner-alignment`), whether to open a PR for it, and the **CI-coupling choice** (§7): (a) keep the freeze tests as a main-CI tripwire on scoring-file edits, or (b) gate them behind the offline config or an env flag first.
 6. Whether to add the §5 proposed fixtures (each needs labels + a re-freeze).
 7. **OD-F**: keep the month pin `11/2026`.
 8. **OD-H**: SHA-locked A2.0 execution authorization, only after G1–G7. It must name the execution commit SHA, the caps ($5.00 reservation ceiling, 24 calls), the soft stops and the checkpoints.

@@ -13,7 +13,7 @@
     "scripts/m3b-a1/a21Fixtures.ts": "a2cc0e34ef138d369be3d9e707a12ed393e0617cd90b0340139b641d5954c522",
     "_server-lib/ai/analysisService.ts": "bc9cb96d02c09730ea6f97eb8c977fcc5fd7ef6d3af7f1b92f6ba1336467f699",
     "src/services/ai/scoreNormalization.ts": "4d5367c64a0797c2bd5d1d081061a0300989479b2b409ab19a80c696998bb9aa",
-    "docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md": "ffbe6cb46a28d9c1875cffdacfd215877369af39ed4b7652d5801119603960aa"
+    "docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md": "031a79f823a7c14924e665dbd7c44cd74b76713502b94aaa811bbf146247750f"
   },
   "a20": [
     {

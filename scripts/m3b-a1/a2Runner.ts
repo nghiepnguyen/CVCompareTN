@@ -54,6 +54,7 @@ export const APPROVED_CAPS = { cumulativeBudgetUsd: 5.0, cumulativeAttempts: 88,
  * one. Not billing caps.
  */
 export const SOFT_STOPS = {
+  /** Usage-reported (usageMetadata) spend of the stage; reservation-charged outcomes are excluded. */
   stageActualUsd: 1.0,
   perCallUsd: 0.1,
   /** maxOutputTokens 16,384 + thinkingBudget 1,024: more means the H1 cost model is wrong. */
@@ -436,7 +437,9 @@ async function runLocked(cfg: RunConfig, key: (f: A2Fixture, run: number) => str
     if (soft) {
       if (callUsd !== undefined && callUsd > soft.perCallUsd) return durableStop('soft_stop_call_cost', attempt);
       if (outputTokens !== undefined && outputTokens > soft.maxOutputTokensPerCall) return durableStop('soft_stop_output_tokens', attempt);
-      if (settled.reduce((s, r) => s + r.chargedUsd, 0) > soft.stageActualUsd) return durableStop('soft_stop_stage_spend', attempt);
+      // Usage-reported spend only: reservation-charged outcomes (retryable HTTP, unknown) have no reported usage and are bounded by the hard ceiling instead.
+      const reported = settled.reduce((s, r) => s + (r.inputTokens !== undefined && r.outputTokens !== undefined ? usd(r.inputTokens, r.outputTokens) : 0), 0);
+      if (reported > soft.stageActualUsd) return durableStop('soft_stop_stage_spend', attempt);
       if (settled.filter((r) => r.outcome === 'invalid_output').length >= soft.maxInvalidOutputs) return durableStop('soft_stop_invalid_outputs', attempt);
       let streak = 0;
       for (let i = settled.length - 1; i >= 0 && settled[i].outcome !== 'ok'; i--) streak++;
@@ -465,9 +468,9 @@ async function runLocked(cfg: RunConfig, key: (f: A2Fixture, run: number) => str
       const reservation = reservationUsd(bytes);
       if (state.spentUsd + reservation > cfg.budgetUsd + 1e-12) return report('budget_exhausted');
       const attempt = state.attempts + 1;
-      // Model version pinned by the owner, else by the first versioned settlement on this ledger.
+      // Model version pinned by the owner, else by the first ACCEPTED (ok / invalid_output) settlement on this ledger.
       const pinned = cfg.expectedModelVersion
-        ?? (current.find((r) => r.t === 'settled' && r.modelVersion) as Extract<LedgerRecord, { t: 'settled' }> | undefined)?.modelVersion;
+        ?? (current.find((r) => r.t === 'settled' && r.modelVersion && RUN_DONE.has(r.outcome)) as Extract<LedgerRecord, { t: 'settled' }> | undefined)?.modelVersion;
       try {
         appendLedger(cfg.ledgerPath, { t: 'reserved', stage: cfg.stage, attempt, fixture: f.id, run, reservationUsd: reservation, at: new Date().toISOString() });
       } catch (e) { return report('ledger_write_failed', (e as Error).message); }
@@ -513,7 +516,10 @@ async function runLocked(cfg: RunConfig, key: (f: A2Fixture, run: number) => str
       const cls = classifyResponse(res.json);
       const mv = (res.json as { modelVersion?: unknown } | null)?.modelVersion;
       const modelVersion = typeof mv === 'string' && mv ? mv : undefined;
-      const modelOk = !!modelVersion && modelVersion.startsWith(GEMINI_ANALYZE_MODEL) && (!pinned || modelVersion === pinned);
+      // Owner pin: exact equality only. Otherwise the analyze model prefix and, once pinned, equality.
+      const modelOk = !!modelVersion && (cfg.expectedModelVersion
+        ? modelVersion === cfg.expectedModelVersion
+        : modelVersion.startsWith(GEMINI_ANALYZE_MODEL) && (!pinned || modelVersion === pinned));
 
       // Artifact first: a run only counts as done once its response is durably captured.
       let artifactSha256: string;

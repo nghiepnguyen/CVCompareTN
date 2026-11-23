@@ -165,6 +165,21 @@ describe('fail closed: unknown outcome, usage, model', () => {
     expect([r.stop, r.attempts]).toEqual(['model_mismatch', 2]);
   });
 
+  it('an owner pin is matched exactly, even when it lacks the analyze-model prefix', async () => {
+    const r = await runBenchmark(cfg({ softStops: null, runsPerFixture: 1, maxRetries: 0, maxAttempts: 4, expectedModelVersion: 'models/gemini-3-flash',
+      transport: scripted(Array.from({ length: 4 }, () => resp({ model: 'models/gemini-3-flash' }))).transport }));
+    expect(r.stop).toBe('completed');
+  });
+
+  it('a mismatching first response never becomes the automatic pin', async () => {
+    await runBenchmark(cfg({ transport: scripted([resp({ model: 'gemini-2.5-pro' })]).transport }));
+    appendResume(ledgerPath(), 'owner-approval-model');
+    // the correct model is accepted afterwards (the rejected version was not pinned)
+    const r = await runBenchmark(cfg({ softStops: null, runsPerFixture: 1, maxRetries: 1, maxAttempts: 5 }));
+    expect(r.stop).toBe('completed');
+    expect(settled().slice(1).every((x) => x.modelVersion === GEMINI_ANALYZE_MODEL)).toBe(true);
+  });
+
   it('an owner-pinned expectedModelVersion is enforced from call 1', async () => {
     const r = await runBenchmark(cfg({ expectedModelVersion: 'gemini-3-flash-preview-001' }));
     expect([r.stop, r.attempts]).toEqual(['model_mismatch', 1]);
@@ -193,6 +208,14 @@ describe('OD-G soft stops (post-settlement; not billing caps)', () => {
     expect(r.stop).toBe('soft_stop_stage_spend');
     expect(r.attempts).toBe(19);
     expect(r.spentUsd).toBeGreaterThan(1);
+  });
+
+  it('stage spend counts usage-reported cost only: reservation-charged retries do not trip it', async () => {
+    const r503: Resp = { status: 503, json: {} };
+    // 4 retries are each charged at the ~$0.2079 reservation (> $0.83) but report no usage.
+    const r = await runBenchmark(cfg({ checkpoints: null, softStops: { ...SOFT_STOPS, maxConsecutiveNonOk: 99 }, transport: scripted([r503, resp(), r503, resp(), r503, resp(), r503]).transport }));
+    expect(r.stop).toBe('completed');
+    expect(r.spentUsd).toBeGreaterThan(0.8);
   });
 
   it('two invalid outputs stop', async () => {
