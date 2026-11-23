@@ -144,7 +144,16 @@ Before apply, `acl` shows the four `arwdDxtm` entries and the role checks show `
 2. From a detached worktree at the merge commit, run `supabase db push --linked --dry-run`. It must list exactly `20261123100000`.
 3. Run `supabase db push --linked`.
 4. Run `prod_verify`.
-5. Do the functional row check from §5.
+5. Run the functional write check, `supabase/tests/analysis_log_grants.prod_write_check.sql` (`supabase db query --linked` or the SQL Editor):
+   - What it does: as `service_role`, inside `BEGIN … ROLLBACK`, it inserts one synthetic row with exactly the `analysisLog.ts` columns, then runs the hourly-cap read.
+   - Why it's safe:
+     - `user_id` is NULL, so there is no FK lookup and the row is never counted by a per-user cap.
+     - No SECURITY DEFINER call is made, so it avoids F-CRASH.
+     - No Gemini call is made and no quota is used.
+     - Nothing is committed.
+   - Expected output: `inserted = 1`, `cap_query_ok = t`, `leftover = 0`.
+   - Validated locally after the migration (pass), and with INSERT revoked (`permission denied for table analysis_log`). On a failure, apply the rollback migration and stop.
+6. Optionally, confirm a real log row appears after the next organic analysis (read-only).
 
 ## 7. Known debt and findings
 
