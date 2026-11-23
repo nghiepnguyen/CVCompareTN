@@ -8,6 +8,7 @@
   - no app-level RPC retries;
   - policy direction approved, not to be published yet;
   - OD-O1 addendum approved.
+- **Partly superseded by `2026-11-23-p1-privacy-implementation-readiness.md`:** its legal memo replaces §1 here (Law 116/2025/QH15 is in force from 01-07-2026). Its configurable, fail-closed purge replaces the hardcoded 90 days in §2. Its tests, policy draft and runbook replace §2.2, §2.4 and §3.
 - **Supersedes** §2–§4 of `2026-11-23-post-p0h-ci-triage-p1-privacy-preflight.md` where they differ.
 
 ---

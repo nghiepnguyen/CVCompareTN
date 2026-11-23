@@ -1,4 +1,5 @@
--- PROPOSED, OPTIONAL (P1 variant B+rollup) — adopt only if long-term trends
+-- PROPOSED, OPTIONAL (P1 variant B+rollup; apply AFTER 01, which creates the
+-- setting + analysis_log_retention_cutoff()) — adopt only if long-term trends
 -- are wanted. Replaces the 01 function so each expiring row is counted into a
 -- user-free daily aggregate in the SAME statement that deletes it (each row is
 -- aggregated exactly once; atomic). No user_id, no timestamps finer than a day.
@@ -31,7 +32,7 @@ DECLARE n integer;
 BEGIN
   WITH del AS (
     DELETE FROM public.analysis_log
-     WHERE created_at < now() - interval '90 days'
+     WHERE created_at < public.analysis_log_retention_cutoff()
     RETURNING created_at, kind, status, input_tokens, output_tokens
   ), agg AS (
     INSERT INTO public.analysis_log_daily AS d (day, kind, status, rows, input_tokens, output_tokens)
