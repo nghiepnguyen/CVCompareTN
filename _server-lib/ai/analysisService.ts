@@ -26,6 +26,7 @@ import {
 import { localizeAnalysis, SCORE_VERSION } from './localizeAnalysis.js';
 import { stripInvisibleControls } from '../untrustedText.js';
 import { normalizeMatchScore, type InvalidScoreReason } from '../../src/services/ai/scoreNormalization.js';
+import { buildFitShadow, fitScoreShadowEnabled, FIT_SCORE_VERSION, type FitInputMode, type FitShadow } from '../../src/services/ai/fitScore.js';
 
 /**
  * M3-B R0: the model answered but its result is unusable (unparseable JSON or
@@ -80,6 +81,8 @@ export async function analyzeCV(
   usage: AiCallUsage;
   guardMetrics: SuggestionGuardMetrics;
   verificationMetrics: RequirementVerificationMetrics;
+  /** M3-B A3.3: present only when FIT_SCORE_SHADOW is on. Telemetry only, never part of the result. */
+  fitShadow?: FitShadow;
 }> {
   const client = getGeminiClient();
 
@@ -102,6 +105,7 @@ export async function analyzeCV(
   // CV text the model saw, when there is one (not for inline PDF/image) — used
   // to drop suggestions with numbers the CV never states.
   let cvText: string | undefined;
+  let inputMode: FitInputMode = 'text';
 
   // Start the timeout BEFORE PDF extraction so the whole analyzeCV budget is bounded.
   // `timeoutMs` is whatever budget the caller has left after auth/quota/recaptcha —
@@ -142,12 +146,14 @@ export async function analyzeCV(
           cvText = visible;
           parts.push({ text: `CV Content:\n${cvText}` });
           usedText = true;
+          inputMode = 'pdf_text';
         }
       } catch (e) {
         if (e instanceof Error && e.message.includes('(Timeout)')) throw e;
         // Non-timeout error (scanned/malformed PDF) → fall through to inlineData
       }
       if (!usedText) {
+        inputMode = 'inline_pdf';
         parts.push({
           inlineData: {
             data: cvData.split(',')[1] || cvData,
@@ -156,6 +162,7 @@ export async function analyzeCV(
         });
       }
     } else if (cvMimeType.startsWith('image/')) {
+      inputMode = 'image';
       parts.push({
         inlineData: {
           data: cvData.split(',')[1] || cvData,
@@ -297,8 +304,20 @@ export async function analyzeCV(
       presentationLanguage: 'en' as const,
     };
 
+    // M3-B A3.3 shadow (fit-score-v1): scores the canonical English rows before
+    // localization. Read-only; a failure never fails the analysis.
+    let fitShadow: FitShadow | undefined;
+    if (fitScoreShadowEnabled()) {
+      try {
+        fitShadow = buildFitShadow({ detailedComparison, rawDetailedComparison: parsedResult.detailedComparison, canonicalScore: matchScore, inputMode });
+      } catch {
+        fitShadow = { v: FIT_SCORE_VERSION, eligible: false, reason: 'error' };
+      }
+    }
+    const shadow = fitShadow ? { fitShadow } : {};
+
     const canonical = finalResult as AnalysisResult;
-    if (language === 'en') return { result: canonical, usage, guardMetrics, verificationMetrics };
+    if (language === 'en') return { result: canonical, usage, guardMetrics, verificationMetrics, ...shadow };
     // Presentation only, after the guard, on the same AI deadline; never throws.
     const localized = await localizeAnalysis(canonical, deadline);
     const lang = localized.presentationLanguage;
@@ -315,6 +334,7 @@ export async function analyzeCV(
       usage: totalUsage,
       guardMetrics,
       verificationMetrics,
+      ...shadow,
     };
   } catch (error: unknown) {
     if (error instanceof ControlledError || error instanceof InvalidAiOutputError) throw error;

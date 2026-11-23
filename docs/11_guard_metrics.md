@@ -50,6 +50,35 @@ Counts of the deterministic verification derived after the canonical response
 (`deriveRequirementVerification`, see `docs/12_canonical_scoring.md`). Counts
 only — never requirement, JD or CV text.
 
+M3-B A3.3 adds an optional `fitShadow` key on the same analyze success row,
+**only when the server flag `FIT_SCORE_SHADOW=true`** (default off; absent on
+every other row). It is the deterministic `fit-score-v1` shadow score
+(`src/services/ai/fitScore.ts`, contract
+`docs/audits/2026-11-23-m3b-a32-scoring-contract.md` §4–5) next to the
+authoritative Gemini score. It never changes the response, stored results,
+quota or billing:
+
+```json
+"fitShadow": {
+  "v": "fit-score-v1", "eligible": true, "canonical": 72, "shadow": 55, "absDiff": 17,
+  "bandCanonical": "Medium", "bandShadow": "Low",
+  "counts": { "matched": 2, "partial": 1, "missing": 1, "unknown": 0 }, "required": 3, "preferred": 1,
+  "diag": { "rowsIn": 5, "rowsRejected": 0, "keywordsExcluded": 1, "duplicatesMerged": 0,
+            "conflictingDuplicates": 0, "aliasMerged": 0, "unverifiedMatchDowngraded": 0,
+            "listOnlyEvidence": 0, "statusDefaulted": 0, "priorityDefaulted": 0,
+            "categoryDefaulted": 0, "schemaViolations": 1 },
+  "inputMode": "text"
+}
+```
+
+- `eligible: false` carries `reason` = `no_scorable_rows` | `malformed_rows` |
+  `too_many_rows` (> 100 rows) with `shadow`/`absDiff`/`bandShadow` = `null`;
+  a shadow bug is `{ "v": "fit-score-v1", "eligible": false, "reason": "error" }`
+  (no message text) and the analysis still succeeds.
+- Numbers and enums only — never CV/JD text, requirement names, evidence or a
+  hash of them. Retention for this key is an open owner decision (OD-M2); do
+  not enable the flag in production before it is settled.
+
 - Each dropped suggestion counts once, under the first rule that hit it
   (order: Skills → number → raw-JD). The split is "first reason", not every
   reason that applied.

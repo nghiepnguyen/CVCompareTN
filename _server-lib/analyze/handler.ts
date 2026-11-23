@@ -253,7 +253,7 @@ export async function handleAnalyze(
 
   let geminiStarted = false;
   try {
-    const { result, usage, guardMetrics, verificationMetrics } = await analyzeCV(
+    const { result, usage, guardMetrics, verificationMetrics, fitShadow } = await analyzeCV(
       jd, cvData as string, cvMimeType, cvName, language, aiDeadline.remainingMs(), cvPdfInlineData,
       () => { geminiStarted = true; }
     );
@@ -286,7 +286,7 @@ export async function handleAnalyze(
       result.id = requestKey;
       serverSave = await saveHistoryRow(userId, result, deadline);
     }
-    await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics, requirementVerification: verificationMetrics }, deadline);
+    await logAnalysisAttempt(userId, 'success', 'analyze', undefined, usage, { v: 1, suggestionGuard: guardMetrics, requirementVerification: verificationMetrics, ...(fitShadow ? { fitShadow } : {}) }, deadline);
 
     return {
       status: 200,
