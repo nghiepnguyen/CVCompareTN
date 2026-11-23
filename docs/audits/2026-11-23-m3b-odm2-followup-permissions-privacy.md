@@ -7,6 +7,7 @@
   - Production queries returned only privileges, ACLs, policy names and counts. No row content and no personal identifiers.
   - **No grant, data, migration, flag or policy change.** 0 Gemini calls. A3.4 not started.
 - **Status:** these are proposals. Each one needs its own owner approval.
+- **Update (later the same day):** §1 was released as PR #104 (`58e14ca`). §2 and §3 are superseded by `2026-11-23-post-p0h-ci-triage-p1-privacy-preflight.md`, which revises the option A recommendation: NULLing `user_id` is pseudonymization, not anonymization.
 
 ---
 
