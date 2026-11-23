@@ -102,7 +102,7 @@ describe.skipIf(!enabled)('M3-B R0 score integrity on a real database (committed
     generateContent.mockReset().mockResolvedValue({ text: 'not json', usageMetadata: USAGE });
     const u = await newUser();
     const key = randomUUID();
-    expect((await analyze(u, { idempotencyKey: key })).status).toBe(502);
+    expect(await analyze(u, { idempotencyKey: key })).toMatchObject({ status: 502, body: { code: 'invalid_ai_output' } });
     expect(await ledger(u.id)).toEqual([{ request_key: key, state: 'refunded', charged: false, outcome: 'provider_error' }]);
   });
 
@@ -178,7 +178,7 @@ describe.skipIf(!enabled)('M3-B R0 score integrity on a real database (committed
       await svc.from('candidate_cvs').update({ analysis_attempt_id: newer, analysis_started_at: new Date().toISOString() }).eq('id', c);
       return reply('null');
     });
-    expect((await analyze(u, { idempotencyKey: attempt, candidateId: c })).status).toBe(502);
+    expect(await analyze(u, { idempotencyKey: attempt, candidateId: c })).toMatchObject({ status: 502, body: { code: 'invalid_ai_output' } });
     expect(await candidate(c)).toMatchObject({ status: 'analyzing', analysis_attempt_id: newer });
   });
 
@@ -190,7 +190,7 @@ describe.skipIf(!enabled)('M3-B R0 score integrity on a real database (committed
       await svc.from('candidate_cvs').update({ status: 'done', match_score: 77, analysis_result: { matchScore: 77 } }).eq('id', c);
       return reply('null');
     });
-    expect((await analyze(u, { idempotencyKey: attempt, candidateId: c })).status).toBe(502);
+    expect(await analyze(u, { idempotencyKey: attempt, candidateId: c })).toMatchObject({ status: 502, body: { code: 'invalid_ai_output' } });
     expect(await candidate(c)).toMatchObject({ status: 'done', match_score: 77 });
   });
 

@@ -54,6 +54,20 @@ jobs:
       - name: Run database suites
         run: scripts/ci/db-tests.sh "$RUNNER_TEMP/db"
 
+      # Container logs make a transient failure diagnosable: Kong's error log
+      # names upstream (PostgREST) connection drops — the cause of the
+      # 2026-11-23 flake ("upstream prematurely closed connection") — and the
+      # db log shows backend restarts. Local test stack only: synthetic data
+      # and the CLI's default dev keys (the repo is public, so are artifacts).
+      - name: Capture database container logs
+        if: failure()
+        run: |
+          for c in db rest kong; do
+            docker logs --tail 2000 "supabase_${c}_cvfit_ci" > "$RUNNER_TEMP/db/logs/container_${c}.log" 2>&1 || true
+          done
+          echo "postgres backend crashes: $(grep -c 'terminated by signal' "$RUNNER_TEMP/db/logs/container_db.log" || true)"
+          echo "kong upstream drops: $(grep -c 'upstream prematurely closed' "$RUNNER_TEMP/db/logs/container_kong.log" || true)"
+
       - name: Upload suite logs
         if: failure()
         uses: actions/upload-artifact@v4
