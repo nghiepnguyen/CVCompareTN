@@ -89,12 +89,20 @@ DECLARE n integer;
 BEGIN
   SELECT count(*) INTO n FROM public.analysis_log;
   ASSERT n = 0, 'non-admin reads analysis_log: '||n;
-  UPDATE public.analysis_log SET guard_metrics = guard_metrics - 'fitShadow';
-  GET DIAGNOSTICS n = ROW_COUNT;
-  ASSERT n = 0, 'non-admin updated analysis_log: '||n;
-  DELETE FROM public.analysis_log;
-  GET DIAGNOSTICS n = ROW_COUNT;
-  ASSERT n = 0, 'non-admin deleted analysis_log rows: '||n;
+  -- Denied either by RLS (0 rows) or, since P0-H (20261123100000), by the
+  -- missing table privilege (42501); analysis_log_grants.test.sql pins which.
+  BEGIN
+    UPDATE public.analysis_log SET guard_metrics = guard_metrics - 'fitShadow';
+    GET DIAGNOSTICS n = ROW_COUNT;
+    ASSERT n = 0, 'non-admin updated analysis_log: '||n;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM public.analysis_log;
+    GET DIAGNOSTICS n = ROW_COUNT;
+    ASSERT n = 0, 'non-admin deleted analysis_log rows: '||n;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
 END $$;
 RESET ROLE;
 DO $$
