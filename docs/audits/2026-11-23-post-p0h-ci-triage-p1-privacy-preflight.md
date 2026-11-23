@@ -8,6 +8,12 @@
   - No writes, no migrations, no data deletion, no Gemini calls, no flag change, no policy published.
 - **Supersedes** §2 and §3 of `2026-11-23-m3b-odm2-followup-permissions-privacy.md`. That doc's §1 (P0-H) was released in PR #104.
 
+**Update (same day):**
+- The owner-approved single rerun of the failed job passed: DB tests on `58e14ca` attempt 2 = **success**, and main is green. The failure is documented as an intermittent transport issue in the local CI gateway.
+- One more local reproduction showed the same Kong `upstream prematurely closed connection`, and the new log capture flagged it (`kong upstream drops: 1`, `db crashes: 0`). So of 3 local reproductions, Kong was caught directly in 2.
+- The diagnostics went to draft PR #105 (`ci/db-test-transport-diagnostics`).
+- §2–§4 below are refined in `2026-11-23-p1-retention-design.md`.
+
 **Correction to the P0-H release report:** I reported "main CI green" after the merge without checking the post-merge DB-tests run. The run `DB tests` on `58e14ca` (run 45124474491) had **failed**. §1 covers it.
 
 ---
