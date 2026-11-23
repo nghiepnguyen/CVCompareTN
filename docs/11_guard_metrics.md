@@ -76,8 +76,14 @@ quota or billing:
   a shadow bug is `{ "v": "fit-score-v1", "eligible": false, "reason": "error" }`
   (no message text) and the analysis still succeeds.
 - Numbers and enums only — never CV/JD text, requirement names, evidence or a
-  hash of them. Retention for this key is an open owner decision (OD-M2); do
-  not enable the flag in production before it is settled.
+  hash of them.
+- **Retention (OD-M2): 30 days.** `public.purge_expired_fit_shadow()` (migration
+  `20261123000000`, scheduled daily 20:20 UTC as `purge-fit-shadow` by
+  `20261123000001`) removes only the `fitShadow` key from rows strictly older
+  than 30 days; rows and every other key stay. Apply both migrations (and run
+  `supabase/tests/purge_fit_shadow.prod_verify.sql`) **before** setting
+  `FIT_SCORE_SHADOW=true` anywhere that writes to the production database —
+  Preview shares it.
 
 - Each dropped suggestion counts once, under the first rule that hit it
   (order: Skills → number → raw-JD). The split is "first reason", not every
