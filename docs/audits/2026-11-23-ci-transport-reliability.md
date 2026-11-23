@@ -125,3 +125,84 @@ I fixed the budget before running anything: 6 full `db-tests.sh` runs. Each ran 
 - `idle.lua` (resty inside the Kong container): sends one keep-alive request to `rest:3000` and times the idle close.
 - `kong-burst-probe.mjs` / `kong-race-probe.mjs`: the non-aligned probes.
 - `sweep-aligned-probe.mjs`: the deterministic reproduction in §2.
+
+## 8. Follow-up: residual CI failure on PR #106 (run 45138888035), UNRESOLVED
+
+**Symptom:** on GitHub's x86_64 runner, with the fix active, one `POST /rest/v1/rpc/reserve_analytics_quota` at 08:30:36 got `recv() failed (104: Connection reset by peer) while reading response header from upstream`. That produced a 502, then a fail-closed 503 `quota_unavailable` in `m3bR0ScoreIntegrity`. The diagnostics reported `kong upstream drops: 1` and `postgres backend crashes: 0`.
+
+**What was checked:**
+
+| Question | Evidence | Result |
+|---|---|---|
+| Did the reload take effect on the runner? | The CI error came from Kong worker **1160**. In the pre-fix CI failure it was **1114**. Locally, `kong reload` replaces worker 1114 with 1160 | the runner's error is from the post-reload worker |
+| Is the setting effective in the running worker, not just in `.kong_env`? | admin API (`GET :8001/` via resty, inside the container) after `db-stack.sh`: `idle=10 pool=60 maxreq=100` | effective |
+| Does warp time idle from request start, making long requests unsafe under a 10 s Kong idle limit? | `longreq.lua`: after requests of 1, 20 and 40 s, warp closed the idle connection **59.0, 38.9 and 47.9 s after the response** | **no**: always ≥ 30 s after the response, well above 10 s |
+| Correlation | all three logged drops (local tr_3, CI `b1c16cc`, CI #106) fell within the window of `m2q2cAtomicSettlement` test 3's lock-blocked commit attempts. Those attempts are client-aborted after 3 s (Kong logs `499`) and later hit the 8 s statement timeout | correlated; mechanism unknown |
+| Does test 3 plus load reproduce it locally with the fix? | 3 rounds of test 3 alongside 40 workers hammering read-only POSTs: **33,081 requests, 0 failures, 0 Kong drops** | not reproduced |
+| Do client-aborted long requests poison Kong's pool? | `abort-probe.mjs`: 80 client aborts (499) of 6 s requests with a parallel hammer of **29,503 requests: 0 failures, 0 drops** | not reproduced |
+
+**Assessment:**
+- The fix removes the proven sweep race (35 → 0, deterministic).
+- One residual upstream reset remains **unexplained**. It happens only on GitHub's x86_64 runner, correlates with test 3's lock-and-abort window, and does not reproduce on local aarch64.
+- Candidate explanations, all **unverified**:
+  - a runner-specific network or kernel effect under the CPU contention of test 3's `docker exec` polling;
+  - a different PostgREST connection-close path that only shows under that timing;
+  - stale-connection reuse for a reason not yet identified.
+
+**Not done:**
+- No further fix pushed. The root cause is not understood, and the brief allows a follow-up only with a supported fix.
+- No reruns.
+
+**Options for the owner:**
+- **D1. One diagnostic CI run.** A commit to the draft PR that captures full Kong logs (no tail) at `info` level, the admin-API config, warp idle timing measured on the runner, and a socket snapshot around test 3. One run, not a loop.
+- **D2. Discriminating mitigation.** Set `upstream_keepalive_pool_size = 0` in the test stack, which disables upstream keep-alive so every request uses a new connection.
+  - If drops persist, the cause is not connection reuse.
+  - If they stop, reuse was involved.
+  - It costs a few milliseconds per request locally and needs a small fixed CI run budget to judge.
+
+## 9. D2: transport isolation (owner-approved experiment)
+
+**Question:** does the residual CI connection reset depend on Kong reusing upstream connections?
+
+**Change (test stack only):**
+- `db-stack.sh` reloads Kong with `upstream_keepalive_pool_size = 0`, keeping `idle_timeout = 10`.
+- It verifies the **running workers'** configuration through the admin API (`scripts/ci/kong-effective-config.lua`, run with `resty` because the image has no curl) and fails closed unless it reports `pool=0`.
+- `db-tests.sh` repeats that runtime check.
+- On failure, the workflow also prints the effective configuration.
+
+**Why `0` disables reuse (Kong 2.8.1 source, `kong/init.lua` balancer):**
+- With `upstream_keepalive_pool_size > 0`, Kong builds `pool_opts` and calls `ngx.balancer.enable_keepalive(idle, max_requests)`.
+- With `0`, no pool is set and keep-alive is never enabled.
+- The generated `nginx-kong.conf` has no `keepalive` directive in `kong_upstream`.
+- `conf_loader` accepts `0` ("must be 0 or greater"); it is also what the deprecated `nginx_upstream_keepalive = NONE` maps to.
+
+**Runtime evidence (local):** after a 40-request burst, `/proc/net/tcp` in the Kong container showed:
+- pool 60: **40 ESTABLISHED** idle Kong→PostgREST sockets;
+- pool 0: **0 ESTABLISHED**, and only TIME_WAIT. Every request used a new connection, which Kong closed.
+
+**Expected results, written before the GitHub run:**
+
+| CI outcome | Interpretation |
+|---|---|
+| Pass, 0 Kong drops or resets | consistent with the residual reset depending on connection reuse. Not proof, given one run and an underlying rate of about 1 in several runs |
+| Fail with a connection reset or premature close | the reset does **not** depend on reuse; the cause is elsewhere (PostgREST, runner networking). NO-GO; no further speculative fix |
+| Guard fails | the setting can't be applied on the runner; stop |
+
+**Costs and risks:**
+- **Latency:** one TCP connect per request, sub-millisecond on a local bridge.
+- **TIME_WAIT growth:** each closed connection waits about 60 s. The peak is measured during local suite runs (§9.1). The ephemeral port range is about 28k.
+
+### 9.1 Local D2 validation (fresh stacks, every result kept)
+
+| Check | Result |
+|---|---|
+| `db-stack.sh` effective config (admin API) | `pool=0 idle=10 maxreq=100` on every start |
+| Routing | 40 parallel POSTs → all 200 |
+| Reuse | after the burst: 0 ESTABLISHED Kong→PostgREST sockets, 40 TIME_WAIT |
+| Deterministic sweep-aligned probe (offsets −150 to +75 ms) | **0/480** failures, 0 Kong drops |
+| Guard negative test: re-enable pool 60, run `db-tests.sh` | refused: "Kong upstream keep-alive not disabled …" |
+| Full `db-tests.sh`, fixed budget 3 runs | **3/3 pass** (34/34 suites each), 0 Kong drops, TIME_WAIT peak 1919 / 1927 / 1904 |
+
+### 9.2 GitHub run
+
+Exactly one initial run of the follow-up commit; see the PR. There is no manual rerun.

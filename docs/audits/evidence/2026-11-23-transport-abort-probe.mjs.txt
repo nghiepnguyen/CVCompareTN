@@ -1,0 +1,12 @@
+// Client-aborted long requests through Kong (like the settle loop's 3 s RPC
+// timeout on a lock-blocked commit), repeated, while hammer.mjs runs.
+const url = process.env.SUPABASE_URL, anon = process.env.SUPABASE_ANON_KEY;
+const rounds = Number(process.argv[2] ?? 20); let aborted = 0, other = [];
+for (let i = 0; i < rounds; i++) {
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 3000);
+    try { const r = await fetch(`${url}/rest/v1/rpc/p0_sleep_probe`, { method: 'POST', signal: ac.signal, headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' }, body: '{"s":6}' }); other.push(r.status); }
+    catch (e) { if (e.name === 'AbortError') aborted++; else other.push(e.cause?.code ?? e.name); } finally { clearTimeout(t); }
+  }));
+}
+console.log(JSON.stringify({ rounds, aborted, other }));
