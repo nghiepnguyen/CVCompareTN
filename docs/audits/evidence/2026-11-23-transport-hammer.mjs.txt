@@ -1,0 +1,10 @@
+// Parallel read-only POSTs through Kong for S seconds; counts non-200 by status/time.
+const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const workers = Number(process.argv[2] ?? 40), seconds = Number(process.argv[3] ?? 25);
+const end = Date.now() + seconds * 1000; let ok = 0; const bad = [];
+async function w() { while (Date.now() < end) {
+  const t = new Date().toISOString().slice(11, 19);
+  try { const r = await fetch(`${url}/rest/v1/rpc/current_quota_cycle`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: '{"p_reset_day":1}' });
+    await r.text(); if (r.status === 200) ok++; else bad.push(`${t}:${r.status}`); } catch (e) { bad.push(`${t}:${e.cause?.code ?? e.name}`); }
+  await new Promise((r) => setTimeout(r, Math.random() * 200)); } }
+await Promise.all(Array.from({ length: workers }, w)); console.log(JSON.stringify({ ok, bad }));

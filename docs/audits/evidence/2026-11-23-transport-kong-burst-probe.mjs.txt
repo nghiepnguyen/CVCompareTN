@@ -1,0 +1,13 @@
+// Burst N parallel POSTs (fills Kong's upstream pool), wait W ms, burst again.
+// The second burst reuses connections idle ≈W ms; sweep W across 60 s.
+const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const n = Number(process.argv[2] ?? 40); const waits = process.argv.slice(3).map(Number);
+const call = () => fetch(`${url}/rest/v1/rpc/current_quota_cycle`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: '{"p_reset_day":1}' })
+  .then(async (r) => { await r.text(); return r.status; }).catch((e) => e.cause?.code ?? e.name);
+const burst = async () => { const s = await Promise.all(Array.from({ length: n }, call)); return s.filter((x) => x !== 200); };
+let total = 0, bad = [];
+for (const w of waits) {
+  await burst(); await new Promise((r) => setTimeout(r, w));
+  const b = await burst(); total += n; if (b.length) bad.push({ wait: w, statuses: b });
+}
+console.log(JSON.stringify({ n, rounds: waits.length, requests: total, nonOk: bad }));

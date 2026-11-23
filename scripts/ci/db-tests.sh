@@ -20,6 +20,13 @@ export REQUIRE_DB_TESTS=1
 # empty tables: always start from a freshly migrated stack.
 used=$(docker exec "$DB_CONTAINER" psql -U postgres -tAc "select (select count(*) from auth.users) + (select count(*) from public.analysis_log)")
 [ "$used" = "0" ] || { echo "Stack is not fresh ($used rows). Reset it: (cd \"$WORK\" && supabase db reset)" >&2; exit 1; }
+# The Kong transport setting from db-stack.sh must still be live in the running
+# workers (a Kong restart, e.g. after some CLI commands, would silently undo it).
+KONG="${DB_CONTAINER/supabase_db_/supabase_kong_}"
+case "$(docker exec "$KONG" resty /tmp/kong-effective-config.lua 2>/dev/null | tail -n 1)" in
+  pool=0\ *) ;;
+  *) echo "Kong upstream keep-alive not disabled on $KONG; rerun scripts/ci/db-stack.sh" >&2; exit 1 ;;
+esac
 LOGS="$WORK/logs"
 mkdir -p "$LOGS"
 cd "$REPO"

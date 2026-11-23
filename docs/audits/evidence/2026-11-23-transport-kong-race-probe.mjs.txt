@@ -1,0 +1,17 @@
+// Counts gateway 502s on POST /rest/v1/rpc/current_quota_cycle (read-only) through Kong.
+// Workers sleep a random 0.2–35 s between requests so pooled upstream
+// connections idle across PostgREST's server-side idle close.
+const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const workers = Number(process.argv[2] ?? 40), seconds = Number(process.argv[3] ?? 240);
+const end = Date.now() + seconds * 1000; let ok = 0, bad = {}; const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function worker() {
+  while (Date.now() < end) {
+    try {
+      const r = await fetch(`${url}/rest/v1/rpc/current_quota_cycle`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: '{"p_reset_day":1}' });
+      await r.text(); if (r.status === 200) ok++; else bad[r.status] = (bad[r.status] ?? 0) + 1;
+    } catch (e) { bad[e.cause?.code ?? e.name] = (bad[e.cause?.code ?? e.name] ?? 0) + 1; }
+    await sleep(Number(process.env.GAP_MIN ?? 200) + Math.random() * Number(process.env.GAP_SPAN ?? 34800));
+  }
+}
+await Promise.all(Array.from({ length: workers }, worker));
+console.log(JSON.stringify({ workers, seconds, ok, bad }));

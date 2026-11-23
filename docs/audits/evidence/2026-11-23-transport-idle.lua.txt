@@ -1,0 +1,19 @@
+-- Measure how long PostgREST keeps an idle keep-alive connection open.
+local sock = ngx.socket.tcp()
+sock:settimeout(5000)
+assert(sock:connect("supabase_rest_cvfit_odm2", 3000))
+assert(sock:send("GET / HTTP/1.1\r\nHost: rest\r\nConnection: keep-alive\r\n\r\n"))
+-- read status + headers + body (content-length)
+local len = 0
+while true do
+  local line = assert(sock:receive("*l"))
+  local cl = line:match("^[Cc]ontent%-[Ll]ength:%s*(%d+)")
+  if cl then len = tonumber(cl) end
+  if line == "" then break end
+end
+if len > 0 then assert(sock:receive(len)) end
+local t0 = ngx.now()
+sock:settimeout(120000)
+local _, err = sock:receive(1)
+ngx.update_time()
+print(string.format("idle close after %.1f s (%s)", ngx.now() - t0, tostring(err)))
