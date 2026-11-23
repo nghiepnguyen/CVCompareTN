@@ -1,0 +1,16 @@
+{
+  "frozenAt": "2026-11-23",
+  "stage": "A2.2 re-freeze (canonical-en-v2 parity)",
+  "baseline": "5776735",
+  "rubricVersion": "rubric-proto-v1-candidate",
+  "currentMonth": "11/2026",
+  "configHash": "0892cba055b15e4c7ca946821a381373d9905f5f93a1ed8d0fdea986a98f5a45",
+  "files": {
+    "scripts/m3b-a1/a2Runner.ts": "91758912895dd218fb2baf13af7cf3ad6f07b14a3125ccc2893e903c9ebbf9a8",
+    "scripts/m3b-a1/a2LiveTransport.ts": "ffd406d4c528cf452b1deeaae3eb9d4c040b0185d9a5d54b96f7dceefc081fd6",
+    "scripts/m3b-a1/a2Fixtures.ts": "9a93315597f609cfe6b25c3b8afc1e52982ef0508a4131532fd3b3025c833264",
+    "scripts/m3b-a1/scoringRubric.ts": "92c0326f7402b2b4c173d97cc06f23934d19f9c6ea963bc2f5ad1e519a1dc96b",
+    "docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md": "ffbe6cb46a28d9c1875cffdacfd215877369af39ed4b7652d5801119603960aa"
+  },
+  "note": "Any change to these files or to the request config requires a re-freeze approved by the owner; changes after A2.0 results require a new rubricVersion and fresh held-out validation."
+}

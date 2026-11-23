@@ -1,0 +1,10 @@
+{
+  "rubricVersion": "rubric-proto-v1-candidate",
+  "frozenAt": "2026-11-22",
+  "files": {
+    "scripts/m3b-a1/scoringRubric.ts": "92c0326f7402b2b4c173d97cc06f23934d19f9c6ea963bc2f5ad1e519a1dc96b",
+    "src/services/ai/requirementVerification.ts": "f97fc4cfb8c2b600e13bfb6e97b8a2f598c5f296e22aa0ab33e420357c7b6135"
+  },
+  "defaults": { "keywords": "excluded (OD-10 accepted)", "listOnlyEvidence": "full (OD-12 pending)", "groundedOnly": false },
+  "note": "Any change to these files requires a new rubricVersion and fresh held-out validation (A2 protocol section 8)."
+}
