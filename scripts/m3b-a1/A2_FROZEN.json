@@ -1,0 +1,17 @@
+{
+  "frozenAt": "2026-11-23",
+  "stage": "PR-2 re-freeze (CI split + live stale-freeze guard)",
+  "baseline": "5776735",
+  "rubricVersion": "rubric-proto-v1-candidate",
+  "currentMonth": "11/2026",
+  "configHash": "0892cba055b15e4c7ca946821a381373d9905f5f93a1ed8d0fdea986a98f5a45",
+  "files": {
+    "scripts/m3b-a1/a2Runner.ts": "0bdf13acf1fde83cb37036563685d3a093f29861e2b3ab6ce96d4fcb3c9fba67",
+    "scripts/m3b-a1/a2LiveTransport.ts": "ffd406d4c528cf452b1deeaae3eb9d4c040b0185d9a5d54b96f7dceefc081fd6",
+    "scripts/m3b-a1/freezeCheck.ts": "fd80e416a68a199dc5aada39a939064b50b04af3a408e16c5413dc403329635d",
+    "scripts/m3b-a1/a2Fixtures.ts": "9a93315597f609cfe6b25c3b8afc1e52982ef0508a4131532fd3b3025c833264",
+    "scripts/m3b-a1/scoringRubric.ts": "92c0326f7402b2b4c173d97cc06f23934d19f9c6ea963bc2f5ad1e519a1dc96b",
+    "docs/audits/2026-11-23-m3b-a2-benchmark-protocol-v3.md": "031a79f823a7c14924e665dbd7c44cd74b76713502b94aaa811bbf146247750f"
+  },
+  "note": "Any change to these files or to the request config requires a re-freeze approved by the owner; changes after A2.0 results require a new rubricVersion and fresh held-out validation."
+}
