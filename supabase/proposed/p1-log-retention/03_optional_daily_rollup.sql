@@ -1,6 +1,6 @@
--- PROPOSED, OPTIONAL (P1 variant B+rollup; apply AFTER 01, which creates the
--- setting + analysis_log_retention_cutoff()) — adopt only if long-term trends
--- are wanted. Replaces the 01 function so each expiring row is counted into a
+-- PROPOSED, OPTIONAL (P1-B + rollup; apply AFTER 01, which creates the
+-- settings + analysis_log_retention_cutoffs()) — adopt only if trends beyond
+-- the 400-day row retention are wanted. Replaces the 01 function so each expiring row is counted into a
 -- user-free daily aggregate in the SAME statement that deletes it (each row is
 -- aggregated exactly once; atomic). No user_id, no timestamps finer than a day.
 -- Caveat: at low traffic a day/kind/status cell can hold 1–2 rows; the cells
@@ -28,11 +28,12 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-DECLARE n integer;
+DECLARE n integer; c timestamptz;
 BEGIN
+  SELECT row_cutoff INTO c FROM public.analysis_log_retention_cutoffs();
   WITH del AS (
     DELETE FROM public.analysis_log
-     WHERE created_at < public.analysis_log_retention_cutoff()
+     WHERE created_at < c
     RETURNING created_at, kind, status, input_tokens, output_tokens
   ), agg AS (
     INSERT INTO public.analysis_log_daily AS d (day, kind, status, rows, input_tokens, output_tokens)
