@@ -92,7 +92,7 @@ The stack was started fresh from `supabase/migrations` (`scripts/ci/db-stack.sh`
 
 | Block | Proves |
 |---|---|
-| 1 | Seeds are 90/400; option A's helper is gone; both stages are DEFINER with a fixed `search_path` and service_role only; the helper is private; the admin RPC rejects both keys. **Boundaries:** scrub changes exactly 6 rows; the **89- and 90-day rows keep detail, the 91-day row loses it**; minimal fields are unchanged on every row (md5 fingerprint); the recent document row and the 31-day fitShadow row are untouched; a second run changes 0. **Purge** deletes 1 row: **399 and 400 kept, 401 deleted**; a second run deletes 0. **Billing and quota:** ledger, `usage_count`, payments, history, audit log and settings unchanged. Two separate cron jobs plus the 4 existing ones; P0-H ACL unchanged; the dependency set is exact; no FK, view or trigger. Both stages callable as service_role. |
+| 1 | Seeds are 90/400; option A's helper is gone; both stages are DEFINER with a fixed `search_path` and service_role only; the helper is private; the admin RPC rejects both keys. **Boundaries:** scrub changes exactly 6 rows; the **89- and 90-day rows keep detail, the 91-day row loses it**; minimal fields are unchanged on every row (md5 fingerprint); the recent document row and the 31-day fitShadow row are untouched; a second run changes 0. **Purge** deletes 1 row: **399 and 400 kept, 401 deleted**; a second run deletes 0. **Billing and quota:** ledger, `usage_count`, payments, history, audit log and settings unchanged. Each P1 cron job is either absent or defined exactly as in its file (02 and 04 are separate approvals), and the 4 existing jobs are intact; P0-H ACL unchanged; the dependency set is exact; no FK, view or trigger. Both stages callable as service_role. |
 | 2a | Invalid row retention: `365`, `90`, `0`, `-5`, `3651`, `400.5`, `"400"`, `null`, `{}`. Invalid detail retention: `89`, `0`, `401` (above rows), `90.5`, `"90"`, `null`, `[]`. Either key missing. Every case: **both** stages raise and the full-row fingerprint is unchanged. |
 | 2b | Detail 150 scrubs 4 rows and leaves the 120-day row; rows at 366 with detail at 366 scrub 3 and delete 3 (399/400/401); rows at 3650 delete 0. |
 | 3a / 3b | fitShadow purge and scrub in both orders give the same end state: the 31-day row ends as `{"v":1}` and the 91-day row as `NULL`. |
@@ -101,8 +101,9 @@ The stack was started fresh from `supabase/migrations` (`scripts/ci/db-stack.sh`
 
 **Results:**
 - **Test:** PASS on the base variant and with 03 (rollup).
-- **Mutation testing: 24/24 mutants killed.**
-  - Base (20): `<` changed to `<=` in each stage; floors lowered (365, 89); the detail ≤ rows check dropped; each column left uncleared; `model` cleared; each stage given the other's cutoff; each JSON type check dropped; EXECUTE granted to authenticated; helper granted to service_role; the "has detail" filter dropped; changed seeds; each cron schedule or command changed.
+- **Test passes in all three apply states:** 01 only; 01 and 02; 01, 02 and 04.
+- **Mutation testing: 25/25 mutants killed.**
+  - Base (21): `<` changed to `<=` in each stage; floors lowered (365, 89); the detail ≤ rows check dropped; each column left uncleared; `model` cleared; each stage given the other's cutoff; each JSON type check dropped; EXECUTE granted to authenticated; helper granted to service_role; the "has detail" filter dropped; changed seeds; each cron schedule or command changed (re-run after the cron assertions were made conditional).
   - Rollup (4): non-additive merge; detail cutoff used; extra grant; tokens dropped.
 - **Existing DB suite** (`scripts/ci/db-tests.sh`) with P1-B and rollup applied: **34 suites, 0 failed**.
 
@@ -127,7 +128,7 @@ The stack was started fresh from `supabase/migrations` (`scripts/ci/db-stack.sh`
 The keys are in `src/translations/legal.ts`. `scripts/generate-static-pages.ts` reads the same keys, so there is no second copy. The `{pending …}` markers must be resolved by counsel before publication.
 
 - **`privacyS8Item4`** (replaces the current, false "at most 90 days"):
-  - EN: "Technical logs of AI analyses in our database: error details are deleted after 90 days; a minimal record (account, time, type and result of the request, and usage figures: AI model, amount of text processed and response time) is kept for up to 400 days {pending Q1–Q3: to meet Vietnamese cybersecurity record-keeping requirements}, then deleted. These logs never contain the content of your CV or job description."
+  - EN: "Technical logs of AI analyses in our database: error details are deleted after 90 days; a minimal record (account, time, type and result of the request, and usage figures: AI model, amount of text processed and response time) is kept for up to 400 days {pending Q1–Q3: to meet Vietnamese cybersecurity record-keeping requirements}, then deleted. These logs never contain the content of your CV or job description." (Checked read-only on 2026-11-24: every one of the 12 `error_message` values in production is a bracketed code or one of the hardcoded handler sentences listed in §1.1. 0 values were unknown text.)
   - VI: "Nhật ký kỹ thuật của các lượt phân tích AI trong cơ sở dữ liệu: nội dung chi tiết của lỗi được xóa sau 90 ngày; bản ghi tối thiểu (tài khoản, thời điểm, loại và kết quả yêu cầu, cùng số liệu sử dụng: mô hình AI, lượng văn bản đã xử lý và thời gian phản hồi) được lưu tối đa 400 ngày {chờ Q1–Q3: để đáp ứng yêu cầu lưu nhật ký theo pháp luật an ninh mạng Việt Nam}, sau đó bị xóa. Nhật ký này không bao giờ chứa nội dung CV hay mô tả công việc của bạn."
 - **Account deletion** (new sentence, pending Q4):
   - EN: "If you delete your account, these minimal records are unlinked from you and deleted on the same schedule."
@@ -169,7 +170,7 @@ Collecting more IP data creates new personal data. It needs its own notice under
    - `rows_to_scrub_first_run` (0 on 2026-11-24) and `scrub_id_fingerprint`;
    - `rows_to_delete_first_run` (expected 0 until about 2027-08-06);
    - ledger, history, payments, audit and `usage_count_sum`.
-3. **Apply 01 and 02** (`db push`). **Do not apply 04.** Hold back 02 until step 4 is done if you want the first run to be manual.
+3. **Apply 01 only** (`db push`). **Do not apply 02 or 04 yet.** 02 ships in a second migration after step 5. Otherwise the 20:30 UTC job could scrub before the owner's counted run, and the comparison with the preflight would be lost. Until then `verify.prod.sql` shows `scrub_job_ok = false` by design.
 4. **First scrub, owner-run, in one transaction:**
    ```sql
    BEGIN;
@@ -177,7 +178,7 @@ Collecting more IP data creates new personal data. It needs its own notice under
    -- COMMIT only if it matches the preflight; otherwise ROLLBACK and investigate
    COMMIT;
    ```
-5. **Verify** with `verify.prod.sql`: every `*_ok` true, `detail_rows_remaining = 0`, `purge_jobs = 0`, unrelated counts as in the preflight. The morning after the first 20:30 UTC run, check `last_scrub_run = succeeded`.
+5. **Verify** with `verify.prod.sql`: every `*_ok` true except `scrub_job_ok`; `detail_rows_remaining = 0`; `purge_jobs = 0`; unrelated counts as in the preflight. **Then apply 02** as its own migration and re-run verify (`scrub_job_ok = true`). The morning after the first 20:30 UTC run, check `last_scrub_run = succeeded`.
 6. **Admin report check:** a custom range older than 90 days shows totals but no error categories. Ship the UI notice (§5) in the same release or earlier.
 7. **Policy:** publish only after the 14-day notice, with G5–G8 PASS, and the `{pending}` markers resolved by counsel.
 8. **Row deletion (04): separate production approval, before about 2027-08-06.**
@@ -201,7 +202,7 @@ Collecting more IP data creates new personal data. It needs its own notice under
 | G2: owner approves the irreversible scrub (0 rows today; grows daily) | **OPEN** |
 | G2b: owner approves row deletion (04) before about 2027-08-06 | **OPEN** (new) |
 | G3: admin notice text and UI PR | **OPEN** |
-| G4: option B SQL and tests on a disposable database | **PASS** (this document; 24/24 mutants; 34/34 existing suites) |
+| G4: option B SQL and tests on a disposable database | **PASS** (this document; 25/25 mutants; 34/34 existing suites) |
 | G5–G8: dump rule, Supabase and Sentry checks, policy approval | **OPEN** |
 | G9: localization and cross-border transfer | **OPEN**, largest exposure |
 | G10: auth/IP 12-month log (§7) | **OPEN** |

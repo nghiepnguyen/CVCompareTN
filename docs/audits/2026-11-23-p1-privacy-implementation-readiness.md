@@ -1,5 +1,7 @@
 # P1 Privacy — implementation readiness (technical-log retention)
 
+> **SQL replaced on 2026-11-24:** §4 (design) and §5 (tests) describe option A, which is no longer in `supabase/proposed/p1-log-retention/`. It is recoverable at commit `e32afcc`. The current SQL is option B: see `2026-11-24-p1-option-b-retention.md`.
+
 > **Partly superseded on 2026-11-24** by `2026-11-24-p1-legal-verification-release-gate.md`. Its §2 (legal memo), the recommended period in §4, §9 (runbook) and §10 (GO/NO-GO) are replaced. In particular, the 12-month system-log minimum is now confirmed in official text (Decree 333/2026 Art. 16.6(c) and 20.3), not "secondary sources only". The audit, the dependency proof, §7 and the SQL plus tests still stand.
 
 - **Date:** 2026-11-23 (snapshots at 09:45 UTC)

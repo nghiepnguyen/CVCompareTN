@@ -1,5 +1,6 @@
--- PROPOSED (P1-B) test — run on a disposable local stack AFTER applying 01, 02
--- and 04 (and optionally 03). Not in supabase/tests, so CI does not run it until
+-- PROPOSED (P1-B) test — run on a disposable local stack AFTER applying 01
+-- (02 and 04 optional — the cron assertions accept each job absent or exactly
+-- as defined; 03 optional). Not in supabase/tests, so CI does not run it until
 -- the migration is adopted (then move it to supabase/tests/). Synthetic rows
 -- only; every block rolls back.
 --
@@ -147,11 +148,15 @@ BEGIN
     ASSERT (SELECT relacl::text FROM pg_class WHERE oid = 'public.analysis_log_daily'::regclass) = '{postgres=arwdDxtm/postgres,authenticated=r/postgres}', 'rollup ACL not least-privilege';
   END IF;
 
-  -- Cron: scrub (02) and row purge (04) as separate jobs; 4 existing jobs intact.
-  ASSERT (SELECT count(*) FROM cron.job WHERE jobname = 'scrub-analysis-log-detail') = 1, 'scrub job count';
-  ASSERT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'scrub-analysis-log-detail' AND schedule = '30 20 * * *' AND command = 'SELECT public.scrub_expired_analysis_log_detail()' AND active AND username = 'postgres'), 'scrub job definition';
-  ASSERT (SELECT count(*) FROM cron.job WHERE jobname = 'purge-analysis-log') = 1, 'purge job count';
-  ASSERT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge-analysis-log' AND schedule = '40 20 * * *' AND command = 'SELECT public.purge_expired_analysis_log()' AND active AND username = 'postgres'), 'purge job definition';
+  -- Cron: scrub (02) and row purge (04) are separate, separately approved
+  -- migrations, so each job may be absent (0) — but never duplicated, and if
+  -- present its definition must match. 4 existing jobs intact.
+  ASSERT (SELECT count(*) FROM cron.job WHERE jobname = 'scrub-analysis-log-detail') <= 1, 'scrub job duplicated';
+  ASSERT NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'scrub-analysis-log-detail')
+      OR EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'scrub-analysis-log-detail' AND schedule = '30 20 * * *' AND command = 'SELECT public.scrub_expired_analysis_log_detail()' AND active AND username = 'postgres'), 'scrub job definition';
+  ASSERT (SELECT count(*) FROM cron.job WHERE jobname = 'purge-analysis-log') <= 1, 'purge job duplicated';
+  ASSERT NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge-analysis-log')
+      OR EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge-analysis-log' AND schedule = '40 20 * * *' AND command = 'SELECT public.purge_expired_analysis_log()' AND active AND username = 'postgres'), 'purge job definition';
   ASSERT (SELECT count(*) FROM cron.job WHERE jobname IN ('purge-free-history','purge-api-rate-limits','storage-cleanup','purge-fit-shadow')) = 4, 'existing cron jobs missing';
   -- P0-H analysis_log ACL unchanged.
   ASSERT (SELECT relacl::text FROM pg_class WHERE oid = 'public.analysis_log'::regclass) = '{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=ar/postgres}', 'analysis_log ACL changed';

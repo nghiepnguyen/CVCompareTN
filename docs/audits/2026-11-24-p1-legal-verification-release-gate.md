@@ -1,5 +1,7 @@
 # P1 Legal Verification & Release Gate — analysis_log retention
 
+> **Update (later on 2026-11-24):** Option B is now implemented and tested in `supabase/proposed/p1-log-retention/`; see `2026-11-24-p1-option-b-retention.md`. That document supersedes this one's G4 (now PASS) and §9 runbook (02 is now the scrub job; row deletion moved to 04). Option A's SQL is at commit `e32afcc`.
+
 - Date: 2026-11-24
 - Branch: `docs/p1-privacy-prep` (local only)
 - Supersedes: §2 (legal memo), §4 "recommended period", §9 (runbook) and §10 (GO/NO-GO) of `2026-11-23-p1-privacy-implementation-readiness.md`. Everything else there stands: the audit, the dependency proof, the five areas the purge must not affect, and the SQL plus tests.

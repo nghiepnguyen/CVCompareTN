@@ -1,5 +1,6 @@
 -- PROPOSED (P1-B) production POST-APPLY verify — READ-ONLY. Run once after
--- `db push`, after the owner-run first scrub, and the morning after the first
+-- `db push` of 01 (scrub_job_ok is false by design until 02 ships in its own
+-- migration after the owner-run first scrub), again after 02, and the morning after the first
 -- 20:30 UTC cron run. Expected: every *_ok true; detail_rows_remaining = 0
 -- after the first scrub; expired_rows_remaining = 0 only once row deletion
 -- (04) has been separately approved and has run. ledger/history/payment/audit/
