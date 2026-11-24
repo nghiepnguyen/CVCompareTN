@@ -204,6 +204,14 @@ export const admin = {
     vi: "Đến ngày",
     en: "To",
   },
+  adminReportRetentionNotice: {
+    vi: "Chi tiết lỗi chỉ được lưu 90 ngày. Số liệu hoạt động tổng hợp dự kiến được lưu tối đa 400 ngày.",
+    en: "Error details are kept for 90 days. Aggregate activity data is planned to be kept for up to 400 days.",
+  },
+  adminReportRetentionOldRange: {
+    vi: "Khoảng đã chọn bắt đầu trước {date}: danh mục lỗi trước ngày này không còn chi tiết nên có thể trống. Điều đó không có nghĩa là không có lỗi.",
+    en: "The selected range starts before {date}: error categories before that date no longer have details and may be empty. That does not mean there were no errors.",
+  },
   adminReportNewUsers: {
     vi: "User mới đăng ký",
     en: "New registrations",
@@ -251,6 +259,10 @@ export const admin = {
   adminReportNoErrors: {
     vi: "Không có lỗi trong khoảng này.",
     en: "No errors in this range.",
+  },
+  adminReportErrorsDetailExpired: {
+    vi: "Không có chi tiết lỗi để hiển thị. Lỗi cũ hơn 90 ngày không còn chi tiết, nên danh sách trống không có nghĩa là không có lỗi.",
+    en: "No error details to show. Errors older than 90 days no longer keep details, so an empty list does not mean there were no errors.",
   },
   adminReportModelMix: {
     vi: "Model & chi phí",

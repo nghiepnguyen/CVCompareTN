@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { vnStartOfDay } from '../../lib/vnTime';
-import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign, Gauge, HelpCircle, RefreshCw, Timer, ListChecks, Download } from 'lucide-react';
+import { UserPlus, Activity, CheckCircle2, XCircle, BarChart3, Trophy, Loader2, AlertCircle, ArrowDownToLine, ArrowUpFromLine, Layers, DollarSign, Gauge, HelpCircle, Info, RefreshCw, Timer, ListChecks, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useUI } from '../../context/UIContext';
 import { formatLabel } from '../../translations';
@@ -57,6 +57,12 @@ export function AdminReportTab() {
   const [error, setError] = useState<string | null>(null);
   const [exportBusy, setExportBusy] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+  // P1-B: on only once the 90-day detail scrub job is live in production
+  // (set VITE_ANALYSIS_LOG_RETENTION_ACTIVE=true in the same release).
+  const retentionActive = import.meta.env.VITE_ANALYSIS_LOG_RETENTION_ACTIVE === 'true';
+  // First VN day whose rows all still carry detail (part of day -90 is scrubbed).
+  const detailCutoff = dateInputValue(vnStartOfDay(new Date(), -89));
+  const rangeHasScrubbedDetail = retentionActive && range === 'custom' && customStart < detailCutoff;
 
   // Guard against out-of-order responses: switching range quickly must not let
   // a slower, older request overwrite the stats for the range now selected.
@@ -231,7 +237,7 @@ export function AdminReportTab() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Range Filter */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center bg-surface-secondary rounded-lg p-0.5 border border-border">
           {([
             { value: 'today', label: t.adminReportFilterToday },
@@ -303,6 +309,22 @@ export function AdminReportTab() {
               className="rounded-lg border border-border bg-surface px-2 py-1.5 text-xs font-bold text-text-main"
             />
           </label>
+        </div>
+      )}
+
+      {retentionActive && (
+        <div role="note" className="flex max-w-3xl items-start gap-2 rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs text-text-muted">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <div className="min-w-0 space-y-1">
+            <p>{t.adminReportRetentionNotice}</p>
+            {rangeHasScrubbedDetail && (
+              <p className="font-bold text-text-main">
+                {formatLabel(t.adminReportRetentionOldRange, {
+                  date: new Date(`${detailCutoff}T00:00:00+07:00`).toLocaleDateString(dateLocale, { timeZone: VN_TIME_ZONE }),
+                })}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -422,7 +444,9 @@ export function AdminReportTab() {
             {t.adminReportErrorCategories}
           </h4>
           {(stats?.errorCategories.length ?? 0) === 0 ? (
-            <p className="text-xs text-text-muted">{t.adminReportNoErrors}</p>
+            <p className="text-xs text-text-muted">
+              {rangeHasScrubbedDetail ? t.adminReportErrorsDetailExpired : t.adminReportNoErrors}
+            </p>
           ) : (
             <ul className="space-y-1.5">
               {stats?.errorCategories.map((row) => (
