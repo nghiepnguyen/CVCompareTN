@@ -1,0 +1,40 @@
+name: Cron health
+# P1-D watcher for pg_cron jobs. OFF unless the repository variable
+# CRON_HEALTH_ENABLED is 'true'. Needs (owner, when enabling):
+#   vars.CRON_HEALTH_URL           https://<prod host>/api/admin/cron-health
+#   vars.CRON_HEALTH_EXPECTED_JOBS comma-separated job names; add a job only
+#                                  after its first successful run
+#   secrets.CRON_HEALTH_SECRET     >= 32 chars, same value as the Vercel
+#                                  Production env CRON_HEALTH_SECRET
+# and public.cron_job_health (supabase/proposed/p1d-ops-guardrails/01) applied.
+# A red run (endpoint 503/401/5xx) is the alert: GitHub notifies on failure.
+# Daily, so at most one notification per day. Response holds enums and counts
+# only. Disable: set CRON_HEALTH_ENABLED to anything but 'true'.
+on:
+  schedule:
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cron-health
+  cancel-in-progress: false
+jobs:
+  check:
+    if: vars.CRON_HEALTH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check cron job health
+        env:
+          HEALTH_URL: ${{ vars.CRON_HEALTH_URL }}
+          EXPECTED_JOBS: ${{ vars.CRON_HEALTH_EXPECTED_JOBS }}
+          HEALTH_SECRET: ${{ secrets.CRON_HEALTH_SECRET }}
+        run: |
+          test -n "$HEALTH_URL"
+          test -n "$EXPECTED_JOBS"
+          test -n "$HEALTH_SECRET"
+          curl --fail-with-body --silent --show-error --max-time 30 --get \
+            --header "Authorization: Bearer $HEALTH_SECRET" \
+            --data-urlencode "jobs=$EXPECTED_JOBS" \
+            "$HEALTH_URL"

@@ -5,6 +5,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { handleExtractPdf } from '../_server-lib/pdf/handler.js';
 import { clientIpFromHeaders } from '../_server-lib/rateLimit.js';
 import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
+import { enterVercelFunction } from '../_server-lib/previewGuard.js';
+
+// P1-D: Vercel entry — fail-closed credential policy (see _server-lib/previewGuard.ts).
+enterVercelFunction();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentryServer();

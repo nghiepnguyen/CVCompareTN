@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { assertSupabaseUrlAllowed } from '../previewGuard.js';
 
 let adminClient: SupabaseClient | null = null;
 
@@ -14,6 +15,7 @@ export function getSupabaseAdmin(): SupabaseClient {
   if (!url || !serviceKey) {
     throw new Error('Supabase admin credentials are not configured');
   }
+  assertSupabaseUrlAllowed(url);
 
   adminClient = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },

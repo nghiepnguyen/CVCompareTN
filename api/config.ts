@@ -1,12 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { enterVercelFunction, isSupabaseUrlAllowed } from '../_server-lib/previewGuard.js';
 import { applyCors, handlePreflight } from '../_server-lib/http/guard.js';
+
+// P1-D: Vercel entry — fail-closed credential policy (see _server-lib/previewGuard.ts).
+enterVercelFunction();
 
 function publicConfig() {
   const supabaseUrl =
     process.env.VITE_SUPABASE_URL?.trim() ||
     process.env.SUPABASE_URL?.trim() ||
     '';
-  const supabaseAnonKey =
+  const allowed = supabaseUrl !== '' && isSupabaseUrlAllowed(supabaseUrl);
+  const supabaseAnonKey = !allowed ? '' :
     process.env.VITE_SUPABASE_ANON_KEY?.trim() ||
     process.env.SUPABASE_ANON_KEY?.trim() ||
     '';
@@ -14,9 +19,9 @@ function publicConfig() {
   return {
     storageWriteProvider: process.env.STORAGE_WRITE_PROVIDER === 'r2' ? 'r2' : 'supabase',
     storageR2Purposes: (process.env.STORAGE_R2_PURPOSES || 'temp').split(',').map(s => s.trim()).filter(s => ['temp', 'saved', 'candidate'].includes(s)),
-    VITE_SUPABASE_URL: supabaseUrl,
+    VITE_SUPABASE_URL: allowed ? supabaseUrl : '',
     VITE_SUPABASE_ANON_KEY: supabaseAnonKey,
-    SUPABASE_URL: supabaseUrl,
+    SUPABASE_URL: allowed ? supabaseUrl : '',
     SUPABASE_ANON_KEY: supabaseAnonKey,
   };
 }

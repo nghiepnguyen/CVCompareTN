@@ -4,6 +4,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getUserFromBearerToken } from '../../_server-lib/payment/supabaseAdmin.js';
 import { saveCandidateAnalysisForUser } from '../../_server-lib/recruiter/saveAnalysis.js';
 import { initSentryServer, Sentry } from '../../_server-lib/sentry.js';
+import { enterVercelFunction } from '../../_server-lib/previewGuard.js';
+
+// P1-D: Vercel entry — fail-closed credential policy (see _server-lib/previewGuard.ts).
+enterVercelFunction();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentryServer();

@@ -1,13 +1,11 @@
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { validBearerSecret } from '../http/bearerSecret.js';
 import { getSupabaseAdmin } from '../payment/supabaseAdmin.js';
 import { listObjects, removeObject, type BucketKind } from './r2.js';
 import { checkDb } from './handler.js';
 
 export function validCleanupSecret(header: string | undefined): boolean {
-  const secret = process.env.STORAGE_CLEANUP_SECRET?.trim();
-  if (!secret || secret.length < 32 || !header) return false;
-  const expected = Buffer.from(`Bearer ${secret}`); const actual = Buffer.from(header);
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
+  return validBearerSecret(header, process.env.STORAGE_CLEANUP_SECRET);
 }
 async function removePrefix(provider: string, kind: BucketKind, prefix: string, deadline: number): Promise<boolean> {
   if (Date.now() >= deadline) return false;
