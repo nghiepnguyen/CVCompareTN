@@ -64,8 +64,10 @@ The first harness version re-applied the unmutated 01 before each mutant, which 
   - EN: "Error details are kept for 90 days. Aggregate activity data is planned to be kept for up to 400 days."
   - When a custom range starts before the first fully-detailed VN day (today − 89; part of day −90 is already scrubbed): "…error categories before that date no longer have details and may be empty. That does not mean there were no errors." This replaces the earlier draft's "Older ranges show zero", which would be false while row deletion (04) is unapproved.
 - **Gated off:** shown only when `VITE_ANALYSIS_LOG_RETENTION_ACTIVE` is exactly `true`. Production does not set it, so merging the PR changes nothing visible. Runbook step 6 sets it in the release that applies 02.
-- Static text, nothing focusable; at 375 px the note spans x 12–363. (The report page already overflows to 437 px at 375 because of the existing filter row's export button — pre-existing, not touched.)
-- Tests: `src/__tests__/components/AdminReportTab.retention.test.tsx` (4 tests): hidden when unset or `"1"`; shown after the range buttons; warning boundary −90 warns / −89 does not; stale custom dates ignored for `30d`. **7/7 UI mutants killed.**
+- Empty error-category list: when the flag is on and the custom range reaches scrubbed days, it says details are gone instead of "No errors in this range" (which would contradict the Failed card).
+- Static text, nothing focusable; at 375 px the note spans x 12–363. The range filter row now wraps (`flex-wrap`, ungated layout fix): its export button was clipped and widened the page to 437 px. Remaining pre-existing overflow at 375 px: the ops card's error-category grid with long error strings (406 px) — unchanged code, not fixed here.
+- Tests: `src/__tests__/components/AdminReportTab.retention.test.tsx` (6 tests): hidden when unset or `"1"`; shown after the range buttons; warning boundary −90 warns / −89 does not; stale custom dates ignored for `30d`; empty-list wording over scrubbed days vs recent ranges / flag off. **9/9 UI mutants killed.**
+- Follow-up when 04 is approved: the copy ("planned … up to 400 days") and the old-range warning need a > 400-day case (counts will then be missing too).
 - Screenshots (local stack, local test admin only): `docs/audits/evidence/2026-11-24-p1b-g3-notice-en-desktop.jpg`, `…-vi-375px.jpg`.
 
 ## 5. Verification
@@ -83,10 +85,10 @@ See §6 for the numbers. No Gemini call anywhere (no AI route exercised; the dev
 | `cron_integration.sh` (real pg_cron execution) | 10/10 PASS |
 | `mutants.sh` | **38/38 killed** (34 SQL incl. 4 rollup, 4 real-cron); both baselines pass |
 | Security regression | PostgREST `/rpc` on scrub / purge / helper: 403 (service key), 401 (anon); `cron` schema not exposed (PGRST106) |
-| G3: `npm run lint`, `npm run lint:api` | PASS |
-| G3: `npx vitest run` | 134 files / 2063 tests passed, 76 skipped (DB-gated, as on main) |
-| G3: `npm run build` | PASS |
-| G3: UI mutants | 7/7 killed |
+| G3 at `aec17a5`: `npm run lint`, `npm run lint:api` | PASS |
+| G3 at `aec17a5`: `npx vitest run` | 134 files / 2065 tests passed, 76 skipped (DB-gated) |
+| G3 at `aec17a5`: `npm run build` | PASS |
+| G3: UI mutants | 9/9 killed |
 | Gemini / VM | none |
 
 ## 7. GO / NO-GO matrix
