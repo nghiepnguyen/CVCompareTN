@@ -1,7 +1,7 @@
 # P1 Option B — 12-month analysis_log retention (scrub at 90 days, delete at 400)
 
 - Date: 2026-11-24
-- Branch: `docs/p1-privacy-prep` (local commits only; no push, no PR, no merge, no deploy)
+- Branch: `docs/p1-privacy-prep`, Draft PR #107 (no merge, no deploy). Review hardening: `2026-11-24-p1b-review-hardening.md`.
 - SQL: `supabase/proposed/p1-log-retention/`. These files are outside `supabase/migrations`, so neither CI nor `db push` applies them.
 - Replaces option A in that folder. A is recoverable from commit `e32afcc` if counsel says the 12-month rule does not apply.
 - Legal basis and open gates: `2026-11-24-p1-legal-verification-release-gate.md`. The **legal gate stays open**; this document does not close it.
@@ -69,8 +69,8 @@ The audit question is who did what, when, and with what outcome. Law 116 Art. 2.
 |---|---|
 | `app_settings` seeds | `analysis_log_detail_retention_days = 90`, `analysis_log_retention_days = 400` (`ON CONFLICT DO NOTHING`) |
 | `analysis_log_retention_cutoffs()` | Private helper (INVOKER, `search_path=''`; EXECUTE revoked from PUBLIC, anon, authenticated and service_role). Validates **both** settings together: each must be a JSON integer; rows in **[366, 3650]**; detail in **[90, row days]**. Otherwise it raises `22023`. Returns `(detail_cutoff, row_cutoff)`. |
-| `scrub_expired_analysis_log_detail()` | SECURITY DEFINER, service_role only. `UPDATE … SET error_message = NULL, guard_metrics = NULL WHERE created_at < detail_cutoff AND (either is not null)`. Returns rows changed. |
-| `purge_expired_analysis_log()` | SECURITY DEFINER, service_role only. `DELETE … WHERE created_at < row_cutoff`. Returns rows deleted. |
+| `scrub_expired_analysis_log_detail()` | SECURITY DEFINER, owner (postgres) only — pg_cron and the owner's counted run. `UPDATE … SET error_message = NULL, guard_metrics = NULL WHERE created_at < detail_cutoff AND (either is not null)`. Returns rows changed. |
+| `purge_expired_analysis_log()` | SECURITY DEFINER, owner (postgres) only. `DELETE … WHERE created_at < row_cutoff`. Returns rows deleted. |
 | `DROP FUNCTION IF EXISTS analysis_log_retention_cutoff()` | Removes option A's helper if a stack still has it |
 | `02_scrub_analysis_log_detail_pg_cron.sql` | Job `scrub-analysis-log-detail`, `30 20 * * *` (03:30 Vietnam time, after `purge-fit-shadow` at 20:20) |
 | `04_purge_expired_analysis_log_pg_cron.sql` | Job `purge-analysis-log`, `40 20 * * *`. **A separate file, so row deletion gets its own production approval.** Without it rows are never deleted. |
@@ -92,7 +92,7 @@ The stack was started fresh from `supabase/migrations` (`scripts/ci/db-stack.sh`
 
 | Block | Proves |
 |---|---|
-| 1 | Seeds are 90/400; option A's helper is gone; both stages are DEFINER with a fixed `search_path` and service_role only; the helper is private; the admin RPC rejects both keys. **Boundaries:** scrub changes exactly 6 rows; the **89- and 90-day rows keep detail, the 91-day row loses it**; minimal fields are unchanged on every row (md5 fingerprint); the recent document row and the 31-day fitShadow row are untouched; a second run changes 0. **Purge** deletes 1 row: **399 and 400 kept, 401 deleted**; a second run deletes 0. **Billing and quota:** ledger, `usage_count`, payments, history, audit log and settings unchanged. Each P1 cron job is either absent or defined exactly as in its file (02 and 04 are separate approvals), and the 4 existing jobs are intact; P0-H ACL unchanged; the dependency set is exact; no FK, view or trigger. Both stages callable as service_role. |
+| 1 | Seeds are 90/400; option A's helper is gone; all three functions are owned by postgres; both stages are DEFINER with a fixed `search_path` and no API role (anon, authenticated, service_role) may execute them; the helper is private; the admin RPC rejects both keys. **Boundaries:** scrub changes exactly 6 rows; the **89- and 90-day rows keep detail, the 91-day row loses it**; minimal fields are unchanged on every row (md5 fingerprint); the recent document row and the 31-day fitShadow row are untouched; a second run changes 0. **Purge** deletes 1 row: **399 and 400 kept, 401 deleted**; a second run deletes 0. **Billing and quota:** ledger, `usage_count`, payments, history, audit log and settings unchanged. Each P1 cron job is either absent or defined exactly as in its file (02 and 04 are separate approvals), and the 4 existing jobs are intact; P0-H ACL unchanged; the dependency set is exact; no FK, view or trigger. (Review hardening: service_role EXECUTE removed — no API caller exists; PostgREST returns 403.) |
 | 2a | Invalid row retention: `365`, `90`, `0`, `-5`, `3651`, `400.5`, `"400"`, `null`, `{}`. Invalid detail retention: `89`, `0`, `401` (above rows), `90.5`, `"90"`, `null`, `[]`. Either key missing. Every case: **both** stages raise and the full-row fingerprint is unchanged. |
 | 2b | Detail 150 scrubs 4 rows and leaves the 120-day row; rows at 366 with detail at 366 scrub 3 and delete 3 (399/400/401); rows at 3650 delete 0. |
 | 3a / 3b | fitShadow purge and scrub in both orders give the same end state: the 31-day row ends as `{"v":1}` and the 91-day row as `NULL`. |
@@ -107,8 +107,9 @@ The stack was started fresh from `supabase/migrations` (`scripts/ci/db-stack.sh`
   - Rollup (4): non-additive merge; detail cutoff used; extra grant; tokens dropped.
 - **Existing DB suite** (`scripts/ci/db-tests.sh`) with P1-B and rollup applied: **34 suites, 0 failed**.
 
+- **Review hardening (2026-11-24):** real pg_cron execution 10/10 (`cron_integration.sh`) and scripted mutants (`mutants.sh`); see `2026-11-24-p1b-review-hardening.md`.
+
 **Not tested:**
-- a real pg_cron firing (the jobs' definitions are asserted, not their execution);
 - production data shapes beyond the read-only counts.
 
 ## 5. Do the admin reporting functions need changes?
@@ -119,9 +120,10 @@ The stack was started fresh from `supabase/migrations` (`scripts/ci/db-stack.sh`
 - `admin_report_ops` keeps latency. Its `error_categories` will be empty for any part of a range older than 90 days.
 - Past 400 days, both report zero, unless the optional 03 rollup is adopted (the report would then need a new read path, not proposed).
 
-**UI:** one notice line under the custom-range date inputs at `src/components/views/AdminReportTab.tsx:287` and `:299`. This is not implemented and needs its own small PR:
-- VI: "Số liệu tổng hợp được lưu 400 ngày; nội dung chi tiết của lỗi chỉ lưu 90 ngày. Khoảng thời gian cũ hơn sẽ hiển thị 0."
-- EN: "Totals are kept for 400 days; error details only for 90 days. Older ranges show zero."
+**UI (G3):** implemented in a separate Draft PR (`feat/p1b-g3-admin-retention-notice`), hidden unless `VITE_ANALYSIS_LOG_RETENTION_ACTIVE=true`:
+- VI: "Chi tiết lỗi chỉ được lưu 90 ngày. Số liệu hoạt động tổng hợp dự kiến được lưu tối đa 400 ngày."
+- EN: "Error details are kept for 90 days. Aggregate activity data is planned to be kept for up to 400 days."
+- Plus, for a custom range starting before today − 89: error categories before that date may be empty, which does not mean there were no errors. The earlier draft's "Older ranges show zero" was dropped: false while row deletion (04) is unapproved.
 
 ## 6. Privacy policy updates (EN/VI drafts; not published)
 
@@ -179,7 +181,7 @@ Collecting more IP data creates new personal data. It needs its own notice under
    COMMIT;
    ```
 5. **Verify** with `verify.prod.sql`: every `*_ok` true except `scrub_job_ok`; `detail_rows_remaining = 0`; `purge_jobs = 0`; unrelated counts as in the preflight. **Then apply 02** as its own migration and re-run verify (`scrub_job_ok = true`). The morning after the first 20:30 UTC run, check `last_scrub_run = succeeded`.
-6. **Admin report check:** a custom range older than 90 days shows totals but no error categories. Ship the UI notice (§5) in the same release or earlier.
+6. **Admin report check:** a custom range older than 90 days shows totals but no error categories. Set `VITE_ANALYSIS_LOG_RETENTION_ACTIVE=true` in Vercel Production and redeploy in the same release that applies 02 (not earlier: the notice must not claim a policy that is not running). Unset it if 02 is rolled back.
 7. **Policy:** publish only after the 14-day notice, with G5–G8 PASS, and the `{pending}` markers resolved by counsel.
 8. **Row deletion (04): separate production approval, before about 2027-08-06.**
    - Re-run the preflight and record `rows_to_delete_first_run`.
@@ -190,7 +192,7 @@ Collecting more IP data creates new personal data. It needs its own notice under
 
 **Rollback limits:**
 - Scrubbed `error_message` / `guard_metrics` values and deleted rows **cannot be restored in production**. They exist only in the pre-apply dump, and only until it is disposed of 30 days later.
-- **To roll back the mechanism:** run `cron.unschedule('scrub-analysis-log-detail')` (and `'purge-analysis-log'`), then drop the three functions in a forward migration. The settings rows can stay or be deleted.
+- **To roll back the mechanism:** run `cron.unschedule('scrub-analysis-log-detail')` (and `'purge-analysis-log'`), **then** drop the three functions in a forward migration (dropping first makes every run fail with `does not exist` until unscheduled — proven in `cron_integration.sh`). Unset `VITE_ANALYSIS_LOG_RETENTION_ACTIVE`. The settings rows can stay or be deleted.
 - **To pause without a migration:** set either key to an invalid value; both stages then raise. Remember to revert it.
 - **Option A is not a rollback of B.** Moving to A deletes rows and needs its own approval.
 
@@ -201,8 +203,8 @@ Collecting more IP data creates new personal data. It needs its own notice under
 | G1: counsel on scope (Q1–Q3); picks B, or A, or a longer period | **OPEN** |
 | G2: owner approves the irreversible scrub (0 rows today; grows daily) | **OPEN** |
 | G2b: owner approves row deletion (04) before about 2027-08-06 | **OPEN** (new) |
-| G3: admin notice text and UI PR | **OPEN** |
-| G4: option B SQL and tests on a disposable database | **PASS** (this document; 25/25 mutants; 34/34 existing suites) |
+| G3: admin notice text and UI PR | **PASS (engineering)** — separate Draft PR, gated off; not merged |
+| G4: option B SQL and tests on a disposable database | **PASS** (review hardening: real cron 10/10, scripted mutants, 34/34 existing suites) |
 | G5–G8: dump rule, Supabase and Sentry checks, policy approval | **OPEN** |
 | G9: localization and cross-border transfer | **OPEN**, largest exposure |
 | G10: auth/IP 12-month log (§7) | **OPEN** |

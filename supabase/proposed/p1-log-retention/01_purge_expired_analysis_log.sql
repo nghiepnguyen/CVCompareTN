@@ -18,7 +18,8 @@
 -- Configurable, fail-closed (both settings are validated together, so one bad
 -- value stops BOTH stages):
 --   * periods come from app_settings, never from a caller argument;
---   * each must be a JSON integer; row retention in [366, 3650] (366 = 12
+--   * each must be a JSON integer of at most 4 digits (larger values would
+--     otherwise overflow ::integer with 22003 instead of 22023); row retention in [366, 3650] (366 = 12
 --     months across a leap day; going lower needs a migration), detail
 --     retention in [90, row retention];
 --   * missing / NULL / string / fraction / out of range => RAISE 22023, nothing
@@ -26,7 +27,7 @@
 --   * admin_update_app_setting only accepts 'default_monthly_analytics_limit',
 --     so the admin UI/API cannot change these keys.
 -- SECURITY DEFINER owned by postgres (P0-H left service_role SELECT/INSERT
--- only on analysis_log). Idempotent.
+-- only on analysis_log); EXECUTE for postgres only (cron + owner). Idempotent.
 -- shortcut: one unbatched UPDATE / DELETE; fine at current volume (≈3 rows/day).
 -- Batch (LIMIT via ctid) if daily volume reaches tens of thousands.
 
@@ -51,10 +52,10 @@ DECLARE vd jsonb; vr jsonb; dd integer; dr integer;
 BEGIN
   SELECT s.value INTO vd FROM public.app_settings AS s WHERE s.key = 'analysis_log_detail_retention_days';
   SELECT s.value INTO vr FROM public.app_settings AS s WHERE s.key = 'analysis_log_retention_days';
-  IF vr IS NULL OR jsonb_typeof(vr) <> 'number' OR (vr #>> '{}') !~ '^[0-9]+$' THEN
+  IF vr IS NULL OR jsonb_typeof(vr) <> 'number' OR (vr #>> '{}') !~ '^[0-9]{1,4}$' THEN
     RAISE EXCEPTION 'analysis_log_retention_days missing or not an integer' USING ERRCODE = '22023';
   END IF;
-  IF vd IS NULL OR jsonb_typeof(vd) <> 'number' OR (vd #>> '{}') !~ '^[0-9]+$' THEN
+  IF vd IS NULL OR jsonb_typeof(vd) <> 'number' OR (vd #>> '{}') !~ '^[0-9]{1,4}$' THEN
     RAISE EXCEPTION 'analysis_log_detail_retention_days missing or not an integer' USING ERRCODE = '22023';
   END IF;
   dr := (vr #>> '{}')::integer;
@@ -105,10 +106,10 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.scrub_expired_analysis_log_detail() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.scrub_expired_analysis_log_detail() TO service_role;
-REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.purge_expired_analysis_log() TO service_role;
+-- Only pg_cron (as postgres) and the owner's counted first run call these; no
+-- API code does, so service_role (PostgREST /rpc) gets no EXECUTE either.
+REVOKE ALL ON FUNCTION public.scrub_expired_analysis_log_detail() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, authenticated, service_role;
 
 COMMENT ON FUNCTION public.analysis_log_retention_cutoffs() IS
   'P1-B: (detail_cutoff, row_cutoff) from app_settings; raises unless row days in [366, 3650] and detail days in [90, row days].';

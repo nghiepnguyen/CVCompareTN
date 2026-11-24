@@ -75,16 +75,22 @@ BEGIN
     SELECT coalesce(sum(rows), 0) INTO d0 FROM public.analysis_log_daily;
   END IF;
 
-  -- Permissions: DEFINER, fixed search_path, service_role only; helper private.
-  ASSERT (SELECT bool_and(prosecdef AND proconfig = ARRAY['search_path=""']) FROM pg_proc
+  -- Permissions: owned by postgres; DEFINER, fixed search_path, no API role may
+  -- execute (cron and the owner run them as postgres); helper private.
+  ASSERT (SELECT count(*) = 3 AND bool_and(pg_get_userbyid(proowner) = 'postgres') FROM pg_proc
+           WHERE oid IN ('public.purge_expired_analysis_log()'::regprocedure, 'public.scrub_expired_analysis_log_detail()'::regprocedure,
+                         'public.analysis_log_retention_cutoffs()'::regprocedure)), 'P1 functions not owned by postgres';
+  ASSERT (SELECT bool_and(prosecdef AND proconfig IS NOT DISTINCT FROM ARRAY['search_path=""']) FROM pg_proc
            WHERE oid IN ('public.purge_expired_analysis_log()'::regprocedure, 'public.scrub_expired_analysis_log_detail()'::regprocedure)), 'not DEFINER/fixed search_path';
-  ASSERT (SELECT NOT prosecdef AND proconfig = ARRAY['search_path=""'] FROM pg_proc WHERE oid = 'public.analysis_log_retention_cutoffs()'::regprocedure), 'helper must be INVOKER with fixed search_path';
+  ASSERT (SELECT NOT prosecdef AND proconfig IS NOT DISTINCT FROM ARRAY['search_path=""'] FROM pg_proc WHERE oid = 'public.analysis_log_retention_cutoffs()'::regprocedure), 'helper must be INVOKER with fixed search_path';
   ASSERT NOT has_function_privilege('anon', 'public.purge_expired_analysis_log()', 'EXECUTE')
      AND NOT has_function_privilege('authenticated', 'public.purge_expired_analysis_log()', 'EXECUTE')
-     AND has_function_privilege('service_role', 'public.purge_expired_analysis_log()', 'EXECUTE'), 'purge EXECUTE not service_role-only';
+     AND NOT has_function_privilege('service_role', 'public.purge_expired_analysis_log()', 'EXECUTE')
+     AND NOT has_function_privilege('public', 'public.purge_expired_analysis_log()', 'EXECUTE'), 'purge EXECUTE granted to an API role';
   ASSERT NOT has_function_privilege('anon', 'public.scrub_expired_analysis_log_detail()', 'EXECUTE')
      AND NOT has_function_privilege('authenticated', 'public.scrub_expired_analysis_log_detail()', 'EXECUTE')
-     AND has_function_privilege('service_role', 'public.scrub_expired_analysis_log_detail()', 'EXECUTE'), 'scrub EXECUTE not service_role-only';
+     AND NOT has_function_privilege('service_role', 'public.scrub_expired_analysis_log_detail()', 'EXECUTE')
+     AND NOT has_function_privilege('public', 'public.scrub_expired_analysis_log_detail()', 'EXECUTE'), 'scrub EXECUTE granted to an API role';
   ASSERT NOT has_function_privilege('anon', 'public.analysis_log_retention_cutoffs()', 'EXECUTE')
      AND NOT has_function_privilege('authenticated', 'public.analysis_log_retention_cutoffs()', 'EXECUTE')
      AND NOT has_function_privilege('service_role', 'public.analysis_log_retention_cutoffs()', 'EXECUTE'), 'cutoff helper exposed';
@@ -171,13 +177,11 @@ BEGIN
   ASSERT NOT EXISTS (SELECT 1 FROM pg_depend d JOIN pg_rewrite r ON r.oid = d.objid WHERE d.refobjid = 'public.analysis_log'::regclass), 'view depends on analysis_log';
   ASSERT NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.analysis_log'::regclass AND NOT tgisinternal), 'trigger on analysis_log';
 END $$;
--- service_role (API) can run both via DEFINER.
-SET LOCAL ROLE service_role;
-DO $$ BEGIN
-  ASSERT public.scrub_expired_analysis_log_detail() = 0, 'service_role scrub changed rows';
-  ASSERT public.purge_expired_analysis_log() = 0, 'service_role purge deleted rows';
-END $$;
-RESET ROLE;
+-- No API role can call either stage: asserted above with has_function_privilege
+-- and end-to-end over PostgREST (403/401) in cron_integration.sh. Not by calling
+-- here: on supabase/postgres 17.6.1.106 (aarch64) a denied function call after
+-- SET ROLE in a postgres psql session segfaults the backend (PostgREST's
+-- authenticator path returns 42501 cleanly).
 ROLLBACK;
 
 -- 2a. Invalid configuration fails closed: both stages raise, nothing changes.
@@ -187,7 +191,8 @@ DO $$
 DECLARE bad jsonb; n integer; f0 text := pg_temp.p1_all(); k text;
 BEGIN
   -- Row retention (detail kept at 90).
-  FOREACH bad IN ARRAY ARRAY['365'::jsonb, '90'::jsonb, '0'::jsonb, '-5'::jsonb, '3651'::jsonb, '400.5'::jsonb, '"400"'::jsonb, 'null'::jsonb, '{}'::jsonb] LOOP
+  FOREACH bad IN ARRAY ARRAY['365'::jsonb, '90'::jsonb, '0'::jsonb, '-5'::jsonb, '3651'::jsonb, '400.5'::jsonb, '"400"'::jsonb, 'null'::jsonb, '{}'::jsonb,
+                             '99999999999'::jsonb, '1e10'::jsonb, '400.0'::jsonb, 'true'::jsonb] LOOP
     PERFORM pg_temp.p1_set('analysis_log_retention_days', bad);
     BEGIN n := public.scrub_expired_analysis_log_detail(); RAISE EXCEPTION 'scrub accepted row retention %, changed %', bad::text, n;
     EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
@@ -197,7 +202,7 @@ BEGIN
   END LOOP;
   PERFORM pg_temp.p1_set('analysis_log_retention_days', '400'::jsonb);
   -- Detail retention (rows kept at 400): below floor, above row retention, wrong types.
-  FOREACH bad IN ARRAY ARRAY['89'::jsonb, '0'::jsonb, '401'::jsonb, '90.5'::jsonb, '"90"'::jsonb, 'null'::jsonb, '[]'::jsonb] LOOP
+  FOREACH bad IN ARRAY ARRAY['89'::jsonb, '0'::jsonb, '401'::jsonb, '90.5'::jsonb, '"90"'::jsonb, 'null'::jsonb, '[]'::jsonb, '99999999999'::jsonb] LOOP
     PERFORM pg_temp.p1_set('analysis_log_detail_retention_days', bad);
     BEGIN n := public.scrub_expired_analysis_log_detail(); RAISE EXCEPTION 'scrub accepted detail retention %, changed %', bad::text, n;
     EXCEPTION WHEN invalid_parameter_value THEN NULL; END;

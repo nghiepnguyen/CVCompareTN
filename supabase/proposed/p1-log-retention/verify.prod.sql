@@ -12,22 +12,24 @@ SELECT
   (SELECT value FROM public.app_settings WHERE key = 'analysis_log_retention_days')              AS row_days,
   (SELECT detail_cutoff FROM public.analysis_log_retention_cutoffs())                            AS detail_cutoff,
   (SELECT row_cutoff FROM public.analysis_log_retention_cutoffs())                               AS row_cutoff,
-  coalesce((SELECT bool_and(prosecdef AND proconfig = ARRAY['search_path=""']) FROM pg_proc
+  coalesce((SELECT bool_and(prosecdef AND proconfig IS NOT DISTINCT FROM ARRAY['search_path=""']) FROM pg_proc
     WHERE oid IN (to_regprocedure('public.purge_expired_analysis_log()'), to_regprocedure('public.scrub_expired_analysis_log_detail()'))), false)
-    AND (SELECT count(*) FROM pg_proc WHERE oid IN (to_regprocedure('public.purge_expired_analysis_log()'), to_regprocedure('public.scrub_expired_analysis_log_detail()'))) = 2
+    AND (SELECT count(*) FROM pg_proc WHERE oid IN (to_regprocedure('public.purge_expired_analysis_log()'), to_regprocedure('public.scrub_expired_analysis_log_detail()'))
+           AND pg_get_userbyid(proowner) = 'postgres') = 2
                                                                                                  AS fns_definer_fixed_path_ok,
   NOT has_function_privilege('anon', 'public.purge_expired_analysis_log()', 'EXECUTE')
     AND NOT has_function_privilege('authenticated', 'public.purge_expired_analysis_log()', 'EXECUTE')
-    AND has_function_privilege('service_role', 'public.purge_expired_analysis_log()', 'EXECUTE')
+    AND NOT has_function_privilege('service_role', 'public.purge_expired_analysis_log()', 'EXECUTE')
     AND NOT has_function_privilege('anon', 'public.scrub_expired_analysis_log_detail()', 'EXECUTE')
     AND NOT has_function_privilege('authenticated', 'public.scrub_expired_analysis_log_detail()', 'EXECUTE')
-    AND has_function_privilege('service_role', 'public.scrub_expired_analysis_log_detail()', 'EXECUTE') AS fns_exec_service_role_only_ok,
+    AND NOT has_function_privilege('service_role', 'public.scrub_expired_analysis_log_detail()', 'EXECUTE') AS fns_exec_owner_only_ok,
   NOT has_function_privilege('anon', 'public.analysis_log_retention_cutoffs()', 'EXECUTE')
     AND NOT has_function_privilege('authenticated', 'public.analysis_log_retention_cutoffs()', 'EXECUTE')
     AND NOT has_function_privilege('service_role', 'public.analysis_log_retention_cutoffs()', 'EXECUTE') AS helper_private_ok,
   to_regprocedure('public.analysis_log_retention_cutoff()') IS NULL                              AS option_a_helper_absent_ok,
   EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'scrub-analysis-log-detail' AND schedule = '30 20 * * *' AND active AND username = 'postgres')
-    AND (SELECT count(*) FROM cron.job WHERE jobname = 'scrub-analysis-log-detail') = 1          AS scrub_job_ok,
+    AND (SELECT count(*) FROM cron.job WHERE jobname = 'scrub-analysis-log-detail') = 1
+    AND (SELECT command FROM cron.job WHERE jobname = 'scrub-analysis-log-detail') = 'SELECT public.scrub_expired_analysis_log_detail()' AS scrub_job_ok,
   (SELECT count(*) FROM cron.job WHERE jobname = 'purge-analysis-log')                           AS purge_jobs,  -- 0 until 04 is approved; then 1
   (SELECT count(*) FROM cron.job WHERE jobname IN ('purge-free-history','purge-api-rate-limits','storage-cleanup','purge-fit-shadow') AND active) = 4 AS existing_jobs_ok,
   (SELECT relacl::text FROM pg_class WHERE oid = 'public.analysis_log'::regclass)

@@ -50,5 +50,4 @@ BEGIN
   RETURN n;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.purge_expired_analysis_log() TO service_role;
+REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, authenticated, service_role;
