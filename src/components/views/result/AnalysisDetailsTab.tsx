@@ -12,6 +12,7 @@ import {
   SCORE_HIGH_MIN,
   SCORE_MEDIUM_MIN,
 } from '../../../services/ai';
+import { matchBandLabel } from '../../../lib/matchBand';
 import { getMatchingCategoryLabel } from './matchingCategoryLabels';
 import { deriveCategoryChartData } from './categoryChartData';
 import { FormatAssessmentCard } from './FormatAssessmentCard';
@@ -168,18 +169,19 @@ export const AnalysisDetailsTab = React.memo(function AnalysisDetailsTab({ selec
         </div>
       </div>
 
-      {/* Pass Probability Section */}
+      {/* CV–JD match score band (presentation of the canonical matchScore; not a probability) */}
       <div className="min-w-0 bg-surface p-6 rounded-3xl shadow-sm border border-border">
         <div className="flex flex-col md:flex-row md:items-center gap-6">
           <div className="flex flex-col items-center justify-center p-6 bg-surface-secondary rounded-2xl min-w-[200px]">
             <div className="text-[10px] font-black text-text-light uppercase tracking-widest mb-2 text-center">{t.passProb}</div>
             <div className={cn(
-              "text-3xl font-black px-6 py-2 rounded-xl",
+              "text-2xl font-black leading-tight text-center px-6 py-2 rounded-xl",
               probabilityTone(probability.value) === 'high' ? "bg-success-light text-success" :
               probabilityTone(probability.value) === 'medium' ? "bg-accent-light text-accent" : "bg-warning-light text-warning"
             )}>
-              {probabilityValue}
+              {matchBandLabel(probabilityValue, t)}
             </div>
+            <p className="mt-3 max-w-[220px] text-[10px] leading-snug text-text-muted text-center">{t.matchScoreTooltip}</p>
           </div>
           <div className="flex-1 space-y-4">
             {showPassExplanation && (

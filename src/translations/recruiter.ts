@@ -314,8 +314,8 @@ export const recruiter = {
     en: "Error",
   },
   panelProbability: {
-    vi: "Khả năng vượt sàng lọc",
-    en: "Screening probability",
+    vi: "Mức độ phù hợp CV–JD",
+    en: "CV–JD Match Score",
   },
   panelMainFactor: {
     vi: "Yếu tố chính",

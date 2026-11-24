@@ -482,6 +482,10 @@ export interface UiLabels extends ApplicationsLabels {
   progressStart: string;
   passProb: string;
   probabilityHistoryLabel: string;
+  matchBandHigh: string;
+  matchBandMedium: string;
+  matchBandLow: string;
+  matchScoreTooltip: string;
   placeholderCV: string;
   placeholderJD: string;
   premiumOptimizedBadge: string;
