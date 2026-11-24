@@ -10,8 +10,14 @@ vi.mock('../../context/UIContext', () => ({
     reportLanguage: 'vi',
   }),
 }));
+const emptyStats: AdminReportStats = {
+  newUsersCount: 0, totalSuccess: 0, totalError: 3, dailyCounts: [], topUsers: [],
+  avgInputTokens: 0, avgOutputTokens: 0, avgTotalTokens: 0, avgCostUsd: 0, totalCostUsd: 0,
+  unpricedModels: [], quotaUsedCurrentCycle: 0, quotaAsOf: '2026-10-31T03:00:00.000Z',
+  latencyP50Ms: null, latencyP95Ms: null, errorCategories: [], modelUsage: [],
+};
 vi.mock('../../services/adminReportService', () => ({
-  getAdminReportStats: () => new Promise<AdminReportStats>(() => {}),
+  getAdminReportStats: () => Promise.resolve(emptyStats),
 }));
 
 import { AdminReportTab } from '../../components/views/AdminReportTab';
@@ -70,5 +76,23 @@ describe('AdminReportTab retention notice (P1-B G3)', () => {
     cleanup();
     renderAt('?range=30d&start=2020-01-01&end=2020-02-01'); // stale custom dates ignored
     expect(screen.getByRole('note').textContent).not.toContain('adminReportRetentionOldRange');
+  });
+
+  it('never claims "no errors" for an empty error list when the range reaches scrubbed days', async () => {
+    vi.stubEnv('VITE_ANALYSIS_LOG_RETENTION_ACTIVE', 'true');
+    renderAt(`?range=custom&start=${vnDay(-120)}&end=${vnDay(0)}`);
+    expect(await screen.findByText('adminReportErrorsDetailExpired')).not.toBeNull();
+    expect(screen.queryByText('adminReportNoErrors')).toBeNull();
+  });
+
+  it('keeps "no errors" for recent ranges and while the flag is off', async () => {
+    vi.stubEnv('VITE_ANALYSIS_LOG_RETENTION_ACTIVE', 'true');
+    renderAt(`?range=custom&start=${vnDay(-30)}&end=${vnDay(0)}`);
+    expect(await screen.findByText('adminReportNoErrors')).not.toBeNull();
+    cleanup();
+    vi.unstubAllEnvs();
+    renderAt(`?range=custom&start=${vnDay(-120)}&end=${vnDay(0)}`);
+    expect(await screen.findByText('adminReportNoErrors')).not.toBeNull();
+    expect(screen.queryByText('adminReportErrorsDetailExpired')).toBeNull();
   });
 });

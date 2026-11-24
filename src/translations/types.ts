@@ -150,6 +150,7 @@ export interface UiLabels extends ApplicationsLabels {
   adminReportCustomTo: string;
   adminReportRetentionNotice: string;
   adminReportRetentionOldRange: string;
+  adminReportErrorsDetailExpired: string;
   adminReportNewUsers: string;
   adminReportTotalAnalyses: string;
   adminReportAnalysesThisMonth: string;

@@ -260,6 +260,10 @@ export const admin = {
     vi: "Không có lỗi trong khoảng này.",
     en: "No errors in this range.",
   },
+  adminReportErrorsDetailExpired: {
+    vi: "Không có chi tiết lỗi để hiển thị. Lỗi cũ hơn 90 ngày không còn chi tiết, nên danh sách trống không có nghĩa là không có lỗi.",
+    en: "No error details to show. Errors older than 90 days no longer keep details, so an empty list does not mean there were no errors.",
+  },
   adminReportModelMix: {
     vi: "Model & chi phí",
     en: "Model & cost",
