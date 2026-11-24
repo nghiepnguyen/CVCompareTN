@@ -1,5 +1,7 @@
 # P1 Privacy — implementation readiness (technical-log retention)
 
+> **Partly superseded on 2026-11-24** by `2026-11-24-p1-legal-verification-release-gate.md`. Its §2 (legal memo), the recommended period in §4, §9 (runbook) and §10 (GO/NO-GO) are replaced. In particular, the 12-month system-log minimum is now confirmed in official text (Decree 333/2026 Art. 16.6(c) and 20.3), not "secondary sources only". The audit, the dependency proof, §7 and the SQL plus tests still stand.
+
 - **Date:** 2026-11-23 (snapshots at 09:45 UTC)
 - **Branch:** `docs/p1-privacy-prep` (worktree `../cv-compare-tn-p0h`), rebased locally onto `origin/main` `2e5881d` (#106). **Local only, not pushed.**
 - **Baseline:** P0-H production PASS; PR #106 merged as `2e5881d`; OD-M2 `fitShadow` 30-day retention live; A3.4 and A3.5 **not** enabled.
