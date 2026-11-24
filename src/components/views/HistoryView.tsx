@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell, Tooltip } from 'recharts';
 import { VN_TIME_ZONE, vnStartOfDay } from '../../lib/vnTime';
 import { displayProbability, SCORE_HIGH_MIN, SCORE_MEDIUM_MIN } from '../../services/ai';
+import { matchBandLabel } from '../../lib/matchBand';
 import { deriveCategoryChartData } from './result/categoryChartData';
 
 const CATEGORY_BAR_COLORS: Record<string, string> = {
@@ -338,10 +339,10 @@ export function HistoryView() {
                                 <Clock className="w-3 h-3" />
                                 {new Date(item.timestamp).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: VN_TIME_ZONE })}
                               </div>
-                              <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-light uppercase tracking-wider">
+                              <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-light uppercase tracking-wider" title={t.matchScoreTooltip}>
                                 <Target className="w-3 h-3" />
                                 <span>{t.probabilityHistoryLabel}</span>
-                                <span className="text-text-main">{displayProbability(item, 'history')}</span>
+                                <span className="text-text-main">{matchBandLabel(displayProbability(item, 'history'), t)}</span>
                               </div>
                             </div>
                           </div>

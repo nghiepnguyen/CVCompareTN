@@ -73,12 +73,28 @@ export const result = {
     en: "Education",
   },
   passProb: {
-    vi: "Khả năng pass vòng CV",
-    en: "CV Pass Probability",
+    vi: "Mức độ phù hợp CV–JD",
+    en: "CV–JD Match Score",
   },
   probabilityHistoryLabel: {
-    vi: "Khả năng vượt vòng lọc",
-    en: "Screening probability",
+    vi: "Mức độ phù hợp CV–JD",
+    en: "CV–JD Match Score",
+  },
+  matchBandHigh: {
+    vi: "Phù hợp cao",
+    en: "High match",
+  },
+  matchBandMedium: {
+    vi: "Phù hợp trung bình",
+    en: "Moderate match",
+  },
+  matchBandLow: {
+    vi: "Phù hợp thấp",
+    en: "Low match",
+  },
+  matchScoreTooltip: {
+    vi: "Điểm số do AI đánh giá dựa trên mức độ phù hợp giữa CV và yêu cầu công việc. Đây là thông tin tham khảo, không phải xác suất vượt qua vòng tuyển dụng.",
+    en: "An AI-generated assessment of how closely the CV matches the job requirements. This score is for reference and does not represent the probability of passing recruitment screening.",
   },
   explanation: {
     vi: "Giải thích ngắn gọn",
@@ -381,8 +397,8 @@ export const result = {
     en: "Score",
   },
   comparisonColProbability: {
-    vi: "Khả năng vượt vòng lọc",
-    en: "Screening probability",
+    vi: "Mức độ phù hợp CV–JD",
+    en: "CV–JD Match Score",
   },
   comparisonColAction: {
     vi: "Hành động",

@@ -3,6 +3,7 @@ import { Layers, ChevronRight } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useUI } from '../../../context/UIContext';
 import { AnalysisResult, displayProbability, SCORE_HIGH_MIN, SCORE_MEDIUM_MIN } from '../../../services/ai';
+import { matchBandLabel } from '../../../lib/matchBand';
 
 interface ComparisonOverviewProps {
   results: AnalysisResult[];
@@ -33,7 +34,7 @@ export function ComparisonOverview({ results, setSelectedResult }: ComparisonOve
                 <h4 className="font-bold text-text-main truncate">{res.cvName}</h4>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-[10px] font-bold px-2 py-0.5 bg-surface-muted rounded-full text-text-muted uppercase tracking-tight">
-                    {displayProbability(res, 'comparison')}
+                    {matchBandLabel(displayProbability(res, 'comparison'), t)}
                   </span>
                 </div>
               </div>
@@ -56,7 +57,7 @@ export function ComparisonOverview({ results, setSelectedResult }: ComparisonOve
             <tr className="border-b border-border">
               <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider">{t.comparisonColCandidate}</th>
               <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider text-center">{t.comparisonColScore}</th>
-              <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider text-center">{t.comparisonColProbability}</th>
+              <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider text-center" title={t.matchScoreTooltip}>{t.comparisonColProbability}</th>
               <th className="pb-4 text-sm font-bold text-text-light uppercase tracking-wider text-right">{t.comparisonColAction}</th>
             </tr>
           </thead>
@@ -87,7 +88,7 @@ export function ComparisonOverview({ results, setSelectedResult }: ComparisonOve
                 </td>
                 <td className="py-4 text-center">
                   <span className="text-xs font-bold px-2 py-1 bg-surface-muted rounded-full text-text-muted">
-                    {displayProbability(res, 'comparison')}
+                    {matchBandLabel(displayProbability(res, 'comparison'), t)}
                   </span>
                 </td>
                 <td className="py-4 text-right">

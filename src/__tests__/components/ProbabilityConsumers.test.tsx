@@ -106,19 +106,19 @@ describe('probability consumer migration — Stage 3.13C', () => {
     state.history = [canonical, legacy];
     render(<HistoryView />);
 
-    expect(screen.getAllByText('Screening probability').length).toBeGreaterThan(0);
-    expect(screen.getByText('Medium')).toBeTruthy(); // canonical
-    expect(screen.getByText('High')).toBeTruthy(); // legacy successProbability
-    expect(screen.queryByText('Low')).toBeNull(); // legacy passProbability is not read
+    expect(screen.getAllByText('CV–JD Match Score').length).toBeGreaterThan(0);
+    expect(screen.getByText('Moderate match')).toBeTruthy(); // canonical
+    expect(screen.getByText('High match')).toBeTruthy(); // legacy successProbability
+    expect(screen.queryByText('Low match')).toBeNull(); // legacy passProbability is not read
   });
 
   it('ComparisonOverview reads canonical passProbability and keeps legacy successProbability', () => {
     render(<ComparisonOverview results={[canonical, legacy]} setSelectedResult={vi.fn()} />);
 
-    expect(screen.getAllByText('Screening probability').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Medium').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('High').length).toBeGreaterThan(0);
-    expect(screen.queryByText('Low')).toBeNull();
+    expect(screen.getAllByText('CV–JD Match Score').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Moderate match').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('High match').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Low match')).toBeNull();
   });
 
   it('CandidatePanel reads canonical passProbability, never the successProbability mirror', () => {
@@ -130,8 +130,8 @@ describe('probability consumer migration — Stage 3.13C', () => {
       />
     );
 
-    expect(screen.getAllByText('Screening probability').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Medium').length).toBeGreaterThan(0);
-    expect(screen.queryByText('High')).toBeNull();
+    expect(screen.getAllByText('CV–JD Match Score').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Moderate match').length).toBeGreaterThan(0);
+    expect(screen.queryByText('High match')).toBeNull();
   });
 });

@@ -20,6 +20,7 @@ import {
 import { cn } from '../../lib/utils';
 import { useUI } from '../../context/UIContext';
 import type { UiLabels } from '../../translations';
+import { matchBandLabel } from '../../lib/matchBand';
 import type { CandidateCV, HrStatus } from '../../context/recruiter';
 import { deriveRequirementInsights, displayProbability, SCORE_HIGH_MIN, SCORE_MEDIUM_MIN } from '../../services/ai';
 import type { DetailedComparison } from '../../services/ai/types';
@@ -331,13 +332,13 @@ function CandidateDetail({
         {/* Quick Verdict */}
         {isDone && result && (
           <div className="grid grid-cols-2 gap-2">
-            {/* Success Probability */}
+            {/* CV–JD match score band */}
             <div className="flex items-center gap-2 bg-surface-secondary border border-border rounded-xl px-3 py-2">
               <Target className="w-4 h-4 text-accent shrink-0" />
               <div className="min-w-0">
-                <p className="text-[9px] text-text-muted uppercase tracking-wide">{t.panelProbability}</p>
-                <p className="text-[11px] font-extrabold text-text-main truncate">
-                  {displayProbability(result, 'recruiter') || '—'}
+                <p className="text-[9px] text-text-muted uppercase tracking-wide" title={t.matchScoreTooltip}>{t.panelProbability}</p>
+                <p className="text-[11px] font-extrabold text-text-main leading-tight">
+                  {matchBandLabel(displayProbability(result, 'recruiter'), t) || '—'}
                 </p>
               </div>
             </div>
@@ -371,7 +372,7 @@ function CandidateDetail({
                           : 'text-error'
                     }
                   >
-                    {candidate.matchScore}%
+                    {candidate.matchScore}/100
                   </span>
                 </div>
                 <div className="h-1.5 bg-surface-secondary rounded-full overflow-hidden">

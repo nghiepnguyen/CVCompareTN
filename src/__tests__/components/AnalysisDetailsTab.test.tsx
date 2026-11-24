@@ -91,8 +91,8 @@ describe('AnalysisDetailsTab — Stage 3.13C probability authority', () => {
       passExplanation: 'Model prose that must not render.',
     } as AnalysisResult} />);
 
-    expect(screen.getByText('Medium')).toBeTruthy();
-    expect(screen.queryByText('High')).toBeNull();
+    expect(screen.getByText('Moderate match')).toBeTruthy();
+    expect(screen.queryByText('High match')).toBeNull();
     expect(screen.queryByText('Model prose that must not render.')).toBeNull();
   });
 
@@ -106,7 +106,7 @@ describe('AnalysisDetailsTab — Stage 3.13C probability authority', () => {
     } as AnalysisResult} />);
 
     expect(screen.getByText('—')).toBeTruthy();
-    expect(screen.queryByText('High')).toBeNull();
+    expect(screen.queryByText('High match')).toBeNull();
   });
 
   it('legacy row keeps the stored passProbability and its explanation', () => {
@@ -117,7 +117,7 @@ describe('AnalysisDetailsTab — Stage 3.13C probability authority', () => {
       passExplanation: 'Legacy evidence.',
     } as AnalysisResult} />);
 
-    expect(screen.getByText('Medium')).toBeTruthy();
+    expect(screen.getByText('Moderate match')).toBeTruthy();
     expect(screen.getByText('Legacy evidence.')).toBeTruthy();
   });
 
@@ -130,8 +130,18 @@ describe('AnalysisDetailsTab — Stage 3.13C probability authority', () => {
       passExplanation: 'Future prose.',
     } as AnalysisResult} />);
 
-    expect(screen.getByText('Low')).toBeTruthy();
-    expect(screen.queryByText('High')).toBeNull();
+    expect(screen.getByText('Low match')).toBeTruthy();
+    expect(screen.queryByText('High match')).toBeNull();
     expect(screen.queryByText('Future prose.')).toBeNull();
+  });
+
+  it('match-score label is not a probability and its caveat is announced once (E1/E9)', () => {
+    render(<AnalysisDetailsTab selectedResult={{ ...result, probabilityVersion: 'canonical-score-v1' } as AnalysisResult} />);
+
+    const label = screen.getByText(UI_LABELS.en.passProb);
+    expect(label.textContent).toBe('CV–JD Match Score');
+    expect(label.getAttribute('title')).toBeNull(); // the visible caveat below carries the text
+    expect(screen.getAllByText(UI_LABELS.en.matchScoreTooltip)).toHaveLength(1);
+    expect(document.querySelectorAll(`[title="${UI_LABELS.en.matchScoreTooltip}"]`)).toHaveLength(0);
   });
 });
