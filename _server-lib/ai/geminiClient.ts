@@ -1,5 +1,6 @@
 import { GoogleGenAI, ThinkingLevel, type ThinkingConfig } from '@google/genai';
 import type { GeminiModel } from '../../src/lib/geminiModels.js';
+import { assertGeminiAllowed } from '../previewGuard.js';
 
 // Per-workload routing. parse_cv is plain extraction, where flash-lite matched
 // preview quality at ~1.5x lower latency (benchmark 2026-10-28,
@@ -24,6 +25,7 @@ export function thinkingConfigFor(model: GeminiModel): ThinkingConfig {
 export function getGeminiClient(): GoogleGenAI {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) throw new Error('GEMINI_API_KEY is not configured on this server.');
+  assertGeminiAllowed();
   // No SDK-level timeout — our Promise.race in analysisService.ts is the sole
   // timeout controller, ensuring DEADLINE_EXCEEDED never reaches the client.
   return new GoogleGenAI({

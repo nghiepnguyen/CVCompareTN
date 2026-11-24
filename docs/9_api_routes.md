@@ -27,6 +27,7 @@ Canonical reference for **which runtime handles each capability**. Từ 2026-06,
 | Admin — Audit log (read) | Supabase RPC `admin_list_audit` trực tiếp từ client admin (RLS + `is_admin()`) | — | phân trang/filter action/search, join actor/target email |
 | Admin — Report aggregate (read) | Supabase RPC `admin_report_stats` + `admin_report_ops` trực tiếp từ client admin (RLS + `is_admin()`) | — | volume/daily/top user/token buckets + quota hiện tại; latency/error categories |
 | Admin — xoá user (hard delete) | `POST /api/admin/delete-user` → `api/admin.ts` | `POST /api/admin/delete-user` → `server/routes/admin.ts` | `_server-lib/admin/deleteUser.ts` (xoá `auth.users` → cascade profiles/history; dọn storage `cv-files`, `cv-analyze-tmp`; chặn xoá admin/chính mình) |
+| Ops — cron health (P1-D, mặc định OFF) | `GET /api/admin/cron-health?jobs=a,b` → `api/admin.ts` (Bearer `CRON_HEALTH_SECRET`, ≥32 ký tự; chưa đặt = 401) | — (chỉ Vercel) | RPC `cron_job_health(text[])` — SQL ở `supabase/proposed/p1d-ops-guardrails/`, chưa áp dụng ⇒ 503 `health_function_missing`; chỉ trả enum/tuổi/đếm, không trả `return_message`. Workflow `.github/workflows/cron-health.yml` chạy khi `vars.CRON_HEALTH_ENABLED == 'true'` |
 | Recruiter — lưu phân tích | `POST /api/recruiter/save-analysis` → `api/recruiter/save-analysis.ts` | `POST /api/recruiter/save-analysis` → `server/routes/recruiter.ts` | Inline (RPC call) |
 
 Rewrites are defined in [`vercel.json`](../vercel.json).

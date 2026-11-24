@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { supabaseUrlBlockedReason } from './previewGuard';
 
 let supabaseClient: SupabaseClient | undefined;
 let initialization: Promise<boolean> | undefined;
@@ -37,6 +38,15 @@ async function initializeSupabase(): Promise<boolean> {
       deadline,
     ]);
     if (!url || !key) return false;
+    const blocked = supabaseUrlBlockedReason(url, {
+      vercel: import.meta.env.VITE_VERCEL,
+      vercelEnv: import.meta.env.VITE_VERCEL_ENV,
+      previewSupabaseHost: import.meta.env.VITE_PREVIEW_SUPABASE_HOST,
+    });
+    if (blocked) {
+      console.error('[Supabase] Refused on a non-production deployment:', blocked);
+      return false;
+    }
     supabaseClient = createClient(url, key);
     return true;
   } catch (err) {
