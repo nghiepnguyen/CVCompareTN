@@ -2,6 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, rejectOversizedBody, BODY_LIMITS } from '../_server-lib/http/guard.js';
 import { handleSendFeedback, handleSendWelcomeEmail } from '../_server-lib/email/handlers.js';
 import { clientIpFromHeaders } from '../_server-lib/rateLimit.js';
+import { enterVercelFunction } from '../_server-lib/previewGuard.js';
+
+// P1-D: Vercel entry — fail-closed credential policy (see _server-lib/previewGuard.ts).
+enterVercelFunction();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res);

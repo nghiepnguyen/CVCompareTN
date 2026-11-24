@@ -5,6 +5,10 @@ import { getUserFromBearerToken, getSupabaseAdmin } from '../_server-lib/payment
 import { handleAdminAction } from '../_server-lib/admin/handler.js';
 import { handleCronHealth } from '../_server-lib/admin/cronHealth.js';
 import { validBearerSecret } from '../_server-lib/http/bearerSecret.js';
+import { enterVercelFunction } from '../_server-lib/previewGuard.js';
+
+// P1-D: Vercel entry — fail-closed credential policy (see _server-lib/previewGuard.ts).
+enterVercelFunction();
 
 /**
  * Unified admin handler — dispatches by URL path segment.

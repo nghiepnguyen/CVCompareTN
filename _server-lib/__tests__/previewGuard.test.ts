@@ -1,33 +1,46 @@
 // @vitest-environment node
-// P1-D security regression: server factories and the public config endpoint
-// refuse production Supabase / Gemini on any non-production Vercel deployment,
-// even when the env vars are (mis)configured with production values.
+// P1-D security regression. Every Vercel function entry (api/**) applies the
+// fail-closed credential policy at load: unless VERCEL_ENV is exactly
+// 'production' — including when Vercel's system env vars are not exposed at
+// all — the production Supabase project is refused and GEMINI_API_KEY is
+// removed (the frozen Gemini client then fails closed). Express and plain
+// library use (no entry) are unchanged.
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PRODUCTION_SUPABASE_HOST } from '../../src/lib/previewGuard.js';
 
 const PROD_URL = `https://${PRODUCTION_SUPABASE_HOST}`;
+const MARK = Symbol.for('cvfit.vercelFunction');
 
-function stub(env: Record<string, string | undefined>) {
-  for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v as string);
+function apiEntries(dir = 'api'): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) return e.name === '__tests__' ? [] : apiEntries(p);
+    return e.name.endsWith('.ts') && /export default/.test(readFileSync(p, 'utf8')) ? [p] : [];
+  });
 }
-const misconfiguredPreview = {
-  VERCEL: '1',
-  VERCEL_ENV: 'preview',
-  SUPABASE_URL: PROD_URL,
-  SUPABASE_SERVICE_ROLE_KEY: 'service-role-test-value',
-  VITE_SUPABASE_URL: PROD_URL,
-  VITE_SUPABASE_ANON_KEY: 'anon-test-value',
-  GEMINI_API_KEY: 'gemini-test-value',
-};
+const ENTRIES = apiEntries();
 
-async function freshAdmin() {
+/** Credentials as if someone mis-scoped production values to this deployment. */
+function misconfigured(extra: Record<string, string> = {}) {
+  for (const k of ['VERCEL', 'VERCEL_ENV', 'VERCEL_TARGET_ENV', 'PREVIEW_SUPABASE_HOST']) vi.stubEnv(k, undefined as unknown as string);
+  vi.stubEnv('SUPABASE_URL', PROD_URL);
+  vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'service-role-test-value');
+  vi.stubEnv('VITE_SUPABASE_URL', PROD_URL);
+  vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'anon-test-value');
+  vi.stubEnv('GEMINI_API_KEY', 'gemini-test-value');
+  for (const [k, v] of Object.entries(extra)) vi.stubEnv(k, v);
+}
+async function load(entry: string) {
   vi.resetModules();
+  await import(`../../${entry.replace(/\.ts$/, '.js')}`);
   return (await import('../payment/supabaseAdmin.js')).getSupabaseAdmin;
 }
-async function freshGemini() {
+async function admin() {
   vi.resetModules();
-  return (await import('../ai/geminiClient.js')).getGeminiClient;
+  return (await import('../payment/supabaseAdmin.js')).getSupabaseAdmin;
 }
 async function config() {
   vi.resetModules();
@@ -38,62 +51,89 @@ async function config() {
   return json.mock.calls[0][0] as Record<string, string>;
 }
 
-describe('preview fail-closed guard (server)', () => {
-  afterEach(() => vi.unstubAllEnvs());
-
-  it('getSupabaseAdmin refuses production credentials on a preview (SUPABASE_URL or VITE fallback)', async () => {
-    stub(misconfiguredPreview);
-    await expect(freshAdmin().then((f) => f())).rejects.toThrow(/production_supabase_outside_production/);
-    stub({ SUPABASE_URL: '' });
-    await expect(freshAdmin().then((f) => f())).rejects.toThrow(/production_supabase_outside_production/);
+describe('Vercel entry credential policy (P1-D)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    delete (globalThis as Record<symbol, unknown>)[MARK];
   });
 
-  it('getSupabaseAdmin refuses on development and on a missing VERCEL_ENV', async () => {
-    for (const vercelEnv of ['development', '']) {
-      stub({ ...misconfiguredPreview, VERCEL_ENV: vercelEnv });
-      await expect(freshAdmin().then((f) => f())).rejects.toThrow(/production_supabase_outside_production/);
+  it('covers every Vercel function entry', () => {
+    expect(ENTRIES.length).toBeGreaterThanOrEqual(9);
+    for (const e of ENTRIES) expect(readFileSync(e, 'utf8'), e).toMatch(/^enterVercelFunction\(\);$/m);
+  });
+
+  it.each(ENTRIES)('%s: with NO Vercel system vars (exposure off) removes Gemini and refuses production Supabase', async (entry) => {
+    misconfigured();
+    const getAdmin = await load(entry);
+    expect(process.env.GEMINI_API_KEY).toBeUndefined();
+    expect(() => getAdmin()).toThrow(/production_supabase_outside_production/);
+  });
+
+  it.each(['preview', 'development', 'staging', 'Production', ''])('VERCEL_ENV=%j: refused (preview, custom env, wrong case, empty)', async (env) => {
+    misconfigured({ VERCEL: '1', VERCEL_ENV: env });
+    const getAdmin = await load('api/analyze.ts');
+    expect(process.env.GEMINI_API_KEY).toBeUndefined();
+    expect(() => getAdmin()).toThrow(/production_supabase_outside_production/);
+  });
+
+  it('production keeps Gemini and production Supabase (unchanged behaviour)', async () => {
+    misconfigured({ VERCEL: '1', VERCEL_ENV: 'production' });
+    const getAdmin = await load('api/analyze.ts');
+    expect(process.env.GEMINI_API_KEY).toBe('gemini-test-value');
+    expect(getAdmin()).toBeTruthy();
+  });
+
+  it('production keeps them even if VERCEL itself is missing (only VERCEL_ENV matters)', async () => {
+    misconfigured({ VERCEL_ENV: 'production' });
+    const getAdmin = await load('api/admin.ts');
+    expect(process.env.GEMINI_API_KEY).toBe('gemini-test-value');
+    expect(getAdmin()).toBeTruthy();
+  });
+
+  it('a non-production deployment may use only an explicitly allowlisted non-production Supabase host', async () => {
+    misconfigured({ VERCEL: '1', VERCEL_ENV: 'preview', SUPABASE_URL: 'https://staging-ref.supabase.co' });
+    await expect(load('api/admin.ts').then((f) => f())).rejects.toThrow(/supabase_host_not_allowlisted/);
+    vi.stubEnv('PREVIEW_SUPABASE_HOST', 'staging-ref.supabase.co');
+    expect((await load('api/admin.ts'))()).toBeTruthy();
+    // ...and an allowlist naming production still refuses production.
+    misconfigured({ VERCEL: '1', VERCEL_ENV: 'preview', PREVIEW_SUPABASE_HOST: PRODUCTION_SUPABASE_HOST });
+    await expect(load('api/admin.ts').then((f) => f())).rejects.toThrow(/production_supabase_outside_production/);
+  });
+
+  it('Gemini has no preview opt-in: no flag or variable restores the key on a non-production entry', async () => {
+    misconfigured({ VERCEL: '1', VERCEL_ENV: 'preview', PREVIEW_GEMINI_ALLOWED: 'true' });
+    await load('api/rewrite-cv.ts');
+    expect(process.env.GEMINI_API_KEY).toBeUndefined();
+    const { getGeminiClient } = await import('../ai/geminiClient.js');
+    expect(() => getGeminiClient()).toThrow(/GEMINI_API_KEY is not configured/);
+  });
+
+  it('Express / library use (no Vercel entry, no Vercel vars) is unchanged', async () => {
+    misconfigured();
+    expect((await admin())()).toBeTruthy();
+    expect(process.env.GEMINI_API_KEY).toBe('gemini-test-value');
+    vi.resetModules();
+    const { getGeminiClient } = await import('../ai/geminiClient.js');
+    expect(getGeminiClient()).toBeTruthy();
+  });
+
+  it('library use still refuses when Vercel says non-production (VERCEL=1 without the entry marker)', async () => {
+    misconfigured({ VERCEL: '1', VERCEL_ENV: 'preview' });
+    await expect(admin().then((f) => f())).rejects.toThrow(/production_supabase_outside_production/);
+  });
+
+  it('/api/config hides the Supabase URL and anon key on any non-production entry, incl. no Vercel vars', async () => {
+    for (const extra of [{}, { VERCEL: '1', VERCEL_ENV: 'preview' }]) {
+      misconfigured(extra);
+      const body = await config();
+      expect(body).toMatchObject({ VITE_SUPABASE_URL: '', SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', SUPABASE_ANON_KEY: '' });
+      expect(JSON.stringify(body)).not.toContain(PRODUCTION_SUPABASE_HOST);
+      delete (globalThis as Record<symbol, unknown>)[MARK];
     }
   });
 
-  it('getSupabaseAdmin refuses a non-allowlisted host and allows only the allowlisted one', async () => {
-    stub({ ...misconfiguredPreview, SUPABASE_URL: 'https://staging-ref.supabase.co' });
-    await expect(freshAdmin().then((f) => f())).rejects.toThrow(/supabase_host_not_allowlisted/);
-    stub({ PREVIEW_SUPABASE_HOST: 'staging-ref.supabase.co' });
-    expect((await freshAdmin())()).toBeTruthy();
-  });
-
-  it('getSupabaseAdmin works in production and outside Vercel', async () => {
-    stub({ ...misconfiguredPreview, VERCEL_ENV: 'production' });
-    expect((await freshAdmin())()).toBeTruthy();
-    stub({ ...misconfiguredPreview, VERCEL: '', VERCEL_ENV: '' });
-    expect((await freshAdmin())()).toBeTruthy();
-  });
-
-  it('getGeminiClient refuses on a preview unless PREVIEW_GEMINI_ALLOWED=true', async () => {
-    stub(misconfiguredPreview);
-    expect((await freshGemini()).bind(null)).toThrow(/gemini_outside_production/);
-    stub({ PREVIEW_GEMINI_ALLOWED: 'yes' });
-    expect((await freshGemini()).bind(null)).toThrow(/gemini_outside_production/);
-    stub({ PREVIEW_GEMINI_ALLOWED: 'true' });
-    expect((await freshGemini())()).toBeTruthy();
-    stub({ VERCEL_ENV: 'production', PREVIEW_GEMINI_ALLOWED: '' });
-    expect((await freshGemini())()).toBeTruthy();
-  });
-
-  it('/api/config returns no Supabase URL or anon key on a misconfigured preview', async () => {
-    stub(misconfiguredPreview);
-    const body = await config();
-    expect(body.VITE_SUPABASE_URL).toBe('');
-    expect(body.SUPABASE_URL).toBe('');
-    expect(body.VITE_SUPABASE_ANON_KEY).toBe('');
-    expect(body.SUPABASE_ANON_KEY).toBe('');
-    expect(JSON.stringify(body)).not.toContain(PRODUCTION_SUPABASE_HOST);
-  });
-
-  it('/api/config still serves production', async () => {
-    stub({ ...misconfiguredPreview, VERCEL_ENV: 'production' });
-    const body = await config();
-    expect(body.VITE_SUPABASE_URL).toBe(PROD_URL);
-    expect(body.VITE_SUPABASE_ANON_KEY).toBe('anon-test-value');
+  it('/api/config serves production unchanged', async () => {
+    misconfigured({ VERCEL: '1', VERCEL_ENV: 'production' });
+    expect(await config()).toMatchObject({ VITE_SUPABASE_URL: PROD_URL, VITE_SUPABASE_ANON_KEY: 'anon-test-value' });
   });
 });

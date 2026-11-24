@@ -3,6 +3,10 @@ import { applyCors, handlePreflight, rejectOversizedBody, BODY_LIMITS } from '..
 import { handlePaymentCreate, handlePaymentConfirm, handlePaymentWebhook } from '../_server-lib/payment/handlers.js';
 import type { PlanType } from '../_server-lib/payment/payos.js';
 import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
+import { enterVercelFunction } from '../_server-lib/previewGuard.js';
+
+// P1-D: Vercel entry — fail-closed credential policy (see _server-lib/previewGuard.ts).
+enterVercelFunction();
 
 /**
  * Unified payment handler — dispatches by URL path segment.

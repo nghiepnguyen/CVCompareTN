@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { supabaseUrlBlockedReason } from './previewGuard';
+import { inlineSupabaseUrlTrusted } from './previewGuard';
 
 let supabaseClient: SupabaseClient | undefined;
 let initialization: Promise<boolean> | undefined;
@@ -21,7 +21,10 @@ async function initializeSupabase(): Promise<boolean> {
   try {
     const viteUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
     const viteKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? '';
-    const config = viteUrl && viteKey
+    // P1-D: an inlined production URL counts only in a production build;
+    // otherwise /api/config (server-side fail-closed policy) decides.
+    const inlineOk = viteUrl && viteKey && inlineSupabaseUrlTrusted(viteUrl, import.meta.env.VITE_VERCEL_ENV);
+    const config = inlineOk
       ? Promise.resolve({ url: viteUrl, key: viteKey })
       : fetch('/api/config', { signal: controller.signal }).then(async (res) => {
           if (!res.ok) return { url: '', key: '' };
@@ -38,15 +41,6 @@ async function initializeSupabase(): Promise<boolean> {
       deadline,
     ]);
     if (!url || !key) return false;
-    const blocked = supabaseUrlBlockedReason(url, {
-      vercel: import.meta.env.VITE_VERCEL,
-      vercelEnv: import.meta.env.VITE_VERCEL_ENV,
-      previewSupabaseHost: import.meta.env.VITE_PREVIEW_SUPABASE_HOST,
-    });
-    if (blocked) {
-      console.error('[Supabase] Refused on a non-production deployment:', blocked);
-      return false;
-    }
     supabaseClient = createClient(url, key);
     return true;
   } catch (err) {

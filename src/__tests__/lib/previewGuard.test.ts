@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   PRODUCTION_SUPABASE_HOST,
-  geminiBlockedReason,
+  inlineSupabaseUrlTrusted,
   isNonProductionVercel,
   supabaseUrlBlockedReason,
   type DeployEnv,
@@ -20,7 +20,6 @@ describe('previewGuard (P1-D)', () => {
   it('allows everything in production and outside Vercel (local dev, CI, Express)', () => {
     for (const env of [{ vercel: '1', vercelEnv: 'production' }, {}, { vercelEnv: 'preview' }, { vercel: '0', vercelEnv: 'preview' }]) {
       expect(supabaseUrlBlockedReason(PROD, env)).toBeNull();
-      expect(geminiBlockedReason(env)).toBeNull();
     }
   });
 
@@ -55,11 +54,12 @@ describe('previewGuard (P1-D)', () => {
     expect(supabaseUrlBlockedReason('', preview)).toBe('invalid_supabase_url');
   });
 
-  it('refuses Gemini on a preview unless PREVIEW_GEMINI_ALLOWED is exactly "true"', () => {
-    expect(geminiBlockedReason(preview)).toBe('gemini_outside_production');
-    for (const v of ['1', 'TRUE', 'yes', ' true']) {
-      expect(geminiBlockedReason({ ...preview, previewGeminiAllowed: v })).toBe('gemini_outside_production');
+  it('trusts an inlined production URL only in a production build; other hosts unchanged', () => {
+    expect(inlineSupabaseUrlTrusted(PROD, 'production')).toBe(true);
+    for (const env of ['preview', 'development', '', undefined, 'Production']) {
+      expect(inlineSupabaseUrlTrusted(PROD, env)).toBe(false);
+      expect(inlineSupabaseUrlTrusted(`${PROD}/`, env)).toBe(false);
+      expect(inlineSupabaseUrlTrusted('http://127.0.0.1:54321', env)).toBe(true);
     }
-    expect(geminiBlockedReason({ ...preview, previewGeminiAllowed: 'true' })).toBeNull();
   });
 });

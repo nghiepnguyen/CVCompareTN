@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { isSupabaseUrlAllowed } from '../_server-lib/previewGuard.js';
+import { enterVercelFunction, isSupabaseUrlAllowed } from '../_server-lib/previewGuard.js';
 import { applyCors, handlePreflight } from '../_server-lib/http/guard.js';
+
+// P1-D: Vercel entry — fail-closed credential policy (see _server-lib/previewGuard.ts).
+enterVercelFunction();
 
 function publicConfig() {
   const supabaseUrl =

@@ -47,8 +47,6 @@ export default defineConfig(({ mode }) => {
     // Sentry environment/release for the browser. Only these two non-secret Vercel system values are exposed.
     define: {
       'import.meta.env.VITE_VERCEL_ENV': JSON.stringify(env.VERCEL_ENV ?? ''),
-      // P1-D preview guard (src/lib/previewGuard.ts): '1' on every Vercel build.
-      'import.meta.env.VITE_VERCEL': JSON.stringify(env.VERCEL ?? ''),
       'import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA': JSON.stringify(env.VERCEL_GIT_COMMIT_SHA ?? ''),
     },
     optimizeDeps: {

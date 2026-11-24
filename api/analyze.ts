@@ -2,6 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, handlePreflight, rejectOversizedBody, BODY_LIMITS } from '../_server-lib/http/guard.js';
 import { handleAnalyze } from '../_server-lib/analyze/handler.js';
 import { initSentryServer, Sentry } from '../_server-lib/sentry.js';
+import { enterVercelFunction } from '../_server-lib/previewGuard.js';
+
+// P1-D: Vercel entry — fail-closed credential policy (see _server-lib/previewGuard.ts).
+enterVercelFunction();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentryServer();
