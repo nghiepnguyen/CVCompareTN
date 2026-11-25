@@ -31,7 +31,7 @@ Local CLI: `vercel link --project cv-compare-tn --scope nghiepnguyens`.
     -   `FEEDBACK_RECIPIENT_EMAIL`: Email nhận thông báo góp ý.
     -   `VITE_ADMIN_EMAIL`: Email có quyền truy cập trang Admin.
     -   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`: Project Supabase (client).
-    -   `VITE_GA_MEASUREMENT_ID`: Google Analytics 4 (ví dụ `G-4SB0WWRBQC`) — bắt buộc nếu bật theo dõi hành vi GA4.
+    -   `VITE_GA_MEASUREMENT_ID`: Google Analytics 4 (dạng `G-XXXXXXXXXX`; giá trị production và đích Google tag: xem `docs/8_analytics.md`) — bắt buộc nếu bật theo dõi hành vi GA4. Chỉ được tải sau consent.
     -   `VITE_SENTRY_DSN`: DSN Sentry project **React** — capture lỗi frontend. Để trống local nếu không muốn noise.
     -   `SENTRY_DSN`: DSN Sentry project **Node.js** — capture lỗi backend (Express + Vercel Functions). Để trống local nếu không muốn noise.
     -   `VITE_APP_VERSION` *(tùy chọn)*: Set `$VERCEL_GIT_COMMIT_SHA` để Sentry gắn release vào từng event.
@@ -126,7 +126,7 @@ Tệp `vercel.json` ở thư mục gốc đóng vai trò quan trọng trong vi�
     | `object-src` | `'none'` |
     | `frame-ancestors` | `'none'` (bổ sung cho `X-Frame-Options`) |
 
-    > `'unsafe-inline'` cho script/style là cần thiết do có inline script SEO pre-hydration và gtag init trong `index.html`. Nếu muốn loại bỏ, cần chuyển các script inline ra file ngoài và dùng nonce/hash.
+    > `'unsafe-inline'` cho script/style là cần thiết do có inline script SEO pre-hydration trong `index.html`. Nếu muốn loại bỏ, cần chuyển các script inline ra file ngoài và dùng nonce/hash.
 
 Nội dung `#seo-static` phải hiển thị trong lúc tải bundle React, dùng cùng HTML cho user và crawler. Không ẩn bằng class `js`, `display:none` hoặc opacity: việc đó tạo trang trắng trước khi React chạy. React tự thay nội dung trong `#root` khi commit lần đầu; CSS cho nội dung tĩnh nằm trong `src/index.css`.
 

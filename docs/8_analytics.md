@@ -27,21 +27,22 @@ Phần dưới mô tả lần lượt từng chủ đề.
 |---------|----------|---------|----------|
 | **Vercel Analytics** | Lượt xem, Core Web Vitals trên dashboard Vercel | Không qua banner cookie GA | `<Analytics />` trong `src/app/AppShell.tsx` |
 | **GA4** | Funnel phân tích CV, JD, lịch sử | Bắt buộc — banner cookie | `VITE_GA_MEASUREMENT_ID` |
+| **Ahrefs Web Analytics** | Thống kê lượt truy cập | Bắt buộc — cùng consent GA4 (`loadAhrefs()` trong `ga4.ts`) | data-key cố định trong `ga4.ts` |
 
-**Measurement ID production:** `G-4SB0WWRBQC` (đặt qua biến môi trường, không hardcode trong mã nguồn).
+**Measurement ID production:** giá trị `VITE_GA_MEASUREMENT_ID` (Production) trên Vercel — nguồn sự thật duy nhất, không hardcode. Quan sát 2026-11-25: giá trị là `G-GVTPXY9S3D`; Google tag của ID này có thêm đích (destination) `G-4SB0WWRBQC`, nên hit GA4 ghi vào property `G-4SB0WWRBQC`. Quan hệ này suy ra từ phản hồi `gtag/js` và tham số `tid`, **chưa xác nhận trong GA Admin** (Data streams → Configure tag settings → Destinations). Nếu chỉ cần một property, gỡ đích thừa trong GA Admin, không đổi ID trong mã.
 
 ---
 
 ## Cookie consent (EU / VN)
 
-GA4 được **nhúng vào `index.html` lúc build** (plugin Vite `inject-google-tag` trong `vite.config.ts`) khi có `VITE_GA_MEASUREMENT_ID`. Trình duyệt tải `gtag/js` ngay — Google Tag Assistant nhận diện được. **Consent Mode** mặc định `analytics_storage: denied`; chỉ sau khi người dùng bấm **Chấp nhận phân tích** thì `ga4.ts` gọi `gtag('consent', 'update', { analytics_storage: 'granted' })` và mới gửi hit phân tích.
+GA4 và Ahrefs **chỉ được tải sau khi người dùng bấm Chấp nhận phân tích** (hoặc ở lần truy cập sau nếu đã lưu `granted`), qua `src/lib/ga4.ts`. Trước 2026-11, plugin Vite `inject-google-tag` nhúng gtag vào `index.html` lúc build: `gtag/js` tải ngay và gửi tín hiệu không cookie (`gcs=G100`) kể cả khi chưa chọn hoặc đã từ chối; Ahrefs là thẻ tĩnh trong `index.html`. Cả hai đã bị gỡ. Hệ quả: Tag Assistant / kiểm tra "tag detected" trên HTML tĩnh không còn thấy gtag — nếu Search Console xác minh quyền sở hữu bằng Google tag, chuyển sang xác minh DNS trước khi deploy. Consent Mode: `ga4.ts` đặt `default` = denied rồi `update` analytics_storage = granted ngay trước khi tải script.
 
 ### Luồng
 
 1. Lần đầu truy cập (chưa có lựa chọn trong `localStorage`) → hiện `CookieConsentBanner`.
-2. **Chấp nhận** → `grantAnalyticsConsent()` → tải gtag, `gtag('config', …)`, gửi event đã xếp hàng.
-3. **Từ chối** → `denyAnalyticsConsent()` → không tải Google; xóa hàng đợi event.
-4. Lần sau → `restoreAnalyticsConsent()` qua `AnalyticsBootstrap` (mount từ `AppShell`; nếu đã chấp nhận trước đó, tự load GA4).
+2. **Chấp nhận** → `grantAnalyticsConsent()` → tải Ahrefs + gtag, `gtag('config', …)`, gửi event đã xếp hàng.
+3. **Từ chối** → `denyAnalyticsConsent()` → không tải Google hay Ahrefs; xóa hàng đợi event. Nếu đã chấp nhận rồi mới từ chối trong cùng phiên, script đã tải vẫn còn tới khi tải lại trang, nhưng `trackEvent` ngừng gửi event.
+4. Lần sau → `restoreAnalyticsConsent()` qua `AnalyticsBootstrap` (mount từ `AppShell`; nếu đã chấp nhận trước đó, tự load GA4 + Ahrefs, mỗi script một lần).
 5. **Đổi ý** → Footer → **Cài đặt cookie** → xóa consent → banner hiện lại.
 
 ### Lưu trữ consent
@@ -74,7 +75,7 @@ Khi load, client gửi:
 
 | Biến | Bắt buộc | Mô tả |
 |------|----------|--------|
-| `VITE_GA_MEASUREMENT_ID` | Có (để bật GA4) | ID dạng `G-XXXXXXXXXX`. Ví dụ: `G-4SB0WWRBQC` |
+| `VITE_GA_MEASUREMENT_ID` | Có (để bật GA4) | ID dạng `G-XXXXXXXXXX`. Production: xem mục Measurement ID ở trên |
 
 - **Local:** `.env.local` (xem `.env.example`).
 - **Vercel (project `cvcompare`):** Settings → Environment Variables → Production + Preview → **Redeploy**.
@@ -414,9 +415,9 @@ Filter: **Hôm nay / 7 ngày / 30 ngày** — tính theo GMT+7 (không theo gi�
 ### GA4
 
 1. Cài [Google Analytics Debugger](https://chrome.google.com/webstore) hoặc dùng **DebugView** (Admin → DebugView).
-2. Mở site → **Chấp nhận** cookie → Network có request tới `googletagmanager.com/gtag/js?id=G-4SB0WWRBQC`.
+2. Mở site → trước khi chọn: Network **không** có request tới `googletagmanager.com`, `google-analytics.com` hay `analytics.ahrefs.com` → **Chấp nhận** cookie → có `gtag/js?id=<VITE_GA_MEASUREMENT_ID>` và `analytics.ahrefs.com/analytics.js`.
 3. Chạy một lượt phân tích CV → DebugView thấy `analyze_cv`, sau đó `analysis_success`.
-4. **Từ chối** cookie → không có request Google; `trackEvent` không gửi gì.
+4. **Từ chối** cookie → không có request Google hay Ahrefs (kể cả sau khi tải lại trang); `trackEvent` không gửi gì. Lưu ý: Cloudflare Web Analytics (`/cdn-cgi/rum`) và Zaraz do Cloudflare chèn ở edge, không chịu consent này — tắt trong dashboard Cloudflare nếu cần.
 
 ### Vercel
 

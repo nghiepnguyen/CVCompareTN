@@ -59,6 +59,20 @@ export function subscribeAnalyticsConsentReset(listener: () => void): () => void
   return () => window.removeEventListener(CONSENT_RESET_EVENT, listener);
 }
 
+// Ahrefs Web Analytics: optional measurement, loaded only with analytics
+// consent (it used to be a static tag in index.html that ran before any choice).
+const AHREFS_SRC = 'https://analytics.ahrefs.com/analytics.js';
+const AHREFS_KEY = 'X76zkXHI2/tBZKbeCIThzA';
+
+function loadAhrefs(): void {
+  if (document.querySelector(`script[src="${AHREFS_SRC}"]`)) return;
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = AHREFS_SRC;
+  script.dataset.key = AHREFS_KEY;
+  document.head.appendChild(script);
+}
+
 function isGtagScriptInPage(): boolean {
   return !!document.querySelector(`script[src*="googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}"]`);
 }
@@ -150,12 +164,14 @@ export async function loadGA4(): Promise<void> {
 export function restoreAnalyticsConsent(): void {
   initGa4Bootstrap();
   if (getAnalyticsConsent() === 'granted') {
+    loadAhrefs();
     void loadGA4();
   }
 }
 
 export async function grantAnalyticsConsent(): Promise<void> {
   setAnalyticsConsent('granted');
+  loadAhrefs();
   // When script is already in the page (injected via index.html), loadGA4()
   // returns early without updating consent. Apply it directly.
   if (isGtagScriptInPage() || isScriptLoaded) {
