@@ -956,7 +956,7 @@ export interface UiLabels extends ApplicationsLabels {
   authWeakPassword: string;
   authNameRequired: string;
   authEmailInUse: string;
-  authAccountPermanentlyDeleted: string;
+  authSignupBlocked: string;
   authInvalidCredentials: string;
   authSignUpSuccess: string;
   authSignUpSuccessDesc: string;
