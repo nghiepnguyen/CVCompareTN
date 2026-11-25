@@ -116,6 +116,20 @@ describe('optional analytics load only after consent', () => {
     document.cookie = 'keep_me=; Max-Age=0; path=/';
   });
 
+  it('clears GA cookies on the registrable parent domain from a subdomain', async () => {
+    vi.stubGlobal('location', { ...window.location, hostname: 'recuiter.cvfit.pro', reload: vi.fn() });
+    document.cookie = '_ga=GA1.1.1; path=/';
+    const writes: string[] = [];
+    const desc = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie')!;
+    const spy = vi.spyOn(document, 'cookie', 'set').mockImplementation((v: string) => { writes.push(v); desc.set!.call(document, v); });
+    const ga4 = await loadModule();
+    ga4.denyAnalyticsConsent();
+    spy.mockRestore();
+    vi.unstubAllGlobals();
+    expect(writes).toContain('_ga=; Max-Age=0; path=/; domain=.cvfit.pro');
+    expect(writes).toContain('_ga=; Max-Age=0; path=/; domain=recuiter.cvfit.pro');
+  });
+
   it('declining before anything loaded does not reload the page', async () => {
     const reload = vi.fn();
     vi.stubGlobal('location', { ...window.location, hostname: 'localhost', reload });

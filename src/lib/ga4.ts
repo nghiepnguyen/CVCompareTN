@@ -85,7 +85,10 @@ function clearGaCookies(): void {
     .map((c) => c.split('=')[0].trim())
     .filter((n) => n === '_ga' || n === '_gid' || n.startsWith('_ga_'));
   const host = window.location.hostname;
-  const domains = ['', host, `.${host.replace(/^www\./, '')}`];
+  // shortcut: registrable domain = last two labels (right for cvfit.pro and its
+  // subdomains such as recuiter.cvfit.pro); a multi-label TLD would need a PSL lookup.
+  const base = host.split('.').slice(-2).join('.');
+  const domains = [...new Set(['', host, `.${host}`, `.${base}`])];
   for (const name of names) {
     for (const domain of domains) {
       document.cookie = `${name}=; Max-Age=0; path=/${domain ? `; domain=${domain}` : ''}`;
