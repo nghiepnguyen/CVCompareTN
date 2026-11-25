@@ -17,8 +17,8 @@ export const system = {
     en: "Analytics cookies",
   },
   cookieConsentDesc: {
-    vi: "Chúng tôi dùng Google Analytics (GA4) để hiểu cách bạn dùng công cụ so sánh CV — chỉ sau khi bạn đồng ý. Vercel Analytics (hiệu năng, không cookie marketing) vẫn chạy độc lập. Bạn có thể từ chối hoặc đổi lựa chọn bất cứ lúc nào trong Chính sách bảo mật.",
-    en: "We use Google Analytics (GA4) to understand how you use the CV comparison tool — only after you consent. Vercel Analytics (performance, no marketing cookies) runs independently. You can decline or change your choice anytime in the Privacy Policy.",
+    vi: "Chúng tôi chỉ tải Google Analytics và Ahrefs Analytics khi bạn đồng ý, nhằm hiểu cách website được sử dụng. Một số dịch vụ hiệu năng và bảo mật hoạt động độc lập. Bạn có thể từ chối hoặc thay đổi lựa chọn trong Cài đặt cookie.",
+    en: "We only load Google Analytics and Ahrefs Analytics with your consent to understand website usage. Some performance and security services operate independently. You can decline or change your choice in Cookie Settings.",
   },
   cookieAccept: {
     vi: "Đồng ý",

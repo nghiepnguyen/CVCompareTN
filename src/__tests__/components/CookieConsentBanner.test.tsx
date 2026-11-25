@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CookieConsentBanner } from '../../components/layout/CookieConsentBanner';
+import { system } from '../../translations/system';
 
 let grant: () => Promise<void> = () => Promise.resolve();
 vi.mock('../../lib/ga4', () => ({
@@ -22,5 +23,12 @@ describe('CookieConsentBanner accept', () => {
     render(<CookieConsentBanner />);
     fireEvent.click(screen.getByText('cookieAccept'));
     await waitFor(() => expect(screen.queryByText('cookieConsentTitle')).toBeNull());
+  });
+
+  it('names both optional analytics providers in each language', () => {
+    for (const text of Object.values(system.cookieConsentDesc)) {
+      expect(text).toContain('Google Analytics');
+      expect(text).toContain('Ahrefs Analytics');
+    }
   });
 });
