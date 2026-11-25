@@ -41,7 +41,7 @@ GA4 và Ahrefs **chỉ được tải sau khi người dùng bấm Chấp nhận
 
 1. Lần đầu truy cập (chưa có lựa chọn trong `localStorage`) → hiện `CookieConsentBanner`.
 2. **Chấp nhận** → `grantAnalyticsConsent()` → tải Ahrefs + gtag, `gtag('config', …)`, gửi event đã xếp hàng.
-3. **Từ chối** → `denyAnalyticsConsent()` → không tải Google hay Ahrefs; xóa hàng đợi event. Nếu đã chấp nhận rồi mới từ chối trong cùng phiên, script đã tải vẫn còn tới khi tải lại trang, nhưng `trackEvent` ngừng gửi event.
+3. **Từ chối** → `denyAnalyticsConsent()` → không tải Google hay Ahrefs; xóa hàng đợi event. Nếu đã chấp nhận rồi mới từ chối (Footer → Cài đặt cookie → Từ chối): gửi `consent update` = denied, xóa cookie `_ga`/`_ga_*`/`_gid`, rồi **tải lại trang** vì GA4/Ahrefs đã chạy không gỡ được; trang mới không tải script nào. Lần tải trang sau với `denied` cũng xóa cookie GA còn sót.
 4. Lần sau → `restoreAnalyticsConsent()` qua `AnalyticsBootstrap` (mount từ `AppShell`; nếu đã chấp nhận trước đó, tự load GA4 + Ahrefs, mỗi script một lần).
 5. **Đổi ý** → Footer → **Cài đặt cookie** → xóa consent → banner hiện lại.
 

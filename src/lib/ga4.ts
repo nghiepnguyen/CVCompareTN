@@ -65,12 +65,32 @@ const AHREFS_SRC = 'https://analytics.ahrefs.com/analytics.js';
 const AHREFS_KEY = 'X76zkXHI2/tBZKbeCIThzA';
 
 function loadAhrefs(): void {
-  if (document.querySelector(`script[src="${AHREFS_SRC}"]`)) return;
+  if (isAhrefsInPage()) return;
   const script = document.createElement('script');
   script.async = true;
   script.src = AHREFS_SRC;
   script.dataset.key = AHREFS_KEY;
   document.head.appendChild(script);
+}
+
+function isAhrefsInPage(): boolean {
+  return !!document.querySelector(`script[src="${AHREFS_SRC}"]`);
+}
+
+// GA4 first-party cookies (_ga, _ga_<stream>, legacy _gid), on this host and the
+// registrable parent domain GA writes to by default.
+function clearGaCookies(): void {
+  const names = document.cookie
+    .split(';')
+    .map((c) => c.split('=')[0].trim())
+    .filter((n) => n === '_ga' || n === '_gid' || n.startsWith('_ga_'));
+  const host = window.location.hostname;
+  const domains = ['', host, `.${host.replace(/^www\./, '')}`];
+  for (const name of names) {
+    for (const domain of domains) {
+      document.cookie = `${name}=; Max-Age=0; path=/${domain ? `; domain=${domain}` : ''}`;
+    }
+  }
 }
 
 function isGtagScriptInPage(): boolean {
@@ -163,6 +183,7 @@ export async function loadGA4(): Promise<void> {
 
 export function restoreAnalyticsConsent(): void {
   initGa4Bootstrap();
+  if (getAnalyticsConsent() === 'denied') clearGaCookies();
   if (getAnalyticsConsent() === 'granted') {
     loadAhrefs();
     void loadGA4();
@@ -187,6 +208,19 @@ export async function grantAnalyticsConsent(): Promise<void> {
 export function denyAnalyticsConsent(): void {
   setAnalyticsConsent('denied');
   eventQueue.length = 0;
+  const optionalScriptsRunning = isScriptLoaded || isGtagScriptInPage() || isAhrefsInPage();
+  if (window.gtag) {
+    window.gtag('consent', 'update', {
+      analytics_storage: 'denied',
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+    });
+  }
+  clearGaCookies();
+  // Withdrawal after acceptance: GA4 / Ahrefs code already running in this page
+  // cannot be unloaded, so reload; the fresh page loads neither (stored 'denied').
+  if (optionalScriptsRunning) window.location.reload();
 }
 
 export function trackEvent(name: string, params?: Record<string, unknown>): void {
