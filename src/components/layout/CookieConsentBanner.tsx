@@ -37,11 +37,12 @@ export function CookieConsentBanner({ onOpenPrivacy }: CookieConsentBannerProps)
     setIsSaving(true);
     try {
       await grantAnalyticsConsent();
-      setIsVisible(false);
     } catch (err) {
+      // Choice is already stored; a blocked tag (ad blocker) must not keep the banner open.
       console.error('[CookieConsent] GA4 load failed:', err);
     } finally {
       setIsSaving(false);
+      setIsVisible(false);
     }
   };
 

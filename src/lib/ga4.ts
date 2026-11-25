@@ -59,6 +59,43 @@ export function subscribeAnalyticsConsentReset(listener: () => void): () => void
   return () => window.removeEventListener(CONSENT_RESET_EVENT, listener);
 }
 
+// Ahrefs Web Analytics: optional measurement, loaded only with analytics
+// consent (it used to be a static tag in index.html that ran before any choice).
+const AHREFS_SRC = 'https://analytics.ahrefs.com/analytics.js';
+const AHREFS_KEY = 'X76zkXHI2/tBZKbeCIThzA';
+
+function loadAhrefs(): void {
+  if (isAhrefsInPage()) return;
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = AHREFS_SRC;
+  script.dataset.key = AHREFS_KEY;
+  document.head.appendChild(script);
+}
+
+function isAhrefsInPage(): boolean {
+  return !!document.querySelector(`script[src="${AHREFS_SRC}"]`);
+}
+
+// GA4 first-party cookies (_ga, _ga_<stream>, legacy _gid), on this host and the
+// registrable parent domain GA writes to by default.
+function clearGaCookies(): void {
+  const names = document.cookie
+    .split(';')
+    .map((c) => c.split('=')[0].trim())
+    .filter((n) => n === '_ga' || n === '_gid' || n.startsWith('_ga_'));
+  const host = window.location.hostname;
+  // shortcut: registrable domain = last two labels (right for cvfit.pro and its
+  // subdomains such as recuiter.cvfit.pro); a multi-label TLD would need a PSL lookup.
+  const base = host.split('.').slice(-2).join('.');
+  const domains = [...new Set(['', host, `.${host}`, `.${base}`])];
+  for (const name of names) {
+    for (const domain of domains) {
+      document.cookie = `${name}=; Max-Age=0; path=/${domain ? `; domain=${domain}` : ''}`;
+    }
+  }
+}
+
 function isGtagScriptInPage(): boolean {
   return !!document.querySelector(`script[src*="googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}"]`);
 }
@@ -149,13 +186,16 @@ export async function loadGA4(): Promise<void> {
 
 export function restoreAnalyticsConsent(): void {
   initGa4Bootstrap();
+  if (getAnalyticsConsent() === 'denied') clearGaCookies();
   if (getAnalyticsConsent() === 'granted') {
+    loadAhrefs();
     void loadGA4();
   }
 }
 
 export async function grantAnalyticsConsent(): Promise<void> {
   setAnalyticsConsent('granted');
+  loadAhrefs();
   // When script is already in the page (injected via index.html), loadGA4()
   // returns early without updating consent. Apply it directly.
   if (isGtagScriptInPage() || isScriptLoaded) {
@@ -171,6 +211,19 @@ export async function grantAnalyticsConsent(): Promise<void> {
 export function denyAnalyticsConsent(): void {
   setAnalyticsConsent('denied');
   eventQueue.length = 0;
+  const optionalScriptsRunning = isScriptLoaded || isGtagScriptInPage() || isAhrefsInPage();
+  if (window.gtag) {
+    window.gtag('consent', 'update', {
+      analytics_storage: 'denied',
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied',
+    });
+  }
+  clearGaCookies();
+  // Withdrawal after acceptance: GA4 / Ahrefs code already running in this page
+  // cannot be unloaded, so reload; the fresh page loads neither (stored 'denied').
+  if (optionalScriptsRunning) window.location.reload();
 }
 
 export function trackEvent(name: string, params?: Record<string, unknown>): void {
