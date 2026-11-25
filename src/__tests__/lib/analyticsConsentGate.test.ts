@@ -4,10 +4,18 @@ import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const GA_ID = 'G-TEST000000';
+const GA_HOST = 'www.googletagmanager.com';
+const AHREFS_HOST = 'analytics.ahrefs.com';
+const hostOf = (src: string) => {
+  try { return new URL(src).hostname; } catch { return ''; }
+};
 const optionalScripts = () =>
   [...document.querySelectorAll('script')]
     .map((s) => s.src)
-    .filter((src) => src.includes('googletagmanager.com') || src.includes('analytics.ahrefs.com'));
+    .filter((src) => hostOf(src) === GA_HOST || hostOf(src) === AHREFS_HOST);
+const isGa = (src: string) => hostOf(src) === GA_HOST;
+const isAhrefs = (src: string) => hostOf(src) === AHREFS_HOST;
+const gaScriptEl = () => [...document.querySelectorAll('script')].find((s) => isGa(s.src))!;
 
 async function loadModule() {
   vi.resetModules();
@@ -56,8 +64,8 @@ describe('optional analytics load only after consent', () => {
     const ga4 = await loadModule();
     ga4.restoreAnalyticsConsent();
     ga4.restoreAnalyticsConsent();
-    expect(optionalScripts().filter((s) => s.includes('ahrefs'))).toHaveLength(1);
-    expect(optionalScripts().filter((s) => s.includes('googletagmanager'))).toHaveLength(1);
+    expect(optionalScripts().filter(isAhrefs)).toHaveLength(1);
+    expect(optionalScripts().filter(isGa)).toHaveLength(1);
   });
 
   it('makes no network request to GA or Ahrefs before a choice or after decline', async () => {
@@ -84,7 +92,7 @@ describe('optional analytics load only after consent', () => {
     const ga4 = await loadModule();
     ga4.restoreAnalyticsConsent();
     void ga4.grantAnalyticsConsent();
-    const gaScript = [...document.querySelectorAll('script')].find((s) => s.src.includes('googletagmanager'))!;
+    const gaScript = gaScriptEl();
     gaScript.onload?.(new Event('load'));
     document.cookie = '_ga=GA1.1.123; path=/';
     document.cookie = '_ga_TEST000000=GS1.1.456; path=/';
@@ -136,9 +144,9 @@ describe('optional analytics load only after consent', () => {
     void ga4.grantAnalyticsConsent();
     ga4.trackEvent('queued_before_load');
     void ga4.grantAnalyticsConsent(); // double click
-    expect(optionalScripts().filter((s) => s.includes('googletagmanager'))).toHaveLength(1);
-    expect(optionalScripts().filter((s) => s.includes('ahrefs'))).toHaveLength(1);
-    const gaScript = [...document.querySelectorAll('script')].find((s) => s.src.includes('googletagmanager'))!;
+    expect(optionalScripts().filter(isGa)).toHaveLength(1);
+    expect(optionalScripts().filter(isAhrefs)).toHaveLength(1);
+    const gaScript = gaScriptEl();
     gaScript.onload?.(new Event('load'));
     const events = (window.dataLayer as unknown[][]).filter((a) => a[0] === 'event').map((a) => a[1]);
     expect(events).toContain('queued_before_load');
