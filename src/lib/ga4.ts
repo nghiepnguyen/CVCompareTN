@@ -103,8 +103,10 @@ function isGtagScriptInPage(): boolean {
 function ensureDataLayer(): void {
   window.dataLayer = window.dataLayer ?? [];
   if (!window.gtag) {
-    window.gtag = (...args: unknown[]) => {
-      window.dataLayer.push(args);
+    // Google's standard snippet: gtag.js only runs entries pushed as `arguments`;
+    // an Array (e.g. from rest params) is ignored, so GA4 would never `config`.
+    window.gtag = function gtag() {
+      window.dataLayer.push(arguments);
     };
   }
 }
