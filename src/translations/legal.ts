@@ -201,8 +201,8 @@ export const legal = {
     en: "Account profile (name, email, avatar): retained for as long as your account is active.",
   },
   privacyS8Item2: {
-    vi: "Lịch sử phân tích: với gói Pro/Recruiter, lưu cho đến khi bạn tự xóa hoặc xóa tài khoản; với gói Miễn phí, tự động xóa sau 7 ngày. CV và JD đã lưu: lưu cho đến khi bạn tự xóa chúng hoặc xóa tài khoản.",
-    en: "Analysis history: on Pro/Recruiter plans, kept until you delete it or delete your account; on the Free plan, deleted automatically after 7 days. Saved CVs and JDs: kept until you delete them or delete your account.",
+    vi: "Lịch sử phân tích: khi gói Pro/Recruiter còn hiệu lực, lưu cho đến khi bạn tự xóa hoặc xóa tài khoản; khi tài khoản ở gói Miễn phí (kể cả sau khi gói trả phí hết hạn), lịch sử cũ hơn 7 ngày được tự động xóa. CV và JD đã lưu: lưu cho đến khi bạn tự xóa chúng hoặc xóa tài khoản.",
+    en: "Analysis history: while a Pro/Recruiter plan is active, kept until you delete it or delete your account; while your account is on the Free plan (including after a paid plan expires), history older than 7 days is deleted automatically. Saved CVs and JDs: kept until you delete them or delete your account.",
   },
   privacyS8Item3: {
     vi: "Tệp tải lên tạm thời phục vụ trích xuất văn bản: xóa ngay sau khi xử lý xong.",
