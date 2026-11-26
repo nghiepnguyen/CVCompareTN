@@ -507,6 +507,7 @@ export interface UiLabels extends ApplicationsLabels {
   privacyS1Item3: string;
   privacyS1Item4: string;
   privacyS1Item5: string;
+  privacyS1Item6: string;
   privacyS1Title: string;
   privacyS2Intro: string;
   privacyS2Item1: string;
@@ -521,6 +522,8 @@ export interface UiLabels extends ApplicationsLabels {
   privacyS4Intro: string;
   privacyS4Title: string;
   privacyS4Vercel: string;
+  privacyS4Ahrefs: string;
+  privacyS4Cloudflare: string;
   privacyS5Body: string;
   privacyS5Title: string;
   privacyS6Title: string;
@@ -537,12 +540,18 @@ export interface UiLabels extends ApplicationsLabels {
   privacyS7Item3: string;
   privacyS7Item4: string;
   privacyS7Item5: string;
+  privacyS7Item6: string;
+  privacyS7Item7: string;
+  privacyS7Item8: string;
+  privacyS7Item9: string;
+  privacyS7Item10: string;
   privacyS7Note: string;
   privacyS8Title: string;
   privacyS8Item1: string;
   privacyS8Item2: string;
   privacyS8Item3: string;
   privacyS8Item4: string;
+  privacyS8Item5: string;
   privacyS8Delete: string;
   privacyS9Title: string;
   privacyS9Body: string;

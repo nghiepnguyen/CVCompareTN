@@ -17,8 +17,8 @@ export const legal = {
     en: "1. Information we collect",
   },
   privacyS1Intro: {
-    vi: "Chúng tôi thu thập thông tin bạn cung cấp trực tiếp khi sử dụng dịch vụ, bao gồm:",
-    en: "We collect information you provide directly when using the service, including:",
+    vi: "Chúng tôi thu thập thông tin bạn cung cấp trực tiếp và dữ liệu kỹ thuật phát sinh khi bạn sử dụng dịch vụ, bao gồm:",
+    en: "We collect information you provide directly, and technical data generated when you use the service, including:",
   },
   privacyS1Item1: {
     vi: "Nội dung CV/Resume bạn tải lên hoặc dán vào hệ thống.",
@@ -33,12 +33,16 @@ export const legal = {
     en: "Profile information from your Google account (name, email, avatar) when you sign in.",
   },
   privacyS1Item4: {
-    vi: "Dữ liệu phân tích hành vi (chỉ khi bạn chấp nhận cookie) qua Google Analytics 4 (GA4).",
-    en: "Behavioral analytics data (only after you accept cookies) via Google Analytics 4 (GA4).",
+    vi: "Dữ liệu phân tích hành vi qua Google Analytics 4 (GA4) và Ahrefs Web Analytics, chỉ sau khi bạn chấp nhận cookie phân tích (xem mục 4).",
+    en: "Behavioral analytics via Google Analytics 4 (GA4) and Ahrefs Web Analytics, only after you accept analytics cookies (see section 4).",
   },
   privacyS1Item5: {
-    vi: "Dữ liệu hiệu năng ẩn danh qua Vercel Analytics (không dùng cho quảng cáo).",
-    en: "Anonymous performance data via Vercel Analytics (not used for advertising).",
+    vi: "Dữ liệu lượt xem và hiệu năng trang qua Vercel Analytics và Speed Insights (không dùng cho quảng cáo).",
+    en: "Page-view and page-performance data via Vercel Analytics and Speed Insights (not used for advertising).",
+  },
+  privacyS1Item6: {
+    vi: "Dữ liệu kỹ thuật khi bạn truy cập và sử dụng dịch vụ: địa chỉ IP, loại trình duyệt, trang đã xem, và nhật ký xử lý AI (thời điểm, loại tác vụ, kết quả, số token, mã lỗi). Nhật ký xử lý AI không chứa nội dung CV/JD.",
+    en: "Technical data when you visit and use the service: IP address, browser type, pages viewed, and AI processing logs (time, task type, outcome, token counts, error codes). AI processing logs do not contain CV/JD content.",
   },
   privacyS2Title: {
     vi: "2. Cách chúng tôi sử dụng thông tin",
@@ -73,24 +77,32 @@ export const legal = {
     en: "3. Data security",
   },
   privacyS3Body: {
-    vi: "Chúng tôi áp dụng các biện pháp bảo mật kỹ thuật và tổ chức nghiêm ngặt để bảo vệ dữ liệu của bạn khỏi việc truy cập, thay đổi hoặc phá hủy trái phép. Thông tin tài khoản và dữ liệu ứng dụng được lưu trên Supabase. File CV được lưu trên Supabase Storage hoặc Cloudflare R2 tùy giai đoạn triển khai, với các điều khiển truy cập và mã hóa phù hợp.",
-    en: "We apply strict technical and organizational security measures to protect your data from unauthorized access, alteration, or destruction. Account information and application data are stored on Supabase. CV files are stored on Supabase Storage or Cloudflare R2 depending on the deployment stage, with appropriate access controls and encryption.",
+    vi: "Chúng tôi áp dụng các biện pháp bảo mật kỹ thuật và tổ chức để bảo vệ dữ liệu của bạn khỏi việc truy cập, thay đổi hoặc phá hủy trái phép. Thông tin tài khoản và dữ liệu ứng dụng được lưu trên Supabase. File CV được lưu trên Supabase Storage hoặc Cloudflare R2 tùy giai đoạn triển khai, với các điều khiển truy cập và mã hóa phù hợp.",
+    en: "We apply technical and organizational security measures to protect your data from unauthorized access, alteration, or destruction. Account information and application data are stored on Supabase. CV files are stored on Supabase Storage or Cloudflare R2 depending on the deployment stage, with appropriate access controls and encryption.",
   },
   privacyS4Title: {
     vi: "4. Cookie và phân tích",
     en: "4. Cookies and analytics",
   },
   privacyS4Intro: {
-    vi: 'Google Analytics 4 (GA4) chỉ được kích hoạt sau khi bạn bấm "Chấp nhận phân tích". Nếu từ chối, script Google không được tải. Đổi lựa chọn qua "Cài đặt cookie" ở chân trang.',
-    en: 'Google Analytics 4 (GA4) runs only after you click "Accept analytics". If you decline, Google scripts are not loaded. Change your choice anytime via "Cookie settings" in the footer.',
+    vi: "Google Analytics 4 (GA4) và Ahrefs Web Analytics chỉ được tải sau khi bạn bấm \"Đồng ý\" ở thông báo cookie. Trước khi bạn chọn, hoặc nếu bạn bấm \"Từ chối\", trang không tải hai công cụ này. Nếu bạn rút lại đồng ý qua \"Cài đặt cookie\" ở chân trang, chúng tôi xóa cookie GA4 (_ga) trên trình duyệt và tải lại trang để dừng hai công cụ này. Một số công cụ đo hiệu năng bên dưới chạy không phụ thuộc lựa chọn này.",
+    en: "Google Analytics 4 (GA4) and Ahrefs Web Analytics load only after you click \"Accept\" in the cookie notice. Before you choose, or if you click \"Decline\", the page loads neither. If you withdraw consent via \"Cookie settings\" in the footer, we delete the GA4 cookies (_ga) in your browser and reload the page to stop both tools. Some performance tools below run regardless of this choice.",
   },
   privacyS4Ga4: {
     vi: "GA4: sự kiện phân tích (không gửi nội dung CV/JD).",
     en: "GA4: analytics events (CV/JD content is not sent).",
   },
   privacyS4Vercel: {
-    vi: "Vercel Analytics: hiệu năng trang, độc lập với GA4.",
-    en: "Vercel Analytics: page performance metrics, independent of GA4.",
+    vi: "Vercel Analytics và Speed Insights: lượt xem và hiệu năng trang, chạy không phụ thuộc lựa chọn cookie.",
+    en: "Vercel Analytics and Speed Insights: page views and page performance, independent of your cookie choice.",
+  },
+  privacyS4Ahrefs: {
+    vi: "Ahrefs Web Analytics: thống kê lượt truy cập (trang đã xem, nguồn giới thiệu, loại trình duyệt), chỉ sau khi bạn chấp nhận. Trong kiểm tra của chúng tôi, công cụ này không đặt cookie.",
+    en: "Ahrefs Web Analytics: visit statistics (pages viewed, referrer, browser type), only after you accept. In our checks it sets no cookies.",
+  },
+  privacyS4Cloudflare: {
+    vi: "Cloudflare Web Analytics: thống kê lượt xem và hiệu năng trang ở dạng tổng hợp, không đặt cookie; Cloudflare chèn công cụ này vào trang và nó chạy không phụ thuộc lựa chọn cookie. Cloudflare cũng chạy các kiểm tra bảo mật tự động (như phát hiện truy cập tự động) để bảo vệ trang.",
+    en: "Cloudflare Web Analytics: aggregate page-view and page-performance statistics, without cookies; Cloudflare inserts it into the page and it runs regardless of your cookie choice. Cloudflare also runs automated security checks (such as bot detection) to protect the site.",
   },
   privacyS5Title: {
     vi: "5. Quyền của bạn",
@@ -137,8 +149,8 @@ export const legal = {
     en: "We do not sell personal data. Data is shared only with the service providers required to operate the product:",
   },
   privacyS7Item1: {
-    vi: "Google Gemini API (Google LLC) — nội dung CV và JD được gửi tới để phân tích bằng AI. Google không dùng dữ liệu từ API trả phí để huấn luyện mô hình.",
-    en: "Google Gemini API (Google LLC) — CV and JD content is sent there for AI analysis. Google does not use paid-API data to train its models.",
+    vi: "Google Gemini API (Google LLC) — nội dung CV và JD được gửi tới để phân tích bằng AI. Google xử lý dữ liệu này theo điều khoản Gemini API của Google: tùy loại dịch vụ, Google có thể lưu nội dung gửi tới và kết quả trả về trong một thời gian giới hạn để phát hiện vi phạm chính sách sử dụng, có thể sử dụng chúng trong phạm vi điều khoản đó cho phép, và có thể xử lý chúng ở bất kỳ quốc gia nào Google có cơ sở.",
+    en: "Google Gemini API (Google LLC) — CV and JD content is sent there for AI analysis. Google processes this data under its Gemini API terms: depending on the service tier, Google may log prompts and responses for a limited period to detect policy violations, may use them as those terms permit, and may process them in any country where Google has facilities.",
   },
   privacyS7Item2: {
     vi: "Supabase (PostgreSQL, Auth, Storage) — lưu trữ tài khoản, lịch sử phân tích và tệp bạn tải lên.",
@@ -156,6 +168,26 @@ export const legal = {
     vi: "PayOS — xử lý thanh toán khi bạn nâng cấp gói. Chúng tôi không lưu trữ số thẻ của bạn.",
     en: "PayOS — payment processing when you upgrade. We never store your card number.",
   },
+  privacyS7Item6: {
+    vi: "Cloudflare — mạng phân phối nội dung và lớp bảo mật đứng trước toàn bộ cvfit.pro. Mọi yêu cầu tới trang web và API, kể cả nội dung CV/JD bạn gửi để phân tích, được truyền qua máy chủ của Cloudflare. Việc lưu trữ tài khoản và lịch sử phân tích do Supabase thực hiện (mục 3).",
+    en: "Cloudflare — content delivery network and security layer in front of all of cvfit.pro. Every request to the website and API, including the CV/JD content you submit for analysis, is transmitted through Cloudflare's servers. Your account and analysis history are stored by Supabase (section 3).",
+  },
+  privacyS7Item7: {
+    vi: "Sentry (máy chủ tại Hoa Kỳ) — nhận báo cáo lỗi kỹ thuật và một phần nhỏ dữ liệu hiệu năng để chúng tôi sửa lỗi. Chúng tôi tắt việc gửi thông tin người dùng, cookie và nội dung yêu cầu, đồng thời lọc email và số điện thoại khỏi thông báo lỗi trước khi gửi.",
+    en: "Sentry (servers in the USA) — receives technical error reports and a small sample of performance data so we can fix bugs. We disable sending user details, cookies and request bodies, and we filter email addresses and phone numbers out of error messages before sending.",
+  },
+  privacyS7Item8: {
+    vi: "Google reCAPTCHA v3 — khi bạn đã đăng nhập, reCAPTCHA chạy trên trang để chống lạm dụng ở các thao tác như trích xuất JD từ tệp PDF và gửi phản hồi. Việc dùng reCAPTCHA tuân theo Chính sách quyền riêng tư và Điều khoản dịch vụ của Google.",
+    en: "Google reCAPTCHA v3 — when you are signed in, reCAPTCHA runs on the page to prevent abuse of actions such as extracting a JD from a PDF and sending feedback. Use of reCAPTCHA is subject to the Google Privacy Policy and Terms of Service.",
+  },
+  privacyS7Item9: {
+    vi: "Ahrefs — thống kê lượt truy cập trang (xem mục 4); không nhận nội dung CV/JD.",
+    en: "Ahrefs — page-visit statistics (see section 4); it does not receive CV/JD content.",
+  },
+  privacyS7Item10: {
+    vi: "Google Fonts — cung cấp phông chữ hiển thị; trình duyệt của bạn gửi địa chỉ IP tới máy chủ Google khi tải phông.",
+    en: "Google Fonts — serves display fonts; your browser sends its IP address to Google's servers when loading them.",
+  },
   privacyS7Note: {
     vi: "Ngoài các trường hợp trên, chúng tôi chỉ tiết lộ dữ liệu khi pháp luật yêu cầu.",
     en: "Apart from the cases above, we disclose data only when required by law.",
@@ -169,20 +201,24 @@ export const legal = {
     en: "Account profile (name, email, avatar): retained for as long as your account is active.",
   },
   privacyS8Item2: {
-    vi: "Lịch sử phân tích, CV và JD đã lưu: lưu cho đến khi bạn tự xóa chúng hoặc xóa tài khoản.",
-    en: "Analysis history, saved CVs and JDs: retained until you delete them or delete your account.",
+    vi: "Lịch sử phân tích: với gói Pro/Recruiter, lưu cho đến khi bạn tự xóa hoặc xóa tài khoản; với gói Miễn phí, tự động xóa sau 7 ngày. CV và JD đã lưu: lưu cho đến khi bạn tự xóa chúng hoặc xóa tài khoản.",
+    en: "Analysis history: on Pro/Recruiter plans, kept until you delete it or delete your account; on the Free plan, deleted automatically after 7 days. Saved CVs and JDs: kept until you delete them or delete your account.",
   },
   privacyS8Item3: {
     vi: "Tệp tải lên tạm thời phục vụ trích xuất văn bản: xóa ngay sau khi xử lý xong.",
     en: "Temporary uploads used for text extraction: deleted as soon as processing finishes.",
   },
   privacyS8Item4: {
-    vi: "Nhật ký kỹ thuật và dữ liệu đo hiệu năng ẩn danh: tối đa 90 ngày.",
-    en: "Technical logs and anonymous performance metrics: at most 90 days.",
+    vi: "Nhật ký kỹ thuật do chúng tôi lưu (nhật ký xử lý AI, không chứa nội dung CV/JD, và lịch sử chạy tác vụ định kỳ) hiện chưa có thời hạn tự động xóa; chúng tôi sẽ cập nhật mục này khi áp dụng thời hạn lưu trữ. Dữ liệu lỗi, hiệu năng và lượt truy cập do nhà cung cấp lưu (Sentry, Vercel, Cloudflare, Ahrefs, Google) theo thời hạn của từng nhà cung cấp.",
+    en: "Technical logs we keep (AI processing logs, which contain no CV/JD content, and scheduled-job run history) currently have no automatic deletion period; we will update this section when a retention period is applied. Error, performance and visit data held by providers (Sentry, Vercel, Cloudflare, Ahrefs, Google) follow each provider's retention.",
+  },
+  privacyS8Item5: {
+    vi: "Khi một tài khoản bị xóa, chúng tôi giữ một mã băm SHA-256 của địa chỉ email (danh sách này không lưu email gốc) để chặn việc đăng ký lại bằng email đó. Mã băm được giữ cho đến khi được gỡ chặn; nhật ký quản trị nội bộ cũng ghi lại thao tác xóa kèm địa chỉ email. Nếu muốn dùng lại email, hãy liên hệ admin@cvfit.pro để yêu cầu gỡ chặn.",
+    en: "When an account is deleted, we keep a SHA-256 hash of its email address (this list does not store the email itself) to block sign-ups with that email. The hash is kept until it is unblocked; our internal admin log also records the deletion together with the email address. To use the email again, contact admin@cvfit.pro to ask for it to be unblocked.",
   },
   privacyS8Delete: {
-    vi: 'Bạn có thể xóa từng mục trong trang "Lịch sử", hoặc yêu cầu xóa toàn bộ tài khoản và mọi dữ liệu liên quan bằng cách gửi email tới admin@cvfit.pro. Chúng tôi xử lý yêu cầu xóa trong vòng 30 ngày.',
-    en: 'You can delete individual items from the "History" page, or request deletion of your entire account and all associated data by emailing admin@cvfit.pro. We process deletion requests within 30 days.',
+    vi: 'Bạn có thể xóa từng mục trong trang "Lịch sử", hoặc yêu cầu xóa toàn bộ tài khoản và mọi dữ liệu liên quan bằng cách gửi email tới admin@cvfit.pro. Chúng tôi xử lý yêu cầu xóa trong vòng 30 ngày. Một số dữ liệu được giữ lại sau khi xóa, như nêu ở mục trên.',
+    en: 'You can delete individual items from the "History" page, or request deletion of your entire account and all associated data by emailing admin@cvfit.pro. We process deletion requests within 30 days. Some data is kept after deletion, as described above.',
   },
   privacyS9Title: {
     vi: "9. Trẻ em",
@@ -197,8 +233,8 @@ export const legal = {
     en: "10. International data transfers",
   },
   privacyS10Body: {
-    vi: "Dữ liệu của bạn có thể được xử lý trên máy chủ đặt ngoài Việt Nam (Supabase, Vercel, Google Cloud). Chúng tôi chỉ chọn những nhà cung cấp áp dụng biện pháp bảo vệ dữ liệu theo tiêu chuẩn quốc tế.",
-    en: "Your data may be processed on servers outside Vietnam (Supabase, Vercel, Google Cloud). We only work with providers that apply internationally recognised data-protection safeguards.",
+    vi: "Dữ liệu của bạn được truyền tới và xử lý trên máy chủ đặt ngoài Việt Nam: Supabase và Vercel (Singapore), Cloudflare (mạng toàn cầu), Google (Gemini API, Google Analytics, reCAPTCHA — có thể ở bất kỳ quốc gia nào Google có cơ sở), Sentry (Hoa Kỳ), Ahrefs và Resend.",
+    en: "Your data is transmitted to and processed on servers outside Vietnam: Supabase and Vercel (Singapore), Cloudflare (global network), Google (Gemini API, Google Analytics, reCAPTCHA — possibly in any country where Google has facilities), Sentry (USA), Ahrefs and Resend.",
   },
   privacyS11Title: {
     vi: "11. Thay đổi chính sách",
@@ -217,8 +253,8 @@ export const legal = {
     en: "For any privacy question, or to request access to, correction of, or deletion of your data, contact: admin@cvfit.pro",
   },
   privacyLastUpdated: {
-    vi: "Cập nhật lần cuối: Ngày 22 tháng 09 năm 2026",
-    en: "Last updated: September 22, 2026",
+    vi: "Cập nhật lần cuối: Ngày 26 tháng 11 năm 2026",
+    en: "Last updated: November 26, 2026",
   },
   termsHeroSubtitle: {
     vi: "Các quy định và điều kiện khi sử dụng dịch vụ của cvfit.pro",

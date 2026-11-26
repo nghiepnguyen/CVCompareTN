@@ -325,23 +325,23 @@ function renderRouteContent(subPath: string, lang: Lang): string {
     return `<h1>${e(t.privacyPolicyPageTitle)}</h1>
       <p>${e(t.privacyHeroSubtitle)}</p>
       <h2>${e(t.privacyS1Title)}</h2><p>${e(t.privacyS1Intro)}</p>
-      <ul><li>${e(t.privacyS1Item1)}</li><li>${e(t.privacyS1Item2)}</li><li>${e(t.privacyS1Item3)}</li><li>${e(t.privacyS1Item4)}</li><li>${e(t.privacyS1Item5)}</li></ul>
+      <ul><li>${e(t.privacyS1Item1)}</li><li>${e(t.privacyS1Item2)}</li><li>${e(t.privacyS1Item3)}</li><li>${e(t.privacyS1Item4)}</li><li>${e(t.privacyS1Item5)}</li><li>${e(t.privacyS1Item6)}</li></ul>
       <h2>${e(t.privacyS2Title)}</h2><p>${e(t.privacyS2Intro)}</p>
       <ul><li>${e(t.privacyS2Item1)}</li><li>${e(t.privacyS2Item2)}</li><li>${e(t.privacyS2Item3)}</li><li>${e(t.privacyS2Item4)}</li></ul>
       <p>${e(t.privacyS2Note)}</p>
       <h2>${e(t.privacyS3Title)}</h2><p>${e(t.privacyS3Body)}</p>
       <h2>${e(t.privacyS4Title)}</h2><p>${e(t.privacyS4Intro)}</p>
-      <ul><li>${e(t.privacyS4Ga4)}</li><li>${e(t.privacyS4Vercel)}</li></ul>
+      <ul><li>${e(t.privacyS4Ga4)}</li><li>${e(t.privacyS4Vercel)}</li><li>${e(t.privacyS4Ahrefs)}</li><li>${e(t.privacyS4Cloudflare)}</li></ul>
       <h2>${e(t.privacyS5Title)}</h2><p>${e(t.privacyS5Body)}</p>
       <h2>${e(t.privacyS6Title)}</h2><p>${e(t.privacyS6Intro)}</p>
       <ul><li>${e(t.privacyS6Scope1)}</li><li>${e(t.privacyS6Scope2)}</li><li>${e(t.privacyS6Scope3)}</li></ul>
       <p>${e(t.privacyS6Note)}</p>
       <p>${e(t.privacyS6LimitedUse)} <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a></p>
       <h2>${e(t.privacyS7Title)}</h2><p>${e(t.privacyS7Intro)}</p>
-      <ul><li>${e(t.privacyS7Item1)}</li><li>${e(t.privacyS7Item2)}</li><li>${e(t.privacyS7Item3)}</li><li>${e(t.privacyS7Item4)}</li><li>${e(t.privacyS7Item5)}</li></ul>
+      <ul><li>${e(t.privacyS7Item1)}</li><li>${e(t.privacyS7Item2)}</li><li>${e(t.privacyS7Item3)}</li><li>${e(t.privacyS7Item4)}</li><li>${e(t.privacyS7Item5)}</li><li>${e(t.privacyS7Item6)}</li><li>${e(t.privacyS7Item7)}</li><li>${e(t.privacyS7Item8)}</li><li>${e(t.privacyS7Item9)}</li><li>${e(t.privacyS7Item10)}</li></ul>
       <p>${e(t.privacyS7Note)}</p>
       <h2>${e(t.privacyS8Title)}</h2>
-      <ul><li>${e(t.privacyS8Item1)}</li><li>${e(t.privacyS8Item2)}</li><li>${e(t.privacyS8Item3)}</li><li>${e(t.privacyS8Item4)}</li></ul>
+      <ul><li>${e(t.privacyS8Item1)}</li><li>${e(t.privacyS8Item2)}</li><li>${e(t.privacyS8Item3)}</li><li>${e(t.privacyS8Item4)}</li><li>${emailOff(e(t.privacyS8Item5))}</li></ul>
       <p>${emailOff(e(t.privacyS8Delete))}</p>
       <h2>${e(t.privacyS9Title)}</h2><p>${e(t.privacyS9Body)}</p>
       <h2>${e(t.privacyS10Title)}</h2><p>${e(t.privacyS10Body)}</p>

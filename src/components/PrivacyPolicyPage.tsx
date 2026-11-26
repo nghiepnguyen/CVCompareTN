@@ -20,6 +20,7 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
     t.privacyS1Item3,
     t.privacyS1Item4,
     t.privacyS1Item5,
+    t.privacyS1Item6,
   ];
   const useItems = [t.privacyS2Item1, t.privacyS2Item2, t.privacyS2Item3, t.privacyS2Item4];
   const scopeItems = [t.privacyS6Scope1, t.privacyS6Scope2, t.privacyS6Scope3];
@@ -29,8 +30,13 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
     t.privacyS7Item3,
     t.privacyS7Item4,
     t.privacyS7Item5,
+    t.privacyS7Item6,
+    t.privacyS7Item7,
+    t.privacyS7Item8,
+    t.privacyS7Item9,
+    t.privacyS7Item10,
   ];
-  const retentionItems = [t.privacyS8Item1, t.privacyS8Item2, t.privacyS8Item3, t.privacyS8Item4];
+  const retentionItems = [t.privacyS8Item1, t.privacyS8Item2, t.privacyS8Item3, t.privacyS8Item4, t.privacyS8Item5];
 
   return (
     <div className="max-w-4xl mx-auto pt-28 pb-12 px-4">
@@ -120,6 +126,8 @@ export const PrivacyPolicyPage = ({ onBack }: { onBack: () => void }) => {
             <ul className="list-disc list-inside space-y-2 ml-4 text-sm">
               <li>{t.privacyS4Ga4}</li>
               <li>{t.privacyS4Vercel}</li>
+              <li>{t.privacyS4Ahrefs}</li>
+              <li>{t.privacyS4Cloudflare}</li>
             </ul>
           </section>
 
