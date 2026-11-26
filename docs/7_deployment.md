@@ -146,7 +146,7 @@ Google Auth Platform kiểm tra **cả HTML thô lẫn bản render JS** (screen
 
 ```bash
 curl -s https://cvfit.pro/vi/privacy | grep -c "Limited Use"      # mong đợi 2
-curl -s https://cvfit.pro/vi/privacy | grep -c "admin@cvfit.pro"  # mong đợi 2
+curl -s https://cvfit.pro/vi/privacy | grep -c "admin@cvfit.pro"  # mong đợi 3
 curl -s https://cvfit.pro/ -L | grep -c "cvFit là gì"             # mong đợi 1
 ```
 
