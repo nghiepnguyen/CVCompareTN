@@ -165,7 +165,7 @@ Chính sách bảo mật mô tả: GA4 và Ahrefs chỉ chạy sau khi người 
 ```bash
 curl -s -A "Mozilla/5.0 Chrome/131" -H "Accept: text/html" https://cvfit.pro/ | grep -c zaraz      # mong đợi 0
 curl -s -A "Mozilla/5.0 Chrome/131" https://cvfit.pro/vi/ | grep -cE "zaraz|googletagmanager|ahrefs" # mong đợi 0
-curl -s https://cvfit.pro/vi/privacy | grep -cE "90 ngày|90 days"   # mong đợi 0 cho tới khi xóa log tự động chạy thật
+curl -s https://cvfit.pro/vi/privacy | grep -c "90 ngày"           # mong đợi ≥1: chính sách nêu xóa nhật ký kỹ thuật sau 90 ngày (chỉ đúng khi job purge-analysis-log đang chạy)
 ```
 
 Trong một cửa sổ ẩn danh mới (DevTools → Network, Application → Cookies):
@@ -176,6 +176,17 @@ Trong một cửa sổ ẩn danh mới (DevTools → Network, Application → Co
 4. Request luôn có (đã công bố): `/cdn-cgi/rum`, `/_vercel/insights/view`, `/_vercel/speed-insights/vitals` — không kèm cookie.
 
 Nếu thấy Zaraz hoặc cookie `cfz_*` mới xuất hiện: tắt lại trong Cloudflare → Zaraz trước, rồi mới sửa chính sách nếu cần.
+
+Xóa nhật ký kỹ thuật (P1-D1) — kiểm tra chỉ đọc trong Supabase SQL Editor, mong đợi `enabled = true`, `eligible_rows` ≤ số bản ghi của khoảng một ngày, và lần chạy gần nhất của hai job là `succeeded`:
+
+```sql
+SELECT * FROM public.preview_expired_analysis_log();
+SELECT j.jobname, d.status, d.start_time FROM cron.job j
+  LEFT JOIN LATERAL (SELECT status, start_time FROM cron.job_run_details r WHERE r.jobid = j.jobid ORDER BY start_time DESC LIMIT 1) d ON true
+ WHERE j.jobname IN ('purge-analysis-log', 'purge-cron-run-details');
+```
+
+Nếu `purge-analysis-log` `failed` với "retention is disabled": cờ `analysis_log_retention_enabled` đã bị tắt — chính sách lúc đó không còn đúng.
 
 ## 5. Bảo mật mã nguồn và bí mật
 

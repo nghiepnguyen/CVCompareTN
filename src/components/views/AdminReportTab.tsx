@@ -57,10 +57,10 @@ export function AdminReportTab() {
   const [error, setError] = useState<string | null>(null);
   const [exportBusy, setExportBusy] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
-  // P1-B: on only once the 90-day detail scrub job is live in production
+  // P1-A: on only once the 90-day row purge job is live in production
   // (set VITE_ANALYSIS_LOG_RETENTION_ACTIVE=true in the same release).
   const retentionActive = import.meta.env.VITE_ANALYSIS_LOG_RETENTION_ACTIVE === 'true';
-  // First VN day whose rows all still carry detail (part of day -90 is scrubbed).
+  // First VN day whose rows all still exist (part of day -90 is purged).
   const detailCutoff = dateInputValue(vnStartOfDay(new Date(), -89));
   const rangeHasScrubbedDetail = retentionActive && range === 'custom' && customStart < detailCutoff;
 

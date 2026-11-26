@@ -13,7 +13,8 @@
 # run, (5) with no partial change, (6) coexistence with purge-fit-shadow,
 # (7) idempotent repeated runs, (8) billing/quota/history untouched,
 # (9) failure visible in cron.job_run_details without row content,
-# (10) disable (active=false), unschedule and drop-functions rollback.
+# (10) disable (active=false), unschedule and drop-functions rollback,
+# (11) flag off fails visibly; run-history prune deletes >90-day history.
 set -euo pipefail
 
 WORK="${1:?usage: cron_integration.sh <scratch dir from scripts/ci/db-stack.sh>}"
@@ -42,9 +43,11 @@ psql_q -c "DELETE FROM public.analysis_log WHERE id::text LIKE '00000000-0000-40
 MIG="$HERE/01_purge_expired_analysis_log.sql"
 [ -f "$MIG" ] || MIG="$HERE/../../migrations/20261126000000_analysis_log_retention_disabled.sql"
 psql_q < "$MIG" >/dev/null 2>&1
-# Retention ships disabled; this suite exercises the enabled cron path (PR B).
+# Retention ships disabled; this suite exercises the enabled cron path.
 psql_q -c "UPDATE public.app_settings SET value = 'true' WHERE key = 'analysis_log_retention_enabled'" >/dev/null
-psql_q < "$HERE/02_purge_expired_analysis_log_pg_cron.sql" >/dev/null
+CRON="$HERE/02_purge_expired_analysis_log_pg_cron.sql"
+[ -f "$CRON" ] || CRON="$HERE/../../migrations/20261127000000_analysis_log_retention_pg_cron.sql"
+psql_q < "$CRON" >/dev/null
 
 # Helpers in a scratch schema (dropped at the end).
 psql_q <<'SQL'
@@ -205,6 +208,32 @@ ok "8 ledger, history (incl. 500-day row), payments, admin_audit_log, profiles, 
   && [ "$(val "select count(*) from (select * from p1b_it.orig except select jobname, schedule, command, database, username, active from cron.job) x")" = "0" ] \
   || { echo "FAIL a job definition differs from the original"; exit 1; }
 ok "all 5 job definitions restored byte-for-byte after re-timing"
+
+# (11) Flag off => every real cron run FAILS visibly (55000), deletes nothing;
+#      the run-history prune job really deletes >90-day history only.
+psql_q <<'SQL' >/dev/null
+INSERT INTO public.analysis_log(id, status, kind, created_at) VALUES ('00000000-0000-4000-8000-0000000c1100', 'success', 'analyze', now() - interval '300 days');
+UPDATE public.app_settings SET value = 'false' WHERE key = 'analysis_log_retention_enabled';
+INSERT INTO cron.job_run_details(jobid, runid, job_pid, database, username, command, status, return_message, start_time, end_time)
+SELECT (SELECT jobid FROM cron.job WHERE jobname = 'purge-analysis-log'), coalesce(max(runid), 0) + 100000 + g, 1, 'postgres', 'postgres', 'x', 'succeeded', 'p1-it-old-' || g,
+       now() - make_interval(days => 85 + g * 4), now() - make_interval(days => 85 + g * 4)
+  FROM cron.job_run_details, generate_series(1, 2) g GROUP BY g;   -- 89 and 93 days old
+SELECT p1b_it.set_mark('flagoff');
+SELECT cron.alter_job((SELECT jobid FROM cron.job WHERE jobname = 'purge-analysis-log'), schedule := '2 seconds');
+SELECT cron.alter_job((SELECT jobid FROM cron.job WHERE jobname = 'purge-cron-run-details'), schedule := '2 seconds');
+SQL
+[ "$(val "select p1b_it.wait('purge-analysis-log', 'flagoff', 2, 'failed')")" -ge 2 ] || { echo "FAIL disabled purge did not fail visibly"; exit 1; }
+[ "$(val "select bool_and(return_message ilike '%retention is disabled%') from cron.job_run_details d join cron.job j using (jobid) where j.jobname = 'purge-analysis-log' and d.start_time >= (select at from p1b_it.mark where k = 'flagoff')")" = "t" ] || { echo "FAIL disabled-run message"; exit 1; }
+[ "$(val "select count(*) from public.analysis_log where right(id::text, 4) = '1100'")" = "1" ] || { echo "FAIL disabled purge deleted a row"; exit 1; }
+[ "$(val "select p1b_it.wait('purge-cron-run-details', 'flagoff', 1, 'succeeded')")" -ge 1 ] || { echo "FAIL run-history prune did not run"; exit 1; }
+[ "$(val "select string_agg(return_message, ',' order by return_message) from cron.job_run_details where return_message like 'p1-it-old-%'")" = "p1-it-old-1" ] || { echo "FAIL run-history prune boundary"; exit 1; }
+psql_q <<'SQL' >/dev/null
+SELECT cron.alter_job((SELECT jobid FROM cron.job WHERE jobname = 'purge-analysis-log'), schedule := '40 20 * * *');
+SELECT cron.alter_job((SELECT jobid FROM cron.job WHERE jobname = 'purge-cron-run-details'), schedule := '50 20 * * *');
+UPDATE public.app_settings SET value = 'true' WHERE key = 'analysis_log_retention_enabled';
+DELETE FROM cron.job_run_details WHERE return_message LIKE 'p1-it-old-%';
+SQL
+ok "11 flag off: real cron runs fail with 'retention is disabled', 300-day row kept; purge-cron-run-details deleted the 93-day history row, kept the 89-day one"
 
 # (10) Disable: active=false at a 2-second schedule => no runs, no change.
 psql_q <<'SQL' >/dev/null
