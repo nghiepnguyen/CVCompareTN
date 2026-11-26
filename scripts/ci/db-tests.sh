@@ -46,6 +46,7 @@ STUB_ONLY=(
 # Extra stub-harness runs: name|FIXTURE_BEFORE|file
 STUB_FIXTURE_RUNS=(
   "applications_backfill|20261104000000:/repo/tests/fixtures/pre_p2b_applications.sql|applications_backfill.fixture-test.sql"
+  "analysis_log_retention_existing_db|20261126000000:/repo/tests/fixtures/pre_d1_analysis_log.sql|analysis_log_retention.fixture-test.sql"
 )
 
 failed=()

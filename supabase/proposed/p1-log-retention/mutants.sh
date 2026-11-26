@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# PROPOSED (P1-B) mutation test — DISPOSABLE LOCAL STACK ONLY. Each mutant is a
-# copy of 01/02/03/04 with one deliberate defect; it must make
-# purge_expired_analysis_log.test.sql (or, for "cron:" mutants,
-# cron_integration.sh) FAIL. Prints KILLED/SURVIVED per mutant; exit 1 if any
-# survives. Restores the unmutated 01 + 02 + 04 at the end.
+# P1-D1 mutation test — DISPOSABLE LOCAL STACK ONLY. Each mutant is a copy of
+# the Phase A migration (staged as 01), 02 or 03 with one deliberate defect; it
+# must make supabase/tests/analysis_log_retention.test.sql (or, for "cron:"
+# mutants, cron_integration.sh) FAIL. Prints KILLED/SURVIVED per mutant; exit 1
+# if any survives. Restores the unmutated migration (no cron job) at the end.
+# Phase A: run with --no-cron (the purge job is PR B).
 #   supabase/proposed/p1-log-retention/mutants.sh "<dir from scripts/ci/db-stack.sh>" [--no-cron]
 set -uo pipefail
 WORK="${1:?usage: mutants.sh <scratch dir> [--no-cron]}"; NO_CRON="${2:-}"
@@ -12,24 +13,29 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$WORK/db.env"
 case "$SUPABASE_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) echo "Refusing: not a local stack" >&2; exit 2 ;; esac
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+REPO_SB="$(cd "$HERE/../.." && pwd)"
+TEST="$REPO_SB/tests/analysis_log_retention.test.sql"
+SRC="$TMP/src"; mkdir -p "$SRC"
+cp "$REPO_SB/migrations/20261126000000_analysis_log_retention_disabled.sql" "$SRC/01_purge_expired_analysis_log.sql"
+cp "$HERE/02_purge_expired_analysis_log_pg_cron.sql" "$HERE/03_optional_daily_rollup.sql" "$HERE/cron_integration.sh" "$SRC/"
 q() { docker exec -i "$DB_CONTAINER" psql -U postgres -X -q -v ON_ERROR_STOP=1 "$@" >/dev/null 2>&1; }
 clean_p1() { # nothing of P1 left: as on production before any apply
   q -c "SELECT cron.unschedule(jobname) FROM cron.job WHERE jobname IN ('scrub-analysis-log-detail','purge-analysis-log')" \
     -c "DROP TABLE IF EXISTS public.analysis_log_daily" \
-    -c "DROP FUNCTION IF EXISTS public.scrub_expired_analysis_log_detail(), public.purge_expired_analysis_log(), public.analysis_log_retention_cutoffs()" \
-    -c "DELETE FROM public.app_settings WHERE key IN ('analysis_log_retention_days','analysis_log_detail_retention_days')" \
+    -c "DROP FUNCTION IF EXISTS public.scrub_expired_analysis_log_detail(), public.purge_expired_analysis_log(), public.preview_expired_analysis_log(), public.analysis_log_retention_cutoffs(), public.analysis_log_retention_cutoff()" \
+    -c "DELETE FROM public.app_settings WHERE key IN ('analysis_log_retention_days','analysis_log_retention_enabled','analysis_log_detail_retention_days')" \
     -c "DROP SCHEMA IF EXISTS p1b_it CASCADE" \
     -c "DELETE FROM public.analysis_log WHERE id::text LIKE '00000000-0000-4000-8000-0000000c%'" \
     -c "DELETE FROM auth.users WHERE id = '00000000-0000-4000-8000-0000000000c1'" \
     -c "DO \$\$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'p1b_mut') THEN REVOKE CREATE ON SCHEMA public FROM p1b_mut; DROP ROLE p1b_mut; END IF; END \$\$"
 }
-reset_p1() { # unmutated state: 01 + 02 + 04, no rollup table, settings at seed
+reset_p1() { # unmutated state: the migration only (no job), no rollup table, settings at seed
   clean_p1
-  q < "$HERE/01_purge_expired_analysis_log.sql"; q < "$HERE/02_scrub_analysis_log_detail_pg_cron.sql"; q < "$HERE/04_purge_expired_analysis_log_pg_cron.sql"
+  q < "$SRC/01_purge_expired_analysis_log.sql"
 }
 # mutate <file> <python-literal old> <python-literal new> : writes $TMP/<file>
 mutate() {
-  python3 - "$HERE/$1" "$TMP/$1" "$2" "$3" <<'PY'
+  python3 - "$SRC/$1" "$TMP/$1" "$2" "$3" <<'PY'
 import sys
 src, dst, old, new = sys.argv[1:5]
 s = open(src).read()
@@ -44,90 +50,103 @@ judge() { # judge <name> <rc of the test (0 = test passed = mutant survived)>
 # sql mutant: <name> <file> <old> <new> [also-apply-03]
 m() {
   local name="$1" file="$2" old="$3" new="$4" rollup="${5:-}"
-  rm -f "$TMP"/*.sql; cp "$HERE"/0*.sql "$TMP"/
+  rm -f "$TMP"/*.sql; cp "$SRC"/0*.sql "$TMP"/
   mutate "$file" "$old" "$new" || { echo "ANCHOR    $name"; survived=$((survived + 1)); names+=("$name (anchor)"); return; }
   clean_p1
   local applied=0
-  # Apply exactly as production would: 01, then 02 and 04; 03 only for rollup mutants.
+  # Existing data before apply (as in production): the migration must not touch it.
+  q -c "INSERT INTO public.analysis_log(id, status, kind, created_at) VALUES ('00000000-0000-4000-8000-0000000c0d1e', 'success', 'analyze', now() - interval '500 days')"
+  # Apply as Phase A ships: the migration only; 03 only for rollup mutants.
   q < "$TMP/01_purge_expired_analysis_log.sql" || applied=1
-  q < "$TMP/02_scrub_analysis_log_detail_pg_cron.sql" || applied=1
-  q < "$TMP/04_purge_expired_analysis_log_pg_cron.sql" || applied=1
   [ -n "$rollup" ] && { q < "$TMP/03_optional_daily_rollup.sql" || applied=1; }
   if [ $applied -ne 0 ]; then echo "APPLY-ERR $name"; survived=$((survived + 1)); names+=("$name (apply error)"); return; fi
-  docker exec -i "$DB_CONTAINER" psql -U postgres -X -q -v ON_ERROR_STOP=1 < "$HERE/purge_expired_analysis_log.test.sql" >/dev/null 2>&1
+  if [ "$(docker exec "$DB_CONTAINER" psql -U postgres -tAc "select count(*) from public.analysis_log where id = '00000000-0000-4000-8000-0000000c0d1e'")" != "1" ]; then
+    judge "$name" 1; return   # the migration itself deleted pre-existing data
+  fi
+  q -c "DELETE FROM public.analysis_log WHERE id = '00000000-0000-4000-8000-0000000c0d1e'"
+  docker exec -i "$DB_CONTAINER" psql -U postgres -X -q -v ON_ERROR_STOP=1 < "$TEST" >/dev/null 2>&1
   judge "$name" $?
 }
 # Baseline: the unmutated files must PASS, or every "kill" below is meaningless.
 reset_p1
-docker exec -i "$DB_CONTAINER" psql -U postgres -X -q -v ON_ERROR_STOP=1 < "$HERE/purge_expired_analysis_log.test.sql" >/dev/null 2>&1 \
-  || { echo "BASELINE FAIL: purge_expired_analysis_log.test.sql fails unmutated (stack not fresh?)" >&2; exit 2; }
+docker exec -i "$DB_CONTAINER" psql -U postgres -X -q -v ON_ERROR_STOP=1 < "$TEST" >/dev/null 2>&1 \
+  || { echo "BASELINE FAIL: analysis_log_retention.test.sql fails unmutated (stack not fresh?)" >&2; exit 2; }
 echo "BASELINE  rollback test passes unmutated"
-F1=01_purge_expired_analysis_log.sql; F2=02_scrub_analysis_log_detail_pg_cron.sql; F3=03_optional_daily_rollup.sql; F4=04_purge_expired_analysis_log_pg_cron.sql
-SCRUB_WHERE="   WHERE created_at < c
-     AND (error_message"
-m "scrub < to <="               $F1 "$SCRUB_WHERE" "   WHERE created_at <= c
-     AND (error_message"
-m "purge < to <="               $F1 "DELETE FROM public.analysis_log WHERE created_at < c" "DELETE FROM public.analysis_log WHERE created_at <= c"
-m "row floor 366 -> 365"        $F1 "IF dr < 366" "IF dr < 365"
-m "row ceiling 3650 -> 3651"    $F1 "OR dr > 3650" "OR dr > 3651"
-m "detail floor 90 -> 89"       $F1 "IF dd < 90" "IF dd < 89"
-m "detail <= rows dropped"      $F1 "OR dd > dr THEN" "THEN"
-m "row JSON type check dropped" $F1 "IF vr IS NULL OR jsonb_typeof(vr) <> 'number' OR" "IF vr IS NULL OR"
-m "detail JSON type check dropped" $F1 "IF vd IS NULL OR jsonb_typeof(vd) <> 'number' OR" "IF vd IS NULL OR"
-m "row 4-digit bound dropped (22003)" $F1 "(vr #>> '{}') !~ '^[0-9]{1,4}\$'" "(vr #>> '{}') !~ '^[0-9]+\$'"
-m "detail 4-digit bound dropped (22003)" $F1 "(vd #>> '{}') !~ '^[0-9]{1,4}\$'" "(vd #>> '{}') !~ '^[0-9]+\$'"
-m "error_message left"          $F1 "SET error_message = NULL, guard_metrics = NULL" "SET guard_metrics = NULL"
-m "guard_metrics left"          $F1 "SET error_message = NULL, guard_metrics = NULL" "SET error_message = NULL"
-m "model also cleared"          $F1 "SET error_message = NULL, guard_metrics = NULL" "SET error_message = NULL, guard_metrics = NULL, model = NULL"
-m "has-detail filter dropped"   $F1 "     AND (error_message IS NOT NULL OR guard_metrics IS NOT NULL);" ";"
-m "scrub uses row cutoff"       $F1 "SELECT detail_cutoff INTO c" "SELECT row_cutoff INTO c"
-m "purge uses detail cutoff"    $F1 "SELECT row_cutoff INTO c" "SELECT detail_cutoff INTO c"
-m "seed detail 90 -> 120"       $F1 "('analysis_log_detail_retention_days', '90'::jsonb)" "('analysis_log_detail_retention_days', '120'::jsonb)"
-m "seed rows 400 -> 500"        $F1 "('analysis_log_retention_days', '400'::jsonb)" "('analysis_log_retention_days', '500'::jsonb)"
-m "scrub EXECUTE to service_role" $F1 "REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, authenticated, service_role;" "REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.scrub_expired_analysis_log_detail() TO service_role;"
+clean_p1; q < "$SRC/01_purge_expired_analysis_log.sql"; q < "$SRC/03_optional_daily_rollup.sql"
+docker exec -i "$DB_CONTAINER" psql -U postgres -X -q -v ON_ERROR_STOP=1 < "$TEST" >/dev/null 2>&1 \
+  || { echo "BASELINE FAIL: test fails unmutated with the optional rollup (03)" >&2; exit 2; }
+echo "BASELINE  rollback test passes unmutated with 03"
+F1=01_purge_expired_analysis_log.sql; F2=02_purge_expired_analysis_log_pg_cron.sql; F3=03_optional_daily_rollup.sql
+m "purge < to <="               $F1 "WHERE l.created_at < c" "WHERE l.created_at <= c"
+m "floor 90 -> 89"              $F1 "IF d < 90" "IF d < 89"
+m "ceiling 3650 -> 3651"        $F1 "OR d > 3650" "OR d > 3651"
+m "JSON type check dropped"     $F1 "IF v IS NULL OR jsonb_typeof(v) <> 'number' OR" "IF v IS NULL OR"
+m "4-digit bound dropped (22003)" $F1 "(v #>> '{}') !~ '^[0-9]{1,4}\$'" "(v #>> '{}') !~ '^[0-9]+\$'"
+m "seed 90 -> 120"              $F1 "('analysis_log_retention_days', '90'::jsonb)" "('analysis_log_retention_days', '120'::jsonb)"
+m "batch 10000 -> 100000"       $F1 "                 LIMIT 10000);" "                 LIMIT 100000);"
+m "batch newest first"          $F1 "                 ORDER BY l.created_at
+                 LIMIT 10000);" "                 ORDER BY l.created_at DESC
+                 LIMIT 10000);"
+m "preview next_call unbounded" $F1 "next_call_rows := least(eligible_rows, 10000);" "next_call_rows := eligible_rows;"
+m "preview ignores cutoff"      $F1 "FROM public.analysis_log AS l WHERE l.created_at < cutoff;" "FROM public.analysis_log AS l;"
+m "preview deletes (not dry)"   $F1 "  next_call_rows := least(eligible_rows, 10000);
+END;" "  next_call_rows := least(eligible_rows, 10000);
+  DELETE FROM public.analysis_log WHERE created_at < cutoff;
+END;"
+m "preview VOLATILE"            $F1 "LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER" "LANGUAGE plpgsql
+SECURITY DEFINER"
 m "purge EXECUTE to service_role" $F1 "REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, authenticated, service_role;" "REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, authenticated;"
 m "purge EXECUTE to authenticated" $F1 "REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, authenticated, service_role;" "REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, service_role;"
-m "helper EXECUTE to service_role" $F1 "REVOKE ALL ON FUNCTION public.analysis_log_retention_cutoffs() FROM PUBLIC, anon, authenticated, service_role;" "REVOKE ALL ON FUNCTION public.analysis_log_retention_cutoffs() FROM PUBLIC, anon, authenticated;"
-m "helper REVOKE dropped (PUBLIC)" $F1 "REVOKE ALL ON FUNCTION public.analysis_log_retention_cutoffs() FROM PUBLIC, anon, authenticated, service_role;" ""
-m "scrub not SECURITY DEFINER"  $F1 "RETURNS integer
+m "preview EXECUTE to service_role" $F1 "REVOKE ALL ON FUNCTION public.preview_expired_analysis_log() FROM PUBLIC, anon, authenticated, service_role;" "REVOKE ALL ON FUNCTION public.preview_expired_analysis_log() FROM PUBLIC, anon, authenticated;"
+m "helper EXECUTE to service_role" $F1 "REVOKE ALL ON FUNCTION public.analysis_log_retention_cutoff() FROM PUBLIC, anon, authenticated, service_role;" "REVOKE ALL ON FUNCTION public.analysis_log_retention_cutoff() FROM PUBLIC, anon, authenticated;"
+m "helper REVOKE dropped (PUBLIC)" $F1 "REVOKE ALL ON FUNCTION public.analysis_log_retention_cutoff() FROM PUBLIC, anon, authenticated, service_role;" ""
+m "purge not SECURITY DEFINER"  $F1 "RETURNS integer
 LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS \$\$
-DECLARE n integer; c timestamptz;
-BEGIN
-  SELECT detail_cutoff" "RETURNS integer
-LANGUAGE plpgsql
-SET search_path = ''
-AS \$\$
-DECLARE n integer; c timestamptz;
-BEGIN
-  SELECT detail_cutoff"
+SECURITY DEFINER" "RETURNS integer
+LANGUAGE plpgsql"
 m "purge search_path unset"     $F1 "SET search_path = ''
 AS \$\$
-DECLARE n integer; c timestamptz;
-BEGIN
-  SELECT row_cutoff" "AS \$\$
-DECLARE n integer; c timestamptz;
-BEGIN
-  SELECT row_cutoff"
-m "scrub owner not postgres"    $F1 "COMMENT ON FUNCTION public.analysis_log_retention_cutoffs() IS" "CREATE ROLE p1b_mut NOLOGIN; GRANT p1b_mut TO postgres; GRANT CREATE ON SCHEMA public TO p1b_mut; ALTER FUNCTION public.scrub_expired_analysis_log_detail() OWNER TO p1b_mut;
-COMMENT ON FUNCTION public.analysis_log_retention_cutoffs() IS"
-m "scrub cron schedule changed" $F2 "'30 20 * * *'" "'30 21 * * *'"
-m "scrub cron command changed"  $F2 "'SELECT public.scrub_expired_analysis_log_detail()'" "'SELECT public.purge_expired_analysis_log()'"
-m "purge cron schedule changed" $F4 "'40 20 * * *'" "'40 19 * * *'"
-m "purge cron command changed"  $F4 "'SELECT public.purge_expired_analysis_log()'" "'SELECT public.scrub_expired_analysis_log_detail()'"
+DECLARE n integer; c timestamptz;" "AS \$\$
+DECLARE n integer; c timestamptz;"
+m "helper becomes DEFINER"      $F1 "RETURNS timestamptz
+LANGUAGE plpgsql
+STABLE" "RETURNS timestamptz
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER"
+m "purge owner not postgres"    $F1 "COMMENT ON FUNCTION public.analysis_log_retention_cutoff() IS" "CREATE ROLE p1b_mut NOLOGIN; GRANT p1b_mut TO postgres; GRANT CREATE ON SCHEMA public TO p1b_mut; ALTER FUNCTION public.purge_expired_analysis_log() OWNER TO p1b_mut;
+COMMENT ON FUNCTION public.analysis_log_retention_cutoff() IS"
+m "option B seed kept"          $F1 "  ('analysis_log_retention_days', '90'::jsonb)" "  ('analysis_log_retention_days', '90'::jsonb), ('analysis_log_detail_retention_days', '90'::jsonb)"
+# Disabled-by-default gate (Phase A).
+m "seed enabled true"           $F1 "('analysis_log_retention_enabled', 'false'::jsonb)" "('analysis_log_retention_enabled', 'true'::jsonb)"
+m "gate removed"                $F1 "  IF (SELECT s.value FROM public.app_settings AS s WHERE s.key = 'analysis_log_retention_enabled') IS DISTINCT FROM 'true'::jsonb THEN
+    RAISE EXCEPTION 'analysis_log retention is disabled' USING ERRCODE = '55000';
+  END IF;
+" ""
+m "gate accepts string true"    $F1 "WHERE s.key = 'analysis_log_retention_enabled') IS DISTINCT FROM 'true'::jsonb THEN" "WHERE s.key = 'analysis_log_retention_enabled') #>> '{}' IS DISTINCT FROM 'true' THEN"
+m "gate fails open on missing"  $F1 "WHERE s.key = 'analysis_log_retention_enabled') IS DISTINCT FROM 'true'::jsonb THEN" "WHERE s.key = 'analysis_log_retention_enabled') = 'false'::jsonb THEN"
+m "period checked before gate"  $F1 "BEGIN
+  IF (SELECT s.value FROM public.app_settings AS s WHERE s.key = 'analysis_log_retention_enabled')" "BEGIN
+  c := public.analysis_log_retention_cutoff();
+  IF (SELECT s.value FROM public.app_settings AS s WHERE s.key = 'analysis_log_retention_enabled')"
+m "preview always enabled"      $F1 "  enabled := coalesce((SELECT s.value = 'true'::jsonb FROM public.app_settings AS s WHERE s.key = 'analysis_log_retention_enabled'), false);" "  enabled := true;"
+m "migration schedules the job" $F1 "COMMENT ON FUNCTION public.analysis_log_retention_cutoff() IS" "SELECT cron.schedule('purge-analysis-log', '40 20 * * *', 'SELECT public.purge_expired_analysis_log()');
+COMMENT ON FUNCTION public.analysis_log_retention_cutoff() IS"
+m "migration deletes old rows"  $F1 "COMMENT ON FUNCTION public.analysis_log_retention_cutoff() IS" "DELETE FROM public.analysis_log WHERE created_at < now() - interval '400 days';
+COMMENT ON FUNCTION public.analysis_log_retention_cutoff() IS"
 m "rollup: non-additive merge"  $F3 "SET rows = d.rows + EXCLUDED.rows" "SET rows = EXCLUDED.rows" rollup
 m "rollup: tokens dropped"      $F3 "coalesce(sum(input_tokens), 0)" "0" rollup
 m "rollup: extra grant"         $F3 "GRANT SELECT ON public.analysis_log_daily TO authenticated;" "GRANT SELECT, INSERT ON public.analysis_log_daily TO authenticated;" rollup
 m "rollup: purge EXECUTE to service_role" $F3 "REVOKE ALL ON FUNCTION public.purge_expired_analysis_log() FROM PUBLIC, anon, authenticated, service_role;" "GRANT EXECUTE ON FUNCTION public.purge_expired_analysis_log() TO service_role;" rollup
+m "rollup: batch unbounded"     $F3 "                   LIMIT 10000)" "                   LIMIT 100000)" rollup
 
 if [ "$NO_CRON" != "--no-cron" ]; then
   # cron: mutants run the real-execution suite against a mutated copy.
   cm() { # cm <name> <file> <old> <new>
-    local name="$1"; rm -rf "$TMP/c"; mkdir -p "$TMP/c"; cp "$HERE"/0*.sql "$HERE/cron_integration.sh" "$TMP/c/"
-    python3 - "$HERE/$2" "$TMP/c/$2" "$3" "$4" <<'PY' || { echo "ANCHOR    $name"; survived=$((survived + 1)); return; }
+    local name="$1"; rm -rf "$TMP/c"; mkdir -p "$TMP/c"; cp "$SRC"/0*.sql "$SRC/cron_integration.sh" "$TMP/c/"
+    python3 - "$SRC/$2" "$TMP/c/$2" "$3" "$4" <<'PY' || { echo "ANCHOR    $name"; survived=$((survived + 1)); return; }
 import sys
 src, dst, old, new = sys.argv[1:5]; s = open(src).read()
 if old not in s: sys.exit(1)
@@ -137,23 +156,15 @@ PY
     bash "$TMP/c/cron_integration.sh" "$WORK" >/dev/null 2>&1
     judge "cron: $name" $?
   }
-  clean_p1; bash "$HERE/cron_integration.sh" "$WORK" >/dev/null 2>&1 || { echo "BASELINE FAIL: cron_integration.sh fails unmutated" >&2; exit 2; }
+  clean_p1; bash "$SRC/cron_integration.sh" "$WORK" >/dev/null 2>&1 || { echo "BASELINE FAIL: cron_integration.sh fails unmutated" >&2; exit 2; }
   echo "BASELINE  cron integration passes unmutated"
-  cm "range check fails open (WARNING)" $F1 "RAISE EXCEPTION 'analysis_log_retention_days % outside [366, 3650]', dr USING ERRCODE = '22023';" "RAISE WARNING 'analysis_log_retention_days % outside [366, 3650]', dr; RETURN;"
-  cm "scrub job calls a missing function" $F2 "'SELECT public.scrub_expired_analysis_log_detail()'" "'SELECT public.scrub_expired_analysis_log_details()'"
-  cm "scrub job inactive from the start" $F2 "SELECT cron.schedule('scrub-analysis-log-detail', '30 20 * * *', 'SELECT public.scrub_expired_analysis_log_detail()');" "SELECT cron.schedule('scrub-analysis-log-detail', '30 20 * * *', 'SELECT public.scrub_expired_analysis_log_detail()'); SELECT cron.alter_job((SELECT jobid FROM cron.job WHERE jobname = 'scrub-analysis-log-detail'), active := false);"
-  cm "scrub also deletes rows past detail cutoff" $F1 "  GET DIAGNOSTICS n = ROW_COUNT;
-  RETURN n;
-END;
-\$\$;
-
-CREATE OR REPLACE FUNCTION public.purge_expired_analysis_log()" "  GET DIAGNOSTICS n = ROW_COUNT;
+  cm "range check fails open (WARNING)" $F1 "RAISE EXCEPTION 'analysis_log_retention_days % outside [90, 3650]', d USING ERRCODE = '22023';" "RAISE WARNING 'analysis_log_retention_days % outside [90, 3650]', d; RETURN now() - interval '90 days';"
+  cm "job calls a missing function" $F2 "'SELECT public.purge_expired_analysis_log()'" "'SELECT public.purge_expired_analysis_logs()'"
+  cm "job inactive from the start"  $F2 "SELECT cron.schedule('purge-analysis-log', '40 20 * * *', 'SELECT public.purge_expired_analysis_log()');" "SELECT cron.schedule('purge-analysis-log', '40 20 * * *', 'SELECT public.purge_expired_analysis_log()'); SELECT cron.alter_job((SELECT jobid FROM cron.job WHERE jobname = 'purge-analysis-log'), active := false);"
+  cm "purge also deletes old history" $F1 "  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n;" "  GET DIAGNOSTICS n = ROW_COUNT;
   DELETE FROM public.history WHERE timestamp < c;
-  RETURN n;
-END;
-\$\$;
-
-CREATE OR REPLACE FUNCTION public.purge_expired_analysis_log()"
+  RETURN n;"
 fi
 
 reset_p1
