@@ -146,7 +146,7 @@ Google Auth Platform kiểm tra **cả HTML thô lẫn bản render JS** (screen
 
 ```bash
 curl -s https://cvfit.pro/vi/privacy | grep -c "Limited Use"      # mong đợi 2
-curl -s https://cvfit.pro/vi/privacy | grep -c "admin@cvfit.pro"  # mong đợi 2
+curl -s https://cvfit.pro/vi/privacy | grep -c "admin@cvfit.pro"  # mong đợi 3
 curl -s https://cvfit.pro/ -L | grep -c "cvFit là gì"             # mong đợi 1
 ```
 
@@ -157,6 +157,25 @@ Yêu cầu nội dung của Google (đáp ứng bởi `src/translations/legal.ts
 -   Mọi claim về dữ liệu phải **nhất quán giữa các trang** — FAQ landing từng ghi "tự động xóa sau 24 giờ" trái với retention thật trong chính sách bảo mật.
 
 Trong Google Cloud Console → OAuth consent screen, khai báo: home `https://cvfit.pro/en/`, privacy `https://cvfit.pro/en/privacy`, terms `https://cvfit.pro/en/terms` (bản tiếng Anh cho reviewer). Domain phải được verify trong Search Console cùng tài khoản submit.
+
+### Smoke quyền riêng tư sau mỗi release (và sau khi đổi cấu hình Cloudflare)
+
+Chính sách bảo mật mô tả: GA4 và Ahrefs chỉ chạy sau khi người dùng bấm "Đồng ý"; Cloudflare Web Analytics, Vercel Analytics và Speed Insights chạy độc lập, không đặt cookie; **Cloudflare Zaraz tắt**. Cấu hình Cloudflare nằm ngoài Git/CI nên phải kiểm tra tay:
+
+```bash
+curl -s -A "Mozilla/5.0 Chrome/131" -H "Accept: text/html" https://cvfit.pro/ | grep -c zaraz      # mong đợi 0
+curl -s -A "Mozilla/5.0 Chrome/131" https://cvfit.pro/vi/ | grep -cE "zaraz|googletagmanager|ahrefs" # mong đợi 0
+curl -s https://cvfit.pro/vi/privacy | grep -cE "90 ngày|90 days"   # mong đợi 0 cho tới khi xóa log tự động chạy thật
+```
+
+Trong một cửa sổ ẩn danh mới (DevTools → Network, Application → Cookies):
+
+1. Trước khi chọn và sau "Từ chối": không có request `/cdn-cgi/zaraz/`, `googletagmanager.com`, `google-analytics.com`, `www.google.com/g/collect`, `analytics.ahrefs.com`; không có cookie `cf_zaraz_client`, `cfz_*`, `cfzs_*`, `_ga*`.
+2. Sau "Đồng ý": có `gtag/js` + `g/collect` (một `page_view` mỗi lần xem trang) và `analytics.ahrefs.com/api/event`; có `_ga`, `_ga_<stream>`.
+3. "Cài đặt cookie" → "Từ chối": trang tải lại, `_ga*` bị xóa, không còn request GA4/Ahrefs.
+4. Request luôn có (đã công bố): `/cdn-cgi/rum`, `/_vercel/insights/view`, `/_vercel/speed-insights/vitals` — không kèm cookie.
+
+Nếu thấy Zaraz hoặc cookie `cfz_*` mới xuất hiện: tắt lại trong Cloudflare → Zaraz trước, rồi mới sửa chính sách nếu cần.
 
 ## 5. Bảo mật mã nguồn và bí mật
 

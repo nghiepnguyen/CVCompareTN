@@ -79,7 +79,7 @@ const ROUTE_BREADCRUMB_NAME: Record<string, { vi: string; en: string }> = {
 };
 
 const FAQ_VI = [
-  { q: 'Dữ liệu của tôi có được bảo mật không?', a: 'Tuyệt đối bảo mật. Mọi tập tin bạn tải lên đều được mã hóa bằng giao thức SSL/TLS. Tệp tải lên tạm thời được xóa ngay sau khi trích xuất xong; lịch sử phân tích được giữ cho đến khi bạn tự xóa hoặc xóa tài khoản. Chúng tôi cam kết không chia sẻ thông tin của bạn cho bất kỳ bên thứ ba nào khi chưa có sự cho phép.' },
+  { q: 'Dữ liệu của tôi có được bảo mật không?', a: 'Chúng tôi hiểu rằng CV chứa nhiều thông tin cá nhân nhạy cảm. Dữ liệu được mã hóa khi truyền qua HTTPS/TLS. Tệp tải lên tạm thời được xóa sau khi trích xuất xong. Lịch sử phân tích của gói Miễn phí tự động xóa sau 7 ngày; với gói trả phí, lịch sử được giữ cho đến khi bạn tự xóa hoặc xóa tài khoản. Chúng tôi không bán dữ liệu và chỉ chia sẻ với các nhà cung cấp cần thiết để vận hành dịch vụ, như nêu trong Chính sách bảo mật.' },
   { q: 'Hệ thống hỗ trợ những định dạng file nào?', a: 'Công cụ hỗ trợ PDF (.pdf), Word (.docx) và file hình ảnh (JPG, PNG). Khuyến khích dùng PDF để AI phân tích chính xác nhất về bố cục và khả năng đọc của ATS.' },
   { q: 'Làm sao để biết CV của tôi đã chuẩn ATS chưa?', a: 'Sau khi quét, hệ thống sẽ trả về Báo cáo ATS chi tiết. CV được coi là chuẩn ATS khi đạt Matching Score trên 80%, không chứa yếu tố gây nhiễu Robot, và chứa đầy đủ từ khóa quan trọng từ JD.' },
   { q: 'Tôi có thể sử dụng công cụ này miễn phí không?', a: 'Có! Chúng tôi cung cấp phân tích chuyên sâu hoàn toàn miễn phí cho người dùng mới để bạn trải nghiệm sức mạnh của AI.' },
@@ -87,7 +87,7 @@ const FAQ_VI = [
 ];
 
 const FAQ_EN = [
-  { q: 'Is my data secure?', a: 'Absolutely. All uploaded files are encrypted via SSL/TLS. Temporary uploads are deleted right after text extraction; your analysis history is kept until you delete it or delete your account. We never share your information with third parties without your permission.' },
+  { q: 'Is my data secure?', a: 'We understand that CVs contain sensitive personal information. Data is encrypted in transit over HTTPS/TLS. Temporary uploads are deleted after text extraction. Free-plan analysis history is deleted automatically after 7 days; on paid plans it is kept until you delete it or delete your account. We do not sell your data and share it only with the service providers needed to run the service, as listed in our Privacy Policy.' },
   { q: 'What file formats are supported?', a: 'PDF (.pdf), Word (.docx), and images (JPG, PNG). We recommend PDF for the most accurate layout and ATS readability analysis.' },
   { q: 'How do I know if my CV is ATS-ready?', a: "After scanning, you'll receive a detailed ATS Report. Your CV is ATS-ready when it scores above 80%, contains no robot-confusing elements, and includes all key JD keywords." },
   { q: 'Can I use this tool for free?', a: 'Yes! We offer in-depth analysis completely free for new users to experience the power of AI.' },
@@ -325,23 +325,23 @@ function renderRouteContent(subPath: string, lang: Lang): string {
     return `<h1>${e(t.privacyPolicyPageTitle)}</h1>
       <p>${e(t.privacyHeroSubtitle)}</p>
       <h2>${e(t.privacyS1Title)}</h2><p>${e(t.privacyS1Intro)}</p>
-      <ul><li>${e(t.privacyS1Item1)}</li><li>${e(t.privacyS1Item2)}</li><li>${e(t.privacyS1Item3)}</li><li>${e(t.privacyS1Item4)}</li><li>${e(t.privacyS1Item5)}</li></ul>
+      <ul><li>${e(t.privacyS1Item1)}</li><li>${e(t.privacyS1Item2)}</li><li>${e(t.privacyS1Item3)}</li><li>${e(t.privacyS1Item4)}</li><li>${e(t.privacyS1Item5)}</li><li>${e(t.privacyS1Item6)}</li></ul>
       <h2>${e(t.privacyS2Title)}</h2><p>${e(t.privacyS2Intro)}</p>
       <ul><li>${e(t.privacyS2Item1)}</li><li>${e(t.privacyS2Item2)}</li><li>${e(t.privacyS2Item3)}</li><li>${e(t.privacyS2Item4)}</li></ul>
       <p>${e(t.privacyS2Note)}</p>
       <h2>${e(t.privacyS3Title)}</h2><p>${e(t.privacyS3Body)}</p>
       <h2>${e(t.privacyS4Title)}</h2><p>${e(t.privacyS4Intro)}</p>
-      <ul><li>${e(t.privacyS4Ga4)}</li><li>${e(t.privacyS4Vercel)}</li></ul>
+      <ul><li>${e(t.privacyS4Ga4)}</li><li>${e(t.privacyS4Vercel)}</li><li>${e(t.privacyS4Ahrefs)}</li><li>${e(t.privacyS4Cloudflare)}</li></ul>
       <h2>${e(t.privacyS5Title)}</h2><p>${e(t.privacyS5Body)}</p>
       <h2>${e(t.privacyS6Title)}</h2><p>${e(t.privacyS6Intro)}</p>
       <ul><li>${e(t.privacyS6Scope1)}</li><li>${e(t.privacyS6Scope2)}</li><li>${e(t.privacyS6Scope3)}</li></ul>
       <p>${e(t.privacyS6Note)}</p>
       <p>${e(t.privacyS6LimitedUse)} <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a></p>
       <h2>${e(t.privacyS7Title)}</h2><p>${e(t.privacyS7Intro)}</p>
-      <ul><li>${e(t.privacyS7Item1)}</li><li>${e(t.privacyS7Item2)}</li><li>${e(t.privacyS7Item3)}</li><li>${e(t.privacyS7Item4)}</li><li>${e(t.privacyS7Item5)}</li></ul>
+      <ul><li>${e(t.privacyS7Item1)}</li><li>${e(t.privacyS7Item2)}</li><li>${e(t.privacyS7Item3)}</li><li>${e(t.privacyS7Item4)}</li><li>${e(t.privacyS7Item5)}</li><li>${e(t.privacyS7Item6)}</li><li>${e(t.privacyS7Item7)}</li><li>${e(t.privacyS7Item8)}</li><li>${e(t.privacyS7Item9)}</li><li>${e(t.privacyS7Item10)}</li></ul>
       <p>${e(t.privacyS7Note)}</p>
       <h2>${e(t.privacyS8Title)}</h2>
-      <ul><li>${e(t.privacyS8Item1)}</li><li>${e(t.privacyS8Item2)}</li><li>${e(t.privacyS8Item3)}</li><li>${e(t.privacyS8Item4)}</li></ul>
+      <ul><li>${e(t.privacyS8Item1)}</li><li>${e(t.privacyS8Item2)}</li><li>${e(t.privacyS8Item3)}</li><li>${e(t.privacyS8Item4)}</li><li>${emailOff(e(t.privacyS8Item5))}</li></ul>
       <p>${emailOff(e(t.privacyS8Delete))}</p>
       <h2>${e(t.privacyS9Title)}</h2><p>${e(t.privacyS9Body)}</p>
       <h2>${e(t.privacyS10Title)}</h2><p>${e(t.privacyS10Body)}</p>

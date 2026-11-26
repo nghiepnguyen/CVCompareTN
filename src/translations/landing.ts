@@ -484,7 +484,7 @@ export const landing = {
     vi: [
       {
         q: "Dữ liệu của tôi có được bảo mật không?",
-        a: "Tuyệt đối bảo mật. Chúng tôi hiểu rằng CV chứa nhiều thông tin cá nhân nhạy cảm. Mọi tập tin bạn tải lên đều được mã hóa bằng giao thức SSL/TLS cao cấp. Tệp tải lên tạm thời được xóa ngay sau khi trích xuất xong; lịch sử phân tích được giữ cho đến khi bạn tự xóa hoặc xóa tài khoản. Chúng tôi cam kết không chia sẻ thông tin của bạn cho bất kỳ bên thứ ba hay nhà tuyển dụng nào khi chưa có sự cho phép."
+        a: "Chúng tôi hiểu rằng CV chứa nhiều thông tin cá nhân nhạy cảm. Dữ liệu được mã hóa khi truyền qua HTTPS/TLS. Tệp tải lên tạm thời được xóa sau khi trích xuất xong. Lịch sử phân tích của gói Miễn phí tự động xóa sau 7 ngày; với gói trả phí, lịch sử được giữ cho đến khi bạn tự xóa hoặc xóa tài khoản. Chúng tôi không bán dữ liệu và chỉ chia sẻ với các nhà cung cấp cần thiết để vận hành dịch vụ, như nêu trong Chính sách bảo mật."
       },
       {
         q: "Hệ thống hỗ trợ những định dạng file nào?",
@@ -506,7 +506,7 @@ export const landing = {
     en: [
       {
         q: "Is my data secure?",
-        a: "Absolutely secure. We understand that CVs contain sensitive personal information. All files you upload are encrypted using high-level SSL/TLS protocols. Temporary uploads are deleted right after text extraction; your analysis history is kept until you delete it or delete your account. We commit not to share your information with any third party or recruiter without your permission."
+        a: "We understand that CVs contain sensitive personal information. Data is encrypted in transit over HTTPS/TLS. Temporary uploads are deleted after text extraction. Free-plan analysis history is deleted automatically after 7 days; on paid plans it is kept until you delete it or delete your account. We do not sell your data and share it only with the service providers needed to run the service, as listed in our Privacy Policy."
       },
       {
         q: "What file formats are supported?",
