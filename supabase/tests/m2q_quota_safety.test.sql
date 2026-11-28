@@ -23,6 +23,9 @@ BEGIN
    PERFORM public.purge_expired_free_history();
    RETURN;
  END IF;
+ -- Production runs with analysis_log retention enabled; run that job for real
+ -- too (this whole file rolls back).
+ UPDATE public.app_settings SET value = 'true'::jsonb WHERE key = 'analysis_log_retention_enabled';
  FOR cmd IN SELECT command FROM cron.job WHERE jobname <> 'storage-cleanup' ORDER BY jobname LOOP
    EXECUTE cmd;
    n := n + 1;

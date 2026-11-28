@@ -1,5 +1,5 @@
--- P1-D1 Phase A: analysis_log retention (20261126000000). Retention ships
--- DISABLED: purge refuses (55000) until app_settings
+-- P1-D1: analysis_log retention (20261126000000 functions, 20261127000000 daily
+-- jobs). Retention ships DISABLED: purge refuses (55000) until app_settings
 -- 'analysis_log_retention_enabled' is JSON true. Blocks that exercise the purge
 -- enable it inside their own rolled-back transaction. Synthetic rows only.
 --
@@ -167,11 +167,17 @@ BEGIN
     ASSERT (SELECT relacl::text FROM pg_class WHERE oid = 'public.analysis_log_daily'::regclass) = '{postgres=arwdDxtm/postgres,authenticated=r/postgres}', 'rollup ACL not least-privilege';
   END IF;
 
-  -- Cron: Phase A schedules nothing. No job may call the purge; option B
+  -- Cron (Phase B migration 20261127000000): exactly one daily purge job and one
+  -- run-history prune, as postgres; nothing else touches analysis_log; option B
   -- scrub job never exists. 4 existing jobs intact.
-  ASSERT NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname IN ('purge-analysis-log', 'scrub-analysis-log-detail')
-                        OR command ILIKE '%purge_expired_analysis_log%' OR command ILIKE '%analysis_log%delete%' OR command ILIKE '%delete%analysis_log%'),
-    'a cron job deletes analysis_log';
+  ASSERT (SELECT count(*) FROM cron.job WHERE jobname = 'purge-analysis-log') = 1
+     AND EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge-analysis-log' AND schedule = '40 20 * * *'
+                   AND command = 'SELECT public.purge_expired_analysis_log()' AND active AND username = 'postgres'), 'purge-analysis-log job definition';
+  ASSERT (SELECT count(*) FROM cron.job WHERE jobname = 'purge-cron-run-details') = 1
+     AND EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'purge-cron-run-details' AND schedule = '50 20 * * *'
+                   AND command = $c$DELETE FROM cron.job_run_details WHERE end_time < now() - interval '90 days'$c$ AND active AND username = 'postgres'), 'purge-cron-run-details job definition';
+  ASSERT NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname <> 'purge-analysis-log' AND command ILIKE '%analysis_log%'), 'another cron job touches analysis_log';
+  ASSERT NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'scrub-analysis-log-detail'), 'option B scrub job present';
   ASSERT (SELECT count(*) FROM cron.job WHERE jobname IN ('purge-free-history','purge-api-rate-limits','storage-cleanup','purge-fit-shadow')) = 4, 'existing cron jobs missing';
   -- P0-H analysis_log ACL unchanged.
   ASSERT (SELECT relacl::text FROM pg_class WHERE oid = 'public.analysis_log'::regclass) = '{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=ar/postgres}', 'analysis_log ACL changed';
@@ -377,5 +383,26 @@ DO $$ DECLARE c_utc timestamptz; c_vn timestamptz; pv record; BEGIN
   ASSERT c_vn = c_utc, 'cutoff moved with session time zone';
   SELECT * INTO pv FROM public.preview_expired_analysis_log();
   ASSERT pv.eligible_rows = 4, 'eligible rows changed under Asia/Ho_Chi_Minh: '||pv.eligible_rows;
+END $$;
+ROLLBACK;
+
+-- 8. purge-cron-run-details: run the job's own command; history older than 90
+--    days goes, newer stays, open runs (end_time NULL) stay. Explicit runids
+--    above the current max (postgres has no USAGE on cron.runid_seq).
+BEGIN;
+DO $$
+DECLARE base bigint := coalesce((SELECT max(runid) FROM cron.job_run_details), 0) + 1000; cmd text; before bigint;
+BEGIN
+  INSERT INTO cron.job_run_details(jobid, runid, job_pid, database, username, command, status, return_message, start_time, end_time) VALUES
+    (1, base + 1, 1, 'postgres', 'postgres', 'x', 'succeeded', 'old',    now() - interval '91 days', now() - interval '91 days'),
+    (1, base + 2, 1, 'postgres', 'postgres', 'x', 'succeeded', 'edge',   now() - interval '90 days' + interval '1 minute', now() - interval '90 days' + interval '1 minute'),
+    (1, base + 3, 1, 'postgres', 'postgres', 'x', 'succeeded', 'recent', now() - interval '1 day',   now() - interval '1 day'),
+    (1, base + 4, 1, 'postgres', 'postgres', 'x', 'running',   'open',   now() - interval '200 days', NULL);
+  SELECT count(*) INTO before FROM cron.job_run_details WHERE runid > base;
+  ASSERT before = 4, 'seed failed';
+  SELECT command INTO cmd FROM cron.job WHERE jobname = 'purge-cron-run-details';
+  EXECUTE cmd;
+  ASSERT NOT EXISTS (SELECT 1 FROM cron.job_run_details WHERE runid = base + 1), '91-day run history kept';
+  ASSERT (SELECT count(*) FROM cron.job_run_details WHERE runid IN (base + 2, base + 3, base + 4)) = 3, 'run history inside 90 days (or still open) deleted';
 END $$;
 ROLLBACK;

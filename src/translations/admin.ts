@@ -205,12 +205,12 @@ export const admin = {
     en: "To",
   },
   adminReportRetentionNotice: {
-    vi: "Chi tiết lỗi chỉ được lưu 90 ngày. Số liệu hoạt động tổng hợp dự kiến được lưu tối đa 400 ngày.",
-    en: "Error details are kept for 90 days. Aggregate activity data is planned to be kept for up to 400 days.",
+    vi: "Nhật ký xử lý AI chỉ được lưu 90 ngày; dữ liệu cũ hơn đã bị xóa.",
+    en: "AI processing logs are kept for 90 days; older data has been deleted.",
   },
   adminReportRetentionOldRange: {
-    vi: "Khoảng đã chọn bắt đầu trước {date}: danh mục lỗi trước ngày này không còn chi tiết nên có thể trống. Điều đó không có nghĩa là không có lỗi.",
-    en: "The selected range starts before {date}: error categories before that date no longer have details and may be empty. That does not mean there were no errors.",
+    vi: "Khoảng đã chọn bắt đầu trước {date}: dữ liệu trước ngày này đã bị xóa, nên số lượt, token và danh mục lỗi chỉ tính từ ngày này. Danh sách lỗi trống không có nghĩa là không có lỗi.",
+    en: "The selected range starts before {date}: data before that date has been deleted, so counts, tokens and error categories start from that date. An empty error list does not mean there were no errors.",
   },
   adminReportNewUsers: {
     vi: "User mới đăng ký",
@@ -261,8 +261,8 @@ export const admin = {
     en: "No errors in this range.",
   },
   adminReportErrorsDetailExpired: {
-    vi: "Không có chi tiết lỗi để hiển thị. Lỗi cũ hơn 90 ngày không còn chi tiết, nên danh sách trống không có nghĩa là không có lỗi.",
-    en: "No error details to show. Errors older than 90 days no longer keep details, so an empty list does not mean there were no errors.",
+    vi: "Không có chi tiết lỗi để hiển thị. Nhật ký cũ hơn 90 ngày đã bị xóa, nên danh sách trống không có nghĩa là không có lỗi.",
+    en: "No error details to show. Logs older than 90 days have been deleted, so an empty list does not mean there were no errors.",
   },
   adminReportModelMix: {
     vi: "Model & chi phí",
