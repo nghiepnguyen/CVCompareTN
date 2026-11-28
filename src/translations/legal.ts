@@ -209,8 +209,8 @@ export const legal = {
     en: "Temporary uploads used for text extraction: deleted as soon as processing finishes.",
   },
   privacyS8Item4: {
-    vi: "Nhật ký kỹ thuật do chúng tôi lưu (nhật ký xử lý AI, không chứa nội dung CV/JD, và lịch sử chạy tác vụ định kỳ): một tác vụ chạy mỗi ngày tự động xóa các bản ghi đã quá 90 ngày, nên một bản ghi thường bị xóa trong vòng một ngày sau mốc 90 ngày. Trước lần xóa đầu tiên, chúng tôi lưu một bản sao riêng tư của các nhật ký xử lý AI đến hạn xóa để phòng sự cố; bản sao này được xóa thủ công chậm nhất vào ngày 26/12/2026. Dữ liệu lỗi, hiệu năng và lượt truy cập do nhà cung cấp lưu (Sentry, Vercel, Cloudflare, Ahrefs, Google) theo thời hạn của từng nhà cung cấp.",
-    en: "Technical logs we keep (AI processing logs, which contain no CV/JD content, and scheduled-job run history): a daily job automatically deletes records older than 90 days, so a record is usually deleted within one day after it reaches 90 days. Before the first deletion we kept a private copy of the AI processing logs that were due for deletion, as a safeguard; that copy is deleted manually no later than December 26, 2026. Error, performance and visit data held by providers (Sentry, Vercel, Cloudflare, Ahrefs, Google) follow each provider's retention.",
+    vi: "Nhật ký kỹ thuật do chúng tôi lưu (nhật ký xử lý AI, không chứa nội dung CV/JD, và lịch sử chạy tác vụ định kỳ): một tác vụ chạy mỗi ngày tự động xóa các bản ghi đã quá 90 ngày, nên một bản ghi thường bị xóa trong vòng một ngày sau mốc 90 ngày. Trước khi xóa, chúng tôi có thể tạo bản sao lưu vận hành tạm thời của các bản ghi đến hạn xóa để phòng sự cố; bản sao lưu tạm thời do cvfit.pro trực tiếp quản lý được giữ không quá 30 ngày. Dữ liệu lỗi, hiệu năng và lượt truy cập do nhà cung cấp lưu (Sentry, Vercel, Cloudflare, Ahrefs, Google) theo thời hạn của từng nhà cung cấp.",
+    en: "Technical logs we keep (AI processing logs, which contain no CV/JD content, and scheduled-job run history): a daily job automatically deletes records older than 90 days, so a record is usually deleted within one day after it reaches 90 days. Before deleting, we may make a temporary operational backup of the records due for deletion, as a safeguard; temporary backups under cvfit.pro's direct control are kept for no more than 30 days. Error, performance and visit data held by providers (Sentry, Vercel, Cloudflare, Ahrefs, Google) follow each provider's retention.",
   },
   privacyS8Item5: {
     vi: "Khi một tài khoản bị xóa, chúng tôi giữ một mã băm SHA-256 của địa chỉ email (danh sách này không lưu email gốc) để chặn việc đăng ký lại bằng email đó. Mã băm được giữ cho đến khi được gỡ chặn; nhật ký quản trị nội bộ cũng ghi lại thao tác xóa kèm địa chỉ email. Nếu muốn dùng lại email, hãy liên hệ admin@cvfit.pro để yêu cầu gỡ chặn.",
@@ -253,8 +253,8 @@ export const legal = {
     en: "For any privacy question, or to request access to, correction of, or deletion of your data, contact: admin@cvfit.pro",
   },
   privacyLastUpdated: {
-    vi: "Cập nhật lần cuối: Ngày 26 tháng 11 năm 2026",
-    en: "Last updated: November 26, 2026",
+    vi: "Cập nhật lần cuối: Ngày 28 tháng 11 năm 2026",
+    en: "Last updated: November 28, 2026",
   },
   termsHeroSubtitle: {
     vi: "Các quy định và điều kiện khi sử dụng dịch vụ của cvfit.pro",
